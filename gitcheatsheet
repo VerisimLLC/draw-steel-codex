@@ -1,0 +1,15 @@
+#Pull latest changes (do this daily)
+
+git pull
+
+#Commit your changes to local git
+
+git commit -a -m "A message describing your changes"
+
+#Send commited changes to github
+
+git push
+
+#Reset all changes
+
+git reset --hard HEAD

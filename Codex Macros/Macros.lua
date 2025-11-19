@@ -196,7 +196,7 @@ Commands.awardvp = function(str)
     local points = tonumber(str) or 1
     for _, token in ipairs(dmhub.allTokens) do
         if token.properties:IsHero() then
-            token:ModifyProperties{
+            token:ModifyProperties {
                 description = "Award Victories",
                 execute = function()
                     token.properties:SetVictories(token.properties:GetVictories() + points)
@@ -207,10 +207,9 @@ Commands.awardvp = function(str)
 end
 
 Commands.showallmaps = function(str)
-    for _,map in ipairs(game.maps) do
+    for _, map in ipairs(game.maps) do
         print("MAP:", map.id, map.description)
     end
-
 end
 
 --set heroes on this map to a specific 'tutorial' level.
@@ -846,8 +845,35 @@ Commands.granttitle = function(str)
     end
 end
 
+-- (plus, minus, divide, times) (and, or) (less than, greater than, less equal, greater equal, equal, not equal)
+Commands.query = function(str)
+    local args = Commands.SplitArgs(str)
+
+    if #args == 1 then
+        local arg = args[1]
+
+        if tonumber(arg) ~= nil then
+            return arg
+        elseif dmhub.HasSetting(arg) then
+            return dmhub.GetSettingValue(arg)
+        else
+            return arg
+        end
+    elseif #args == 3 then
+        local operation = args[2]
+        local a = Commands.query(args[1])
+        local b = Commands.query(args[3])
+
+        if operation == "+" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                return a + b
+            end
+        end
+    end
+end
+
 --for testing
 Commands.print = function(str)
-    local args = Commands.SplitArgs(str)
-    print("ARGS::", str, "-->", args)
+    local result = Commands.query(str)
+    print("venla:", result)
 end

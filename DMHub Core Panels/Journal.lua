@@ -324,6 +324,17 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 return
                             end
 
+                            local halign = "left"
+                            local xadjustment = -35
+                            local dock = element:FindParentWithClass("dock")
+
+                            if dock ~= nil then
+                                halign = dock.data.TooltipAlignment()
+                                if halign == "right" then
+                                    xadjustment = 0
+                                end
+                            end
+
                             local document = member.doc
                             element.tooltip = gui.Panel {
 
@@ -331,9 +342,10 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 bgcolor = "clear",
                                 width = 180,
                                 height = 180 * 1.3 + 24,
-                                x = -35,
+                                x = xadjustment,
                                 y = 145,
                                 cornerRadius = { x1 = 4, y1 = 4, x2 = 0, y2 = 0 },
+                                halign = halign,
 
                                 flow = "vertical",
 
@@ -353,7 +365,9 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                         fontFace = "newzald",
                                         lmargin = 5,
                                         fontSize = 10,
-                                        width = "auto",
+                                        width = 140,
+                                        textWrap = false,
+                                        textOverflow = "ellipsis",
                                         height = "100%",
                                         bold = true,
                                     },
@@ -389,6 +403,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
 
                                 },
                             }
+
+                            element.tooltip:MakeNonInteractiveRecursive()
                         end,
                         canDragOnto = function(element, target)
                             return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel")) and

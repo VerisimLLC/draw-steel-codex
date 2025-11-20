@@ -240,7 +240,10 @@ local g_rulePatterns = {
     },
     --]]
     {
-        pattern = {"^(?<damage>[0-9 d+-]+) +(?<type>[a-z]+)? ?damage( \\((?<mult>half)\\))?", "^(?<damage>[0-9]+) +(?<type>[a-z]+) +damage( \\((?<mult>half)\\))?", "^(?<damage>[0-9]+) +\\+ (?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+) *damage( \\((?<mult>half)\\))?", },
+        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(\\s*\\((?<mult>half)\\))?",
+            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(\\s*\\((?<mult>half)\\))?",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(\\s*\\((?<mult>half)\\))?",
+        },
         execute = ExecuteDamage,
         isdamage = true,
     },
@@ -1241,10 +1244,10 @@ end
 --- @return string
 function ActivatedAbilityDrawSteelCommandBehavior.NormalizeDamageRuleTextForCreature(caster, rule, notes)
     --search for something like 7 + M, A, or I damage
-    local matchDamageWithCharacteristic = regex.MatchGroups(rule, "^(?<prefix>.*?)(?<number>[0-9]+) \\+ (?<attr>[MARIPmarip, ]+,? or [MARIPmarip]+)( (?<suffix>.*)|(?<suffix>[;,].*))?$")
+    local matchDamageWithCharacteristic = regex.MatchGroups(rule, "^(?<prefix>.*?)(?<number>[0-9]+)\\s*\\+\\s*(?<attr>[MARIPmarip, ]+,? or [MARIPmarip]+)(\\s*(?<suffix>.*)|(?<suffix>[;,].*))?$")
     if matchDamageWithCharacteristic == nil then
         --try to find with just a single attribute.
-        matchDamageWithCharacteristic = regex.MatchGroups(rule, "^(?<prefix>.*?)(?<number>[0-9]+) \\+ (?<attr>[A-Za-z])( (?<suffix>.*)|(?<suffix>[;,].*))?$")
+        matchDamageWithCharacteristic = regex.MatchGroups(rule, "^(?<prefix>.*?)(?<number>[0-9]+)\\s*\\+\\s*(?<attr>[A-Za-z])(\\s*(?<suffix>.*)|(?<suffix>[;,].*))?$")
     end
     if matchDamageWithCharacteristic ~= nil then
         local baseDamage = tonumber(matchDamageWithCharacteristic.number)

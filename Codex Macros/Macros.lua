@@ -849,6 +849,7 @@ end
 Commands.query = function(str)
     local args = Commands.SplitArgs(str)
 
+
     if #args == 1 then
         local arg = args[1]
 
@@ -864,9 +865,111 @@ Commands.query = function(str)
         local a = Commands.query(args[1])
         local b = Commands.query(args[3])
 
+        --plus
         if operation == "+" then
             if tonumber(a) ~= nil and tonumber(b) ~= nil then
                 return a + b
+            end
+        end
+
+        --minus
+        if operation == "-" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                return a - b
+            end
+        end
+
+        --division
+        if operation == "/" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                return a / b
+            end
+        end
+
+        --multiplication
+        if operation == "*" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                return a * b
+            end
+        end
+
+        --equal
+        if operation == "=" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a == b then
+                    return true
+                end
+                return false
+            end
+        end
+
+        --not equal
+        if operation == "~=" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a ~= b then
+                    return true
+                end
+                return false
+            end
+        end
+
+        --equal or less than
+        if operation == "<=" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a <= b then
+                    return true
+                end
+                return false
+            end
+        end
+
+        --equal or greater than
+        if operation == ">=" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a >= b then
+                    return true
+                end
+                return false
+            end
+        end
+
+        --greater than
+        if operation == ">" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a > b then
+                    return true
+                end
+                return false
+            end
+        end
+
+        --equal or less than
+        if operation == "<" then
+            if tonumber(a) ~= nil and tonumber(b) ~= nil then
+                if a < b then
+                    return true
+                end
+                return false
+            end
+
+            --and
+            if operation == "and" then
+                if a ~= nil and b ~= nil then
+                    if a and b then
+                        return true
+                    end
+                    return false
+                end
+            end
+
+            --or
+            if operation == "or" then
+                if a ~= nil and b ~= nil then
+                    if a or b then
+                        return true
+                    end
+                    return false
+                end
             end
         end
     end

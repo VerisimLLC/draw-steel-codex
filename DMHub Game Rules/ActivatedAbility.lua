@@ -4325,6 +4325,10 @@ local g_lookupSymbols = {
         return c.categorization == "Basic Attack" or c.categorization == "Signature Ability" or c:HasProperty("useasstrike") or c:HasProperty("useassignature")
     end,
 
+	remainhidden = function(c)
+		return c:try_get("remainHidden", false)
+	end,
+
 	cantrip = function(c)
 		return c.typeName == "Spell" and c:try_get("level", 0) == 0
 	end,
@@ -4448,6 +4452,12 @@ local g_helpSymbols = {
         type = "boolean",
         desc = "Whether this ability can be used as a signature ability.",
     },
+
+	remainhidden = {
+		name = "Remain Hidden",
+		type = "boolean",
+		desc = "Whether creature should remain hidden when using this ability.",
+	},
 
 	level = {
 		name = "Level",

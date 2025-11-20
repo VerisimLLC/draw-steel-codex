@@ -1849,35 +1849,19 @@ function GameHud.CreateRollDialog(self)
             --- @param element Panel
             --- @param rollInfo ChatMessageDiceRollInfoLua
             prepareBeforeRollProperties = function(element, rollInfo, enabledModifiers, rollProperties)
-                local children = element.children
-                for i, child in ipairs(children) do
-                    local mod = child.data.mod
-                    if mod ~= nil and mod.modifier ~= nil and mod.modifier:try_get("rollRequirement", "none") ~= "none" then
-                        -- Check both general roll requirements and surge-specific requirements
+                for modifierIndex, mod in ipairs(m_options.modifiers or {}) do
+                    if mod.modifier ~= nil and mod.modifier:try_get("rollRequirement", "none") ~= "none" then
                         local passes = mod.modifier:CheckRollRequirement(rollInfo, enabledModifiers, rollProperties)
 
-                        child:SetClass("collapsed", not passes)
                         mod.failsRequirement = not passes
 
                         -- Uncheck abilities that fail requirements without triggering change events
-                        if not passes and child.value then
-                            -- Temporarily remove the change event to prevent recursion
-                            local originalChange = child.events and child.events.change
-                            if child.events then
-                                child.events.change = nil
-                            end
-                            child.value = false
+                        if not passes and mod.override then
                             mod.override = false
-                            -- Restore the change event
-                            if child.events and originalChange then
-                                child.events.change = originalChange
-                            end
                         end
-
-                        --modify the failsRequirement in the modifier list.
-                        if child.data.modifierIndex ~= nil and m_options.modifiers[child.data.modifierIndex] ~= nil then
-                            m_options.modifiers[child.data.modifierIndex].failsRequirement = not passes
-                        end
+                    else
+                        -- Clear failsRequirement for modifiers without requirements
+                        mod.failsRequirement = nil
                     end
                 end
             end,
@@ -1899,6 +1883,11 @@ function GameHud.CreateRollDialog(self)
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
                     if mod.modifier then
+                        -- Skip modifiers that fail requirements
+                        if mod.failsRequirement then
+                            goto continue
+                        end
+                        
                         mod.context = mod.context or {}
                         local ischecked = false
                         local force = mod.modifier:try_get("force", false)
@@ -2074,6 +2063,8 @@ function GameHud.CreateRollDialog(self)
                         modifierDropdowns[#modifierDropdowns + 1] = dropdown
                         children[#children + 1] = panel
                     end
+                    
+                    ::continue::
                 end
 
                 element.children = children

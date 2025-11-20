@@ -2267,3 +2267,9 @@ ActivatedAbility.RegisterProperty{
     name = "Use as Signature Ability",
     description = "If true, this ability can be used where a Signature Ability can be used.",
 }
+
+ActivatedAbility.RegisterProperty{
+    id = "remainhidden",
+    name = "Remain Hidden",
+    description = "If true, this ability will not cause hidden to be lost.",
+}

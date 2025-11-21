@@ -831,6 +831,23 @@ monster.RegisterSymbol{
     }
 }
 
+monster.RegisterSymbol{
+    symbol = "ev",
+    lookup = function(c)
+        if c:IsMonster() then
+            return c.ev or 1
+        end
+
+        return 0
+    end,
+    help = {
+        name = "EV",
+        type = "number",
+        desc = "The EV of the monster.",
+        seealso = {},
+    }
+}
+
 local g_oldTemporalActiveModifiers = monster.FillTemporalActiveModifiers
 
 function monster:FillTemporalActiveModifiers(result)

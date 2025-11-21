@@ -157,9 +157,11 @@ end
 
 monster.monster_type = 'Monster'
 
-function monster.CreateNew()
+function monster.CreateNew(retainer)
 	local result = monster.new{
 		cr = 1,
+
+		retainer = retainer and retainer == "retainer",
 
 		monster_type = 'Monster', --this is the specific type of monster. e.g. Adult Black Dragon
 		monster_category = 'Monster', --this is the "Type" of monster. e.g. Dragon

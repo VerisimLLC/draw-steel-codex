@@ -3252,7 +3252,6 @@ CreateCharacterPanel = function()
                 selectors = { "bestiaryLabel" },
                 color = Styles.textColor,
                 fontFace = "dubai",
-                uppercase = true,
                 fontSize = 14,
                 bold = true,
                 height = 'auto',

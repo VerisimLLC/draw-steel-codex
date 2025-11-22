@@ -184,7 +184,7 @@ local DockablePanelTheme = {
 		--bgcolor = "#ffffff33",
 	},
 
-    	{
+    {
 		selectors = {"dockHandle"},
 		width = 32,
 		height = 64,
@@ -307,28 +307,30 @@ function GameHud:CreateSingleDock(params)
     end
 
     local closeHandle
-	closeHandle = gui.Panel{
-		idprefix = "dockHandle",
-		classes = {"dockHandle", params.halign},
-		floating = true,
+    if not floating then
+        closeHandle = gui.Panel{
+            idprefix = "dockHandle",
+            classes = {"dockHandle", params.halign},
+            floating = true,
 
-		monitor = offscreenSetting,
+            monitor = offscreenSetting,
 
-		events = {
-            press = function(element)
-				dmhub.SetSettingValue(offscreenSetting, not dmhub.GetSettingValue(offscreenSetting))
-			end,
+            events = {
+                press = function(element)
+                    dmhub.SetSettingValue(offscreenSetting, not dmhub.GetSettingValue(offscreenSetting))
+                end,
 
-			monitor = function(element)
-				resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
-				dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
-			end,
+                monitor = function(element)
+                    resultPanel:SetClass("offscreen", dmhub.GetSettingValue(offscreenSetting))
+                    dmhub.UpdateScreenHudArea(cond(resultPanel:HasClass("offscreen"), 0, 1))
+                end,
 
-			create = function(element)
-				element:FireEvent("monitor")
-			end,
-		}
-	}
+                create = function(element)
+                    element:FireEvent("monitor")
+                end,
+            }
+        }
+    end
 
 	local DockHeight = (params.height or 1080)
 	params.height = DockHeight

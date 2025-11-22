@@ -368,9 +368,9 @@ function creature:CurrentMovementSpeed()
 	if result == 0 then
 		--if we are in a movement mode we can't perform, just return the walking speed.
 		--Every foot we move will count as an extra foot though, but that is handled seperately.
-		return self:WalkingSpeed()
+		return math.max(0, self:WalkingSpeed())
 	end
-	return result
+	return math.max(0, result)
 end
 
 --- if we are using this movement type, what will our speed be at it?
@@ -8312,7 +8312,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 		local age = TimestampAgeInSeconds(value.timestamp)
 		if age > 60 then
 			deletes[#deletes+1] = key
-		elseif triggerInfo ~= nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false then
+		elseif triggerInfo ~= nil and availableTriggers[triggerInfo.id] == nil and triggerInfo.powerRollModifier == false and value.powerRollModifier == false then
             --de-duplicate spammy triggers that all do the same thing, e.g. if Tactician Mastermind's Overwatch trigger against the same moving creature.
 			if (not value.dismissed) and (not value.triggered) and (value.text == triggerInfo.text) and (value.rules == triggerInfo.rules) and dmhub.DeepEqual(value.modes, triggerInfo.modes) and dmhub.DeepEqual(value.targets, triggerInfo.targets) then
 				--just refresh this trigger instead of creating a new one.

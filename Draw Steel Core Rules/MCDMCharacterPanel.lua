@@ -2641,12 +2641,12 @@ function CharacterPanel.DecoratePortraitPanel(token)
                     y = 45,
 
                     hover = function(element)
-                        if token == nil or not token.valid then
+                        if m_token == nil or not m_token.valid then
                             return
                         end
                         local q = dmhub.initiativeQueue
                         if q == nil or q.hidden then
-                            element.tooltip = string.format("No %s while not in combat.", token.properties:GetHeroicResourceName())
+                            element.tooltip = string.format("No %s while not in combat.", m_token.properties:GetHeroicResourceName())
                             return
                         end
                         local desc = m_token.properties:GetHeroicResourceName()

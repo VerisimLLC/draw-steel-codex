@@ -812,18 +812,21 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 end,
                             },
                             gui.Label{
-                                width = 16,
-                                height = 16,
-                                cornerRadius = 8,
+                                width = 18,
+                                height = 18,
+                                cornerRadius = 9,
                                 borderWidth = 1,
                                 borderColor = Styles.textColor,
                                 bgimage = true,
                                 bgcolor = "black",
                                 textAlignment = "center",
+                                textOverflow = "overflow",
+                                textWrap = false,
                                 color = Styles.textColor,
                                 bold = true,
                                 text = "1",
                                 fontSize = 11,
+                                minFontSize = 9,
                                 create = function(element)
                                     if member.parentFolder == game.currentMapId then
                                         local found = false

@@ -968,10 +968,19 @@ TokenUI.RegisterStatusBar{
             return nil
         end
 
+        local showAsPct = false
+        if dmhub.isDM == false and dmhub.GetSettingValue("hppctforenemy") then
+            local token = dmhub.LookupToken(creature)
+            if token then
+                showAsPct = not token.isFriendOfPlayer
+            end
+        end
+
         return {
             value = creature:CurrentHitpoints(),
             max = creature:MaxHitpoints(),
             temp = creature:TemporaryHitpoints(),
+            showAsPct = showAsPct,
             width = 1, --math.min(1, math.max(0.25, (max_hp*0.1)/creature:GetCalculatedCreatureSizeAsNumber())),
         }
     end

@@ -788,9 +788,25 @@ TokenHud.RegisterPanel{
                                         if barInfo.text or barInfo.base.text then
                                             element.text = barInfo.text or barInfo.base.text
                                         elseif (barInfo.temp or 0) > 0 then
-										    element.text = string.format("%d+%d / %d", round(barInfo.value), round(barInfo.temp), round(barInfo.max))
+											if barInfo.showAsPct then
+												if barInfo.max and barInfo.max ~= 0 then
+													element.text = string.format("%d%%", round(100 * ((barInfo.value + barInfo.temp) / barInfo.max)))
+												else
+													element.text = "div/0"
+												end
+											else
+										    	element.text = string.format("%d+%d / %d", round(barInfo.value), round(barInfo.temp), round(barInfo.max))
+											end
                                         else
-										    element.text = string.format("%d / %d", round(barInfo.value), round(barInfo.max))
+											if barInfo.showAsPct then
+												if barInfo.max and barInfo.max ~= 0 then
+													element.text = string.format("%d%%", round(100 * (barInfo.value / barInfo.max)))
+												else
+													element.text = "div/0"
+												end
+											else
+										    	element.text = string.format("%d / %d", round(barInfo.value), round(barInfo.max))
+											end
                                         end
 									end,
 								}

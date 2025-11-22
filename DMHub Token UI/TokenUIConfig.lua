@@ -158,6 +158,17 @@ local playersSeeEnemyHitpoints = setting{
     classes = {"dmonly"},
 }
 
+local playersSeeEnemyHitpointsAsPercent = setting{
+    id = "hppctforenemy",
+    description = "Stamina bars for enemies show percentage",
+    editor = "check",
+    default = false,
+
+    storage = "game",
+    section = "game",
+    classes = {"dmonly"},
+}
+
 
 TokenUI.RegisterStatusBar{
     id = "lifebar",

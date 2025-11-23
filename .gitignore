@@ -1,6 +1,7 @@
 # Compiled Lua sources
 luac.out
 
+status.json
 *.sw?
 
 # luarocks build files

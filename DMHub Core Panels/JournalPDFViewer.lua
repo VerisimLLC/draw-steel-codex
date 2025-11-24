@@ -886,7 +886,7 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
                         gui.Label {
                             width = 40,
                             fontSize = 12,
-                            text = string.format("p. %d", result.page),
+                            text = string.format("p. %s", document.summary.pageLabels[result.page + 1] or (result.page + 1)),
                         },
 
                         gui.Label {

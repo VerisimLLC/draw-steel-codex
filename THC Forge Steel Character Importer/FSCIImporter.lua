@@ -12,16 +12,88 @@ local writeDebug = FSCIUtils.writeDebug
 local writeLog = FSCIUtils.writeLog
 local STATUS = FSCIUtils.STATUS
 
+Commands.importfs = function(str)
+    FSCIImporter.ImportCharacter(function(token)
+        if not dmhub.isDM then
+            token.ownerId = dmhub.userid
+        end
+        token:ChangeLocation(core.Loc{x = 0, y = 0})
+        token:ShowSheet("Builder")
+    end)
+end
+
+function FSCIImporter.ImportCharacter(executeOnNewCharacter)
+    dmhub.OpenFileDialog{
+        id = "ImportForgeSteelCharacter",
+        extensions = {"json", "ds-hero"},
+        multiFiles = false,
+        prompt = "Choose Forge Steel Character File",
+        open = function(path)
+
+            local obj = dmhub.ParseJsonFile(path)
+            if obj == nil then
+                writeLog("!!!! Failed to parse Forge Steel JSON file: " .. path, STATUS.WARN)
+                return
+            end
+
+            writeLog("Parsed json file from " .. path)
+
+            local knownCharacters = {}
+            local characters = table.values(game.GetGameGlobalCharacters())
+            for _,v in ipairs(characters) do
+                knownCharacters[v.charid] = true
+            end
+
+            import:ClearState()
+
+            local importer = FSCIImporter:new(obj)
+            importer:Import()
+
+            local imports = import:GetImports()
+
+            import:CompleteImportStep()
+
+            if imports.character ~= nil then
+                writeLog("Import complete, opening character sheet...")
+                dmhub.Coroutine(function()
+                    for i = 1,100 do
+                        coroutine.yield()
+                        local characters = table.values(game.GetGameGlobalCharacters())
+                        for _,token in ipairs(characters) do
+                            if not knownCharacters[token.charid] then
+                                writeLog("Opening character sheet for " .. token.charid .. " " .. token.name)
+                                if executeOnNewCharacter then
+                                    executeOnNewCharacter(token)
+                                end
+                                return
+                            end
+                        end
+                    end
+                end)
+            else
+                writeLog("!!!! Import failed, no character created.", STATUS.WARN)
+            end
+        end,
+    }
+end
+
 --- Creates a new FSCIImporter instance for importing a Forge Steel character into the Codex.
---- @param jsonText string The JSON string from Forge Steel character export
+--- @param jsonText string|table The JSON string from Forge Steel character export, can also be an already-parsed json object in Forge Steel format.
 --- @return FSCIImporter|nil instance The new adapter instance if valid, nil if parsing fails
 function FSCIImporter:new(jsonText)
-    if not jsonText or #jsonText == 0 then
-        writeLog("!!!! Empty Forge Steel import file.", STATUS.WARN)
-        return nil
+    local parsedData = nil
+
+    if type(jsonText) == "table" then
+        parsedData = jsonText
+    else
+        if not jsonText or #jsonText == 0 then
+            writeLog("!!!! Empty Forge Steel import file.", STATUS.WARN)
+            return nil
+        end
+
+        parsedData = dmhub.FromJson(jsonText).result
     end
 
-    local parsedData = dmhub.FromJson(jsonText).result
     if not parsedData then
         writeLog("!!!! Invalid Forge Steel JSON format.", STATUS.WARN)
         return nil

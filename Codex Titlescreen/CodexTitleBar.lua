@@ -11,16 +11,32 @@ local function CreateCodexMenuItem(args)
     local menuItems = args.menuItems
     args.menuItems = nil
 
+    local invertIcon = args.invertIcon
+    args.invertIcon = nil
+
     if args.icon then
-        args.icon = nil
+        local styles = nil
+        if invertIcon then
+            styles = {
+                {
+                    selectors = {"parent:hover"},
+                    inversion = 1,
+                },
+            }
+        end
         iconPanel = gui.Panel{
+            styles = styles,
             width = 24,
             height = 24,
-            bgimage = "ui-icons/codex-logo.png",
+            bgimage = args.icon,
             bgcolor = "white",
             valign = "center",
             interactable = false,
+            seticon = function(element, icon)
+                element.bgimage = icon
+            end,
         }
+        args.icon = nil
     end
 
     local CollectMenuItems
@@ -48,6 +64,10 @@ local function CreateCodexMenuItem(args)
         gui.Label{
             classes = {"menuLabel"},
             text = name,
+            setname = function(element, newname)
+                name = newname
+                element.text = newname
+            end,
             interactable = false,
         },
 
@@ -597,70 +617,6 @@ TopBar.SetAdventureDocuments = function(documentids)
     end
 end
 
-local function CreateAdventureDocumentsBar()
-    local resultPanel
-
-    resultPanel = gui.Panel{
-        flow = "horizontal",
-        height = "100%",
-        lmargin = 40,
-        width = 300,
-        halign = "left",
-        styles = {
-            {
-                selectors = {"label"},
-                fontSize = 16,
-                minFontSize = 12,
-                color = Styles.textColor,
-                bgcolor = Styles.RichBlack02,
-                bgimage = true,
-                width = 140,
-                height = "100%",
-                bold = true,
-            },
-            {
-                selectors = {"label", "hover"},
-                bgcolor = Styles.textColor,
-                color = Styles.RichBlack02,
-            },
-        },
-        destroy = function(element)
-            if g_adventureDocumentsBar == element then
-                g_adventureDocumentsBar = nil
-            end
-        end,
-
-        documents = function(element, documentids)
-            documentids = documentids or {}
-            local children = {}
-
-            local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
-            for i,docid in ipairs(documentids) do
-                local doc = customDocs[docid]
-                if doc ~= nil and not rawget(doc, "hidden") then
-                    local panel = gui.Label{
-                        text = doc.description,
-                        textWrap = false,
-                        textOverflow = "ellipsis",
-
-                        press = function(element)
-                            local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
-                            CustomDocument.OpenContent(customDocs[docid])
-                        end,
-                    }
-
-                    children[#children+1] = panel
-                end
-            end 
-
-            element.children = children
-        end,
-    }
-
-    return resultPanel
-end
-
-
 --- @param info {id: string}
 TopBar.SetPresentationInfo = function(info)
     if g_presentationBar == nil  or (not g_presentationBar.valid) then
@@ -748,11 +704,43 @@ local function CreateTopBar()
     local m_inGame = nil
     local m_searchBar = CreateSearchBar()
     local m_presentationBar = CreatePresentationBar()
-    local m_adventureDocumentsBar = CreateAdventureDocumentsBar()
 
     g_searchBar = m_searchBar
     g_presentationBar = m_presentationBar
+
+
+    local m_documents
+    local m_adventureDocumentsBar = CreateCodexMenuItem{
+        icon = "panels/drawsteel/delian-tomb.png",
+        invertIcon = true,
+        name = "Delian Tomb",
+        create = function(element)
+            element.selfStyle.collapsed = 1
+        end,
+        menuItems = function()
+            local result = {}
+            local documentsTable = dmhub.GetTable(CustomDocument.tableName) or {}
+            for _,docid in ipairs(m_documents or {}) do
+                local doc = documentsTable[docid]
+                if doc ~= nil then
+                    result[#result+1] = {
+                        text = doc.name,
+                        click = function()
+                            doc:ShowDocument()
+                        end,
+                    }
+                end
+            end
+            return result
+        end,
+        documents = function(element, documentids)
+            m_documents = documentids
+            element.selfStyle.collapsed = (#m_documents == 0) or (not dmhub.isDM)
+        end,
+    }
+
     g_adventureDocumentsBar = m_adventureDocumentsBar
+
 
     local menuBar = gui.Panel{
         id = "menuBarPanel",
@@ -775,6 +763,10 @@ local function CreateTopBar()
                 collapsed = 1,
             },
         },
+
+        destroy = function(element)
+            g_adventureDocumentsBar = nil
+        end,
 
         thinkTime = 0.1,
         think = function(element)
@@ -889,6 +881,7 @@ local function CreateTopBar()
             end,
         },
 
+        m_adventureDocumentsBar,
 
         CreateCodexMenuItem{
             name = "Developer",
@@ -908,7 +901,6 @@ local function CreateTopBar()
             end,
         },
 
-        m_adventureDocumentsBar,
         m_presentationBar,
         CreateStatusBar(),
         m_searchBar,

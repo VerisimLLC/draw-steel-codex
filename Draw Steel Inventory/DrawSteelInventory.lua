@@ -1181,7 +1181,6 @@ local CreateInventorySlot = function(dmhud, options)
 			end,
 
 			SetSlot = function(info, tok, dialog)
-				printf("SET SLOT QUANTITY SET")
 				parentDialog = dialog
 				token = tok
 				slotPanel:SetClass('adding', false)

@@ -192,7 +192,7 @@ local DockablePanelTheme = {
 		bgcolor = "white",
 		saturation = 0,
 		brightness = 2,
-        opacity = 0.5,
+        opacity = 0.8,
         x = 8,
     },
 

@@ -29,11 +29,22 @@ end
 dmhub.RegisterEventHandler("EnterGame", function()
     if dmhub.isDM then
         local adventuresDocument = GetCurrentAdventuresDocument()
+        local docid = nil
+        local bestOrd = nil
+        local welcomeDocument = nil
+        for k,v in pairs(adventuresDocument.data) do
+            if string.lower(v.name or "") == "director welcome" then
+                welcomeDocument = k
+            end
+            if bestOrd == nil or (v.order ~= nil and v.order < bestOrd) then
+                bestOrd = v.order
+                docid = k
+            end
+        end
 
-        local docid = adventuresDocument and adventuresDocument.data.slots and adventuresDocument.data.slots["slot1"]
-        if docid == nil then
+        if docid == nil and welcomeDocument ~= nil then
             dmhub.Execute('setadventuredocument 1 "Director Welcome"')
-            docid = adventuresDocument and adventuresDocument.data.slots and adventuresDocument.data.slots["slot1"]
+            docid = welcomeDocument
         end
 
         if docid ~= nil then

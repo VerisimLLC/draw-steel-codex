@@ -638,7 +638,7 @@ function GameHud:CreateAdventureDocumentsManager()
         monitorGame = GetCurrentAdventuresDocument().path,
         refreshGame = function(element)
             local doc = GetCurrentAdventuresDocument()
-            local docs = doc.data.slots or {}
+            local docs = doc.data or {}
             if dmhub.DeepEqual(m_docs, docs) then
                 return
             end
@@ -646,13 +646,20 @@ function GameHud:CreateAdventureDocumentsManager()
             m_docs = DeepCopy(docs)
 
             local documentids = {}
-            for i=1,2 do
-                local key = string.format("slot%d", i)
-                local docid = doc.data.slots and doc.data.slots[key]
-                if docid ~= nil then
-                    documentids[#documentids+1] = docid
-                end
+            for docid,info in pairs(m_docs) do
+                documentids[#documentids+1] = docid
             end
+
+            table.sort(documentids, function(a,b)
+                local ordera = m_docs[a] and m_docs[a].order or 9999
+                local orderb = m_docs[b] and m_docs[b].order or 9999
+                if ordera == orderb then
+                    return a < b
+                end
+                return ordera < orderb
+            end)
+
+            print("ADVENTURE::", docs, "->", documentids)
 
             TopBar.SetAdventureDocuments(documentids)
         end,

@@ -26,7 +26,7 @@ Commands.doc = function(str)
 end
 
 
-local g_adventureDocumentId = "adventureDocs"
+local g_adventureDocumentId = "adventureDocuments"
 
 function GetCurrentAdventuresDocument()
     local doc = mod:GetDocumentSnapshot(g_adventureDocumentId)
@@ -36,32 +36,32 @@ end
 Commands.setadventuredocument = function(str)
     if str == "help" then
         dmhub.Log(
-            "Usage: /setadventuredocument <slotnumber> <document name>\n Sets the given slot number to the given document name as the current adventure document.")
+            "Usage: /setadventuredocument <order> <document name>\n Sets the given document name to be a 'current' adventure document.\n'order' is a number which specifies the order it should be displayed in.\nUse 'off' instead of a number for order to remove the document from the current list.")
         return
     end
 
     local args = Commands.SplitArgs(str)
-    if #args ~= 2 or tonumber(args[1]) == nil then
+    if #args ~= 2 then
         print("LINK:: INVALID")
         return
     end
 
-    local slot = tonumber(args[1])
-    if slot ~= 1 and slot ~= 2 then
-        dmhub.Log("Only slots 1 and 2 are valid for adventure documents.")
-        return
-    end
+    local ord = tonumber(args[1])
 
     local name = string.lower(args[2])
 
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
     for k, doc in unhidden_pairs(customDocs) do
         if string.lower(doc.name) == name then
-            local doc = mod:GetDocumentSnapshot(g_adventureDocumentId)
+            local doc = GetCurrentAdventuresDocument()
             doc:BeginChange()
-            local slots = doc.data.slots or {}
-            doc.data.slots = slots
-            slots[string.format("slot%d", slot)] = k
+            if ord == nil then
+                doc.data[k] = nil
+            else
+                doc.data[k] = {
+                    order = ord
+                }
+            end
             doc:CompleteChange("Change variable")
             print("LINK:: Changed mod document")
             return
@@ -213,13 +213,9 @@ end
 local CreateFolderContentsPanel
 
 local function CreateFolderPanel(journalPanel, folderid)
-    local builtinFolder = folderid == "private" or folderid == "public" or folderid == "templates" or folderid == "adventure" or
+    local builtinFolder = folderid == "private" or folderid == "public" or folderid == "templates" or
         folderid == game.currentMapId or folderid == dmhub.loginUserid
     local m_contentPanel = CreateFolderContentsPanel(journalPanel, folderid)
-
-    if folderid == "adventure" then
-        return m_contentPanel
-    end
 
     local resultPanel
     resultPanel = gui.TreeNode {
@@ -327,25 +323,12 @@ local function CreateFolderPanel(journalPanel, folderid)
     return resultPanel
 end
 
-local g_adventurePanelStyles = {
-    gui.Style{
-        selectors = {"label"},
-        bold = true,
-        fontSize = 22,
-    }
-}
-
 CreateFolderContentsPanel = function(journalPanel, folderid)
     local m_documentPanels = {}
     local contentPanel
     local m_invalidated = true
 
-    local dragTarget = folderid ~= "adventure"
-
-    local styles
-    if folderid == "adventure" then
-        styles = g_adventurePanelStyles
-    end
+    local dragTarget = true
 
 
     contentPanel = gui.Panel {
@@ -354,7 +337,6 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         flow = "vertical",
         dragTarget = dragTarget,
         dragTargetPriority = 1,
-        styles = styles,
         classes = { "contentPanel" },
         x = cond(folderid == "", 0, 8),
 
@@ -1041,9 +1023,6 @@ CreateJournalPanel = function()
                 element:FireEvent("refreshAssets")
             end,
 
-            monitorGame = cond(dmhub.isDM, mod:GetDocumentSnapshot(g_adventureDocumentId).path),
-            monitorGameEvent = "refreshAssets",
-
             monitorAssets = { "documents", "images", "objecttables" },
             refreshAssets = function(element)
                 journalPanel.data.documentFoldersTable = {
@@ -1097,24 +1076,6 @@ CreateJournalPanel = function()
                 local foldersToMembers = {}
 
                 local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
-                if dmhub.isDM then
-                    local adventureDocuments = mod:GetDocumentSnapshot(g_adventureDocumentId)
-                    if adventureDocuments ~= nil and adventureDocuments.data ~= nil and adventureDocuments.data.slots ~= nil then
-                        for i=1,2 do
-                            local key = string.format("slot%d", i)
-                            local docid = adventureDocuments.data.slots[key]
-                            if docid ~= nil and docid ~= "" then
-                                local doc = customDocs[docid]
-                                if doc ~= nil and not doc.hidden then
-                                    local parentFolder = "adventure"
-                                    local members = foldersToMembers[parentFolder] or {}
-                                    members[docid] = doc
-                                    foldersToMembers[parentFolder] = members
-                                end
-                            end
-                        end
-                    end
-                end
 
                 local docs = assets.pdfDocumentsTable
                 for k, doc in pairs(docs or {}) do

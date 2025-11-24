@@ -157,50 +157,19 @@ local function EditHero(element, character)
     end)
 end
 
+local function ImportForgeSteel(element)
+    FSCIImporter.ImportCharacter(function(c)
+        c:ModifyProperties {
+            description = "Create Character",
+            execute = function()
+                c.properties.mtime = ServerTimestamp()
+                c.properties.creatorid = dmhub.userid
+            end,
+        }
+    end)
+end
 
 local function CreateHero(element)
-    local chars = table.values(dmhub.GetAllCharacters())
-    if #chars >= 8 then
-        local modal
-        modal = gui.Panel {
-            classes = { "framedPanel" },
-            styles = {
-                Styles.Default,
-                Styles.Panel,
-            },
-            floating = true,
-            width = 600,
-            height = 600,
-
-            gui.Label {
-                classes = { "title" },
-                text = "Too Many Heroes",
-            },
-
-            gui.Label {
-                classes = { "dialogMessage" },
-                text = "You currently have the maximum number of heroes. Please delete an existing hero before creating a new one.",
-            },
-
-            gui.Panel {
-                classes = { "dialogButtonsPanel" },
-                gui.Button {
-                    classes = { "dialogButton" },
-                    text = "Close",
-                    halign = "center",
-                    scale = 0.7,
-                    click = function(element)
-                        modal:DestroySelf()
-                    end,
-                },
-            },
-        }
-
-        element.root:AddChild(modal)
-
-        return
-    end
-
     local heroType = nil
     local characterTypes = dmhub.GetTable(CharacterType.tableName)
     for k, v in pairs(characterTypes) do
@@ -3119,6 +3088,10 @@ function CreateTitlescreen(dialog, options)
                                     cornerRadius = 8,
                                     y = -10,
 
+                                    hover = function(element)
+                                        gui.Tooltip("Create a Hero")(element)
+                                    end,
+
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
                                         local chars = table.values(dmhub.GetAllCharacters())
@@ -3158,18 +3131,21 @@ function CreateTitlescreen(dialog, options)
                                     fontSize = 30,
                                     y = -10,
 
+                                    hover = function(element)
+                                        gui.Tooltip("Import a Hero from Forge Steel")(element)
+                                    end,
+
                                     monitorGame = "/characters",
                                     refreshGame = function(element)
                                         local chars = table.values(dmhub.GetAllCharacters())
                                         element:SetClass("hidden", #chars >= 8)
                                     end,
 
-                                    press = CreateHero,
+                                    press = ImportForgeSteel,
                                 },
-
-
                             }
                         },
+
 
                         gui.Panel {
                             flow = "horizontal",

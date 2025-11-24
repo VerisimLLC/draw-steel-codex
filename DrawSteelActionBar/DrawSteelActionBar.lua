@@ -2536,7 +2536,7 @@ CreateAbilityController = function()
                             g_channeledResourcePanel:FireEventTree("focusspell")
 
                             --If the spell's tooltip varies depending on the mode, then refresh it.
-                            if g_currentAbility:RenderVariesWithDifferentModes() then
+                            if g_currentAbility ~= nil and g_currentAbility:RenderVariesWithDifferentModes() then
                                 --TODO: refresh tooltip.
                                 --m_currentSpellPanel.data.tooltipSource:FireEvent("showtooltip")
                             end
@@ -3007,7 +3007,9 @@ CreateAbilityController = function()
 
             dmhub.blockTokenSelection = true
 
-            CalculateSpellTargeting()
+            --Don't force cast when beginning casting
+            --Abilities with prompts need to wait for user input
+            CalculateSpellTargeting(false, true)
 
             g_channeledResourcePanel:FireEventTree("focusspell")
 
@@ -4028,8 +4030,7 @@ local function CalculateSpellTargetFocusing(range)
     return potentialTargetTokens
 end
 
-
-CalculateSpellTargeting = function(forceCast)
+CalculateSpellTargeting = function(forceCast, initialSetup)
     assert(g_currentAbility ~= nil, "CalculateSpellTargeting called with nil g_currentAbility")
     assert(g_skipButton ~= nil)
 
@@ -4064,7 +4065,8 @@ CalculateSpellTargeting = function(forceCast)
 
         g_skipButton:SetClass("collapsed", not g_currentAbility:try_get("skippable", false))
 
-        if (not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) or forceCast then
+        -- Don't auto-cast on initial setup unless requested
+        if ((not g_currentAbility:CanSelectMoreTargets(g_token, targets, g_currentSymbols)) or forceCast) and not initialSetup then
             --we can't select more targets, so cast the spell in here.
             g_token.lookAtMouse = false
             if g_castingEmoteSet and g_token.valid then

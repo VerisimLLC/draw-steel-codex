@@ -681,7 +681,6 @@ CreateMapDialog = function()
 		halign = "center",
 		valign = "top",
 		vscroll = true,
-		vscrollLockToBottom = true,
 		treeInnerPanel,
 	}
 

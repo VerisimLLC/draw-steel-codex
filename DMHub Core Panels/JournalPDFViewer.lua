@@ -343,6 +343,7 @@ local function SmartImporterPanel(doc)
 end
 
 local ShowPDFViewerDialogInternal = function(doc, starting_page)
+    print("PDF:: SHOW WITH", type(starting_page), json(starting_page))
     local document = doc.doc
     printf("PAGES: %d", document.summary.npages)
 
@@ -358,6 +359,8 @@ local ShowPDFViewerDialogInternal = function(doc, starting_page)
     if starting_page ~= nil then
         if type(starting_page) == "string" then
             starting_page = trim(string.lower(starting_page))
+        elseif type(starting_page) == "number" then
+            m_npage = starting_page
         end
         for i,label in ipairs(document.summary.pageLabels) do
             if starting_page == string.lower(label) then

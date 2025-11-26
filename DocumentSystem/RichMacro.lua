@@ -40,8 +40,6 @@ function RichMacro.CreateDisplay(self)
             end
 
             if m_strike ~= nil and m_token ~= nil and self:GetDocument() ~= nil then
-                print("TOKEN::", m_token)
-
                 local doc = self:GetDocument()
                 doc:PatchToken(m_token, string.format("[[/%s%s|%s]]", cond(m_strike == "~", "/", "~"), m_command, m_text))
                 doc:Upload()

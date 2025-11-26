@@ -1603,7 +1603,14 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                         tagsSeen[candidate] = true
 
-                        local richTag = richTagFromPattern or self.annotations[candidate]
+                        local richTag
+                        
+                        if richTagFromPattern then
+                            richTag = DeepCopy(richTagFromPattern)
+                        else
+                            richTag = self.annotations[candidate]
+                        end
+                        
                         if richTag ~= nil then
                             local panel = m_richPanels[candidate] or richTag:CreateDisplay()
 

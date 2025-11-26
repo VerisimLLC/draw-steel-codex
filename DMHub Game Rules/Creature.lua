@@ -5425,9 +5425,9 @@ end
 
 function creature:Destroy(note)
     if self.minion then
-	    self:TakeDamage(self:SingleMinionMaxStamina(), note, {})
+	    self:TakeDamage(self:SingleMinionMaxStamina(), note, {doesNotTrigger = true})
     else
-	    self:TakeDamage(self:MaxHitpoints(), note, {})
+	    self:TakeDamage(self:MaxHitpoints(), note, {doesNotTrigger = true})
     end
 end
 

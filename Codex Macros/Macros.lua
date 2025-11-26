@@ -1147,6 +1147,17 @@ Commands.query = function(str)
     end
 end
 
+Commands.link = function(str)
+    local args = Commands.SplitArgs(str)
+    if #args ~= 1 then
+        return
+    end
+    local doc = CustomDocument.ResolveLink(args[1])
+    print("LINK:: RESOLVE", args[1], "DOC:", doc)
+    if doc ~= nil then
+        CustomDocument.OpenContent(doc)
+    end
+end
 
 --for testing
 Commands.print = function(str)

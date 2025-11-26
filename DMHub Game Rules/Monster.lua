@@ -30,7 +30,7 @@ local settingAssignMonstersNamesPrivate = setting{
 	description = "Monster Names Private",
 	help = "Monster names are private to the DM by default.",
 	editor = "check",
-	default = true,
+	default = false,
 	storage = "game",
 	section = "game",
 }

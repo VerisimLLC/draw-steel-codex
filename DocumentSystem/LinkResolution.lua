@@ -286,7 +286,6 @@ function CustomDocument.ResolveLink(link)
         local docid = string.sub(link, 10)
         local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
         local doc = customDocs[docid]
-        print("LINK:: RESOLVE TO", docid, doc)
         return doc
     end
 

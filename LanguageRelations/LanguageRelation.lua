@@ -632,13 +632,19 @@ local function fixupMissingName()
 	end
 end
 
--- If the language relations table is empty, attempt to load Orden defaults
-local langRelTable = dmhub.GetTableVisible(LanguageRelation.tableName) or {}
-if next(langRelTable) == nil then
-	loadOrdenRels()
-else
-	fixupMissingName()
-end
+local g_oneTimeEventHandler
+
+g_oneTimeEventHandler = dmhub.RegisterEventHandler("refreshTables", function()
+    dmhub.DeregisterEventHandler(g_oneTimeEventHandler)
+
+    -- If the language relations table is empty, attempt to load Orden defaults
+    local langRelTable = dmhub.GetTableVisible(LanguageRelation.tableName) or {}
+    if next(langRelTable) == nil then
+        loadOrdenRels()
+    else
+        fixupMissingName()
+    end
+end)
 
 Commands.langrelloadorden = function(args)
 	loadOrdenRels()

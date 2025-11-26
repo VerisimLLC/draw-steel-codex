@@ -681,6 +681,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
         end
     end
 
+
 	modContext = modContext or {}
 	symbols = table.shallow_copy(symbols or {})
     symbols.mode = symbols.mode or 1

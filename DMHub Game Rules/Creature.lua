@@ -4344,7 +4344,7 @@ function creature:RefreshToken(token)
 	self:RefreshAnimations(token)
 
 	local triggeredEvents = self:try_get("triggeredEvents")
-	if triggeredEvents ~= nil and #triggeredEvents > 0 and triggeredEvents[1].userid == dmhub.userid then
+	if triggeredEvents ~= nil and #triggeredEvents > 0 and triggeredEvents[1] and triggeredEvents[1].userid and triggeredEvents[1].userid == dmhub.userid then
 		local token = dmhub.LookupToken(self)
 		if token ~= nil then
 			for _,eventInfo in ipairs(triggeredEvents) do

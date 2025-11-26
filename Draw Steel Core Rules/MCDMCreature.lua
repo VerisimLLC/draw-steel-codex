@@ -836,6 +836,22 @@ function creature:RecoveriesAvailableToSpend()
     return quantity
 end
 
+function creature:CalcuatePotencyValue(potency)
+    local potencyValue = self:Potency()
+    local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
+    if potency ~= nil then
+        local potencyType = string.lower(potency)
+        if potencyType == "weak" then
+            return potencyValue - 2 + potencyBonus
+        elseif potencyType == "average" then
+            return potencyValue - 1 + potencyBonus
+        elseif potencyType == "strong" then
+            return potencyValue + potencyBonus
+        end
+    end
+    return potencyValue + potencyBonus
+end
+
 creature.RegisterSymbol{
     symbol = "recoveriesavailabletospend",
     lookup = function(c)
@@ -935,7 +951,7 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "weak",
     lookup = function(c)
-        return c:HighestCharacteristic() - 2
+        return c:CalcuatePotencyValue("Weak")
     end,
     help = {
         name = "Weak",
@@ -947,7 +963,7 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "average",
     lookup = function(c)
-        return c:HighestCharacteristic() - 1
+        return c:CalcuatePotencyValue("Average")
     end,
     help = {
         name = "Average",
@@ -959,7 +975,7 @@ creature.RegisterSymbol {
 creature.RegisterSymbol {
     symbol = "strong",
     lookup = function(c)
-        return c:HighestCharacteristic()
+        return c:CalcuatePotencyValue("Strong")
     end,
     help = {
         name = "Strong",

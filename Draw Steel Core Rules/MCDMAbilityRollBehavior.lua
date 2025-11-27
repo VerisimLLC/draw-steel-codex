@@ -192,36 +192,38 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
 
     local multitargets = {}
     for i,target in ipairs(rollMessage.properties.multitargets) do
-        local rollInfo = {
-            total = rollResult.total,
-            boons = rollResult.boons,
-            banes = rollResult.banes,
-            autosuccess = rollResult.autosuccess,
-            autofailure = rollResult.autofailure,
-            nottierone = rollResult.nottierone,
-            nottierthree = rollResult.nottierthree,
-            tiers = rollResult.tiers,
-        }
+        if target.tokenid then
+            local rollInfo = {
+                total = rollResult.total,
+                boons = rollResult.boons,
+                banes = rollResult.banes,
+                autosuccess = rollResult.autosuccess,
+                autofailure = rollResult.autofailure,
+                nottierone = rollResult.nottierone,
+                nottierthree = rollResult.nottierthree,
+                tiers = rollResult.tiers,
+            }
 
-        --the multitargets give boons relative to the base roll, so we apply any different in boons.
-        if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
+            --the multitargets give boons relative to the base roll, so we apply any different in boons.
+            if (target.boons or 0) ~= 0 or (target.banes or 0) ~= 0 then
 
-            local baseBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+                local baseBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
 
-            rollInfo.boons = math.min(rollInfo.boons + target.boons, 2)
-            rollInfo.banes = math.min(rollInfo.banes + (target.banes or 0), 2)
+                rollInfo.boons = math.min(rollInfo.boons + target.boons, 2)
+                rollInfo.banes = math.min(rollInfo.banes + (target.banes or 0), 2)
 
-            local targetBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
+                local targetBonusFromBoonsAndBanes = ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(rollInfo.boons, rollInfo.banes)
 
-            rollInfo.total = rollInfo.total + (targetBonusFromBoonsAndBanes - baseBonusFromBoonsAndBanes)
+                rollInfo.total = rollInfo.total + (targetBonusFromBoonsAndBanes - baseBonusFromBoonsAndBanes)
+            end
+
+            local tier = rollMessage.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
+
+            multitargets[#multitargets+1] = {
+                token = dmhub.GetCharacterById(target.tokenid),
+                tier = tier,
+            }
         end
-
-        local tier = rollMessage.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
-
-        multitargets[#multitargets+1] = {
-            token = dmhub.GetCharacterById(target.tokenid),
-            tier = tier,
-        }
     end
     return multitargets
 end
@@ -777,6 +779,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end
 
         for i,target in ipairs(targets or {}) do
+            if target.token == nil then
+                goto continue
+            end
             local cached = multitargetsByTokenId[target.token.charid]
             if cached ~= nil then
                 --this target has already been processed.
@@ -994,7 +999,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     for _,token in ipairs(dmhub.allTokens) do
         for _,mod in ipairs(token.properties:GetActiveModifiers()) do
             for _,target in ipairs(multitargets) do
-                mod.mod:TriggerModsPowerRoll(mod, token, casterToken, target.token, ability, rollProperties, target.triggers, options)
+                if target.token ~= nil then
+                    mod.mod:TriggerModsPowerRoll(mod, token, casterToken, target.token, ability, rollProperties, target.triggers, options)
+                end
             end
         end
     end
@@ -1158,11 +1165,13 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         local tier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
         local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
 
-        if rollProperties:try_get("tierSuppressed") then
-            --this means that the caster is 'silenced' and results based on tier won't apply.
-            options.symbols.cast:SetTierResult(targetToken, -1)
-        else
-            options.symbols.cast:SetTierResult(targetToken, tier)
+        if targetToken ~= nil then
+            if rollProperties:try_get("tierSuppressed") then
+                --this means that the caster is 'silenced' and results based on tier won't apply.
+                options.symbols.cast:SetTierResult(targetToken, -1)
+            else
+                options.symbols.cast:SetTierResult(targetToken, tier)
+            end
         end
 
         local targetRollProperties = rollProperties
@@ -1924,7 +1933,7 @@ function RollPropertiesPowerTable:CustomPanel(message)
                 local multitargets = rollInfo.properties.multitargets
 
                 for i, target in ipairs(multitargets) do
-                    if m_multitargetPanels[i] == nil then
+                    if m_multitargetPanels[i] == nil and target.tokenid then
                         local targetToken = dmhub.LookupToken(target.tokenid)
                         if targetToken ~= nil then
                             m_multitargetPanels[i] = gui.CreateTokenImage(targetToken, {

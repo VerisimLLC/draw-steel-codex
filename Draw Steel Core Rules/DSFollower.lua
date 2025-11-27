@@ -12,23 +12,24 @@ local mod = dmhub.GetModLoading()
 --- @field retainerToken string The token ID of the follower token if retainer type
 --- @field availableRolls number The number of downtime rolls allocated to the follower
 --- @field characteristic string The characteristic code for the follower's additional characteristic
-Follower = RegisterGameType("Follower", {})
+Follower = RegisterGameType("Follower")
 
-function Follower:new()
-    local instance = setmetatable({}, self)
-    instance.guid = dmhub.GenerateGuid()
-    instance.type = "artisan"
-    instance.portrait = "DEFAULT_MONSTER-aVATAR"
-    instance.name = "New Follower"
-    instance.characteristic = "mgt"
-    return instance
-end
+Follower.guid = dmhub.GenerateGuid()
+Follower.type = "artisan"
+Follower.portrait = "DEFAULT_MONSTER_AVATAR"
+Follower.name = "New Follower"
+Follower.characteristic = "mgt"
+Follower.skills = {}
+Follower.ancestry = ""
+Follower.languages = {}
+Follower.retainerToken = ""
+Follower.availableRolls = 0
 
-function Follower:GetType()
+function Follower.GetType(self)
     return self:try_get("type", "artisan")
 end
 
-function Follower:Describe()
+function Follower.Describe(self)
     local s = "<b>Type:</b> " .. self:GetType()
 
     if self.type == "artisan" or self.type == "sage" then
@@ -63,11 +64,19 @@ function Follower:Describe()
     return s
 end
 
-function Follower:ToTable()
-    local newFollower = {}
-    for k,v in pairs(self) do
-        newFollower[k] = v
-    end
+function Follower.ToTable(self)
+    local newFollower = {
+        guid = (self.guid and #self.guid > 0) and self.guid or dmhub.GenerateGuid(),
+        type = self.type,
+        name = self.name or "New Follower",
+        characteristic = self.characteristic or "mgt",
+        skills = self.skills or {},
+        ancestry = self.ancestry or "",
+        portrait = self.portrait or "",
+        languages = self.languages or {},
+        retainerToken = self.retainerToken or "",
+        availableRolls = self.availableRolls or 0,
+    }
     return newFollower
 end
 
@@ -109,21 +118,26 @@ local function buildRetainerList()
     local retainerTypes = { { id = "none", text = "Select retainer type...", }, }
     local retainerLookup = {}
 
-    local n = assets:GetMonsterNode("")
-    if n then
-        for _, n1 in pairs(n.children) do
-            if "Retainers" == n1.description then
-                for _, m in pairs(n1.children) do
+    local function processNode(node)
+        if node then
+            if node.monster then
+                local m = node.monster
+                if m.info and m.info.properties and m.info.properties:IsRetainer() then
                     retainerTypes[#retainerTypes + 1] = {
-                        id = m.id,
-                        text = m.monster.info.description
+                        id = node.id,
+                        text = m.info.description
                     }
-                    retainerLookup[m.id] = m.monster.info.description
+                    retainerLookup[node.id] = m.info.description
                 end
-                break
+            else
+                for _,n in pairs(node.children) do
+                    processNode(n)
+                end
             end
         end
     end
+
+    processNode(assets:GetMonsterNode(""))
 
     return retainerTypes, retainerLookup
 end
@@ -213,14 +227,7 @@ function Follower:CreateEditorDialog(options)
             self.name = element.text
         end,
         refreshAll = function(element)
-            if self:try_get("retainerToken") then
-                self.name = retainerLookup[self.retainerToken]
-                element.text = self.name
-                element.editable = false
-            else
-                element.text = self.name or "Unnamed"
-                element.editable = true
-            end
+            element.text = self.name or "Unnamed"
         end
     }
 

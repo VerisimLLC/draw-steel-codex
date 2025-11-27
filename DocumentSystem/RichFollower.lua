@@ -2,17 +2,13 @@
 RichFollower = RegisterGameType("RichFollower", "RichTag")
 RichFollower.tag = "follower"
 
-function RichFollower:new(follower)
-    local instance = setmetatable(RichTag:new(), self)
-    instance.follower = follower
-    return instance
-end
-
 function RichFollower.Create()
-    return RichFollower.new(Follower:new())
+    return RichFollower.new{
+        follower = Follower.new(),
+    }
 end
 
-function RichFollower:CreateDisplay()
+function RichFollower.CreateDisplay(self)
     local resultPanel
 
     local titleLabel = gui.Label{
@@ -74,25 +70,25 @@ function RichFollower:CreateDisplay()
                 height = 40,
                 lmargin = 20,
                 press = function(element)
-                    print(string.format("THC:: GRANT:: %s %s", token.name, token.id))
                     local followers = token.properties:GetFollowers()
                     if followers then
                         local retainerToken
                         if self.follower.type == "retainer" then
                             local locs = token.properties:AdjacentLocations()
                             local loc = #locs and locs[1] or token.properties.locsOccupying[1]
-                            print("THC:: SPAWNAT::", json(loc))
                             retainerToken = game.SpawnTokenFromBestiaryLocally(self.follower.retainerToken, loc, {fitLocatoin = true})
                             retainerToken.ownerId = token.ownerId
+                            retainerToken.name = self.follower.name
                             retainerToken:UploadToken()
                             game.UpdateCharacterTokens()
-                            self.retainerToken = retainerToken.id
                         end
                         token:ModifyProperties{
                             description = "Grant a Follower",
                             undoable = false,
                             execute = function()
-                                followers[#followers + 1] = self.follower:ToTable()
+                                local newFollower = self.follower:ToTable()
+                                if newFollower.type == "retainer" then newFollower.retainerToken = retainerToken.id end
+                                followers[#followers + 1] = newFollower
                             end
                         }
                     end
@@ -117,8 +113,8 @@ function RichFollower:CreateDisplay()
                         halign = "left",
                         hmargin = 24,
                         bgimage = "panels/square.png",
-                        bgcolor = "#666666cc",
-                        border = 0,
+                        bgcolor = "#333333",
+                        border = 1,
                         borderColor = "white",
                         cornerRadius = 4,
                         text = "Assign to " .. token.name,
@@ -169,7 +165,7 @@ function RichFollower:CreateDisplay()
     return resultPanel
 end
 
-function RichFollower:CreateEditor()
+function RichFollower.CreateEditor(self)
     local resultPanel
 
     local titleLabel = gui.Label {

@@ -66,21 +66,65 @@ function RichFollower:CreateDisplay()
         },
     }
 
+    local assignButtons = {}
+    for _, token in ipairs(dmhub.GetTokens{playerControlled = true}) do
+        if token.properties and token.properties:IsHero() then
+            assignButtons[#assignButtons+1] = gui.Panel{
+                width = "auto",
+                height = 40,
+                lmargin = 20,
+                press = function(element)
+                    print(string.format("THC:: GRANT:: %s %s", token.name, token.id))
+                    local followers = token.properties:GetFollowers()
+                    if followers then
+                        token:ModifyProperties{
+                            description = "Grant a Follower",
+                            undoable = false,
+                            execute = function ()
+                                if self.follower.type == "artisan" or self.follower.type == "sage" then
+                                    followers[#followers + 1] = self.follower:ToTable()
+                                end
+                            end
+                        }
+                    end
+                end,
+                children = {
+                    gui.CreateTokenImage(token, {
+                        width = 40,
+                        height = 40,
+                        halign = "left",
+                        valign = "center",
+                        interactable = true,
+                        refresh = function(element)
+                            if token == nil or not token.valid then return end
+                            element:FireEvent("token", token)
+                        end
+                    }),
+                    gui.Label{
+                        width = "auto",
+                        height = 20,
+                        fontSize = 12,
+                        valign = "bottom",
+                        halign = "left",
+                        hmargin = 24,
+                        bgimage = "panels/square.png",
+                        bgcolor = "#666666cc",
+                        border = 0,
+                        borderColor = "white",
+                        cornerRadius = 4,
+                        text = "Assign to " .. token.name,
+                    }
+                },
+            }
+        end
+    end
+
     local footerPanel = gui.Panel{
         width = "100%",
-        height = 18,
-        thinkTime = 1,
-        gui.Button{
-            width = 180,
-            height = 18,
-            fontSize = 12,
-            text = "Grant to Character",
-            halign = "center",
-            swallowPress = true,
-            press = function(element)
-                print("THC:: ASSIGNFOLLOWER::", self.follower.name)
-            end,
-        }
+        height = 40,
+        vpad = 8,
+        flow = "horizontal",
+        children = assignButtons,
     }
 
     resultPanel = gui.Panel{
@@ -100,7 +144,7 @@ function RichFollower:CreateDisplay()
             }
         },
         flow = "vertical",
-        width = 260,
+        width = 400,
         height = "auto",
         pad = 2,
         halign = "left",

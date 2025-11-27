@@ -63,6 +63,14 @@ function Follower:Describe()
     return s
 end
 
+function Follower:ToTable()
+    local newFollower = {}
+    for k,v in pairs(self) do
+        newFollower[k] = v
+    end
+    return newFollower
+end
+
 local function buildSkillLists()
     local skills = dmhub.GetTable(Skill.tableName) or {}
     local artisanSkills = {}
@@ -347,7 +355,7 @@ function Follower:CreateEditorDialog(options)
     local skillsPanel = gui.Panel {
         classes = {cond(self.type == "retainer", "collapsed-anim")},
         flow = "vertical",
-        width = "auto",
+        width = "100%-100",
         height = "auto",
         margin = 3,
         halign = "left",
@@ -357,9 +365,9 @@ function Follower:CreateEditorDialog(options)
         end,
         children = {
             gui.Multiselect {
-                classes = {cond(self.type == "sage", "collapsed-anim")},
-                options = artisanSkills,
-                width = "190",
+                id = "skillSelector",
+                options = self.type == "sage" and sageSkills or artisanSkills,
+                width = "100%",
                 valign = "top",
                 halign = "left",
                 vmargin = 4,
@@ -371,56 +379,33 @@ function Follower:CreateEditorDialog(options)
                     classes = {"followerMultiselect"},
                     width = 160,
                 },
+                chipPanel = {
+                    width = "100%-160",
+                    halign = "left",
+                },
                 chips = {
-                    valign = "left",
+                    halign = "left",
                 },
                 create = function(element)
-                    element.value = self:try_get("skills", {})
+                    element:FireEvent("refreshAll")
                 end,
                 change = function(element)
                     self.skills = element.value
                 end,
                 refreshAll = function(element)
-                    element:SetClass("collapsed-anim", self.type == "sage")
-                    element.value = self:try_get("skills", {})
+                    local opts = self.type == "sage" and sageSkills or artisanSkills
+                    local selected = self:try_get("skills", {}) 
+                    element:FireEvent("refreshSet", opts, selected)
+                    element.value = selected
                 end,
             },
-            gui.Multiselect {
-                classes = {cond(self.type == "artisan", "collapsed-anim")},
-                options = sageSkills,
-                width = 190,
-                valign = "top",
-                halign = "left",
-                vmargin = 4,
-                textDefault = "Select 4 skills...",
-                sort = true,
-                flow = "horizontal",
-                chipPos = "right",
-                dropdown = {
-                    classes = {"followerMultiselect"},
-                    width = 160,
-                },
-                chips = {
-                    valign = "left",
-                },
-                create = function(element)
-                    element.value = self:try_get("skills", {})
-                end,
-                change = function(element)
-                    self.skills = element.value
-                end,
-                refreshAll = function(element)
-                    element:SetClass("collapsed-anim", self.type == "artisan")
-                    element.value = self:try_get("skills", {})
-                end,
-            }
         }
     }
 
     local languagesPanel = gui.Panel {
         classes = {cond(self.type == "retainer", "collapsed-anim")},
         flow = "vertical",
-        width = "auto",
+        width = "100%-100",
         height = "auto",
         margin = 3,
         halign = "left",
@@ -431,7 +416,7 @@ function Follower:CreateEditorDialog(options)
         children = {
             gui.Multiselect {
                 options = languages,
-                width = "auto",
+                width = "100%",
                 valign = "top",
                 halign = "left",
                 vmargin = 4,
@@ -443,8 +428,12 @@ function Follower:CreateEditorDialog(options)
                     classes = {"followerMultiselect"},
                     width = 160,
                 },
+                chipPanel = {
+                    width = "100%-160",
+                    halign = "left",
+                },
                 chips = {
-                    valign = "left",
+                    halign = "left",
                 },
                 create = function(element)
                     element.value = self:try_get("languages", {})

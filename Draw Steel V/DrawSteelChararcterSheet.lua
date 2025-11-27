@@ -1365,7 +1365,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     element:SetClass("collapsed", info.token.properties:IsMonster())
                     local v = info.token.properties:GetTitles()
                     element.value = info.token.properties:GetTitles()
-                    element:FireEvent("refreshSet")
+                    -- element:FireEvent("refreshSet")
                 end,
                 change = function(element, value)
                     local token = CharacterSheet.instance.data.info.token

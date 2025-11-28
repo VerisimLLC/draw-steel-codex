@@ -35,7 +35,13 @@ function RichFollower.CreateDisplay(self)
             borderColor = "#F0F0F0",
             borderWidth = 1,
             transitionTime = 0.2
-        }
+        },
+
+        --make sure the token image within gui.CreateTokenImage has no border.
+        {
+            selectors = {"token-image-frame"},
+            borderWidth = 0,
+        },
     }
 
     local titleLabel = gui.Label{

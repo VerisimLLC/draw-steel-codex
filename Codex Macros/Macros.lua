@@ -974,7 +974,7 @@ end
 Commands.granttitle = function(str)
     if str == "help" then
         dmhub.Log(
-            "Usage: /granttitle <token name> <title ID> <quantity>\n Grants a title to given character(s)")
+            "Usage: /granttitle <token name> <title ID>\n Grants a title to given character(s)")
         return
     end
 

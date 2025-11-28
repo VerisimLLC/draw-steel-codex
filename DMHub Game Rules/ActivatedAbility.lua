@@ -1552,6 +1552,9 @@ function ActivatedAbility:GetCost(casterToken, options)
 end
 
 function ActivatedAbility:CanAfford(casterToken, options)
+    if casterToken == nil then
+        return false
+    end
 	return self:GetCost(casterToken, options).canAfford
 end
 

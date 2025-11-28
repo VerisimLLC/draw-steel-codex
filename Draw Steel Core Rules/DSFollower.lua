@@ -71,7 +71,7 @@ end
 
 function Follower.ToTable(self)
     local newFollower = {
-        guid = (self.guid and #self.guid > 0) and self.guid or dmhub.GenerateGuid(),
+        guid = dmhub.GenerateGuid(),
         type = self.type,
         name = self.name or "New Follower",
         characteristic = self.characteristic or "mgt",

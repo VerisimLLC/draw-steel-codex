@@ -54,8 +54,10 @@ local Styles = {
 
 local function countSkills(skills)
     local count = 0
-    for id, _ in pairs(skills) do
-        count = count + 1
+    if skills then
+        for id, _ in pairs(skills) do
+            count = count + 1
+        end
     end
     return count
 end

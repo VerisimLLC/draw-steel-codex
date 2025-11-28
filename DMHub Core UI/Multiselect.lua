@@ -265,6 +265,10 @@ local function _multiselect(args)
             element.data.selected = DeepCopy(valueDict or {})
             element:FireEventTree("repaint", element.data.selected)
         end
+        panelOpts.refreshSet = function(element, options, values)
+            m_options = shallow_copy_list(options)
+            element:FireEventTree("repaint", values)
+        end
         panelOpts.children = chipsBefore
             and {chipsPanel, dropdownPanel}
             or {dropdownPanel, chipsPanel}

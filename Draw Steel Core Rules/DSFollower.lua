@@ -12,6 +12,7 @@ local mod = dmhub.GetModLoading()
 --- @field retainerToken string The token ID of the follower token if retainer type
 --- @field availableRolls number The number of downtime rolls allocated to the follower
 --- @field characteristic string The characteristic code for the follower's additional characteristic
+--- @field assignedTo table Flag list of tokens the follower was assigned to
 Follower = RegisterGameType("Follower")
 
 Follower.type = "artisan"
@@ -27,11 +28,24 @@ function Follower.Create()
         guid = dmhub.GenerateGuid(),
         skills = {},
         languages = {},
+        assignedTo = {},
     }
 end
 
 function Follower.GetType(self)
     return self:try_get("type", "artisan")
+end
+
+function Follower:AddAssignedTo(tokenId)
+    local assignedTo = self:get_or_add("assignedTo", {})
+    assignedTo[tokenId] = true
+    return self
+end
+
+function Follower:RemoveAssignedTo(tokenId)
+    local assignedTo = self:get_or_add("assignedTo", {})
+    assignedTo[tokenId] = nil
+    return self
 end
 
 function Follower.Describe(self)
@@ -110,6 +124,23 @@ function Follower.Describe(self)
         end
     end
 
+    local assignedTo = self:get_or_add("assignedTo", {})
+    local atl = ""
+    for tokenId,_ in pairs(assignedTo) do
+        local t = dmhub.GetTokenById(tokenId)
+        if t and t.name and #t.name > 0 then
+            if #atl > 0 then 
+                atl = atl ..  ", "
+            else
+                atl = "<b>Assigned To:</b> "
+            end
+            atl = atl .. t.name
+        end
+    end
+    if #atl > 0 then
+        s = string.format("%s\n\n%s", s, atl)
+    end
+
     return s
 end
 
@@ -119,10 +150,10 @@ function Follower.ToTable(self)
         type = self.type,
         name = self.name or "New Follower",
         characteristic = self.characteristic or "mgt",
-        skills = self.skills or {},
+        skills = self:try_get("skills", {}),
         ancestry = self.ancestry or "",
         portrait = self.portrait or "",
-        languages = self.languages or {},
+        languages = self:try_get("languages", {}),
         retainerToken = self.retainerToken or "",
         availableRolls = self.availableRolls or 0,
     }

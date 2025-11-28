@@ -677,7 +677,7 @@ TokenHud.RegisterPanel{
             --- @param path LuaPath|nil
             --- @param movementType "walk"|"teleport"|"forced"|"shift"|nil
             movementplan = function(element, token, movingToken, path, movementType)
-                if movingToken == nil or path == nil or movementType ~= "walk" or token:IsFriend(movingToken) then
+                if movingToken == nil or path == nil or movementType ~= "walk" or token:IsFriend(movingToken) or dmhub.initiativeQueue == nil or dmhub.initiativeQueue.hidden then
                     m_cache = nil
                     m_calculationCache = nil
                     element:FireEvent("clearOpportunityAttackLocal")

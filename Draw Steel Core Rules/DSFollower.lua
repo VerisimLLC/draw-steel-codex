@@ -36,9 +36,9 @@ function Follower.GetType(self)
     return self:try_get("type", "artisan")
 end
 
-function Follower:AddAssignedTo(tokenId)
+function Follower:AddAssignedTo(tokenId, followerGuid)
     local assignedTo = self:get_or_add("assignedTo", {})
-    assignedTo[tokenId] = true
+    assignedTo[tokenId] = followerGuid
     return self
 end
 

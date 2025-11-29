@@ -75,11 +75,16 @@ function character:GetClassFeatures(options)
 		entry.class:FillFeaturesForLevel(levelChoices, entry.level, self:ExtraLevelInfo(), i ~= 1, result)
 	end
 
-    local complication = self:Complication()
-    if complication ~= nil then
-        complication:FillClassFeatures(levelChoices, result)
-    end
-	
+    local complications = self:Complications()
+	for _, complication in ipairs(complications) do
+		complication:FillClassFeatures(levelChoices, result)
+	end
+
+	local titles = self:Titles()
+	for _, title in ipairs(titles) do
+		title:FillClassFeatures(levelChoices, result)
+	end
+
 	for i,featid in ipairs(self:try_get("creatureFeats", {})) do
 		local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}
 		local featInfo = featTable[featid]
@@ -153,10 +158,15 @@ function character:GetClassFeaturesAndChoicesWithDetails()
 		result[#result+1] = f
 	end
 
-    local complication = self:Complication()
-    if complication ~= nil then
+    local complications = self:Complications()
+    for _, complication in ipairs(complications) do
         complication:FillFeatureDetails(self:GetLevelChoices(), result)
     end
+
+	local titles = self:Titles()
+	for _, title in ipairs(titles) do
+		title:FillFeatureDetails(self:GetLevelChoices(), result)
+	end
 
 	for i,featid in ipairs(self:try_get("creatureFeats", {})) do
 		local featTable = dmhub.GetTable(CharacterFeat.tableName) or {}

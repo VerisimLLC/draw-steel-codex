@@ -3925,6 +3925,19 @@ function creature:SetTitles(titles)
     self.titles = titles
 end
 
+function creature:Titles()
+    local results = {}
+    local titles = self:GetTitles()
+    local t = dmhub.GetTable(Title.tableName) or {}
+    for titleid,_ in pairs(titles) do
+        local titleInfo = t[titleid]
+        if titleInfo ~= nil then
+            results[#results + 1] = titleInfo
+        end
+    end
+    return results
+end
+
 dmhub.RegisterEventHandler("ClearTemporaryState", function()
     print("CLEARSTATE:: CLEARING STATE", #dmhub.allTokens)
 

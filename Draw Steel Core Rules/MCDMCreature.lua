@@ -921,6 +921,9 @@ function creature:CalcuatePotencyValue(potency)
 end
 
 function creature:CalculatePotencyValue(potency)
+    if tonumber(potency) ~= nil then
+        return tonumber(potency)
+    end
     local potencyValue = self:Potency()
     local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
     if potency ~= nil then

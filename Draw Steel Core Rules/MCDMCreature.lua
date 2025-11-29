@@ -921,11 +921,11 @@ function creature:CalcuatePotencyValue(potency)
 end
 
 function creature:CalculatePotencyValue(potency)
+    local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
     if tonumber(potency) ~= nil then
-        return tonumber(potency)
+        return tonumber(potency) + potencyBonus
     end
     local potencyValue = self:Potency()
-    local potencyBonus = self:CalculateNamedCustomAttribute("Potency Bonus")
     if potency ~= nil then
         local potencyType = string.lower(potency)
         if potencyType == "weak" then

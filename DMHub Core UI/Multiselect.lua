@@ -5,6 +5,29 @@
 --- @field flow? "vertical"|"horizontal"
 --- @field chipPos? "top"|"bottom"|"left"|"right" Position of chips relative to dropdown. For vertical flow: "top" or "bottom" (default "top"). For horizontal flow: "left" or "right" (default "right").
 
+--- Determines if the contents of two flag lists are the same
+--- regardless of order.
+--- @param list1 table A flag list
+--- @param list2 table Another flag list
+--- @return boolean listsIdentical True if the lists contain identical keys & values
+local function flagListsEqual(list1, list2)
+    -- Check all keys in list1 exist in list2 with same value
+    for key, value in pairs(list1) do
+        if list2[key] ~= value then
+            return false
+        end
+    end
+    
+    -- Check all keys in list2 exist in list1
+    for key, value in pairs(list2) do
+        if list1[key] ~= value then
+            return false
+        end
+    end
+    
+    return true
+end
+
 --- Creates a generic multiselect control for selecting multiple items from a list
 --- Displays selected items as removable chips with a dropdown to add more items
 --- @param args MultiselectArgs
@@ -262,8 +285,10 @@ local function _multiselect(args)
             return DeepCopy(element.data.selected)
         end
         panelOpts.SetValue = function(element, valueDict)
-            element.data.selected = DeepCopy(valueDict or {})
-            element:FireEventTree("repaint", element.data.selected)
+            if not flagListsEqual(valueDict, element.data.selected) then
+                element.data.selected = DeepCopy(valueDict or {})
+                element:FireEventTree("repaint", element.data.selected)
+            end
         end
         panelOpts.refreshSet = function(element, options, values)
             m_options = shallow_copy_list(options)

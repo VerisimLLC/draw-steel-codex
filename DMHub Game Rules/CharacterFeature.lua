@@ -392,12 +392,12 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
             options[#options+1] = {
                 hidden = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    return clipboardItem == nil or clipboardItem.typeName ~= 'CharacterModifier'
+                    return clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterModifier' and clipboardItem.typeName ~= "ActivatedAbility")
                 end,
                 id = 'CLIPBOARD',
                 text = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
+                    if clipboardItem ~= nil and (clipboardItem.typeName == 'CharacterModifier' or clipboardItem.typeName == "ActivatedAbility") then
                         return string.format("Paste %s", clipboardItem.name)
                     end
 
@@ -426,6 +426,21 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
                         if clipboardItem ~= nil and clipboardItem.typeName == 'CharacterModifier' then
                             local modifier = DeepCopy(clipboardItem)
                             DeepReplaceGuids(modifier)
+
+                            local modifiers = self:get_or_add("modifiers", {})
+                            modifiers[#modifiers+1] = modifier
+
+                            modifiersPanel:FireEvent('refreshModifiers')
+                        elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
+                            local ability = DeepCopy(clipboardItem)
+                            DeepReplaceGuids(ability)
+                            local modifier = CharacterModifier.new{
+                                guid = dmhub.GenerateGuid(),
+                                name = ability.name,
+                                description = "",
+                                behavior = "activated",
+                                activatedAbility = ability,
+                            }
 
                             local modifiers = self:get_or_add("modifiers", {})
                             modifiers[#modifiers+1] = modifier
@@ -794,17 +809,39 @@ function CharacterFeature.ListEditor(document, fieldName, options)
 
 		create = function(element)
 			local clipboardItem = dmhub.GetInternalClipboard()
-			element:SetClass("hidden", clipboardItem == nil or clipboardItem.typeName ~= "CharacterFeature")
+			element:SetClass("hidden", clipboardItem == nil or (clipboardItem.typeName ~= "CharacterFeature" and clipboardItem.typeName ~= "ActivatedAbility"))
 		end,
 		click = function(element)
 			local clipboardItem = dmhub.GetInternalClipboard()
 			if clipboardItem ~= nil and clipboardItem.typeName == "CharacterFeature" then
 				clipboardItem = DeepCopy(clipboardItem)
 
-				clipboardItem:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
+                DeepReplaceGuids(clipboardItem)
 
 				local items = document:try_get(fieldName, {})
 				items[#items+1] = clipboardItem
+				document[fieldName] = items
+				resultPanel.children = CalculateChildren()
+				resultPanel:FireEvent("refreshModifier")
+            elseif clipboardItem ~= nil and clipboardItem.typeName == "ActivatedAbility" then
+
+                local ability = DeepCopy(clipboardItem)
+                DeepReplaceGuids(ability)
+                local modifier = CharacterModifier.new{
+                    guid = dmhub.GenerateGuid(),
+                    name = ability.name,
+                    description = "",
+                    behavior = "activated",
+                    activatedAbility = ability,
+                }
+
+                local feature = CharacterFeature.Create{
+                    name = ability.name,
+                    modifiers = { modifier },
+                }
+
+				local items = document:try_get(fieldName, {})
+				items[#items+1] = feature
 				document[fieldName] = items
 				resultPanel.children = CalculateChildren()
 				resultPanel:FireEvent("refreshModifier")

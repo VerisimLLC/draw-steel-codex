@@ -5555,6 +5555,9 @@ creature._tmp_triggeredOpportunityAttacks = 0
 --called by dmhub when the creature moves.
 function creature:OnMove(path)
     local ourToken = dmhub.LookupToken(self)
+    if ourToken == nil then
+        return
+    end
 	self:DispatchEvent("move", {
         path = PathMoved.new{
             path = path,

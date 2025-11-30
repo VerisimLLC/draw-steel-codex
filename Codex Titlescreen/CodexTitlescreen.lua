@@ -581,9 +581,9 @@ local g_moduleOptions = {
     },
     {
         id = "mcdm-startermap",
-        text = "Draw Steel! Custom Campaign",
+        text = "Orden",
         descriptionDetails =
-        "Forge your own adventure with Draw Steel! We'll start you in a tavern with all the Draw Steel rules and you can take it from there.",
+        "Forge your own adventure in the world of Orden! We'll start you in a tavern with all the Draw Steel rules and you can take it from there.",
         coverart = "panels/backgrounds/mcdm-cinematic.jpeg",
     },
 }
@@ -1831,6 +1831,7 @@ local function MakeHeroPanel(heroIndex)
         halign = "left",
         textAlignment = "left",
         refreshCharacter = function(element, token)
+            print("CREATURE::", json(token.properties))
             local ancestry = token.properties:RaceOrMonsterType()
 
             local className = ""

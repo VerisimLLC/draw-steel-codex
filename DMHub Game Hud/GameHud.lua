@@ -660,9 +660,13 @@ function GameHud:CreateAdventureDocumentsManager()
                 return ordera < orderb
             end)
 
-            print("ADVENTURE::", docs, "->", documentids)
+            print("AdventureDoc:: MONITOR", docs, "->", documentids)
 
             TopBar.SetAdventureDocuments(documentids)
+        end,
+
+        create = function(element)
+            element:FireEvent("refreshGame")
         end,
 
         destroy = function(element)

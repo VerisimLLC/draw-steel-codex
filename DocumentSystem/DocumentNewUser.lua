@@ -1,6 +1,6 @@
 local mod = dmhub.GetModLoading()
 
-local function ShowDocumentOnStart(docname)
+function ShowDocumentOnStart(docname)
     dmhub.Coroutine(function()
 
         while (not GameHud.instance) or (not GameHud.instance.documentsPanel) or (not GameHud.instance.documentsPanel.valid) do

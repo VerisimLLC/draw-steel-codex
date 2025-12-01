@@ -97,7 +97,9 @@ end
 --- @param levelChoices table The features the character has selected
 --- @return table skillChoices The aggregated options with selections made
 local function aggregateSkillChoices(selectedFeatures, customFeatures, levelChoices)
-    local skillChoices = {}
+    local skillChoices = {
+        features = {},
+    }
 
     for _,item in ipairs(selectedFeatures) do
         if item.feature then
@@ -135,9 +137,6 @@ local function aggregateSkillChoices(selectedFeatures, customFeatures, levelChoi
                     item.canDelete = true
                     item.numChoices = (#item.selected and #item.selected > 0) and #item.selected or 1
                 end
-                if skillChoices["features"] == nil then
-                    skillChoices["features"] = {}
-                end
                 table.move(skillInfo, 1, #skillInfo, #skillChoices["features"] + 1, skillChoices["features"])
             end
         end
@@ -145,6 +144,53 @@ local function aggregateSkillChoices(selectedFeatures, customFeatures, levelChoi
 
     print("THC:: SKILLCHOICES::", json(skillChoices))
     return skillChoices
+end
+
+--- Add compensating feature entries for duplicate static skills
+--- @param skillChoices table The aggregated skill choices
+--- @param skills table The skills data from loadSkills()
+local function addCompensatingFeatures(skillChoices, skills)
+    -- Check if we already have a "Duplicate Skill" feature
+    if skillChoices["features"] then
+        for _, item in ipairs(skillChoices["features"]) do
+            if item.name == "Duplicate Skill" then
+                return
+            end
+        end
+    end
+
+    -- Count static skill occurrences across career, culture, class
+    local staticCounts = {}
+    for _, section in ipairs({"career", "culture", "class"}) do
+        if skillChoices[section] then
+            for _, item in ipairs(skillChoices[section]) do
+                if item.type == "static" then
+                    for _, skillId in ipairs(item.selected) do
+                        staticCounts[skillId] = (staticCounts[skillId] or 0) + 1
+                    end
+                end
+            end
+        end
+    end
+
+    -- Find the first duplicate skill and add one compensating feature
+    for skillId, count in pairs(staticCounts) do
+        if count >= 2 then
+            if not skillChoices["features"] then
+                skillChoices["features"] = {}
+            end
+            local skillName = skills.lookup[skillId] or skillId
+            skillChoices["features"][#skillChoices["features"] + 1] = {
+                type = "choice",
+                canDelete = true,
+                numChoices = 1,
+                selected = {},
+                name = "Duplicate Skill",
+                description = string.format("Duplicated %s skill - select an alternative.", skillName),
+            }
+            return
+        end
+    end
 end
 
 --- Validate and transform options
@@ -158,9 +204,9 @@ local function validateOptions(options)
     local cancelHandler = opts.callbacks.cancel
 
     opts.callbacks = {
-        confirmHandler = function(levelChoices)
+        confirmHandler = function(newSkills)
             if confirmHandler then
-                confirmHandler(levelChoices)
+                confirmHandler(newSkills)
             end
         end,
         cancelHandler = function()
@@ -259,6 +305,11 @@ local dialogStyles = {
     },
 }
 
+--- Wrap a skill UI component with delete button and duplicate flag
+--- @param skillId string The skill ID being displayed
+--- @param item table The skill item data
+--- @param uiComponent table The GUI component to wrap
+--- @return table panel The wrapped panel
 local function wrapDisplay(skillId, item, uiComponent)
 
     local deleteButton = item.canDelete and gui.DeleteItemButton{
@@ -271,6 +322,10 @@ local function wrapDisplay(skillId, item, uiComponent)
             local wrapper = element:FindParentWithClass("skilldlg-wrapper")
             if wrapper then
                 wrapper:FireEvent("deleteSkill")
+            end
+            local controller = element:FindParentWithClass("skilldlg-dialog")
+            if controller then
+                controller:FireEvent("valueChanged")
             end
         end,
     } or nil
@@ -290,6 +345,18 @@ local function wrapDisplay(skillId, item, uiComponent)
         deleteSkill = function(element)
             element.data.deleted = true
             element:SetClass("collapsed", true)
+            local controller = element:FindParentWithClass("skilldlg-dialog")
+            if controller then
+                controller:FireEvent("valueChanged")
+            end
+            -- Check if parent panel should collapse
+            local skillPanel = element:FindParentWithClass("skilldlg-panel")
+            if skillPanel then
+                skillPanel:FireEvent("checkEmpty")
+            end
+            if element.data.item.added then
+                element:DestroySelf()
+            end
         end,
         updateSkillId = function(element, newId)
             element.data.skillId = newId
@@ -313,6 +380,10 @@ local function wrapDisplay(skillId, item, uiComponent)
     return panel
 end
 
+--- Create display panels for static (non-editable) skills
+--- @param item table The skill item with selected skills
+--- @param skills table The skills data from loadSkills()
+--- @return table|nil panels Array of wrapped label panels, or nil if empty
 local function makeStaticSkillDisplay(item, skills)
     local panels = {}
     for _,skillId in ipairs(item.selected) do
@@ -330,6 +401,10 @@ local function makeStaticSkillDisplay(item, skills)
     return #panels > 0 and panels or nil
 end
 
+--- Create dropdown panels for skill choices
+--- @param item table The skill choice item with categories and selection count
+--- @param skills table The skills data from loadSkills()
+--- @return table|nil panels Array of wrapped dropdown panels, or nil if empty
 local function makeSkillDropdowns(item, skills)
     local panels = {}
 
@@ -356,17 +431,20 @@ local function makeSkillDropdowns(item, skills)
         skillOpts = DeepCopy(skills.list)
     end
 
+    print("THC:: ITEM::", json(item))
+    local selected = item.selected or {}
     for i = 1, item.numChoices or 1 do
-        local panel = wrapDisplay(item.selected[i], item,
+        local skillId = selected[i]
+        local panel = wrapDisplay(skillId, item,
             gui.Dropdown{
                 classes = {"skilldlg-dropdown", "skilldlg-base"},
                 options = skillOpts,
-                idChosen = item.selected[i],
+                idChosen = skillId,
                 fontSize = 14,
                 textDefault = "Select a skill...",
                 hasSearch = true,
                 data = {
-                    skillId = item.selected[i],
+                    skillId = skillId,
                 },
                 change = function(element)
                     local newId = element.idChosen
@@ -390,12 +468,178 @@ local function makeSkillDropdowns(item, skills)
     return #panels > 0 and panels or nil
 end
 
+--- Create the appropriate skill display based on item type
+--- @param item table The skill item to display
+--- @param skills table The skills data from loadSkills()
+--- @return table|nil panels Array of skill display panels, or nil if empty
 local function makeSkillDisplay(item, skills)
     if item.type == "static" then
         return makeStaticSkillDisplay(item, skills)
     else
         return makeSkillDropdowns(item, skills)
     end
+end
+
+--- Create a skill panel with label and skill controls
+--- @param item table The skill item data
+--- @param skills table The skills data from loadSkills()
+--- @return table panel The GUI panel
+local function makeSkillPanel(item, skills)
+    local skillItems = makeSkillDisplay(item, skills)
+    local children = {
+        gui.Label {
+            classes = {"skilldlg-choicedescr", "skilldlg-label", "skilldlg-base"},
+            width = "90%",
+            height = "auto",
+            text = string.format("<b>%s:</b> %s", item.name, item.description)
+        }
+    }
+    table.move(skillItems, 1, #skillItems, #children + 1, children)
+    return gui.Panel{
+        classes = {"skilldlg-panel", "skilldlg-base"},
+        flow = "vertical",
+        data = {
+            item = item,
+        },
+        checkEmpty = function(element)
+            local wrappers = element:GetChildrenWithClassRecursive("skilldlg-wrapper")
+            if not wrappers then
+                if item.added then
+                    element:DestroySelf()
+                else
+                    element:SetClass("collapsed", true)
+                end
+                return
+            end
+            local allDeleted = true
+            for _, w in ipairs(wrappers) do
+                if not w.data.deleted then
+                    allDeleted = false
+                    break
+                end
+            end
+            if allDeleted then
+                if item.added then
+                    element:DestroySelf()
+                else
+                    element:SetClass("collapsed", true)
+                end
+            end
+        end,
+        children = children,
+    }
+end
+
+--- Format selected skills grouped by category for display
+--- @param idsSelected table Map of skillId to selection count
+--- @param skills table The skills data from loadSkills()
+--- @return string text Formatted string with categories and skills
+local function formatSelectedSkillsByCategory(idsSelected, skills)
+    -- Build skillId -> category lookup from skills.list
+    local skillToCategory = {}
+    for _, entry in ipairs(skills.list) do
+        skillToCategory[entry.id] = entry.category
+    end
+
+    -- Group selected skills by category
+    local byCategory = {}
+    for skillId, count in pairs(idsSelected) do
+        local category = skillToCategory[skillId]
+        if category then
+            if not byCategory[category] then
+                byCategory[category] = {}
+            end
+            byCategory[category][skillId] = count
+        end
+    end
+
+    -- Sort categories alphabetically
+    local sortedCategories = {}
+    for category, _ in pairs(byCategory) do
+        sortedCategories[#sortedCategories + 1] = category
+    end
+    table.sort(sortedCategories)
+
+    -- Build output string
+    local lines = {}
+    for _, category in ipairs(sortedCategories) do
+        local skillsInCat = byCategory[category]
+
+        -- Get skill names with counts, sorted alphabetically
+        local skillEntries = {}
+        for skillId, count in pairs(skillsInCat) do
+            local name = skills.lookup[skillId] or skillId
+            local entry
+            if count >= 2 then
+                entry = string.format('%s <color=red>(x%d)</color>', name, count)
+            else
+                entry = name
+            end
+            skillEntries[#skillEntries + 1] = {name = name, text = entry}
+        end
+        table.sort(skillEntries, function(a, b) return a.name < b.name end)
+
+        -- Build category line
+        local skillTexts = {}
+        for _, e in ipairs(skillEntries) do
+            skillTexts[#skillTexts + 1] = e.text
+        end
+        local categoryDisplay = category:sub(1,1):upper() .. category:sub(2)
+        local line = string.format("<b>%s:</b> %s\n", categoryDisplay, table.concat(skillTexts, ", "))
+        lines[#lines + 1] = line
+    end
+
+    return table.concat(lines)
+end
+
+--- Assemble skill updates from dialog state for saving
+--- @param element table The root dialog element
+--- @return table results Contains levelChoices and features tables
+local function assembleSkillUpdates(element)
+    local results = {
+        levelChoices = {},
+        features = {},
+    }
+
+    local controls = element:GetChildrenWithClassRecursive("skilldlg-wrapper")
+    if not controls then
+        return results
+    end
+
+    local choicesByGuid = {}
+
+    for _, c in ipairs(controls) do
+        local item = c.data.item
+        local skillsTable = (not c.data.deleted and c.data.skillId) and {[c.data.skillId] = true} or {}
+
+        if item.canDelete then
+            results.features[#results.features + 1] = {
+                type = item.type,
+                guid = item.guid,
+                sourceGuid = item.sourceGuid,
+                name = item.name,
+                description = item.description,
+                canDelete = item.canDelete,
+                numChoices = item.numChoices,
+                categories = item.categories,
+                individualSkills = item.individualSkills,
+                skills = skillsTable,
+            }
+        elseif item.guid then
+            if not choicesByGuid[item.guid] then
+                choicesByGuid[item.guid] = {}
+            end
+            if not c.data.deleted and c.data.skillId then
+                choicesByGuid[item.guid][c.data.skillId] = true
+            end
+        end
+    end
+
+    for guid, skillsTable in pairs(choicesByGuid) do
+        results.levelChoices[guid] = skillsTable
+    end
+
+    return results
 end
 
 --- Creates a character skill editor dialog
@@ -413,6 +657,7 @@ function CharacterSkillDialog.CreateAsChild(options)
     local customFeatures = token.properties:try_get("characterFeatures", {})
     local skillChoices = aggregateSkillChoices(selectedFeatures, customFeatures, levelChoices)
     local skills = loadSkills()
+    addCompensatingFeatures(skillChoices, skills)
 
     local opts = validateOptions(options)
 
@@ -433,28 +678,37 @@ function CharacterSkillDialog.CreateAsChild(options)
         gui.Divider { width = "50%" },
     }
 
+    local summaryPanel = gui.Panel{
+        classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+        height = 80,
+        width = "100%",
+        halign = "center",
+        flow = "vertical",
+        tmargin = 8,
+        vscroll = true,
+        gui.Label{
+            classes = {"skilldlg-label", "skilldlg-base"},
+            width = "90%",
+            valign = "top",
+            vpad = 8,
+            bold = false,
+            fontSize = 14,
+            text = "calculating...",
+            onSetSummary = function(element, summary)
+                element.text = summary
+            end,
+        },
+    }
+
+    -- TODO: If we have identical static skills, add an extra skill in features
+    -- if there isn't one already
     local skillSections = {}
     for id,content in pairs(skillChoices) do
 
         -- Innermost content - the name, description, and choices
         local skillPanels = {}
         for _,item in ipairs(content) do
-            local skillItems = makeSkillDisplay(item, skills)
-            local children = {
-                gui.Label {
-                    classes = {"skilldlg-choicedescr", "skilldlg-label", "skilldlg-base"},
-                    width = "100%",
-                    height = "auto",
-                    text = string.format("<b>%s:</b> %s", item.name, item.description)
-                }
-            }
-            table.move(skillItems, 1, #skillItems, #children + 1, children)
-            local skillPanel = gui.Panel{
-                classes = {"skilldlg-panel", "skilldlg-base"},
-                flow = "vertical",
-                children = children,
-            }
-            skillPanels[#skillPanels + 1] = skillPanel
+            skillPanels[#skillPanels + 1] = makeSkillPanel(item, skills)
         end
 
         if #skillPanels then
@@ -471,9 +725,24 @@ function CharacterSkillDialog.CreateAsChild(options)
             }
             table.move(skillPanels, 1, #skillPanels, #children + 1, children)
             local section = gui.Panel{
-                id = sectionName,
+                id = id .. "-skills",
                 classes = {"skilldlg-section", "skilldlg-panel", "skilldlg-base"},
                 valign = "top",
+                addSkill = function(element)
+                    if element.id == "features-skills" then
+                        local item = {
+                            type = "choice",
+                            canDelete = true,
+                            numChoices = 1,
+                            selected = {},
+                            name = "New Skill",
+                            description = "Choose a new skill.",
+                            added = true,
+                        }
+                        element:AddChild(makeSkillPanel(item, skills))
+                        resultPanel:FireEvent("valueChanged")
+                    end
+                end,
                 children = children,
             }
             skillSections[#skillSections + 1] = section
@@ -481,11 +750,40 @@ function CharacterSkillDialog.CreateAsChild(options)
         table.sort(skillSections, function(a,b) return a.id < b.id end)
     end
 
-    local bodyPanel = gui.Panel{
+    local addButton = gui.PrettyButton{
+        classes = {"skilldlg-button", "skilldlg-base"},
+        width = "auto",
+        halign = "left",
+        tmargin = 12,
+        hpad = 20,
+        vpad = 4,
+        text = "Add A Skill",
+        fontSize = 12,
+        cornerRadius = 0,
+        click = function(element)
+            resultPanel:FireEventTree("addSkill")
+        end
+    }
+    skillSections[#skillSections + 1] = addButton
+
+    local selectorPanel = gui.Panel{
         classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
-        height = "100%-80,",
+        height = "100%-90",
+        width = "100%",
+        halign = "left",
+        tmargin = 8,
         vscroll = true,
         children = skillSections,
+    }
+
+    local bodyPanel = gui.Panel{
+        classes = {"skilldlg-body", "skilldlg-panel", "skilldlg-base"},
+        height = "100%-100,",
+        flow = "vertical",
+        valign = "center",
+        summaryPanel,
+        gui.Divider { width = "50%" },
+        selectorPanel,
     }
 
     local footerPanel = gui.Panel{
@@ -512,7 +810,6 @@ function CharacterSkillDialog.CreateAsChild(options)
         }
     }
 
-    -- TODO: A side panel to display the currently selected
     -- skills by catgory.
     resultPanel = gui.Panel {
         styles = dialogStyles,
@@ -531,11 +828,13 @@ function CharacterSkillDialog.CreateAsChild(options)
             local controls = element:GetChildrenWithClassRecursive("skilldlg-wrapper")
             if controls then
                 for _,c in ipairs(controls) do
-                    if not c.data.deleted then
+                    if not c.data.deleted and c.data.skillId then
                         local qty = idsSelected[c.data.skillId] or 0
                         idsSelected[c.data.skillId] = qty + 1
                     end
                 end
+                local summaryText = formatSelectedSkillsByCategory(idsSelected, skills)
+                element:FireEventTree("onSetSummary", summaryText)
                 for k,v in pairs(idsSelected) do
                     idsSelected[k] = (v >= 2) or nil
                 end
@@ -550,9 +849,10 @@ function CharacterSkillDialog.CreateAsChild(options)
             element:FireEvent("close")
         end,
         confirm = function(element)
-            -- TODO: Calculate new level choices & features
-            -- Call the confirmHandler callback
-            -- Close
+            local results = assembleSkillUpdates(element)
+            print("THC:: RESULTS::", json(results))
+            -- opts.callbacks.confirmHandler(results)
+            -- element:FireEvent("close")
         end,
 
         headerPanel,

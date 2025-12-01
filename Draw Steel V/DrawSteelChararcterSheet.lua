@@ -2871,8 +2871,8 @@ local function DSCharSheet()
                                 height = 16,
                                 press = function(element)
                                     local options = {
-                                        confirm = function(newLevelChoices)
-                                            print("THC:: CONFIRM::", json(newLevelChoices))
+                                        confirm = function(newSkills)
+                                            print("THC:: CONFIRM::", json(newSkills))
                                         end,
                                     }
                                     CharacterSheet.instance:AddChild(CharacterSkillDialog.CreateAsChild(options))

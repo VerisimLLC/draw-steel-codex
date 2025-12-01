@@ -2861,6 +2861,23 @@ local function DSCharSheet()
                                 tmargin = 5,
                             },
 
+                            gui.SettingsButton {
+                                floating = true,
+                                halign = "right",
+                                valign = "top",
+                                hmargin = 18,
+                                vmargin = 8,
+                                width = 16,
+                                height = 16,
+                                press = function(element)
+                                    local options = {
+                                        confirm = function(newLevelChoices)
+                                            print("THC:: CONFIRM::", json(newLevelChoices))
+                                        end,
+                                    }
+                                    CharacterSheet.instance:AddChild(CharacterSkillDialog.CreateAsChild(options))
+                                end,
+                            },
 
                             gui.Divider {
 

@@ -2871,9 +2871,15 @@ local function DSCharSheet()
                                 height = 16,
                                 press = function(element)
                                     local options = {
-                                        confirm = function(newSkills)
-                                            print("THC:: CONFIRM::", json(newSkills))
-                                        end,
+                                        callbacks = {
+                                            confirm = function(newSkills)
+                                                local token = CharacterSheet.instance.data.info.token
+                                                CharacterSkillDialog.saveFeatures(token, newSkills.features)
+                                                CharacterSkillDialog.saveLevelChoices(token, newSkills.levelChoices)
+                                                CharacterSheet.instance:FireEventTree("refresh")
+                                                CharacterSheet.instance:FireEvent("refreshAll")
+                                            end,
+                                        }
                                     }
                                     CharacterSheet.instance:AddChild(CharacterSkillDialog.CreateAsChild(options))
                                 end,

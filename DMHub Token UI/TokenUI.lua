@@ -788,7 +788,7 @@ TokenHud.RegisterPanel{
                                         if barInfo.text or barInfo.base.text then
                                             element.text = barInfo.text or barInfo.base.text
                                         else
-											local showAs = token.canControl and "val" or barInfo.showAs or "bar"
+											local showAs = (token.canControl or token.isFriendOfPlayer) and "val" or barInfo.showAs or "bar"
 											if (barInfo.temp or 0) > 0 then
 												if showAs == "pct" then
 													if barInfo.max and barInfo.max ~= 0 then

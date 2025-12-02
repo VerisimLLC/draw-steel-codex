@@ -142,7 +142,6 @@ local function aggregateSkillChoices(selectedFeatures, customFeatures, levelChoi
         end
     end
 
-    print("THC:: SKILLCHOICES::", json(skillChoices))
     return skillChoices
 end
 
@@ -187,6 +186,7 @@ local function addCompensatingFeatures(skillChoices, skills)
                 selected = {},
                 name = "Duplicate Skill",
                 description = string.format("Duplicated %s skill - select an alternative.", skillName),
+                added = true,
             }
             return
         end
@@ -197,7 +197,7 @@ end
 --- @param options table Table with data, options, and callback functions
 --- @return table opts Modified options table
 local function validateOptions(options)
-    local opts = shallow_copy_list(options)
+    local opts = DeepCopy(options)
 
     if not opts.callbacks then opts.callbacks = {} end
     local confirmHandler = opts.callbacks.confirm
@@ -431,7 +431,6 @@ local function makeSkillDropdowns(item, skills)
         skillOpts = DeepCopy(skills.list)
     end
 
-    print("THC:: ITEM::", json(item))
     local selected = item.selected or {}
     for i = 1, item.numChoices or 1 do
         local skillId = selected[i]
@@ -594,8 +593,9 @@ end
 
 --- Assemble skill updates from dialog state for saving
 --- @param element table The root dialog element
+--- @param skills table The skills data from loadSkills()
 --- @return table results Contains levelChoices and features tables
-local function assembleSkillUpdates(element)
+local function assembleSkillUpdates(element, skills)
     local results = {
         levelChoices = {},
         features = {},
@@ -613,6 +613,7 @@ local function assembleSkillUpdates(element)
         local skillsTable = (not c.data.deleted and c.data.skillId) and {[c.data.skillId] = true} or {}
 
         if item.canDelete then
+            local skillName = c.data.skillId and skills.lookup[c.data.skillId] or nil
             results.features[#results.features + 1] = {
                 type = item.type,
                 guid = item.guid,
@@ -624,22 +625,131 @@ local function assembleSkillUpdates(element)
                 categories = item.categories,
                 individualSkills = item.individualSkills,
                 skills = skillsTable,
+                skillName = skillName,
+                added = item.added,
             }
-        elseif item.guid then
+        elseif item.guid and item.type ~= "static" then
             if not choicesByGuid[item.guid] then
                 choicesByGuid[item.guid] = {}
             end
             if not c.data.deleted and c.data.skillId then
-                choicesByGuid[item.guid][c.data.skillId] = true
+                choicesByGuid[item.guid][#choicesByGuid[item.guid] + 1] = c.data.skillId
             end
         end
     end
 
-    for guid, skillsTable in pairs(choicesByGuid) do
-        results.levelChoices[guid] = skillsTable
+    for guid, skillsArray in pairs(choicesByGuid) do
+        results.levelChoices[guid] = skillsArray
     end
 
     return results
+end
+
+--- Save feature changes to the token
+--- @param token table The character token
+--- @param features table The features array from assembleSkillUpdates
+function CharacterSkillDialog.saveFeatures(token, features)
+    local characterFeatures = token.properties:get_or_add("characterFeatures", {})
+
+    -- Build lookup of existing features by guid for quick access
+    local existingByGuid = {}
+    for i, cf in ipairs(characterFeatures) do
+        if cf.guid then
+            existingByGuid[cf.guid] = { index = i, feature = cf }
+        end
+    end
+
+    -- Track guids to delete (features we knew about that now have empty skills)
+    local toDelete = {}
+
+    -- Process each feature from dialog
+    for _, f in ipairs(features) do
+        local skills = f.skills or {}
+        local hasSkills = next(skills) ~= nil
+
+        if f.guid and existingByGuid[f.guid] then
+            -- EXISTING feature we knew about
+            if hasSkills then
+                -- UPDATE: has skills, update the modifier
+                local existing = existingByGuid[f.guid].feature
+                if existing.modifiers then
+                    for _, mod in ipairs(existing.modifiers) do
+                        if mod.subtype == "skill" then
+                            if not dmhub.DeepEqual(mod.skills, skills) then
+                                mod.skills = skills
+                            end
+                            break
+                        end
+                    end
+                end
+            else
+                -- DELETE: skills cleared, mark for deletion
+                toDelete[f.guid] = true
+            end
+
+        elseif f.added and hasSkills then
+            -- ADD new feature (only if it has skills selected)
+            local skillName = f.skillName or "unknown"
+            local description = string.format("You have the %s skill.", skillName)
+
+            local newFeature = CharacterFeature.Create{
+                name = f.name,
+                description = description,
+                source = "Character Feature",
+            }
+
+            local featureGuid = newFeature.guid
+            newFeature.domains = { ["CharacterFeature:" .. featureGuid] = true }
+
+            local modifier = CharacterModifier.new{
+                guid = dmhub.GenerateGuid(),
+                name = f.name,
+                description = f.description,
+                subtype = "skill",
+                behavior = "proficiency",
+                proficiency = "proficient",
+                source = "Character Feature",
+                sourceguid = featureGuid,
+                domains = { ["CharacterFeature:" .. featureGuid] = true },
+                equate = false,
+                skills = skills,
+            }
+
+            newFeature.modifiers = { modifier }
+            characterFeatures[#characterFeatures + 1] = newFeature
+        end
+        -- If f.added and NOT hasSkills: ignore (user added then deleted before confirm)
+    end
+
+    -- DELETE marked features (iterate backwards for safe removal)
+    for i = #characterFeatures, 1, -1 do
+        local cf = characterFeatures[i]
+        if cf.guid and toDelete[cf.guid] then
+            table.remove(characterFeatures, i)
+        end
+    end
+end
+
+--- Save level choice updates to the token
+--- @param token table The character token
+--- @param levelChoicesInput table The levelChoices from assembleSkillUpdates
+function CharacterSkillDialog.saveLevelChoices(token, levelChoicesInput)
+    local tokenLevelChoices = token.properties:get_or_add("levelChoices", {})
+
+    -- STRICT VALIDATION: All keys from input must exist in token's levelChoices
+    -- for guid, _ in pairs(levelChoicesInput) do
+    --     if tokenLevelChoices[guid] == nil then
+    --         -- Key doesn't exist - abort silently
+    --         return
+    --     end
+    -- end
+
+    -- All keys validated, now update with change detection
+    for guid, skillsArray in pairs(levelChoicesInput) do
+        if not dmhub.DeepEqual(tokenLevelChoices[guid], skillsArray) then
+            tokenLevelChoices[guid] = skillsArray
+        end
+    end
 end
 
 --- Creates a character skill editor dialog
@@ -849,10 +959,9 @@ function CharacterSkillDialog.CreateAsChild(options)
             element:FireEvent("close")
         end,
         confirm = function(element)
-            local results = assembleSkillUpdates(element)
-            print("THC:: RESULTS::", json(results))
-            -- opts.callbacks.confirmHandler(results)
-            -- element:FireEvent("close")
+            local results = assembleSkillUpdates(element, skills)
+            opts.callbacks.confirmHandler(results)
+            element:FireEvent("close")
         end,
 
         headerPanel,

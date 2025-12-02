@@ -3681,6 +3681,41 @@ function creature:EndCombat()
         return ongoingEffect.removeOnEoEOrDying or ongoingEffect.removeOnEoE
     end)
 
+    self:RemoveMatchingCondition(function(condition)
+        return condition.duration == "eoe"
+    end)
+
+    if self:has_key("auras") then
+		local expires = false
+		for i,aura in ipairs(self.auras) do
+			if aura:HasExpired() then
+				expires = true
+			end
+		end
+
+		if expires then
+			local newAuras = {}
+			for i,aura in ipairs(self.auras) do
+				if aura:HasExpired() then
+					aura:DestroyAura(self)
+				else
+					newAuras[#newAuras+1] = aura
+				end
+			end
+			self.auras = newAuras
+		end
+	end
+
+    if not self:has_key("temporary_hitpoints_effect") and self:TemporaryHitpoints() > 0 then
+        local token = dmhub.LookupToken(self)
+        token:ModifyProperties{
+            description = "Remove Temporary Hit Points",
+            execute = function()
+                self.temporary_hitpoints = nil
+            end,
+        }
+    end
+
     token:ModifyProperties{
         description = "Reset Heroic Resource",
         execute = function()
@@ -3721,6 +3756,36 @@ function creature:RemoveMatchingOngoingEffects(predicate)
                 description = "End combat",
                 execute = function()
                     self.ongoingEffects = newOngoingEffects
+                end,
+            }
+        end
+    end
+end
+
+function creature:RemoveMatchingCondition(predicate)
+    local removes = nil
+    local conditions = self:try_get("inflictedConditions", {})
+    for condid, condition in pairs(conditions) do
+        if predicate(condition) then
+            removes = removes or {}
+            removes[#removes + 1] = condid
+        end
+    end
+
+    if removes ~= nil then
+        local newConditions = {}
+        for condid, condition in pairs(conditions) do
+            if not table.contains(removes, condid) then
+                newConditions[condid] = condition
+            end
+        end
+
+        local token = dmhub.LookupToken(self)
+        if token ~= nil then
+            token:ModifyProperties {
+                description = "Remove matching conditions",
+                execute = function()
+                    self.inflictedConditions = newConditions
                 end,
             }
         end

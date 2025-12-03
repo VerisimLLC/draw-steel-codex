@@ -463,6 +463,8 @@ function CreateSettingsScreen(dialog, args)
 						Setting('perf:postprocess'),
 						Setting('perf:hdr'),
 						Setting('perf:msaa'),
+						Setting('perf:nocompress'),
+
 						--Setting('perf:hideftextures'),
 						Setting('perf:hidefdice'),
 						Setting('perf:castshadows'),

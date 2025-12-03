@@ -277,7 +277,7 @@ local SettingsEditors = {
 					styles = {
 						{
 							fontSize = 18,
-							width = 180,
+							width = 160,
 							height = 48,
 							halign = 'right',
 							valign = 'center',

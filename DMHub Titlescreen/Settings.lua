@@ -821,6 +821,13 @@ setting{
 	default = true,
 }
 
+setting{
+    id = "perf:nocompress",
+    description = "Uncompressed Textures",
+    storage = "preference",
+    editor = "check",
+    default = false,
+}
 
 
 

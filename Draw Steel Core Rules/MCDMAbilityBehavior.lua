@@ -1334,6 +1334,13 @@ function ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(cas
     --print("FullyImplemented::", rule, fullyImplemented)
     if not fullyImplemented then
         rule = ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
+    else
+
+        --make stop parsing after any #
+        rule = string.gsub(rule, " #", " <alpha=#00><alpha=#ff>")
+        if string.starts_with(rule, "#") then
+            rule = "<alpha=#00><alpha=#ff>" .. string.sub(rule, 2)
+        end
     end
 
     --print("Rule::", starting, "becomes", rule)
@@ -1351,10 +1358,10 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
         text = text:gsub("<color=[^>]+>", "")
         text = text:gsub("</color>", "")
 
-        local matchLiteral = regex.MatchGroups(text, "^(?<whitespace>\\s*)#(?<text>.*)\\s*$")
+        local matchLiteral = regex.MatchGroups(text, "^[;,]?(?<whitespace>\\s*)#(?<text>.*)\\s*$")
         if matchLiteral ~= nil then
             print("Rule:: FORMAT ALPHA")
-            --this capitalized ALPHA marks stop parsing rules.
+            --this alpha marks stop parsing rules.
             return string.format("%s<alpha=#00><alpha=#ff>%s%s", before, matchLiteral.whitespace, matchLiteral.text)
         end
 

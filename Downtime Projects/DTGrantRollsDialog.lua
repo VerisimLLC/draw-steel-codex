@@ -166,7 +166,7 @@ function DTGrantRollsDialog:ShowDialog()
                                 halign = "center",
                                 valign = "top",
                             },
-                            gui.Divider { width = "50%", },
+                            gui.Divider { width = "80%", layout = "dot", height = 12 },
                         }
                     },
 

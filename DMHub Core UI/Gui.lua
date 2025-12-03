@@ -4818,11 +4818,100 @@ function gui.VisibilityPanel(options)
 	return gui.Panel(args)
 end
 
+--- @class DividerArgs:PanelArgs
+--- @field layout? nil|"line"|"dot"|"peak"|"v"|"vdot" To style the divider as an MCDM divider
+local mcdmLayouts = { line = true, dot = true, peak = true, v = true, vdot = true }
+
+--- @param options DividerArgs
+--- @return Panel
+--- Create a divider panel with layout aligning with MCDM book design
+function gui.MCDMDivider(options)
+	options = options or {}
+	local layout = options.layout and #options.layout > 0 and options.layout:lower()
+
+	options.layout = nil
+	options.bgimage = nil
+
+	local args = {
+		tmargin = 4,
+		bmargin = 0,
+		height = 1,
+		width = "80%",
+		halign = "center",
+		bgimage = "panels/square.png",
+		bgcolor = Styles.textColor,
+	}
+
+	if layout and mcdmLayouts[layout] then
+
+		for k,v in pairs(options) do
+			args[k] = v
+		end
+		args.height = (args.height and args.height > 1) and args.height or 12
+		args.tmargin = 0
+		args.bgimage = nil
+		args.gradient = nil
+		args.flow = "horizontal"
+		
+		local lineWidth = "50%-" .. math.floor(args.height/2)
+		local bgcolor = args.bgcolor or Styles.textColor
+		local leftPanel = gui.Panel{
+			height = args.height,
+			width = lineWidth,
+			halign = "right",
+			valign = "center",
+			pad = 0,
+			margin = 0,
+			bgimage = mod.images.line,
+			bgcolor = bgcolor
+		}
+		local midPanel = gui.Panel{
+			height = args.height,
+			width = args.height,
+			halign = "center",
+			valign = "center",
+			pad = 0,
+			margin = 0,
+			bgimage = mod.images[layout],
+			bgcolor = bgcolor
+		}
+		local rightPanel = gui.Panel{
+			height = args.height,
+			width = lineWidth,
+			halign = "left",
+			valign = "center",
+			pad = 0,
+			margin = 0,
+			bgimage = mod.images.line,
+			bgcolor = bgcolor
+		}
+
+		args.children = {
+			leftPanel, midPanel, rightPanel,
+		}
+
+		return gui.Panel(args)
+	end
+
+	for k,v in pairs(options) do
+		args[k] = v
+	end
+
+	return gui.Panel(args)
+
+end
+
 --- Create a divider panel.
---- @param options PanelArgs
+--- @param options DividerArgs
 --- @return Panel
 function gui.Divider(options)
 	options = options or {}
+
+	local layout = options.layout and #options.layout > 0 and options.layout:lower()
+	if layout and mcdmLayouts[layout] then
+		return gui.MCDMDivider(options)
+	end
+	options.layout = nil
 
 	local args = {
 		tmargin = 4,

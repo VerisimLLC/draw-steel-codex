@@ -623,29 +623,6 @@ local function obliterateLangRel()
 	langRelTable = dmhub.GetTableVisible(LanguageRelation.tableName) or {}
 end
 
-local function fixupMissingName()
-	local langRels = dmhub.GetTable(LanguageRelation.tableName)
-	for _, item in pairs(langRels) do
-		if item.name == nil or #item.name == 0 then
-			uploadItem(item)
-		end
-	end
-end
-
-local g_oneTimeEventHandler
-
-g_oneTimeEventHandler = dmhub.RegisterEventHandler("refreshTables", function()
-    dmhub.DeregisterEventHandler(g_oneTimeEventHandler)
-
-    -- If the language relations table is empty, attempt to load Orden defaults
-    local langRelTable = dmhub.GetTableVisible(LanguageRelation.tableName) or {}
-    if next(langRelTable) == nil then
-        loadOrdenRels()
-    else
-        fixupMissingName()
-    end
-end)
-
 Commands.langrelloadorden = function(args)
 	loadOrdenRels()
 end

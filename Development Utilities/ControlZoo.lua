@@ -268,6 +268,46 @@ LaunchablePanel.Register {
                     })
                 },
 
+                ControlEntry {
+                    name = "Divider (layout=line)",
+                    control = gui.Divider{
+                        layout = "line",
+                        width = "50%",
+                    }
+                },
+
+                ControlEntry {
+                    name = "Divider (layout=dot)",
+                    control = gui.Divider{
+                        layout = "dot",
+                        width = "50%",
+                    }
+                },
+
+                ControlEntry {
+                    name = "Divider (layout=v)",
+                    control = gui.Divider{
+                        layout = "v",
+                        width = "50%",
+                    }
+                },
+
+                ControlEntry {
+                    name = "Divider (layout=peak)",
+                    control = gui.Divider{
+                        layout = "peak",
+                        width = "50%",
+                    }
+                },
+
+                ControlEntry {
+                    name = "Divider (layout=vdot)",
+                    control = gui.Divider{
+                        layout = "vdot",
+                        width = "50%",
+                    }
+                },
+
 
             },
 

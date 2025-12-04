@@ -220,6 +220,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 type = "text",
                 text = t,
                 justification = justification,
+                player = isPlayer,
                 --trace = debug.traceback(),
             }
         end
@@ -295,6 +296,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
                 result[#result + 1] = {
                     type = "end_collapse_node",
+                    player = isPlayer,
                     text = "",
                 }
 
@@ -327,6 +329,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             result[#result+1] = {
                 type = "blockquote",
                 text = table.concat(blockLines, "\n"),
+                player = isPlayer,
             }
 
             skipping = true
@@ -342,6 +345,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 type = "rollable_table",
                 name = rollableTableHeaderMatch.name,
                 dice = rollableTableHeaderMatch.dice,
+                player = isPlayer,
             }
 
             str = ""
@@ -373,6 +377,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     name = powerRollMatch.name,
                     attr = powerRollMatch.attr,
                     tiers = tiers,
+                    player = isPlayer,
                 }
                 skipLines = 3
                 str = ""
@@ -387,6 +392,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     preset = nextLine,
                     lines = options.linesContext or lines,
                     lineIndex = options.lineIndexContext or i,
+                    player = isPlayer,
                 }
                 str = ""
             end
@@ -407,6 +413,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
             result[#result + 1] = {
                 type = "row",
+                player = isPlayer,
             }
 
             local linePrefix = "|"
@@ -415,8 +422,10 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             for j, cell in ipairs(cells) do
                 result[#result + 1] = {
                     type = "cell",
+                    player = isPlayer,
                 }
                 BreakdownRichTags(cell, result, {
+                    player = options.player,
                     linePrefix = linePrefix,
                     linesContext = lines,
                     lineIndexContext = i,
@@ -428,6 +437,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
 
             result[#result + 1] = {
                 type = "end_row",
+                player = isPlayer,
             }
 
             str = ""
@@ -441,6 +451,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
             EmitText()
             result[#result + 1] = {
                 type = "divider",
+                player = isPlayer,
             }
             str = ""
         end
@@ -454,6 +465,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     type = "collapse_node",
                     title = collapseNodeMatch.title,
                     text = str,
+                    player = isPlayer,
                 }
                 collapseNodes[#collapseNodes + 1] = #leading
                 str = ""
@@ -515,6 +527,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                 result[#result + 1] = {
                     type = "justification",
                     text = match.justification,
+                    player = isPlayer,
                 }
 
                 if match.justification == ":<" then
@@ -529,6 +542,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     type = "embed",
                     text = match.embed,
                     justification = justification,
+                    player = isPlayer,
                 }
             else
                 local linepos = (#line - #str) + #match.prefix
@@ -538,7 +552,9 @@ BreakdownRichTags = function(content, result, options, extraOutput)
                     linepos = linepos + #options.linePrefix
                 end
 
+                local guid = dmhub.GenerateGuid()
                 result[#result + 1] = {
+                    guid = guid,
                     type = "tag",
                     text = match.tag,
                     justification = justification,
@@ -569,6 +585,7 @@ BreakdownRichTags = function(content, result, options, extraOutput)
         result[#result + 1] = {
             type = "end_collapse_node",
             text = "",
+            player = isPlayer,
         }
 
         collapseNodes[#collapseNodes] = nil

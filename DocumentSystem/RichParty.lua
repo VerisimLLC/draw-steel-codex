@@ -39,6 +39,9 @@ function RichParty.CreateDisplay(self)
             valign = "center",
             width = 16,
             height = 16,
+            refreshTag = function(element, richTag, patternMatch, token)
+                element:SetClass("collapsed", token.player)
+            end,
             press = function(element)
                 local entries = {}
 
@@ -167,6 +170,10 @@ function RichParty.CreateDisplay(self)
                         resultPanel:FireEventTree("refreshTag")
                     end,
                     draggable = dmhub.isDM,
+                    refreshTag = function(element, richTag, patternMatch, token)
+                        element:SetClass("playerview", token.player)
+                        element.draggable = not token.player
+                    end,
                     beginDrag = function(element)
                     end,
                     canDragOnto = function(element, target)
@@ -231,6 +238,9 @@ function RichParty.CreateDisplay(self)
                                     hidden = 0,
                                 },
                             },
+                            refreshTag = function(element, richTag, patternMatch, token)
+                                element:SetClass("collapsed", token.player)
+                            end,
                             escapeActivates = false,
                             halign = "right",
                             valign = "top",
@@ -396,7 +406,7 @@ function RichParty.CreateDisplay(self)
                 borderColor = "yellow",
             },
             {
-                selectors = { "tokenPanel", "hover" },
+                selectors = { "tokenPanel", "hover", "~playerview" },
                 borderWidth = 1,
                 borderColor = "#ffffff88",
             },
@@ -457,6 +467,10 @@ function RichParty.CreateDisplay(self)
         end,
 
         rightClick = function(element)
+            local doc = self:GetDocument()
+            if doc == nil or doc:IsPlayerView(element) then
+                return
+            end
             local entries = {
                 {
                     text = "Clear",

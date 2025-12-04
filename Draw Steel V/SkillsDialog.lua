@@ -30,6 +30,7 @@ local function processChoiceSource(item)
         return "culture"
     end
     if item.class then return "class" end
+    if item.race then return "ancestry" end
     return nil
 end
 

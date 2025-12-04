@@ -109,6 +109,22 @@ LaunchablePanel.Register {
                     },
                 },
 
+                ControlEntry{
+                    name = "Beveled Button",
+                    control = gui.Button{
+                        text = "Click me, too",
+                        halign = "center",
+                        valign = "center",
+                        width = 120,
+                        height = 36,
+                        fontSize = 20,
+                        cornerRadius = 8,
+                        beveledcorners = true,
+                        borderColor = "#bc9b7b",
+                        
+                    }
+                },
+
                 ControlEntry {
                     name = "Delete Button",
                     control = gui.DeleteItemButton {

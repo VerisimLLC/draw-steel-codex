@@ -2495,7 +2495,11 @@ function GameHud.CreateInitiativeEntry(self, info, initiativeid, options)
 								--set the image shown here with the current portion of the image.
                                 local portrait = token.offTokenPortrait
 								element.bgimage = portrait
-								element.selfStyle.imageRect = token:GetPortraitRectForAspect(CardWidthPercent*0.01, portrait)
+                                if portrait ~= token.portrait and not token.popoutPortrait then
+                                    element.selfStyle.imageRect = nil
+                                else
+								    element.selfStyle.imageRect = token:GetPortraitRectForAspect(CardWidthPercent*0.01, portrait)
+                                end
 								found = true
 							end
 

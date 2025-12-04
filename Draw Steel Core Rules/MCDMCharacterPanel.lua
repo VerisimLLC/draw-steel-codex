@@ -4151,7 +4151,12 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 refreshCharacter = function(element, token)
                     local portrait = token.offTokenPortrait
                     element.bgimage = portrait
-                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+
+                    if portrait ~= token.portrait and not token.popoutPortrait then
+                        element.selfStyle.imageRect = nil
+                    else
+                        element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                    end
                 end,
             },
 

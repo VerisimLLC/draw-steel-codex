@@ -1,5 +1,7 @@
 --- Styles for Character Builder
 
+-- TODO: Clean up styles / ordering
+
 --- Set this to true to draw layout helper borders around panels that have none
 local DEBUG_PANEL_BG = false
 
@@ -20,6 +22,10 @@ CharacterBuilder.SIZES = {
 
     SELECTOR_BUTTON_WIDTH = 200,
     SELECTOR_BUTTON_HEIGHT = 48,
+
+    CATEGORY_BUTTON_WIDTH = 250,
+    CATEGORY_BUTTON_HEIGHT = 48,
+    CATEGORY_BUTTON_MARGIN = 16,
 
     AVATAR_DIAMETER = 185,
 
@@ -42,7 +48,7 @@ function CharacterBuilder._baseStyles()
             bold = false,
         },
         {
-            selectors = {"font-black", "builder-base"},
+            selectors = {"font-black"},
             color = "#000000",
         },
     }
@@ -51,7 +57,7 @@ end
 function CharacterBuilder._panelStyles()
     return {
         {
-            selectors = {"panel-base", "builder-base"},
+            selectors = {"panel-base"},
             height = "auto",
             width = "auto",
             pad = 2,
@@ -61,38 +67,61 @@ function CharacterBuilder._panelStyles()
             border = DEBUG_PANEL_BG and 1 or 0
         },
         {
-            selectors = {"bordered", "panel-base", "builder-base"},
-            bgimage = true,
+            selectors = {"panel-border"},
+            -- bgimage = true,
+            -- bgcolor = "#ffffff",
             borderColor = CharacterBuilder.COLORS.CREAM,
             border = 2,
             cornerRadius = 10,
         },
         {
-            selectors = {"builderPanel", "panel-base", "builder-base"},
+            selectors = {"builderPanel"},
             bgcolor = CharacterBuilder.COLORS.PANEL_BG,
-        }
+        },
+        {
+            selectors = {CharacterBuilder.CONTROLLER_CLASS},
+            bgcolor = "#ffffff",
+            bgimage = nil,
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.5, y = 0.5},
+                point_b = {x = 0.5, y = 1.0},
+                stops = {
+                    {position = 0.00, color = "#ffffff"},
+                    {position = 0.08, color = "#e0e0e0"},
+                    {position = 0.15, color = "#c0c0c0"},
+                    {position = 0.22, color = "#a0a0a0"},
+                    {position = 0.30, color = "#808080"},
+                    {position = 0.45, color = "#606060"},
+                    {position = 0.60, color = "#404040"},
+                    {position = 0.75, color = "#202020"},
+                    {position = 0.88, color = "#101010"},
+                    {position = 1.00, color = "#000000"},
+                },
+            },
+        },
     }
 end
 
 function CharacterBuilder._labelStyles()
     return {
         {
-            selectors = {"label", "builder-base"},
+            selectors = {"label"},
             textAlignment = "center",
             fontSize = 14,
             color = Styles.textColor,
             bold = false,
         },
         {
-            selectors = {"label-info", "label", "bulder-base"},
+            selectors = {"label-info"},
             hpad = 12,
             fontSize = 18,
             textAlignment = "left",
             bgimage = true,
-            bgcolor = "#333333cc",
+            bgcolor = "#10110FE5",
         },
         {
-            selectors = {"label-header", "label-info", "label", "builder-base"},
+            selectors = {"label-header"},
             fontSize = 40,
             bold = true,
         },
@@ -102,12 +131,12 @@ end
 function CharacterBuilder._buttonStyles()
     return {
         {
-            selectors = {"button", "builder-base"},
+            selectors = {"button"},
             border = 1,
             borderWidth = 1,
         },
         {
-            selectors = {"category", "button", "builder-base"},
+            selectors = {"category"},
             width = CharacterBuilder.SIZES.ACTION_BUTTON_WIDTH,
             height = CharacterBuilder.SIZES.ACTION_BUTTON_HEIGHT,
             halign = "center",
@@ -116,14 +145,15 @@ function CharacterBuilder._buttonStyles()
             fontSize = 24,
             cornerRadius = 5,
             textAlignment = "left",
+            bold = false,
         },
         {
-            selectors = {"available", "button", "builder-base"},
+            selectors = {"available"},
             borderColor = CharacterBuilder.COLORS.CREAM,
             color = CharacterBuilder.COLORS.GOLD,
         },
         {
-            selectors = {"unavailable", "button", "builder-base"},
+            selectors = {"unavailable"},
             borderColor = CharacterBuilder.COLORS.GRAY02,
             color = CharacterBuilder.COLORS.GRAY02,
         }
@@ -133,16 +163,16 @@ end
 function CharacterBuilder._inputStyles()
     return {
         {
-            selectors = {"text-entry", "builder-base"},
+            selectors = {"text-entry"},
             bgcolor = "#191A18",
             borderColor = "#666663",
         },
         {
-            selectors = {"primary", "text-entry", "builder-base"},
+            selectors = {"primary"},
             height = 48,
         },
         {
-            selectors = {"secondary", "text-entry", "builder-base"},
+            selectors = {"secondary"},
             height = 36,
         },
     }

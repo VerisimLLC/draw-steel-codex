@@ -1,11 +1,9 @@
 --[[
-    Selectors - managing the left side of the builder
+    Selectors - managing the options on the left side of the builder
 ]]
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
-local _getController = CharacterBuilder._getController
 local _getCreature = CharacterBuilder._getCreature
-local _getData = CharacterBuilder._getData
 local _getToken = CharacterBuilder._getToken
 
 --- Creates a panel of selectable item buttons that expands when its selector is active.
@@ -18,6 +16,7 @@ function CharacterBuilder._createDetailedSelectorPanel(config)
 
     for _,item in ipairs(config.items) do
         buttons[#buttons+1] = gui.SelectorButton{
+            classes = {"builder-base", "button", "category"},
             width = CharacterBuilder.SIZES.SELECTOR_BUTTON_WIDTH,
             height = CharacterBuilder.SIZES.SELECTOR_BUTTON_HEIGHT,
             valign = "top",
@@ -30,7 +29,7 @@ function CharacterBuilder._createDetailedSelectorPanel(config)
             end,
             refreshBuilderState = function(element, state)
                 if state then
-                    element:FireEvent("setSelected", state:Get(config.selectorName) == element.data.id)
+                    element:FireEvent("setSelected", state:Get(config.selectorName .. ".selectedId") == element.data.id)
                 end
             end,
             refreshToken = function(element)
@@ -127,7 +126,7 @@ function CharacterBuilder._selectorsPanel()
     end
 
     local selectorsPanel = gui.Panel{
-        classes = {"selectorsPanel", "panel-base", "builder-base"},
+        classes = {"selectorsPanel", "builder-base", "panel-base"},
         width = CharacterBuilder.SIZES.BUTTON_PANEL_WIDTH,
         height = "99%",
         halign = "left",

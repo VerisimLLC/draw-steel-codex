@@ -1,5 +1,9 @@
 --- Character Sheet Builder  building a character step by step
 --- Functions standalone or plugs in to CharacterSheet
+--- 
+--- - Data is managed in the main window state.
+---   Respond to event `refreshBuilderState` which receives a state object
+---   Send state updates back to the controller by using `_fireControllerEvent("updateState", {key = x, value = y})`
 CharacterBuilder = RegisterGameType("CharacterBuilder")
 
 CharacterBuilder.CONTROLLER_CLASS = "builderPanel"
@@ -15,7 +19,7 @@ Ancestry describes how you were born. Culture (part of Chapter 4: Background) de
 Your hero is one of these folks! The fantastic ancestry you choose bestows benefits that come from your anatomy and physiology. This choice doesn't grant you cultural benefits, such as crafting or lore skills, though. While many game settings have cultures made of mostly one ancestry, other cultures and worlds have a cosmopolitan mix of peoples.]]
 
 --[[
-    Register selectors - analagous to tabs on the old builder
+    Register selectors - controls down the left side of the window
 ]]
 
 CharacterBuilder.Selectors = {}

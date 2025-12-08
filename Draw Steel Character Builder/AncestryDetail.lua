@@ -1,3 +1,5 @@
+local mod = dmhub.GetModLoading()
+
 --[[
     Ancestry detail / selectors
 ]]
@@ -6,9 +8,7 @@ local SELECTOR = "ancestry"
 local INITIAL_CATEGORY = "overview"
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
-local _getController = CharacterBuilder._getController
 local _getCreature = CharacterBuilder._getCreature
-local _getData = CharacterBuilder._getData
 local _getToken = CharacterBuilder._getToken
 
 --- Placeholder for content in a center panel
@@ -16,10 +16,10 @@ function CharacterBuilder._ancestryDetail()
     local ancestryPanel
 
     local function makeCategoryButton(options)
-        options.height = 48
-        options.width = 250
+        options.width = CharacterBuilder.SIZES.CATEGORY_BUTTON_WIDTH
+        options.height = CharacterBuilder.SIZES.CATEGORY_BUTTON_HEIGHT
         options.valign = "top"
-        options.bmargin = 16
+        options.bmargin = CharacterBuilder.SIZES.CATEGORY_BUTTON_MARGIN
         options.bgcolor = CharacterBuilder.COLORS.BLACK03
         options.borderColor = CharacterBuilder.COLORS.GRAY02
         if options.click == nil then
@@ -68,12 +68,9 @@ function CharacterBuilder._ancestryDetail()
         click = function(element)
             local creature = _getCreature(element)
             if creature then
-                local controller = _getController(element)
-                if controller then
-                    creature.raceid = nil
-                    creature.subraceid = nil
-                    controller:FireEvent("tokenDataChanged")
-                end
+                creature.raceid = nil
+                creature.subraceid = nil
+                _fireControllerEvent(element, "tokenDataChanged")
             end
         end,
         categoryChange = function() end,
@@ -119,11 +116,12 @@ function CharacterBuilder._ancestryDetail()
 
     local ancestryOverviewPanel = gui.Panel{
         id = "ancestryOverviewPanel",
-        classes = {"ancestryOverviewPanel", "bordered", "panel-base", "builder-base", "collapsed"},
+        classes = {"ancestryOverviewPanel", "builder-base", "panel-base", "panel-border", "collapsed"},
         width = "96%",
         height = "99%",
         valign = "center",
         halign = "center",
+        bgimage = mod.images.ancestryHome,
         bgcolor = "white",
 
         data = {
@@ -138,11 +136,12 @@ function CharacterBuilder._ancestryDetail()
             element:FireEvent("categoryChange", element.data.category)
             local ancestryId = state:Get("ancestry.selectedId")
             if ancestryId == nil then
-                -- element.bgcolor = "#667788"
-                -- element.bgimage = true
+                print("THC:: RACEIMAGE:: NONE::")
+                element.bgimage = mod.images.ancestryHome
                 return
             end
             local race = dmhub.GetTable(Race.tableName)[ancestryId]
+            print("THC:: RACEIMAGE::", race.portraitid)
             element.bgimage = race.portraitid
         end,
 
@@ -159,8 +158,6 @@ function CharacterBuilder._ancestryDetail()
                 width = "100%",
                 height = "auto",
                 hpad = 12,
-                bgimage = true,
-                bgcolor = "#333333cc",
                 text = "ANCESTRY",
                 textAlignment = "left",
                 refreshBuilderState = function(element, state)
@@ -175,26 +172,20 @@ function CharacterBuilder._ancestryDetail()
                 classes = {"builder-base", "label", "label-info"},
                 width = "100%",
                 height = "auto",
+                vpad = 6,
                 hpad = 12,
                 bmargin = 12,
-                bold = false,
-                fontSize = 18,
                 textAlignment = "left",
-                bgimage = true,
-                bgcolor = "#333333cc",
                 text = CharacterBuilder.STRINGS.ANCESTRY.INTRO,
             },
             gui.Label{
                 classes = {"builder-base", "label", "label-info"},
                 width = "100%",
                 height = "auto",
+                vpad = 6,
                 hpad = 12,
                 tmargin = 12,
-                bold = false,
-                fontSize = 18,
                 textAlignment = "left",
-                bgimage = true,
-                bgcolor = "#333333cc",
                 text = CharacterBuilder.STRINGS.ANCESTRY.OVERVIEW,
             }
         }
@@ -222,7 +213,7 @@ function CharacterBuilder._ancestryDetail()
         halign = "center",
         borderColor = "yellow",
         data = {
-            selector = "ancestry",
+            selector = SELECTOR,
         },
 
         refreshBuilderState = function(element, state)

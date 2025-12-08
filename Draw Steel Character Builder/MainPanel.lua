@@ -4,7 +4,6 @@
 ]]
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
-local _getController = CharacterBuilder._getController
 local _getCreature = CharacterBuilder._getCreature
 local _getToken = CharacterBuilder._getToken
 
@@ -139,10 +138,11 @@ function CharacterBuilder._characterPanel(builderPanel)
 
     characterPanel = gui.Panel{
         id = "characterPanel",
-        classes = {"builder-base", "panel-base", "bordered", "characterPanel"},
+        classes = {"builder-base", "panel-base", "panel-border", "characterPanel"},
         width = CharacterBuilder.SIZES.CHARACTER_PANEL_WIDTH,
         height = "99%",
         valign = "center",
+        bgimage = true,
         -- halign = "right",
         flow = "vertical",
 
@@ -169,13 +169,13 @@ function CharacterBuilder.CreatePanel()
     builderPanel = gui.Panel{
         id = CharacterBuilder.CONTROLLER_CLASS,
         styles = CharacterBuilder._getStyles(),
-        classes = {CharacterBuilder.CONTROLLER_CLASS, "builder-base", "panel-base"},
+        classes = {"panel-base", "builder-base", CharacterBuilder.CONTROLLER_CLASS},
         width = "99%",
         height = "99%",
         halign = "center",
         valign = "center",
         flow = "horizontal",
-        borderColor = "red",
+        borderColor = "red",  
 
         data = {
             state = CharacterBuilderState:new(),

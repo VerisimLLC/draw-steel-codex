@@ -21,6 +21,7 @@ function CharacterBuilder._createDetailedSelectorPanel(config)
             height = CharacterBuilder.SIZES.SELECTOR_BUTTON_HEIGHT,
             valign = "top",
             tmargin = CharacterBuilder.SIZES.BUTTON_SPACING,
+            bmargin = 0,
             text = item.name,
             data = { id = item.id },
             available = true,

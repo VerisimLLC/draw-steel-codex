@@ -205,7 +205,7 @@ function DTDirectorPanel:_buildHeaderPanel()
             gui.Panel{
                 width = "50%",
                 height = "100%",
-                flow = "horizontal",
+                -- flow = "horizontal",
                 halign = "right",
                 valign = "center",
                 children = {
@@ -220,7 +220,7 @@ function DTDirectorPanel:_buildHeaderPanel()
                         hoverColor = "#00cccc",
                         pressColor = "#00aaaa",
                         linger = function(element)
-                            gui.Tooltip("Grant rolls to characters")(element)
+                            gui.Tooltip("Grant rolls")(element)
                         end,
                         click = function()
                             DTGrantRollsDialog:new():ShowDialog()

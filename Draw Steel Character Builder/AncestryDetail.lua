@@ -136,12 +136,10 @@ function CharacterBuilder._ancestryDetail()
             element:FireEvent("categoryChange", element.data.category)
             local ancestryId = state:Get("ancestry.selectedId")
             if ancestryId == nil then
-                print("THC:: RACEIMAGE:: NONE::")
                 element.bgimage = mod.images.ancestryHome
                 return
             end
             local race = dmhub.GetTable(Race.tableName)[ancestryId]
-            print("THC:: RACEIMAGE::", race.portraitid)
             element.bgimage = race.portraitid
         end,
 
@@ -164,7 +162,7 @@ function CharacterBuilder._ancestryDetail()
                     local ancestryId = state:Get("ancestry.selectedId")
                     if ancestryId then
                         local race = dmhub.GetTable(Race.tableName)[ancestryId]
-                        element.text = race.name
+                        if race then element.text = race.name end
                     end
                 end
             },
@@ -191,6 +189,44 @@ function CharacterBuilder._ancestryDetail()
         }
     }
 
+    local ancestryLorePanel = gui.Panel{
+        id = "ancestryLorePanel",
+        classes = {"ancestryLorePanel", "builder-base", "panel-base", "collapsed"},
+        width = "96%",
+        height = "99%",
+        valign = "center",
+        halign = "center",
+        vscroll = true,
+
+        data = {
+            category = "lore",
+        },
+
+        categoryChange = function(element, currentCategory)
+            element:SetClass("collapsed", currentCategory ~= element.data.category)
+        end,
+
+        gui.Label{
+            classes = {"builder-base", "label", "label-info"},
+            width = "96%",
+            height = "auto",
+            valign = "top",
+            halign = "center",
+            tmargin = 20,
+            text = "",
+            textAlignment = "left",
+
+            refreshBuilderState = function(element, state)
+                element:FireEvent("categoryChange", element.data.category)
+                local ancestryId = state:Get("ancestry.selectedId")
+                if ancestryId then
+                    local race = dmhub.GetTable(Race.tableName)[ancestryId]
+                    element.text = race and race.lore or "No lore found for " .. race.name
+                end
+            end,
+        }
+    }
+
     local ancestryDetailPanel = gui.Panel{
         id = "ancestryDetailPanel",
         classes = {"builder-base", "panel-base", "ancestryDetailpanel"},
@@ -201,6 +237,7 @@ function CharacterBuilder._ancestryDetail()
         borderColor = "teal",
 
         ancestryOverviewPanel,
+        ancestryLorePanel,
     }
 
     ancestryPanel = gui.Panel{

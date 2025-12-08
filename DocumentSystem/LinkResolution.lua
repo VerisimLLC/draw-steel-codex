@@ -230,11 +230,11 @@ function CustomDocument.SearchLinks(search)
 end
 
 function CustomDocument.ResolveLink(link)
+    local original_link = link
     link = string.lower(link)
-    print("LINK:: RESOLVE", link)
 
     if string.starts_with(link, "http://") or string.starts_with(link, "https://") then
-        return link
+        return original_link
     end
 
     local matchPrefix = regex.MatchGroups(link, "^(?<prefix>[^:]+):(?<rest>.+)$")
@@ -277,7 +277,6 @@ function CustomDocument.ResolveLink(link)
                 end
             end
             local doc = docs[docid] or fragments[docid]
-            print("LINK:: RESOLVE TO", docid, doc)
             return doc
         end
     end
@@ -358,6 +357,7 @@ function CustomDocument.OpenContent(node)
         return
     end
 
+    print("OPEN::", node)
     if type(node) == "string" then
         if string.starts_with(node, "http://") or string.starts_with(node, "https://") then
             dmhub.OpenURL(node)

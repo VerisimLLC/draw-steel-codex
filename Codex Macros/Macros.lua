@@ -690,6 +690,41 @@ Commands.erasewall = function(str)
     }
 end
 
+Commands.monster = function(str)
+    if str == "help" then
+        dmhub.Log("Usage: /monster <monster name> <x> <y> \n Spawns the named monster from the bestiary to the given location.")
+        return
+    end
+
+    local args = Commands.SplitArgs(str)
+    local monsterName = args[1]
+    local x = tonum(args[2])
+    local y = tonum(args[3])
+
+    local loc = core.Loc { x = x or 0, y = y or 0, floorIndex = game.currentFloorIndex }
+    local id = nil
+
+    for monsterid,monster in pairs(assets.monsters) do
+        if string.lower(monster.properties:try_get("monster_type", "")) == string.lower(monsterName) then
+            id = monsterid
+            break
+        end
+    end
+
+    if id == nil then
+        return
+    end
+
+    local token = game.SpawnTokenFromBestiaryLocally(id, loc, {
+        fitLocation = true
+    })
+
+    if token ~= nil then
+        token:UploadToken("Add Token")
+        game.UpdateCharacterTokens()
+    end
+end
+
 Commands.spawn = function(str)
     if str == "help" then
         dmhub.Log("Usage: /spawn <token name> <x> <y> \n Spawns any character(s) to given location.")

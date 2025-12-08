@@ -642,6 +642,12 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 							element:FireEvent("editpath")
 						end,
 					},
+                    gui.Button{
+                        text = "Clear Path",
+                        click = function(button)
+							element:FireEvent("clearpath")
+                        end,
+                    },
 
 					gui.Label{
 						text = text,
@@ -652,6 +658,17 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 					},
 				}
 			end,
+
+            clearpath = function(element)
+				local groupid = dmhub.GenerateGuid()
+				for i,fieldInstance in ipairs(fieldInfo.fieldList) do
+					fieldInstance:SetValue(nil, valueIndex)
+					if options.objectInstances then
+						fieldInstance:Upload(groupid) --upload if possible.
+					end
+                end
+				element:FireEvent("create")
+            end,
 
 			setpath = function(element)
 				element.children = {

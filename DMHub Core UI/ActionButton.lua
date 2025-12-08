@@ -96,8 +96,8 @@ function gui.ActionButton(options)
     opts.classes = classes
 
     local data = {
-        available = opts.available or false,
-        selected = opts.selected or false,
+        _available = opts.available or false,
+        _selected = opts.selected or false,
     }
     opts.data = opts.data or {}
     for k,v in pairs(data) do
@@ -114,18 +114,18 @@ function gui.ActionButton(options)
     local fnCreate = (opts.create and type(opts.create) == "function") and opts.create or nil
     opts.create = function(element, ...)
         if fnCreate then fnCreate(element, ...) end
-        element:FireEvent("setAvailable", element.data.available)
-        element:FireEvent("setSelected", element.data.selected)
+        element:FireEvent("setAvailable", element.data._available)
+        element:FireEvent("setSelected", element.data._selected)
     end
 
     opts.setAvailable = function(element, available)
-        element.data.available = available
+        element.data._available = available
         element.interactable = available
         element:FireEventTree("_setAvailable", available)
     end
 
     opts.setSelected = function(element, selected)
-        element.data.selected = selected
+        element.data._selected = selected
         element:FireEventTree("_setSelected", selected)
     end
 
@@ -142,6 +142,10 @@ function gui.ActionButton(options)
 
     opts.GetValue = function(element)
         local values = dmhub.DeepCopy(element.data)
+        values.selected = values._selected
+        values.available = values._available
+        values._available = nil
+        values._selected = nil
         local label = element:FindChildRecursive(function(e) return e:HasClass("selector-button-label") end)
         if label then values.text = label.text end
         return values
@@ -340,7 +344,12 @@ local selectorButtonStyles = {
         brightness = 1.5,
     },
     {
-        selectors = {"unavailable"},
+        selectors = {"selector-button-base", "unavailable"},
+        borderColor = COLOR_UNAVAILABLE,
+        color = COLOR_UNAVAILABLE,
+    },
+    {
+        selectors = {"selector-button-label", "unavailable"},
         borderColor = COLOR_UNAVAILABLE,
         color = COLOR_UNAVAILABLE,
     },
@@ -370,8 +379,8 @@ function gui.SelectorButton(options)
     opts.classes = classes
 
     local data = {
-        available = opts.available or false,
-        selected = opts.selected or false,
+        _available = opts.available or false,
+        _selected = opts.selected or false,
     }
     opts.data = opts.data or {}
     for k,v in pairs(data) do
@@ -387,19 +396,19 @@ function gui.SelectorButton(options)
 
     local fnCreate = (opts.create and type(opts.create) == "function") and opts.create or nil
     opts.create = function(element, ...)
-        element:FireEvent("setAvailable", element.data.available)
-        element:FireEvent("setSelected", element.data.selected)
+        element:FireEvent("setAvailable", element.data._available)
+        element:FireEvent("setSelected", element.data._selected)
         if fnCreate then fnCreate(element, ...) end
     end
 
     opts.setAvailable = function(element, available)
-        element.data.available = available
+        element.data._available = available
         element.interactable = available
         element:FireEventTree("_setAvailable", available)
     end
 
     opts.setSelected = function(element, selected)
-        element.data.selected = selected
+        element.data._selected = selected
         element:FireEventTree("_setSelected", selected)
     end
 
@@ -416,6 +425,10 @@ function gui.SelectorButton(options)
 
     opts.GetValue = function(element)
         local values = dmhub.DeepCopy(element.data)
+        values.selected = values._selected
+        values.available = values._available
+        values._selected = nil
+        values._available = nil
         local label = element:FindChildRecursive(function(e) return e:HasClass("selector-button-label") end)
         if label then values.text = label.text end
         return values
@@ -468,6 +481,7 @@ function gui.SelectorButton(options)
                     interactable = false,
                     _setAvailable = function(element, available)
                         element:SetClass("unavailable", not available)
+                        element:SetClass("selected", not available)
                     end,
                     _setSelected = function(element, selected)
                         element:SetClass("selected", selected)

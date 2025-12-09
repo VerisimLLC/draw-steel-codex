@@ -26,7 +26,14 @@ function GameHud.TokenMoving(self, token, path)
 
     if path.forced then
         if path.collisionSpeed > 0 then
-            text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed)
+            local collideCreatures = path:GetCreaturesCollidingWith(token)
+            local collideObjects = path:GetObjectsCollidingWith(token)
+
+            if collideCreatures == nil or #collideCreatures == 0 then
+                text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles into an object, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed+2)
+            else
+                text = string.format(tr("%s\n<color=#ff0000>Pushing %d tiles, inflicting %d damage.</color>"), text, path.forcedMovementTotalDistance, path.collisionSpeed)
+            end
         end
 
         if token.properties:Stability() > 0 then

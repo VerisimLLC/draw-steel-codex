@@ -7,7 +7,7 @@ MCDMUtils = {
             return abilityTable[nameorid]
         end
         local name = string.lower(nameorid)
-        for key,ability in pairs(abilityTable) do
+        for key,ability in unhidden_pairs(abilityTable) do
             if string.lower(ability.name) == name then
                 return ability
             end

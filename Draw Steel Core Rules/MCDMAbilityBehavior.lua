@@ -603,7 +603,6 @@ local g_rulePatterns = {
         pattern = "^(the [a-zA-Z]+ )?(you )?(can shift |shifts? (up to )?)(?<distance>[0-9]+)( squares?)?",
         execute = function(behavior, ability, casterToken, targetToken, options, match)
             ability:CommitToPaying(casterToken, options)
-            local shift = MCDMUtils.GetStandardAbility("Shift")
 
             local shiftDisabled = casterToken.properties:CalculateNamedCustomAttribute("Shift Disabled") > 0
             if shiftDisabled  then
@@ -619,6 +618,7 @@ local g_rulePatterns = {
                 return
             end
 
+            local shift = MCDMUtils.GetStandardAbility("Shift")
 			local abilityClone = DeepCopy(shift)
             AbilityUtils.DeepReplaceAbility(abilityClone, "<<targetfilter>>", "")
             AbilityUtils.DeepReplaceAbility(abilityClone, "<<distance>>", match.distance)

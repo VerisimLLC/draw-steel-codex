@@ -185,6 +185,28 @@ function math.clamp01(x)
     return x
 end
 
+function DebugMatchesSearchRecursive(obj, search, depth, path)
+    if depth > 16 then
+        return false
+    end
+    if type(obj) == "table" then
+        for k,v in pairs(obj) do
+            local fullpath = path .. "/" .. tostring(k)
+            if DebugMatchesSearchRecursive(k, search, depth+1, fullpath) or DebugMatchesSearchRecursive(v, search, depth+1, fullpath) then
+                return true
+            end
+        end
+    elseif type(obj) == "string" then
+        --search without any pattern matching etc, just verbatim substring match
+        if string.find(string.lower(obj), search, 1, true) ~= nil then
+            print("SEARCH MATCH:", path, string.lower(obj), "matches", search)
+            return true
+        end
+    end
+
+    return false
+end
+
 function MatchesSearchRecursive(obj, search, depth)
     depth = depth or 0
     if depth > 16 then
@@ -208,8 +230,20 @@ end
 
 function SearchTableForText(t, search)
     local results = {}
-    for k,v in pairs(t) do
+    for k,v in unhidden_pairs(t) do
         if MatchesSearchRecursive(k, search) or MatchesSearchRecursive(v, search) then
+            results[#results+1] = k
+        end
+    end
+
+    return results
+end
+
+function DebugSearchTableForText(t, search, debugName)
+    local results = {}
+    for k,v in pairs(t) do
+        local path = debugName .. "/" .. tostring(k)
+        if DebugMatchesSearchRecursive(k, search, 0, path) or DebugMatchesSearchRecursive(v, search, 0, path) then
             results[#results+1] = k
         end
     end

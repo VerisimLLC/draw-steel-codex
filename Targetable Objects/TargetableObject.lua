@@ -25,10 +25,24 @@ dmhub.CreateTargetableComponent = function()
 end
 
 function TargetableObject:OnCollide(collidingToken, symbols)
-    print("COLLIDE:: CALLED")
     if self:has_key("custom_collision") then
         local token = dmhub.LookupToken(self)
-        self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
+        if token ~= nil then
+            self.custom_collision:Cast(token, { { token = collidingToken } }, symbols)
+        end
+    else
+        if symbols.speed then
+            local token = dmhub.LookupToken(self)
+            if token ~= nil then
+                token:ModifyProperties{
+                    description = "Collision",
+                    undoable = false,
+                    execute = function()
+                        token.properties:InflictDamageInstance(symbols.speed, "untyped", {}, "Collision", {})
+                    end,
+                }
+            end
+        end
     end
 end
 

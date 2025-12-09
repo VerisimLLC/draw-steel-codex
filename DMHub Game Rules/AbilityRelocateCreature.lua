@@ -223,13 +223,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType })
-            print("PATH:: LOC:", targets[#targets].loc.x, targets[#targets].loc.y, targets[#targets].loc.floor, " -->", path ~= nil, "WAYPOINTS =", #waypoints)
 
 			if path ~= nil then
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
 			end
 
-            print("TRIGGERCOLLIDE:: collisionInfo =", collisionInfo)
 			if collisionInfo ~= nil then
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
@@ -254,6 +252,17 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                     movementtype = forcedMovementType,
 				})
 
+                if casterToken.isObject then
+                    --hard code damage equal to speed.
+                    casterToken:ModifyProperties{
+                        description = "Collision",
+                        undoable = false,
+                        execute = function()
+                            casterToken.properties:InflictDamageInstance(collisionInfo.speed, "untyped", {}, "Collision", {})
+                        end,
+                    }
+                end
+
 				for _,tok in ipairs(collisionInfo.collideWith or {}) do
 					tok.properties:TriggerEvent("collide", {
 						speed = collisionInfo.speed,
@@ -267,12 +276,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
                 for _,tokobj in ipairs(objectsCollidedWith) do
                     local component = tokobj.objectComponent
-                    if component ~= nil and component.properties ~= nil and component.properties:has_key("custom_collision") then
-                        component.properties.custom_collision:Cast(tokobj, { { token = casterToken } }, {
-                            symbols = {
-                                invoker = options.symbols.invoker,
-                                speed = collisionInfo.speed,
-                            },
+                    if component ~= nil and component.properties ~= nil then
+                        component.properties:OnCollide(casterToken, {
+                            speed = collisionInfo.speed,
+                            haspusher = options.symbols.invoker or false,
+                            withobject = false,
                         })
                     end
                 end

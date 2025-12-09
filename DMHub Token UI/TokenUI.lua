@@ -74,11 +74,12 @@ local RadialStyles = {
 		brightness = 0.8,
 		transitionTime = 0.05,
 	},
-	gui.Style{
-		selectors = {"create"},
-		transitionTime = 0.2,
-		opacity = 0,
-	},
+    --use this if we want the menu items to fade in
+	--gui.Style{
+	--	selectors = {"create"},
+	--	transitionTime = 0.2,
+	--	opacity = 0,
+	--},
 
 }
 
@@ -1712,11 +1713,10 @@ function CreateTokenHud(token)
                     if entry.damage_type and string.lower(entry.damage_type) ~= "untyped" then
                         soundName = string.format("Attack.Hit_%s", entry.damage_type)
                     end
-                    print("DAMAGE::", entry.damage_type)
 
                     local eventName = "Attack.Hit"
 
-                    if entry.damage_type ~= nil and entry.damage_type ~= "untyped" then
+                    if entry.damage_type ~= nil and entry.damage_type ~= "untyped" and entry.damage_type ~= "collide" and entry.damage_type ~= "fall" then
                         eventName = string.format("%s_%s", eventName, entry.damage_type)
                     end
 
@@ -2177,7 +2177,6 @@ function CreateTokenHud(token)
 							styles = {
 								{
 									selectors = {"create"},
-									transitionTime = 0.2,
 									translate = core.Vector2(0,-70):Rotate(45),
 								},
 							},
@@ -2200,7 +2199,6 @@ function CreateTokenHud(token)
 							styles = {
 								{
 									selectors = {"create"},
-									transitionTime = 0.2,
 									translate = core.Vector2(0,-70):Rotate(90),
 								},
 							},
@@ -2223,7 +2221,6 @@ function CreateTokenHud(token)
 							styles = {
 								{
 									selectors = {"create"},
-									transitionTime = 0.2,
 									translate = core.Vector2(0,-70):Rotate(180),
 								},
 							},
@@ -2250,7 +2247,6 @@ function CreateTokenHud(token)
 					styles = {
 						{
 							selectors = {"create"},
-							transitionTime = 0.2,
 							translate = core.Vector2(0,-70):Rotate(135),
 						},
 					},
@@ -2299,7 +2295,6 @@ function CreateTokenHud(token)
 					styles = {
 						{
 							selectors = {"radial-menu-item", "create"},
-							transitionTime = 0.2,
 							translate = core.Vector2(0,-70):Rotate(0*45),
 						},
 					},
@@ -2336,7 +2331,6 @@ function CreateTokenHud(token)
 						styles = {
 							{
 								selectors = {"radial-menu-item", "create"},
-								transitionTime = 0.2,
 								translate = core.Vector2(0,-70):Rotate(index*45),
 							},
                             {
@@ -2413,7 +2407,6 @@ function CreateTokenHud(token)
 						styles = {
 							{
 								selectors = {"radial-menu-item", "create"},
-								transitionTime = 0.2,
 								translate = core.Vector2(0,-70):Rotate(index*45),
 							},
 						},

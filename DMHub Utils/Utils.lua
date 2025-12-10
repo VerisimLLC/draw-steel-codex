@@ -241,7 +241,7 @@ end
 
 function DebugSearchTableForText(t, search, debugName)
     local results = {}
-    for k,v in pairs(t) do
+    for k,v in unhidden_pairs(t) do
         local path = debugName .. "/" .. tostring(k)
         if DebugMatchesSearchRecursive(k, search, 0, path) or DebugMatchesSearchRecursive(v, search, 0, path) then
             results[#results+1] = k

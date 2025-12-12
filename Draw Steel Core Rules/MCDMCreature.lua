@@ -1681,6 +1681,36 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "aurascaster",
+    lookup = function(c)
+        return function(auraname)
+			auraname = string.lower(auraname)
+            local token = dmhub.LookupToken(c)
+
+            if token then
+                local aurasTouching = token.properties:GetAurasAffecting(token) or {}
+                for i, info in ipairs(aurasTouching) do
+                    if string.lower(info.auraInstance.aura.name) == auraname and info.auraInstance.casterid then
+                        local casterToken = dmhub.GetTokenById(info.auraInstance.casterid)
+                        print("Caster::", creature.GetTokenDescription(casterToken))
+                        if casterToken ~= nil then
+                            return casterToken.properties
+                        end
+                    end
+                end
+            end
+            return
+        end
+    end,
+    help = {
+        name = "AurasCaster",
+        type = "function",
+        desc = "Given the name of an aura will return the creature that's controlling it.",
+        seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "reach",
     lookup = function(c)
         return c:GetReach()

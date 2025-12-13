@@ -832,7 +832,7 @@ TokenHud.RegisterPanel{
 						iconPanel = statusIcons[icon.id] or gui.Panel{
 							bgimage = icon.icon,
 							classes = {'status-icon'},
-							interactable = (icon.hoverText ~= nil),
+							interactable = (icon.hoverText ~= nil or icon.hasAltitude),
 							blocksGameInteraction = false,
                             hoverCursor = icon.hoverCursor,
 							selfStyle = icon.style,
@@ -875,7 +875,13 @@ TokenHud.RegisterPanel{
 							end,
 							linger = function(element)
 								if icon.hoverText ~= nil then
-									gui.Tooltip(icon.hoverText)(element)
+									gui.Tooltip{text = icon.hoverText, valign = "top",}(element)
+                                elseif icon.hasAltitude and token ~= nil and token.valid then
+                                    local movetype = token.properties:CurrentMoveTypeInfo()
+                                    if movetype ~= nil and movetype.verb then
+                                        local hoverText = string.format("%s at altitude %d", movetype.verb, token.floorAltitude)
+									    gui.Tooltip{text = hoverText, valign = "top",}(element)
+                                    end
 								end
 							end,
 							hover = function(element)
@@ -2187,8 +2193,10 @@ function CreateTokenHud(token)
 							},
 							children = {
 								gui.Panel{
-									bgimage = 'fantasy-icons/Enchantment_34_summoning_scroll.png',
+									bgimage = 'ui-icons/character-sheet.png',
 									className = 'radial-menu-icon',
+                                    width = 36,
+                                    height = 36,
 								}
 							},
 						},
@@ -2209,8 +2217,10 @@ function CreateTokenHud(token)
 							},
 							children = {
 								gui.Panel{
-									bgimage = 'fantasy-icons/Tailoring_44_little_bag.png',
+									bgimage = 'ui-icons/inventory.png',
 									className = 'radial-menu-icon',
+									width = 32,
+									height = 32,
 								}
 							},
 						},
@@ -2231,7 +2241,7 @@ function CreateTokenHud(token)
 							},
 							children = {
 								gui.Panel{
-									bgimage = 'fantasy-icons/emoji-icon.png',
+									bgimage = 'ui-icons/emotes.png',
 									className = 'radial-menu-icon',
 									width = 40,
 									height = 40,

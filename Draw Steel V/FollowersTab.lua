@@ -32,6 +32,10 @@ local Styles = {
         bgcolor = "white",
     },
     {
+        selectors = {'hover', "avatarPanel"},
+        brightness = 2,
+    },
+    {
         classes = { "followerLabel"},
         height = 25,
         minWidth = 120,
@@ -145,53 +149,6 @@ CreateFollowerMonster = function(followerInfo, mentorToken, pregenRetainerId)
         newMonster:ShowSheet()
     end)
 
-end
-
-local function countSkills(skills)
-    local count = 0
-    if skills then
-        for id, _ in pairs(skills) do
-            count = count + 1
-        end
-    end
-    return count
-end
-
---Seperate skills into crafting and lore for Artisan and Sage followers
-local function buildSkillLists()
-    local skills = dmhub.GetTable(Skill.tableName) or {}
-    local artisanSkills = {}
-    local sageSkills = {}
-
-    for id, skill in unhidden_pairs(skills) do
-        if skill.category == "crafting" then
-            artisanSkills[#artisanSkills + 1] = {
-                id = id,
-                text = skill.name,
-            }
-        elseif skill.category == "lore" then
-            sageSkills[#sageSkills + 1] = {
-                id = id,
-                text = skill.name,
-            }
-        end
-    end
-
-    table.sort(artisanSkills, function(a,b)
-        return string.lower(a.text) < string.lower(b.text)
-    end)
-
-    table.sort(sageSkills, function(a,b)
-        return string.lower(a.text) < string.lower(b.text)
-    end)
-
-    return artisanSkills, sageSkills
-end
-
-local buildLanguageList = function()
-    local list = Language.GetDropdownList()
-    table.insert(list, 1, { id = "none", text = "Add Language" })
-    return list
 end
 
 local retainerDropdownOptions, retainerLookup = buildRetainerList()
@@ -585,10 +542,10 @@ function CharSheet.FollowersInnerPanel()
 
                     bgimage = follower.portrait,
 
-                    --[[ click = function(element)
+                    click = function(element)
                         local followerToken = dmhub.GetTokenById(follower.followerToken)
                         followerToken:ShowSheet()
-                    end, ]]
+                    end,
 
                     refreshAll = function(element)
                         local followerToken = dmhub.GetTokenById(follower.followerToken)

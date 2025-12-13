@@ -125,8 +125,8 @@ function CharSheet.FollowersInnerPanel()
                 value = follower.portrait or false,
 
                 refreshAll = function(element, info)
-                    if follower and follower.retainerToken then
-                        local followerToken = dmhub.GetTokenById(follower.retainerToken)
+                    if follower and follower:try_get("followerToken") then
+                        local followerToken = dmhub.GetTokenById(follower.followerToken)
                         if followerToken then
                             local portrait = followerToken.portrait
                             follower.portrait = portrait
@@ -247,23 +247,74 @@ function CharSheet.FollowersInnerPanel()
         return resultsPanel
     end
 
-    local RetainerDropdownOptions = function(partyid)
+    local TokenDropdownOptions = function(partyid, followerType)
         local results = {
             {
                 id = "none",
-                text = "Select Retainer Token",
+                text = "Select " .. string.upper_first(followerType) .. " Token",
             },
         }
 
+        --Our Party
         local partyMembers = dmhub.GetCharacterIdsInParty(partyid) or {}
-        for _, charid in pairs(partyMembers) do
+        print("Members1::", json(partyMembers))
+        for _, charid in ipairs(partyMembers) do
             local token = dmhub.GetTokenById(charid)
             if token ~= nil then
-                if token.properties:IsRetainer() then
-                    results[#results + 1] = {
-                        id = charid,
-                        text = token.name,
-                    }
+                if followerType == "retainer" then
+                    if token.properties:IsRetainer() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                elseif followerType == "artisan" then
+                    if token.properties:IsArtisan() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                elseif followerType == "sage" then
+                    if token.properties:IsSage() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                end
+            end
+        end
+
+        --Allied Parties
+        local partyInfo = GetParty(partyid)
+        for id, _ in pairs(partyInfo.allyParties) do
+            partyMembers = dmhub.GetCharacterIdsInParty(id) or {}
+            for _, charid in ipairs(partyMembers) do
+                local token = dmhub.GetTokenById(charid)
+                if token ~= nil then
+                    if followerType == "retainer" then
+                    if token.properties:IsRetainer() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                elseif followerType == "artisan" then
+                    if token.properties:IsArtisan() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                elseif followerType == "sage" then
+                    if token.properties:IsSage() then
+                        results[#results + 1] = {
+                            id = charid,
+                            text = token.name,
+                        }
+                    end
+                end
                 end
             end
         end
@@ -278,7 +329,7 @@ function CharSheet.FollowersInnerPanel()
         local followers = tok.properties:GetFollowers()
         local follower = followers[i]
 
-        local retainerOptions = RetainerDropdownOptions(tok.partyid)
+        local tokenOptions = TokenDropdownOptions(tok.partyid, "retainer")
 
         local args = {
             classes = {"framedPanel"},
@@ -316,8 +367,8 @@ function CharSheet.FollowersInnerPanel()
                     end,
 
                     refreshAll = function(element, info)
-                        if follower and follower.retainerToken then
-                            local followerToken = dmhub.GetTokenById(follower.retainerToken)
+                        if follower and follower:try_get("followerToken") then
+                            local followerToken = dmhub.GetTokenById(follower.followerToken)
                             if followerToken then
                                 element.text = creature.GetTokenDescription(followerToken)
                             end
@@ -394,94 +445,125 @@ function CharSheet.FollowersInnerPanel()
                                     follower.type = element.idChosen
                                     resultPanel:FireEventTree("refreshAll")
                                 end,
-                            }
-                        },
-
-                        gui.Panel{
-                            classes = {cond(follower.type == "retainer", "collapsed-anim")},
-                            flow = "horizontal",
-                            width = "auto",
-                            height = 30,
-
-                            refreshAll = function(element)
-                                if follower.type ~= "retainer" then
-                                    element:SetClass("collapsed-anim", false)
-                                else
-                                    element:SetClass("collapsed-anim", true)
-                                end
-                            end,
-
-                            gui.Label{
-                                classes = { "followerLabel"},
-                                width = "auto",
-                                height = "auto",
-                                text = "Ancestry:",
                             },
-                            gui.Dropdown{
-                                options = Race.GetDropdownList(),
-                                idChosen = follower.ancestry,
-
+                            gui.Check{
+                                classes = {cond(follower.type == "retainer", "collapsed-anim")},
+                                text = "Assign Token",
+                                hover = gui.Tooltip("If checked, a token must be assigned and it's properties will be used."),
+                                value = follower:try_get("assignToken"),
+                                refreshAll = function(element)
+                                    if follower.type ~= "retainer" then
+                                        element:SetClass("collapsed-anim", false)
+                                    else
+                                        element:SetClass("collapsed-anim", true)
+                                    end
+                                end, 
                                 change = function(element)
-                                    follower.ancestry = element.idChosen
-                                end,
-                            }
-                        },
-
-                        gui.Panel{
-                            classes = {cond(follower.type ~= "artisan", "collapsed-anim")},
-                            flow = "horizontal",
-                            width = "auto",
-                            height = 30,
-
-                            refreshAll = function(element)
-                                if follower.type == "artisan" then
-                                    element:SetClass("collapsed-anim", false)
-                                else
-                                    element:SetClass("collapsed-anim", true)
-                                end
-                            end,
-
-                            gui.Label{
-                                classes = { "followerLabel"},
-                                width = "auto",
-                                height = "auto",
-                                text = "Characteristic:",
-                            },
-                            gui.Dropdown{
-                                options = {
-                                    {
-                                        id = "mgt",
-                                        text = "Might",
-                                    },
-                                    {
-                                        id = "agl",
-                                        text = "Agility",
-                                    },
-                                },
-
-                                idChosen = follower.characteristic or "mgt",
-                                
-                                change = function(element)
-                                    follower.characteristic = element.idChosen
+                                    follower.assignToken = element.value
                                     resultPanel:FireEventTree("refreshAll")
                                 end,
+                            }
+                        },
+
+                        --Artisan or Sage characteristics
+                        gui.Panel{
+                            classes = {cond(follower.type == "retainer" or follower:try_get("assignToken"), "collapsed-anim")},
+                            flow = "vertical",
+                            height = "auto",
+                            width = "auto",
+                            refreshAll = function(element)
+                                if follower.type == "retainer" or follower:try_get("assignToken") then
+                                    element:SetClass("collapsed-anim", true)
+                                else
+                                    element:SetClass("collapsed-anim", false)
+                                end
+                            end,
+
+                            gui.Panel{
+                                flow = "horizontal",
+                                width = "auto",
+                                height = 30,
+                                gui.Label{
+                                    classes = { "followerLabel"},
+                                    width = "auto",
+                                    height = "auto",
+                                    text = "Ancestry:",
+                                },
+                                gui.Dropdown{
+                                    options = Race.GetDropdownList(),
+                                    idChosen = follower.ancestry,
+
+                                    change = function(element)
+                                        follower.ancestry = element.idChosen
+                                    end,
+                                }
+                            },
+
+                            gui.Panel{
+                                classes = {cond(follower.type ~= "artisan", "collapsed-anim")},
+                                flow = "horizontal",
+                                width = "auto",
+                                height = 30,
+
+                                refreshAll = function(element)
+                                    if follower.type == "artisan" then
+                                        element:SetClass("collapsed-anim", false)
+                                    else
+                                        element:SetClass("collapsed-anim", true)
+                                    end
+                                end,
+
+                                gui.Label{
+                                    classes = { "followerLabel"},
+                                    width = "auto",
+                                    height = "auto",
+                                    text = "Characteristic:",
+                                },
+
+                                gui.Dropdown{
+                                    options = {
+                                        {
+                                            id = "mgt",
+                                            text = "Might",
+                                        },
+                                        {
+                                            id = "agl",
+                                            text = "Agility",
+                                        },
+                                    },
+
+                                    idChosen = follower.characteristic or "mgt",
+                                    
+                                    change = function(element)
+                                        follower.characteristic = element.idChosen
+                                        resultPanel:FireEventTree("refreshAll")
+                                    end,
+                                },
+                            },
+
+                            gui.Panel{
+                                width = "100%",
+                                height = "auto",
+                                flow = "vertical",
+                                pad = 5,
+                                
+                                FollowerSkillsPanel(follower),
+                                FollowersLanguagesPanel(follower),
                             },
                         },
 
                         gui.Panel{
-                            classes = {cond(follower.type ~= "retainer", "collapsed-anim")},
+                            classes = {cond(not (follower.type == "retainer" or follower:try_get("assignToken")), "collapsed-anim")},
                             flow = "horizontal",
                             width = "auto",
                             height = 30,
 
                             refreshAll = function(element)
-                                if follower.type == "retainer" then
-                                    element:SetClass("collapsed-anim", false)
-                                else
+                                if not (follower.type == "retainer" or follower:try_get("assignToken")) then
                                     element:SetClass("collapsed-anim", true)
+                                else
+                                    element:SetClass("collapsed-anim", false)
                                 end
-
-                                retainerOptions = RetainerDropdownOptions(tok.partyid)
                             end,
 
                             gui.Label{
@@ -492,25 +574,20 @@ function CharSheet.FollowersInnerPanel()
                             },
 
                             gui.Dropdown{
-                                options = retainerOptions,
+                                options = tokenOptions,
 
-                                idChosen = follower.retainerToken or "none",
+                                idChosen = follower:try_get("followerToken") or "none",
+
+                                refreshAll = function(element)
+                                    tokenOptions = TokenDropdownOptions(tok.partyid, follower.type)
+                                    element.options = tokenOptions
+                                end,
                                 
                                 change = function(element)
-                                    follower.retainerToken = element.idChosen
+                                    follower.followerToken = element.idChosen
                                     resultPanel:FireEventTree("refreshAll")
                                 end,
                             },
-                        },
-
-                        gui.Panel{
-                            width = "100%",
-                            height = "auto",
-                            flow = "vertical",
-                            pad = 5,
-                            
-                            FollowerSkillsPanel(follower),
-                            FollowersLanguagesPanel(follower),
                         },
                     }
                 }
@@ -533,7 +610,7 @@ function CharSheet.FollowersInnerPanel()
             local followers = EnsureFollowers(CharacterSheet.instance.data.info.token.properties)
             local newFollower = Follower.Create()
             newFollower.ancestry = Race.DefaultRace()
-            newFollower.retainerToken = "none"
+            newFollower.followerToken = "none"
 
             followers[#followers + 1] = newFollower
             CharacterSheet.instance:FireEvent("refreshAll")

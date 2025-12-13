@@ -1227,18 +1227,26 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     { id = "elite",   text = "Elite" },
                     { id = "leader",  text = "Leader" },
                     { id = "solo",    text = "Solo" },
-                    { id = "retainer", text = "Retainer"},
+                    { id = "follower", text = "Follower"},
                 },
                 refreshToken = function(element, info)
-                    if not info.token.properties:IsMonster() then
+                    local c = info.token.properties
+                    if not c:IsMonster() then
                         return
                     end
-                    local c = info.token.properties
+                    
+                    if c:Organization() == "retainer" then
+                        local currentRole = c:Role()
+                        if currentRole ~= nil then
+                            c.role = "Follower " .. string.upper_first(currentRole)
+                        else
+                            c.role = "Follower"
+                        end
+                    end
+
                     if c.minion then
                         element.idChosen = "minion"
                         return
-                    elseif c:try_get("retainer") then
-                        element.idChosen = "retainer"
                     end
 
                     element.idChosen = c:Organization() or "none"
@@ -1250,7 +1258,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                         c.minionSquad = nil
                     end
                     c.minion = (element.idChosen == "minion")
-                    c.retainer = (element.idChosen == "retainer")
 
                     local org = c:Organization()
                     if org ~= nil then
@@ -1258,6 +1265,44 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     else
                         c.role = string.upper_first(element.idChosen)
                     end
+                    CharacterSheet.instance:FireEvent('refreshAll')
+                end,
+            },
+
+            --Followers only
+            gui.Dropdown {
+                classes = { "monsteronly", },
+                options = {
+                    { id = "artisan", text = "Artisan"},
+                    { id = "retainer", text = "Retainer"},
+                    { id = "sage", text = "Sage"},
+                },
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    print("Follower::", c:try_get("followerType"))
+                    if not c:IsMonster() then
+                        return
+                    end
+                    
+                    if c:Organization() ~= "follower" then
+                        element:SetClass("collapsed", true)
+                        c.followerType = nil
+                        return
+                    end
+
+                    element:SetClass("collapsed", false)
+
+                    if c:try_get("followerType") == nil then
+                        c.followerType = "artisan"
+                    end
+                    element.idChosen = c.followerType
+                end,
+                change = function(element)
+                    local c = CharacterSheet.instance.data.info.token.properties
+
+                    c.followerType = element.idChosen
+                    c.retainer = (element.idChosen == "retainer")
+
                     CharacterSheet.instance:FireEvent('refreshAll')
                 end,
             },

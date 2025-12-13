@@ -2190,6 +2190,9 @@ function CreateTokenHud(token)
 								click = function(element)
 									token:ShowSheet()
 								end,
+                                hover = function(element)
+                                    gui.Tooltip("Character Sheet")(element)
+                                end,
 							},
 							children = {
 								gui.Panel{
@@ -2214,6 +2217,9 @@ function CreateTokenHud(token)
 								click = function(element)
 									gamehud:ShowInventory(token)
 								end,
+                                hover = function(element)
+                                    gui.Tooltip("Inventory")(element)
+                                end,
 							},
 							children = {
 								gui.Panel{
@@ -2238,6 +2244,9 @@ function CreateTokenHud(token)
 								click = function(element)
 									token.sheet:FireEventTree("emojiMenu")
 								end,
+                                hover = function(element)
+                                    gui.Tooltip("Emotes")(element)
+                                end,
 							},
 							children = {
 								gui.Panel{
@@ -2266,6 +2275,9 @@ function CreateTokenHud(token)
                                       image = token.offTokenPortrait,
                                   }
 						end,
+                        hover = function(element)
+                            gui.Tooltip("View Portrait")(element)
+                        end,
 					},
 					children = {
 						gui.Panel{

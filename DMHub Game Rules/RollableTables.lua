@@ -1058,12 +1058,14 @@ function RollTable:Roll(choiceIndex, collection, depth)
 
 	if choiceIndex == nil then
 		local rollInfo = self:CalculateRollInfo()
-		local rollNum = dmhub.RollInstant(rollInfo.roll)
-		for i,range in ipairs(rollInfo.rollRanges) do
-			if (not range.invalid) and rollNum >= range.min and rollNum <= range.max then
-				choiceIndex = i
-			end
-		end
+        if rollInfo ~= nil then
+            local rollNum = dmhub.RollInstant(rollInfo.roll)
+            for i,range in ipairs(rollInfo.rollRanges) do
+                if (not range.invalid) and rollNum >= range.min and rollNum <= range.max then
+                    choiceIndex = i
+                end
+            end
+        end
 	end
 	
 	if choiceIndex ~= nil and self.rows[choiceIndex] ~= nil then

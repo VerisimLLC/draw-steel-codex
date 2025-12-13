@@ -396,40 +396,24 @@ function CharSheet.FollowersInnerPanel()
         return resultPanel
     end
 
-    local TokenDropdownOptions = function(partyid, followerType)
+    local TokenDropdownOptions = function(partyid)
         local results = {
             {
                 id = "none",
-                text = "Select " .. string.upper_first(followerType) .. " Token",
+                text = "Select Follower Token",
             },
         }
 
         --Our Party
         local partyMembers = dmhub.GetCharacterIdsInParty(partyid) or {}
         for _, charid in ipairs(partyMembers) do
-            local token = dmhub.GetTokenById(charid)
+            local token = dmhub.GetCharacterById(charid)
             if token ~= nil then
-                if followerType == "retainer" then
-                    if token.properties:IsRetainer() then
-                        results[#results + 1] = {
-                            id = charid,
-                            text = token.name,
-                        }
-                    end
-                elseif followerType == "artisan" then
-                    if token.properties:IsArtisan() then
-                        results[#results + 1] = {
-                            id = charid,
-                            text = token.name,
-                        }
-                    end
-                elseif followerType == "sage" then
-                    if token.properties:IsSage() then
-                        results[#results + 1] = {
-                            id = charid,
-                            text = token.name,
-                        }
-                    end
+                if token.properties:IsRetainer() or token.properties:IsArtisan() or token.properties:IsSage() then
+                    results[#results + 1] = {
+                        id = charid,
+                        text = token.name,
+                    }
                 end
             end
         end
@@ -439,30 +423,14 @@ function CharSheet.FollowersInnerPanel()
         for id, _ in pairs(partyInfo.allyParties) do
             partyMembers = dmhub.GetCharacterIdsInParty(id) or {}
             for _, charid in ipairs(partyMembers) do
-                local token = dmhub.GetTokenById(charid)
+                local token = dmhub.GetCharacterById(charid)
                 if token ~= nil then
-                    if followerType == "retainer" then
-                    if token.properties:IsRetainer() then
+                    if token.properties:IsRetainer() or token.properties:IsArtisan() or token.properties:IsSage() then
                         results[#results + 1] = {
                             id = charid,
                             text = token.name,
                         }
                     end
-                elseif followerType == "artisan" then
-                    if token.properties:IsArtisan() then
-                        results[#results + 1] = {
-                            id = charid,
-                            text = token.name,
-                        }
-                    end
-                elseif followerType == "sage" then
-                    if token.properties:IsSage() then
-                        results[#results + 1] = {
-                            id = charid,
-                            text = token.name,
-                        }
-                    end
-                end
                 end
             end
         end
@@ -616,12 +584,12 @@ function CharSheet.FollowersInnerPanel()
                             },
 
                             gui.Dropdown{
-                                options = TokenDropdownOptions(tok.partyid, follower.type),
+                                options = TokenDropdownOptions(tok.partyid),
 
                                 idChosen = follower.followerToken or "none",
 
                                 refreshAll = function(element)
-                                    element.options = TokenDropdownOptions(tok.partyid, follower.type)
+                                    element.options = TokenDropdownOptions(tok.partyid)
                                 end,
                                 
                                 change = function(element)

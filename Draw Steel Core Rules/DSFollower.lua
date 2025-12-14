@@ -13,10 +13,7 @@ local mod = dmhub.GetModLoading()
 --- @field availableRolls number The number of downtime rolls allocated to the follower
 --- @field characteristic string The characteristic code for the follower's additional characteristic
 --- @field assignedTo table Flag list of tokens the follower was assigned to
-Follower = RegisterGameType("Follower", "Monster")
-RegisterGameType("Retainer", "Follower")
-RegisterGameType("Sage", "Follower")
-RegisterGameType("Artisan", "Follower")
+Follower = RegisterGameType("Follower", "monster")
 
 Follower.type = "artisan"
 Follower.portrait = "DEFAULT_MONSTER_AVATAR"
@@ -25,10 +22,13 @@ Follower.characteristic = "mgt"
 Follower.ancestry = ""
 Follower.followerToken = ""
 Follower.availableRolls = 0
+Follower.manual = false
+
 
 function Follower.Create()
     return Follower.new{
         guid = dmhub.GenerateGuid(),
+        ancestry = Race.DefaultRace(),
         skills = {},
         languages = {},
         assignedTo = {},
@@ -197,7 +197,7 @@ local function buildLanguageList()
     return Language.GetDropdownList()
 end
 
-local function buildRetainerList()
+function buildRetainerList()
     local retainerTypes = { { id = "none", text = "Select retainer type...", }, }
     local retainerLookup = {}
 

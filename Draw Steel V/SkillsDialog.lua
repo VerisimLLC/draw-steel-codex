@@ -727,21 +727,28 @@ function CharacterSkillDialog.saveFeaturesMonster(token, features)
     -- Reconcile the lists.
     -- We need to delete every skill in current that is not in selected.
     -- We need to add every skill in selected that is not in current.
+    local toRemove = {}
+    local toAdd = {}
+
     for k,_ in pairs(currentSkills) do
-        if selectedSkills[k] then
-            selectedSkills[k] = nil
-        else
-            currentSkills[k] = nil
+        if not selectedSkills[k] then
+            toRemove[k] = true
         end
     end
 
-    -- Delete the skills remaining in current
-    for k,_ in pairs(currentSkills) do
+    for k,_ in pairs(selectedSkills) do
+        if not currentSkills[k] then
+            toAdd[k] = true
+        end
+    end
+
+    -- Delete skills that were removed
+    for k,_ in pairs(toRemove) do
         creature:SetSkillProficiency({id = k}, false)
     end
 
-    -- Add the skills remaining in selected
-    for k,_ in pairs(selectedSkills) do
+    -- Add skills that were added
+    for k,_ in pairs(toAdd) do
         creature:SetSkillProficiency({id = k}, true)
     end
 end

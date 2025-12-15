@@ -593,14 +593,16 @@ function CharacterBuilder._characterHeaderPanel()
 
     local levelClass = gui.Label {
         classes = {"builder-base", "label", "label-charname"},
-        text = "calculating...",
+        text = "(class & level)",
         tmargin = 4,
         refreshBuilderState = function(element, state)
             local c = state:Get("token").properties
             if c then
                 local class = c:GetClass()
-                local level = c:GetLevelInClass(class.id)
-                element.text = string.format("Level %d %s", level, class.name):upper()
+                if class then
+                    local level = c:GetLevelInClass(class.id)
+                    element.text = string.format("Level %d %s", level, class.name):upper()
+                end
             end
         end,
     }

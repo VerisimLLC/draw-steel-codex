@@ -9918,7 +9918,21 @@ function creature:Repair(localOnly)
 				-- Remove the old entry
 				self.followers[i] = nil
 			else
-				-- No valid token found, remove the invalid entry
+				-- No valid token found, attempt to create a follower token
+				if tok == nil then
+					tok = dmhub.LookupToken(self)
+					if tok then
+						tok:ModifyProperties{
+							description = "Translate followers",
+							undoable = false,
+							execute = function()
+								CreateFollowerMonster(k, k.type, tok)
+							end,
+						}
+					end
+				else
+					CreateFollowerMonster(k, k.type, tok)
+				end
 				self.followers[i] = nil
 			end
 		end

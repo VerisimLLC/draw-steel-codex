@@ -10,10 +10,7 @@ DTFollowerSage.__index = DTFollowerSage
 --- @param token CharacterToken|nil A Codex character token that is the parent object of the follower
 --- @return DTFollowerSage|DTFollower|nil instance The new sage follower instance
 function DTFollowerSage:new(follower, token)
+    error("THC:: DTFollowerSage:new()")
     local instance = setmetatable(DTFollower:new(follower, token), self)
-
-    instance.characteristics["rea"] = 1
-    instance.characteristics["inu"] = 1
-
     return instance
 end

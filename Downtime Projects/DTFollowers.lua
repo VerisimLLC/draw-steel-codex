@@ -12,17 +12,21 @@ function DTFollowers:new(followers, token)
     local instance = setmetatable({}, self)
     instance.followers = {}
 
-    if followers and type(followers) == "table" and #followers then
-        for _, follower in ipairs(followers) do
-            local type = string.lower(follower.type or "")
-            local dtFollower
-            if type == "artisan" then
-                dtFollower = DTFollowerArtisan:new(follower, token)
-            elseif type == "sage" then
-                dtFollower = DTFollowerSage:new(follower, token)
-            end
-            if dtFollower then
-                instance.followers[dtFollower:GetID()] = dtFollower
+    if followers and type(followers) == "table" and next(followers) then
+        for followerId,_ in pairs(followers) do
+            local follower = dmhub.GetCharacterById(followerId)
+            if follower then
+                instance.followers[follower.id] = follower
+                -- local type = string.lower(follower.properties:try_get("followerType", ""))
+                -- local dtFollower = DTFollower:new(follower, token)
+                -- if type == "artisan" then
+                --     dtFollower = DTFollowerArtisan:new(follower, token)
+                -- elseif type == "sage" then
+                --     dtFollower = DTFollowerSage:new(follower, token)
+                -- end
+                -- if dtFollower then
+                --     instance.followers[dtFollower:GetID()] = dtFollower
+                -- end
             end
         end
     end
@@ -42,7 +46,7 @@ end
 function DTFollowers:AggregateAvailableRolls()
     local numRolls = 0
     for _, follower in pairs(self.followers or {}) do
-        numRolls = numRolls + (follower:GetAvailableRolls() or 0)
+        numRolls = numRolls + (follower.properties:GetAvailableRolls())
     end
     return numRolls
 end
@@ -52,7 +56,7 @@ end
 function DTFollowers:GetFollowersWithAvailbleRolls()
     local followers = {}
     for id, follower in pairs(self.followers or {}) do
-        if follower:GetAvailableRolls() > 0 then
+        if follower.properties:GetAvailableRolls() > 0 then
             followers[id] = follower
         end
     end

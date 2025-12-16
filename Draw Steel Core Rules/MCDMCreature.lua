@@ -3607,7 +3607,7 @@ creature.RegisterSymbol {
     end,
     help = {
         name = "Keywords",
-        type = "string",
+        type = "set",
         desc = "The keywords associated with this creature.",
         seealso = {},
     }

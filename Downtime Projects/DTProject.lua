@@ -378,16 +378,19 @@ end
 --- @param roll DTRoll|DTProgressItem The roll to add
 --- @return DTProject self For chaining
 function DTProject:AddRoll(roll)
-    if not self:IsValidStateToRoll() then return self end
+    
+    if roll:GetBreakthrough() or self:IsValidStateToRoll() then
 
-    if not self.projectRolls then
-        self.projectRolls = {}
+        if not self.projectRolls then
+            self.projectRolls = {}
+        end
+
+        roll:SetCommitInfo()
+        self.projectRolls[#self.projectRolls + 1] = roll
+        self:_setStateFromProgressChange(roll, 1)
+        self:_invalidateProgressCache()
+
     end
-
-    roll:SetCommitInfo()
-    self.projectRolls[#self.projectRolls + 1] = roll
-    self:_setStateFromProgressChange(roll, 1)
-    self:_invalidateProgressCache()
 
     return self
 end

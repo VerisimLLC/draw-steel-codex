@@ -71,7 +71,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
             end
 
             element:SetClassTree("searching", true)
-            if #SearchTableForText(feature, text) > 0 then
+            if MatchesSearchRecursive(feature, text) then
                 element:SetClassTree("matchSearch", true)
             else
                 element:SetClassTree("matchSearch", false)
@@ -697,7 +697,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
             end
 
             element:SetClassTree("searching", true)
-            if #SearchTableForText(feature, text) > 0 then
+            if MatchesSearchRecursive(feature, text) then
                 element:SetClassTree("matchSearch", true)
             else
                 element:SetClassTree("matchSearch", false)
@@ -1227,7 +1227,7 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
                 end
 
                 element:SetClassTree("searching", true)
-                if #SearchTableForText(classLevel, text) > 0 then
+                if MatchesSearchRecursive(classLevel, text) then
                     element:SetClassTree("matchSearch", true)
                 else
                     element:SetClassTree("matchSearch", false)

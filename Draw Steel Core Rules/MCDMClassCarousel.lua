@@ -1352,6 +1352,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 
                             click = function(element)
                                 local creature = CharacterSheet.instance.data.info.token.properties
+                                creature:ExtraLevelInfo().encounter = nil
                                 local classes = creature:try_get("classes", {})
                                 classes[classIndex].level = classes[classIndex].level + 1
                                 CharacterSheet.instance:FireEvent("refreshAll")
@@ -1367,6 +1368,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 
                             click = function(element)
                                 local creature = CharacterSheet.instance.data.info.token.properties
+                                creature:ExtraLevelInfo().encounter = nil
                                 local classes = creature:try_get("classes", {})
                                 classes[classIndex].level = classes[classIndex].level - 1
                                 CharacterSheet.instance:FireEvent("refreshAll")

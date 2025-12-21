@@ -935,9 +935,35 @@ function ActivatedAbility:GenerateEditor()
                     value = self:try_get("implementation", 1),
                     change = function(element)
                         self.implementation = element.value
+						resultPanel:FireEventTree("refreshImplementation")
                     end,
                 },
             },
+
+			gui.Panel{
+				classes = {"formPanel", cond(self:try_get("implementation", 1) == 1, "collapsed-anim")},
+				refreshAbility = function(element)
+					element:SetClass("collapsed-anim", self:try_get("implementation", 1) == 1)
+				end,
+				refreshImplementation = function(element)
+					element:SetClass("collapsed-anim", self:try_get("implementation", 1) == 1)
+				end,
+				gui.Input{
+					classes = "formInput",
+					placeholderText = "Enter Implementation Details...",
+					multiline = true,
+					width = "80%",
+					height = "auto",
+					halign = "center",
+					margin = 8,
+					minHeight = 60,
+					textAlignment = "topleft",
+					text =self:try_get("implementationDetails"),
+					change = function(element)
+						self.implementationDetails = element.text
+					end,
+				},
+			},
 
             m_source:Editor{
                 object = self,

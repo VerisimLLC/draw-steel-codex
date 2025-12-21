@@ -210,7 +210,7 @@ function CharacterBuilder._labelStyles()
             width = "100%",
             height = "auto",
             valign = "top",
-            textAlignment = "center",
+            textAlignment = "left",
             fontSize = 18,
         },
 

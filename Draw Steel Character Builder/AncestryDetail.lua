@@ -298,10 +298,10 @@ function CharacterBuilder._featureSkillChoicePanel(feature)
 
     local children = {}
 
-    children[#children+1] = gui.Label {
-        classes = {"builder-base", "label", "label-feature-name"},
-        text = feature.name,
-    }
+    -- children[#children+1] = gui.Label {
+    --     classes = {"builder-base", "label", "label-feature-name"},
+    --     text = feature.name,
+    -- }
 
     children[#children+1] = gui.Label {
         classes = {"builder-base", "label", "label-feature-desc"},
@@ -384,6 +384,18 @@ function CharacterBuilder._featureSkillChoicePanel(feature)
         }
     end
 
+    children[#children+1] = CharacterBuilder._selectButton{
+        click = function(element)
+            local parent = element:FindParentWithClass("skillSelector")
+            if parent then
+                parent:FireEvent("applyCurrentItem")
+            end
+        end,
+        refreshBuilderState = function(element, state)
+            -- TODO:
+        end,
+    }
+
     return gui.Panel{
         classes = {"skillSelector", "builder-base", "panel"},
         width = "96%",
@@ -395,6 +407,15 @@ function CharacterBuilder._featureSkillChoicePanel(feature)
             feature = feature,
             selectedId = nil,
         },
+
+        applyCurrentItem = function(element)
+            if element.data.selectedId then
+                _fireControllerEvent(element, "applyLevelChoice", {
+                    feature = feature,
+                    selectedId = element.data.selectedId
+                })
+            end
+        end,
 
         refreshBuilderState = function(element, state)
             local creature = state:Get("token").properties

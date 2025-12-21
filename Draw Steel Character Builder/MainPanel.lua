@@ -78,6 +78,39 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        applyLevelChoice = function(element, info)
+            local creature = element.data.state:Get("token").properties
+            if creature then
+                local levelChoices = creature:GetLevelChoices()
+                if levelChoices then
+                    local choiceId = info.feature.guid
+                    local selectedId = info.selectedId
+                    local numChoices = info.feature:NumChoices()
+                    if numChoices == nil or numChoices < 1 then numChoices = 1 end
+                    if (levelChoices[choiceId] == nil or numChoices == 1) and levelChoices[choiceId] ~= selectedId then
+                        levelChoices[choiceId] = { selectedId }
+                        element:FireEvent("tokenDataChanged")
+                    else
+                        local alreadySelected = false
+                        for _,id in ipairs(levelChoices[choiceId]) do
+                            if id == selectedId then
+                                alreadySelected = true
+                                break
+                            end
+                        end
+                        if not alreadySelected then
+                            if numChoices > #levelChoices[choiceId] then
+                                levelChoices[#levelChoices+1] = selectedId
+                            else
+                                levelChoices[#levelChoices] = selectedId
+                            end
+                            element:FireEvent("tokenDataChanged")
+                        end
+                    end
+                end
+            end
+        end,
+
         create = function(element)
             if element.data._cacheToken(element) ~= nil then
                 element:FireEventTree("refreshToken")

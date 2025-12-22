@@ -6,7 +6,7 @@ local g_compiledGoblinScript
 g_compiledGoblinScript = setting{
     id = "compiledgoblinscript",
     name = "Compiled Goblin Script",
-    default = false,
+    default = true,
     description = "Use compiled Goblin Script evaluation where possible. Improves performance.",
     onchange = function()
         g_useCompiled = g_compiledGoblinScript:Get()

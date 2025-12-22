@@ -1677,7 +1677,6 @@ setting{
 setting{
 	id = "gametime",
 	description = "Time",
-	onchange = function() UploadTimeBasis() end,
 
 	storage = "game",
 	editor = "slider",

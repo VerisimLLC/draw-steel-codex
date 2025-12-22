@@ -153,25 +153,78 @@ function CharacterBuilder._characterBuilderPanelStatusItem(selector, getSelected
         if typeName == "CharacterSubclassChoice" then return Class.tableName end
     end
 
-    return gui.Panel{
+    local headingText = _ucFirst(selector)
+
+    local headerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "charpanel-detail-header"},
+        click = function(element)
+            local controller = element:FindParentWithClass("panelStatusController")
+            if controller then controller:FireEvent("toggleExpanded") end
+        end,
+        gui.Label{
+            classes = {"builder-base", "label", "charpanel-detail-header-label"},
+            text = headingText,
+        },
+        gui.Panel{
+            classes = {"builder-base", "panel-base", "charpanel-check"},
+            setStatus = function(element, info)
+                element:SetClass("complete", info.complete)
+            end,
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "charpanel-detail-header-label"},
+            width = "auto",
+            halign = "right",
+            hmargin = 40,
+            setStatus = function(element, info)
+                element.text = string.format("%d/%d", info.selected, info.available)
+                element:SetClass("collapsed", info.complete)
+            end,
+        },
+        gui.CollapseArrow{
+            halign = "right",
+            valign = "center",
+            setExpanded = function(element, expanded)
+                element:SetClass("collapseSet", not expanded)
+            end
+        }
+    }
+
+    local detailPanel = gui.Panel{
         classes = {"builder-base", "panel-base"},
         width = "100%",
         height = "auto",
         valign = "top",
         flow = "vertical",
         data = {
-            heading = _ucFirst(selector),
+            heading = headingText,
             featureTypes = {},
         },
         create = function(element)
             element:FireEvent("refreshBuilderState", _getState(element))
         end,
+        calculateComplete = function(element)
+            local available = 0
+            local selected = 0
+            for _,ft in pairs(element.data.featureTypes) do
+                available = available + ft.available
+                selected = selected + ft.selected
+            end
+            local parent = element:FindParentWithClass("panelStatusController")
+            if parent then
+                parent:FireEventTree("setStatus", {
+                    available = available,
+                    selected = selected,
+                    complete = selected == available,
+                })
+            end
+        end,
         calculateStatus = function(element, state)
             local featureTypes = element.data.featureTypes
             featureTypes = {
-                [element.data.heading] = {
-                    id = element.data.heading,
-                    order = "0-".. element.data.heading,
+                [headingText] = {
+                    id = headingText,
+                    order = "0-".. headingText,
                     available = 1,
                     selected = 0,
                     selectedDetail = {},
@@ -260,7 +313,32 @@ function CharacterBuilder._characterBuilderPanelStatusItem(selector, getSelected
         refreshBuilderState = function(element, state)
             element:FireEvent("calculateStatus", state)
             element:FireEvent("reconcileChildren")
-        end
+            element:FireEvent("calculateComplete")
+        end,
+        setExpanded = function(element, expanded)
+            element:SetClass("collapsed-anim", not expanded)
+        end,
+    }
+
+    return gui.Panel{
+        classes = {"builder-base", "panel-base", "panelStatusController"},
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        flow = "vertical",
+        data = {
+            expanded = nil,
+        },
+        setStatus = function(element, info)
+            element.data.expanded = not info.complete
+            element:FireEventTree("setExpanded", element.data.expanded)
+        end,
+        toggleExpanded = function(element)
+            element.data.expanded = not element.data.expanded
+            element:FireEventTree("setExpanded", element.data.expanded)
+        end,
+        headerPanel,
+        detailPanel,
     }
 end
 

@@ -130,6 +130,13 @@ function CharacterBuilder._panelStyles()
 
         -- For the right side character pane
         {
+            selectors = {"charpanel-detail-header"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+        },
+        {
             selectors = {"feature-detail-panel"},
             width = "100%",
             height = "auto",
@@ -280,6 +287,32 @@ function CharacterBuilder._labelStyles()
         },
 
         -- For the right-side character pane / builder tab
+        {
+            selectors = {"charpanel-detail-header-label"},
+            halign = "left",
+            valign = "bottom",
+            width = "90%",
+            textAlignment = "left",
+            vpad = 4,
+            fontSize = 24,
+            bgimage = true,
+            border = {y1 = 2, y2 = 0, x1 = 0, x2 = 0},
+            borderColor = Styles.textColor,
+        },
+        {
+            selectors = {"charpanel-check"},
+            halign = "left",
+            valign = "center",
+            hmargin = 150,
+            width = 24,
+            height = 24,
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"charpanel-check", "complete"},
+            bgcolor = Styles.textColor,
+        },
         {
             selectors = {"feature-detail-id-label"},
             width = "20%",

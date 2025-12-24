@@ -123,6 +123,46 @@ local function _panelStyles()
             cornerRadius = 10,
         },
 
+        -- Detail Panels
+        {
+            selectors = {"detail-panel"},
+            width = "100%",
+            height = "100%",
+            flow = "horizontal",
+            valign = "center",
+            halign = "center",
+            borderColor = "yellow",
+        },
+        {
+            selectors = {"detail-nav-panel"},
+            width = CBStyles.SIZES.BUTTON_PANEL_WIDTH + 20,
+            height = "90%",
+            valign = "top",
+            vpad = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
+            flow = "vertical",
+            borderColor = "teal",
+        },
+        {
+            selectors = {"inner-detail-panel"},
+            width = 440,
+            height = "99%",
+            valign = "center",
+            halign = "center",
+            borderColor = "teal",
+        },
+        {
+            selectors = {"inner-detail-panel", "wide"},
+            width = 660,
+        },
+        {
+            selectors = {"detail-overview-panel"},
+            width = "96%",
+            height = "99%",
+            valign = "center",
+            halign = "center",
+            bgcolor = "white",
+        },
+
         -- Feature selectors
         {
             selectors = {"feature-target"},

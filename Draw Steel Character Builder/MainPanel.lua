@@ -77,6 +77,17 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        applyCurrentCareer = function(element)
+            local careerId = element.data.state:Get("career.selectedId")
+            if careerId then
+                local creature = _getCreature(element.data.state)
+                if creature then
+                    creature.backgroundid = careerId
+                    element:FireEvent("tokenDataChanged")
+                end
+            end
+        end,
+
         applyLevelChoice = function(element, info)
             local feature = info.feature
             local creature = _getCreature(element.data.state)
@@ -226,6 +237,8 @@ function CharacterBuilder.CreatePanel()
         selectItem = function(element, info)
             if info.selector == "ancestry" then
                 element:FireEvent("selectAncestry", info.id)
+            elseif info.selector == "career" then
+                element:FireEvent("selectCareer", info.id)
             end
         end,
 

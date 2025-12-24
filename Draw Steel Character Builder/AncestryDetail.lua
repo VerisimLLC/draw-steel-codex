@@ -11,40 +11,21 @@ local AVAILABLE_WITHOUT_ANCESTRY = {overview = true, lore = true}
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getCreature = CharacterBuilder._getCreature
-local _getState = CharacterBuilder._getState
-local _makeCategoryButton = CharacterBuilder._makeCategoryButton
+local _makeDetailNavButton = CharacterBuilder._makeDetailNavButton
 
 --- Generate the Ancestry Category Navigation panel
 --- @return Panel
 function CBAncestryDetail._navPanel()
 
-    local function makeCategoryButton(options)
-        if options.click == nil then
-            options.click = function(element)
-                _fireControllerEvent(element, "updateState", {
-                    key = SELECTOR .. ".category.selectedId",
-                    value = element.data.category
-                })
-            end
-        end
-        if options.refreshBuilderState == nil then
-            options.refreshBuilderState = function(element, state)
-                element:FireEvent("setAvailable", state:Get(SELECTOR .. ".selectedId") ~= nil)
-                element:FireEvent("setSelected", state:Get(SELECTOR .. ".category.selectedId") == element.data.category)
-            end
-        end
-        return _makeCategoryButton(options)
-    end
-
-    local overview = makeCategoryButton{
+    local overviewButton = _makeDetailNavButton(SELECTOR, {
         text = "Overview",
         data = { category = INITIAL_CATEGORY },
-    }
-    local lore = makeCategoryButton{
+    })
+    local loreButton = _makeDetailNavButton(SELECTOR, {
         text = "Lore",
         data = { category = "lore" },
-    }
-    local change = makeCategoryButton{
+    })
+    local changeButton = _makeDetailNavButton(SELECTOR, {
         classes = {"changeAncestry"},
         text = "Change Ancestry",
         data = { category = "change" },
@@ -62,17 +43,11 @@ function CBAncestryDetail._navPanel()
                 element:FireEvent("setAvailable", creature:try_get("raceid") ~= nil)
             end
         end,
-    }
+    })
 
     return gui.Panel{
-        classes = {"categoryNavPanel", "panel-base", "builder-base"},
-        width = CBStyles.SIZES.BUTTON_PANEL_WIDTH + 20,
-        height = "99%",
-        valign = "top",
-        vpad = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
-        flow = "vertical",
+        classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
         vscroll = true,
-        borderColor = "teal",
 
         create = function(element)
             _fireControllerEvent(element, "updateState", {
@@ -87,9 +62,9 @@ function CBAncestryDetail._navPanel()
             if changeButton then changeButton:SetAsLastSibling() end
         end,
 
-        overview,
-        lore,
-        change,
+        overviewButton,
+        loreButton,
+        changeButton,
     }
 end
 
@@ -103,11 +78,11 @@ function CBAncestryDetail._overviewPanel()
         width = "100%",
         height = "auto",
         hpad = 12,
-        text = "ANCESTRY",
+        text = GameSystem.RaceName:upper(),
         textAlignment = "left",
 
         refreshBuilderState = function(element, state)
-            local text = "ANCESTRY"
+            local text = GameSystem.RaceName:upper()
             local ancestryId = state:Get(SELECTOR .. ".selectedId")
             if ancestryId then
                 local race = state:Get(SELECTOR .. ".selectedItem")
@@ -185,13 +160,8 @@ function CBAncestryDetail._overviewPanel()
 
     return gui.Panel{
         id = "ancestryOverviewPanel",
-        classes = {"ancestryOverviewPanel", "builder-base", "panel-base", "border", "collapsed"},
-        width = "96%",
-        height = "99%",
-        valign = "center",
-        halign = "center",
+        classes = {"ancestryOverviewPanel", "builder-base", "panel-base", "detail-overview-panel", "border", "collapsed"},
         bgimage = mod.images.ancestryHome,
-        bgcolor = "white",
 
         data = {
             category = "overview",
@@ -277,11 +247,11 @@ function CBAncestryDetail._lorePanel()
     }
 end
 
---- Build the Ancestry Select button
+--- Build the Select button
 --- @return PrettyButton|Panel
 function CBAncestryDetail._selectButton()
     return CharacterBuilder._makeSelectButton{
-        classes = {"ancestrySelectButton"},
+        classes = {"selectButton"},
         click = function(element)
             _fireControllerEvent(element, "applyCurrentAncestry")
         end,
@@ -299,42 +269,31 @@ end
 --- @return Panel
 function CBAncestryDetail.CreatePanel()
 
-    local ancestryNavPanel = CBAncestryDetail._navPanel()
+    local navPanel = CBAncestryDetail._navPanel()
 
-    local ancestryOverviewPanel = CBAncestryDetail._overviewPanel()
-    local ancestryLorePanel = CBAncestryDetail._lorePanel()
+    local overviewPanel = CBAncestryDetail._overviewPanel()
+    local lorePanel = CBAncestryDetail._lorePanel()
 
-    local ancestrySelectButton = CBAncestryDetail._selectButton()
+    local selectButton = CBAncestryDetail._selectButton()
 
-    local ancestryDetailPanel = gui.Panel{
+    local detailPanel = gui.Panel{
         id = "ancestryDetailPanel",
-        classes = {"builder-base", "panel-base", "ancestryDetailpanel"},
-        width = 660,
-        height = "99%",
-        valign = "center",
-        halign = "center",
-        borderColor = "teal",
+        classes = {"builder-base", "panel-base", "inner-detail-panel", "wide", "ancestryDetailpanel"},
 
         registerFeaturePanel = function(element, panel)
             element:AddChild(panel)
-            local selectButton = element:FindChildRecursive(function(e) return e:HasClass("ancestrySelectButton") end)
+            local selectButton = element:FindChildRecursive(function(e) return e:HasClass("selectButton") end)
             if selectButton then selectButton:SetAsLastSibling() end
         end,
 
-        ancestryOverviewPanel,
-        ancestryLorePanel,
-        ancestrySelectButton,
+        overviewPanel,
+        lorePanel,
+        selectButton,
     }
 
     return gui.Panel{
         id = "ancestryPanel",
-        classes = {"builder-base", "panel-base", "ancestryPanel"},
-        width = "100%",
-        height = "100%",
-        flow = "horizontal",
-        valign = "center",
-        halign = "center",
-        borderColor = "yellow",
+        classes = {"builder-base", "panel-base", "detail-panel", "ancestryPanel"},
         data = {
             selector = SELECTOR,
             features = {},
@@ -357,8 +316,8 @@ function CBAncestryDetail.CreatePanel()
                                 end)
                                 if featureRegistry then
                                     element.data.features[featureId] = true
-                                    ancestryNavPanel:FireEvent("registerFeatureButton", featureRegistry.button)
-                                    ancestryDetailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
+                                    navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
+                                    detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
                                 end
                             end
                         end
@@ -374,7 +333,7 @@ function CBAncestryDetail.CreatePanel()
             end
         end,
 
-        ancestryNavPanel,
-        ancestryDetailPanel,
+        navPanel,
+        detailPanel,
     }
 end

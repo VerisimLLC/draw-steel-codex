@@ -17,6 +17,7 @@ CharacterBuilder.CONTROLLER_CLASS = "builderPanel"
 CharacterBuilder.ROOT_CHAR_SHEET_CLASS = "characterSheetHarness"
 
 CharacterBuilder.STRINGS = {}
+
 CharacterBuilder.STRINGS.ANCESTRY = {}
 CharacterBuilder.STRINGS.ANCESTRY.INTRO = [[
 Fantastic peoples inhabit the worlds of Draw Steel. Among them are devils, dwarves, elves, time raiders--and of course humans, whose culture and history dominates many worlds.]]
@@ -24,6 +25,12 @@ CharacterBuilder.STRINGS.ANCESTRY.OVERVIEW = [[
 Ancestry describes how you were born. Culture (part of Chapter 4: Background) describes how you grew up. If you want to be a wode elf who was raised in a forest among other wode elves, you can do that! If you want to play a wode elf who was raised in an underground city of dwarves, humans, and orcs, you can do that too!
 
 Your hero is one of these folks! The fantastic ancestry you choose bestows benefits that come from your anatomy and physiology. This choice doesn't grant you cultural benefits, such as crafting or lore skills, though. While many game settings have cultures made of mostly one ancestry, other cultures and worlds have a cosmopolitan mix of peoples.]]
+
+CharacterBuilder.STRINGS.CAREER = {}
+CharacterBuilder.STRINGS.CAREER.INTRO = [[
+Being a hero isn't a job. It's a calling. But before you answered that call, you had a different job or vocation that paid the bills. Thank the gods for that, because the experience you gained in that career is now helping you save lives and slay monsters.]]
+CharacterBuilder.STRINGS.CAREER.OVERVIEW = [[
+Your career describes what your life was before you became a hero. When you select a career, you gain a number of benefits, the details of which are specified in the career's description.]]
 
 --[[
     Register selectors - controls down the left side of the window
@@ -205,6 +212,28 @@ function CharacterBuilder._makeCategoryButton(options)
     options.bgcolor = CBStyles.COLORS.BLACK03
     options.borderColor = CBStyles.COLORS.GRAY02
     return gui.SelectorButton(options)
+end
+
+--- Build a nav button for the detail pane
+--- @param selector string The selector name the detail panel resides under
+--- @param options table 
+--- @return SelectorButton|Panel
+function CharacterBuilder._makeDetailNavButton(selector, options)
+    if options.click == nil then
+        options.click = function(element)
+            CharacterBuilder._fireControllerEvent(element, "updateState", {
+                key = selector .. ".category.selectedId",
+                value = element.data.category
+            })
+        end
+    end
+    if options.refreshBuilderState == nil then
+        options.refreshBuilderState = function(element, state)
+            element:FireEvent("setAvailable", state:Get(selector .. ".selectedId") ~= nil)
+            element:FireEvent("setSelected", state:Get(selector .. ".category.selectedId") == element.data.category)
+        end
+    end
+    return CharacterBuilder._makeCategoryButton(options)
 end
 
 --- Create a registry entry for a feature - a button and an editor panel

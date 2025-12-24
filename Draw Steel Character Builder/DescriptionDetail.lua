@@ -267,13 +267,13 @@ function CBDescriptionDetail.CreatePanel()
 
     return gui.Panel{
         id = "descriptionPanel",
-        classes = {"builder-base", "panel-base", "descriptionPanel"},
-        width = "100%",
-        height = "100%",
-        flow = "horizontal",
-        valign = "center",
-        halign = "center",
-        borderColor = "yellow",
+        classes = {"builder-base", "panel-base", "detail-panel", "descriptionPanel"},
+        -- width = "100%",
+        -- height = "100%",
+        -- flow = "horizontal",
+        -- valign = "center",
+        -- halign = "center",
+        -- borderColor = "yellow",
         data = {
             selector = SELECTOR,
         },

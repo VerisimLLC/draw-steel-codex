@@ -90,8 +90,7 @@ function CBSelectors._careerItems()
         items = CharacterBuilder._sortArrayByProperty(CharacterBuilder._toArray(dmhub.GetTableVisible(Background.tableName)), "name"),
         selectorName = "career",
         getSelected = function(creature)
-            local bg = creature:Background()
-            return bg and bg.id or nil
+            return creature:try_get("backgroundid")
         end,
         getItem = function(id)
             return dmhub.GetTableVisible(Background.tableName)[id]
@@ -338,7 +337,8 @@ CharacterBuilder.RegisterSelector{
 CharacterBuilder.RegisterSelector{
     id = "career",
     ord = 5,
-    selector = CBSelectors._career
+    selector = CBSelectors._career,
+    detail = CBCareerDetail.CreatePanel
 }
 
 CharacterBuilder.RegisterSelector{

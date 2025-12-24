@@ -198,28 +198,83 @@ end
 --- @param options ButtonOptions
 --- @return SelectorButton|Panel
 function CharacterBuilder._makeCategoryButton(options)
-    options.width = CharacterBuilder.SIZES.CATEGORY_BUTTON_WIDTH
-    options.height = CharacterBuilder.SIZES.CATEGORY_BUTTON_HEIGHT
+    options.width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH
+    options.height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT
     options.valign = "top"
-    options.bmargin = CharacterBuilder.SIZES.CATEGORY_BUTTON_MARGIN
-    options.bgcolor = CharacterBuilder.COLORS.BLACK03
-    options.borderColor = CharacterBuilder.COLORS.GRAY02
+    options.bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN
+    options.bgcolor = CBStyles.COLORS.BLACK03
+    options.borderColor = CBStyles.COLORS.GRAY02
     return gui.SelectorButton(options)
 end
 
+--- Create a registry entry for a feature - a button and an editor panel
+--- @parameter feature CharacterFeature
+--- @parameter selectorId string The selector this is a category under
+--- @parameter selectedId string The unique identifier of the item associated with the feature
+--- @parameter getSelected function(creature)
+--- @return Panel|nil
+function CharacterBuilder._makeFeatureRegistry(feature, selectorId, selectedId, getSelected)
+
+    local featurePanel = CBFeatureSelector.Panel(feature)
+
+    if featurePanel then
+        return {
+            button = CharacterBuilder._makeCategoryButton{
+                text = CharacterBuilder._stripSignatureTrait(feature.name),
+                data = {
+                    featureId = feature.guid,
+                    selectedId = selectedId,
+                },
+                click = function(element)
+                    CharacterBuilder._fireControllerEvent(element, "updateState", {
+                        key = selectorId .. ".category.selectedId",
+                        value = element.data.featureId
+                    })
+                end,
+                refreshBuilderState = function(element, state)
+                    local tokenSelected = getSelected(CharacterBuilder._getCreature(state)) or "nil"
+                    local isVisible = tokenSelected == element.data.selectedId
+                    element:FireEvent("setAvailable", isVisible)
+                    element:FireEvent("setSelected", element.data.featureId == state:Get(selectorId .. ".category.selectedId"))
+                    element:SetClass("collapsed", not isVisible)
+                end,
+            },
+            panel = gui.Panel{
+                classes = {"featurePanel", "builder-base", "panel-base", "collapsed"},
+                width = "100%",
+                height = "98%",
+                flow = "vertical",
+                valign = "top",
+                halign = "center",
+                tmargin = 12,
+                -- vscroll = true,
+                data = {
+                    featureId = feature.guid,
+                },
+                refreshBuilderState = function(element, state)
+                    local isVisible = element.data.featureId == state:Get(selectorId .. ".category.selectedId")
+                    element:SetClass("collapsed", not isVisible)
+                end,
+                featurePanel,
+            },
+        }
+    end
+
+    return nil
+end
 
 --- Build a Select button, forcing consistent styling
 --- @param options ButtonOptions 
 --- @return PrettyButton|Panel
-function CharacterBuilder._selectButton(options)
+function CharacterBuilder._makeSelectButton(options)
     local opts = dmhub.DeepCopy(options)
 
     opts.classes = {"builder-base", "button", "select"}
     if options.classes then
         table.move(options.classes, 1, #options.classes, #opts.classes + 1, opts.classes)
     end
-    opts.width = CharacterBuilder.SIZES.SELECT_BUTTON_WIDTH
-    opts.height = CharacterBuilder.SIZES.SELECT_BUTTON_HEIGHT
+    opts.width = CBStyles.SIZES.SELECT_BUTTON_WIDTH
+    opts.height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT
     opts.text = "SELECT"
     opts.floating = true
     opts.halign = "center"
@@ -230,7 +285,7 @@ function CharacterBuilder._selectButton(options)
     opts.cornerRadius = 5
     opts.border = 1
     opts.borderWidth = 1
-    opts.borderColor = CharacterBuilder.COLORS.CREAM03
+    opts.borderColor = CBStyles.COLORS.CREAM03
 
     return gui.PrettyButton(opts)
 end

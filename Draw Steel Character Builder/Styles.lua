@@ -1,11 +1,12 @@
---- Styles for Character Builder
-
--- TODO: Clean up styles / ordering
+--[[
+    Styles for Character Builder
+]]
+CBStyles = RegisterGameType("CBStyles")
 
 --- Set this to true to draw layout helper borders around panels that have none
 local DEBUG_PANEL_BG = false
 
-CharacterBuilder.COLORS = {
+CBStyles.COLORS = {
     BLACK = "#000000",
     BLACK03 = "#191A18",
     CREAM = "#BC9B7B",
@@ -16,14 +17,14 @@ CharacterBuilder.COLORS = {
     PANEL_BG = "#080B09",
 
     -- For selections like skills etc.
-    FILLED_ITEM_BG = "#E9B86F40",
+    FILLED_ITEM_BG = "#E9B86F0F",
     FILLED_ITEM_BORDER = "#E9B86F",
 
     DELETE_WARN_BG = "#660000",
     DELETE_WARN_BORDER = "#CC3333",
 }
 
-CharacterBuilder.SIZES = {
+CBStyles.SIZES = {
     -- Panels
     CHARACTER_PANEL_WIDTH = 447,
     CHARACTER_PANEL_HEADER_HEIGHT = 270,
@@ -52,12 +53,8 @@ CharacterBuilder.SIZES = {
     BUTTON_SPACING = 12,
 
 }
-CharacterBuilder.SIZES.BUTTON_PANEL_WIDTH = CharacterBuilder.SIZES.ACTION_BUTTON_WIDTH + 60
-CharacterBuilder.SIZES.CENTER_PANEL_WIDTH = "100%-" .. (30 + CharacterBuilder.SIZES.BUTTON_PANEL_WIDTH + CharacterBuilder.SIZES.CHARACTER_PANEL_WIDTH)
-
---[[
-    Styles
-]]
+CBStyles.SIZES.BUTTON_PANEL_WIDTH = CBStyles.SIZES.ACTION_BUTTON_WIDTH + 60
+CBStyles.SIZES.CENTER_PANEL_WIDTH = "100%-" .. (30 + CBStyles.SIZES.BUTTON_PANEL_WIDTH + CBStyles.SIZES.CHARACTER_PANEL_WIDTH)
 
 --- Prepend root selectors to each style's selectors array
 --- @param rootSelectors string|table The selectors to prepend
@@ -80,6 +77,8 @@ local function _applyRootSelectors(rootSelectors, styles)
     return styles
 end
 
+--- Generate base styles for the character builder
+--- @return table[] Array of style definitions
 local function _baseStyles()
     return {
         {
@@ -96,6 +95,8 @@ local function _baseStyles()
     }
 end
 
+--- Generate panel styles with panel-base root selector
+--- @return table[] Array of style definitions
 local function _panelStyles()
     return _applyRootSelectors("panel-base", {
         {
@@ -117,7 +118,7 @@ local function _panelStyles()
         },
         {
             selectors = {"border"},
-            borderColor = CharacterBuilder.COLORS.CREAM,
+            borderColor = CBStyles.COLORS.CREAM,
             border = 2,
             cornerRadius = 10,
         },
@@ -127,23 +128,24 @@ local function _panelStyles()
             selectors = {"feature-target"},
             width = "99%",
             height = "auto",
+            flow = "vertical",
             tmargin = 10,
             vpad = 8,
             bgimage = true,
             bgcolor = "clear",
             cornerRadius = 5,
             borderWidth = 1,
-            borderColor = CharacterBuilder.COLORS.GOLD,
+            borderColor = CBStyles.COLORS.GOLD,
         },
         {
             selectors = {"feature-target", "filled"},
-            bgcolor = CharacterBuilder.COLORS.FILLED_ITEM_BG,
-            borderColor = CharacterBuilder.COLORS.FILLED_ITEM_BORDER,
+            bgcolor = CBStyles.COLORS.FILLED_ITEM_BG,
+            borderColor = CBStyles.COLORS.FILLED_ITEM_BORDER,
         },
         {
             selectors = {"feature-target", "filled", "hover"},
-            bgcolor = CharacterBuilder.COLORS.DELETE_WARN_BG,
-            borderColor = CharacterBuilder.COLORS.DELETE_WARN_BORDER,
+            bgcolor = CBStyles.COLORS.DELETE_WARN_BG,
+            borderColor = CBStyles.COLORS.DELETE_WARN_BORDER,
         },
         {
             selectors = {"feature-choice"},
@@ -157,11 +159,11 @@ local function _panelStyles()
             bgcolor = "clear",
             cornerRadius = 5,
             borderWidth = 1,
-            borderColor = CharacterBuilder.COLORS.GOLD,
+            borderColor = CBStyles.COLORS.GOLD,
         },
         {
             selectors = {"feature-choice", "selected"},
-            borderColor = CharacterBuilder.COLORS.GOLD03,
+            borderColor = CBStyles.COLORS.GOLD03,
         },
 
         -- Right-side character panel
@@ -231,6 +233,8 @@ local function _panelStyles()
     })
 end
 
+--- Generate label styles with label root selector
+--- @return table[] Array of style definitions
 local function _labelStyles()
     return _applyRootSelectors("label", {
         {
@@ -276,7 +280,7 @@ local function _labelStyles()
             textAlignment = "center",
             fontSize = 20,
             bgimage = true,
-            borderColor = CharacterBuilder.COLORS.CREAM03,
+            borderColor = CBStyles.COLORS.CREAM03,
             border = 1,
             cornerRadius = 5,
         },
@@ -294,17 +298,26 @@ local function _labelStyles()
         -- Selector target for skill selection etc.
         {
             selectors = {"feature-target"},
-            width = "auto",
+            width = "100%",
             height = "auto",
             halign = "center",
+        },
+        {
+            selectors = {"feature-target", "desc"},
+            fontSize = 14,
+            bold = false,
+            italics = true,
         },
         {
             selectors = {"feature-target", "parent:filled"},
             halign = "left",
             hpad = 20,
-            fontSize = 18,
             textAlignment = "left",
-            bold = false,
+        },
+        {
+            selectors = {"feature-target", "parent:filled", "~desc"},
+            fontSize = 22,
+            bold = true,
         },
 
         -- Options for skill selection etc.
@@ -322,6 +335,7 @@ local function _labelStyles()
             selectors = {"feature-choice", "desc"},
             fontSize = 14,
             bold = false,
+            italics = true,
         },
 
         -- For the right-side character panel / builder tab
@@ -330,7 +344,7 @@ local function _labelStyles()
             width = "50%",
             height = "auto",
             halign = "left",
-            vpad = CharacterBuilder.SIZES.DESCRIPTION_LABEL_PAD,
+            vpad = CBStyles.SIZES.DESCRIPTION_LABEL_PAD,
             textAlignment = "left",
             fontSize = 18,
             bold = true,
@@ -340,7 +354,7 @@ local function _labelStyles()
             width = "50%",
             height = "auto",
             halign = "left",
-            vpad = CharacterBuilder.SIZES.DESCRIPTION_LABEL_PAD,
+            vpad = CBStyles.SIZES.DESCRIPTION_LABEL_PAD,
             textAlignment = "left",
             fontSize = 18,
         },
@@ -384,6 +398,8 @@ local function _labelStyles()
     })
 end
 
+--- Generate button styles with button root selector
+--- @return table[] Array of style definitions
 local function _buttonStyles()
     return _applyRootSelectors("button", {
         {
@@ -393,8 +409,8 @@ local function _buttonStyles()
         },
         {
             selectors = {"category"},
-            width = CharacterBuilder.SIZES.ACTION_BUTTON_WIDTH,
-            height = CharacterBuilder.SIZES.ACTION_BUTTON_HEIGHT,
+            width = CBStyles.SIZES.ACTION_BUTTON_WIDTH,
+            height = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
             halign = "center",
             valign = "top",
             bmargin = 20,
@@ -405,29 +421,31 @@ local function _buttonStyles()
         },
         {
             selectors = {"select"},
-            width = CharacterBuilder.SIZES.SELECT_BUTTON_WIDTH,
-            height = CharacterBuilder.SIZES.SELECT_BUTTON_HEIGHT,
+            width = CBStyles.SIZES.SELECT_BUTTON_WIDTH,
+            height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
             fontSize = 36,
             bold = true,
             cornerRadius = 5,
             border = 1,
             borderWidth = 1,
-            borderColor = CharacterBuilder.COLORS.GOLD03,
-            color = CharacterBuilder.COLORS.GOLD03,
+            borderColor = CBStyles.COLORS.GOLD03,
+            color = CBStyles.COLORS.GOLD03,
         },
         -- {
         --     selectors = {"available"},
-        --     borderColor = CharacterBuilder.COLORS.CREAM,
-        --     color = CharacterBuilder.COLORS.GOLD,
+        --     borderColor = CBStyles.COLORS.CREAM,
+        --     color = CBStyles.COLORS.GOLD,
         -- },
         -- {
         --     selectors = {"unavailable"},
-        --     borderColor = CharacterBuilder.COLORS.GRAY02,
-        --     color = CharacterBuilder.COLORS.GRAY02,
+        --     borderColor = CBStyles.COLORS.GRAY02,
+        --     color = CBStyles.COLORS.GRAY02,
         -- }
     })
 end
 
+--- Generate input styles with input root selector
+--- @return table[] Array of style definitions
 local function _inputStyles()
     return _applyRootSelectors("input", {
         {
@@ -452,6 +470,8 @@ local function _inputStyles()
     })
 end
 
+--- Generate dropdown styles with dropdown root selector
+--- @return table[] Array of style definitions
 local function _dropdownStyles()
     return _applyRootSelectors("dropdown", {
         {
@@ -475,6 +495,8 @@ local function _dropdownStyles()
     })
 end
 
+--- Generate character panel tab styles
+--- @return table[] Array of style definitions
 local function _characterPanelTabStyles()
     return {
         {
@@ -482,14 +504,14 @@ local function _characterPanelTabStyles()
             bgimage = true,
             border = 0,
             pad = 4,
-            borderColor = CharacterBuilder.COLORS.CREAM03,
+            borderColor = CBStyles.COLORS.CREAM03,
         },
         {
             selectors = {"charpanel", "tab-border"},
             width = "100%",
             height = "100%",
             border = 0,
-            borderColor = CharacterBuilder.COLORS.CREAM03,
+            borderColor = CBStyles.COLORS.CREAM03,
             bgimage = "panels/square.png",
             bgcolor = "clear",
         },
@@ -501,27 +523,21 @@ local function _characterPanelTabStyles()
             selectors = {"charpanel", "tab-icon"},
             width = 24,
             height = 24,
-            bgcolor = CharacterBuilder.COLORS.GOLD,
+            bgcolor = CBStyles.COLORS.GOLD,
         },
         {
             selectors = {"charpanel", "tab-label"},
         },
         {
             selectors = {"charpanel", "tab-icon", "selected"},
-            bgcolor = CharacterBuilder.COLORS.CREAM03,
+            bgcolor = CBStyles.COLORS.CREAM03,
         },
     }
 end
 
-local function _modifierStyles()
-    return {
-        {
-
-        },
-    }
-end
-
-function CharacterBuilder._getStyles()
+--- Return the styling for the character builder
+--- @return table[] Array of style definitions
+function CBStyles.GetStyles()
     local styles = {}
 
     local function mergeStyles(sourceStyles)
@@ -537,7 +553,6 @@ function CharacterBuilder._getStyles()
     mergeStyles(_inputStyles())
     mergeStyles(_dropdownStyles())
     mergeStyles(_characterPanelTabStyles())
-    mergeStyles(_modifierStyles())
 
     return styles
 end

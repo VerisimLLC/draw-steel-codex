@@ -2,8 +2,6 @@
     Character Panel
 ]]
 
-local mod = dmhub.GetModLoading()
-
 local _blankToDashes = CharacterBuilder._blankToDashes
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getCreature = CharacterBuilder._getCreature
@@ -779,7 +777,7 @@ function CBCharPanel._detailPanel()
             height = "auto",
             width = "auto",
             hpad = 8,
-            color = CharacterBuilder.COLORS.CREAM03,
+            color = CBStyles.COLORS.CREAM03,
             -- fontSize = 18,
             text = tabInfo.text,
             data = { id = tabId, },
@@ -820,7 +818,7 @@ function CBCharPanel._detailPanel()
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
-        borderColor = CharacterBuilder.COLORS.GOLD03,
+        borderColor = CBStyles.COLORS.GOLD03,
         border = { y2 = 0, y1 = 1, x2 = 0, x1 = 0 },
 
         children = tabButtons,
@@ -847,7 +845,7 @@ function CBCharPanel._detailPanel()
 
     detailPanel = gui.Panel{
         width = "100%",
-        height = "100%-" .. CharacterBuilder.SIZES.CHARACTER_PANEL_HEADER_HEIGHT,
+        height = "100%-" .. CBStyles.SIZES.CHARACTER_PANEL_HEADER_HEIGHT,
         flow = "vertical",
 
         create = function(element)
@@ -885,9 +883,9 @@ function CBCharPanel._headerPanel()
         allowPaste = true,
         borderColor = Styles.textColor,
         borderWidth = 2,
-        cornerRadius = math.floor(0.5 * CharacterBuilder.SIZES.AVATAR_DIAMETER),
-        width = CharacterBuilder.SIZES.AVATAR_DIAMETER,
-        height = CharacterBuilder.SIZES.AVATAR_DIAMETER,
+        cornerRadius = math.floor(0.5 * CBStyles.SIZES.AVATAR_DIAMETER),
+        width = CBStyles.SIZES.AVATAR_DIAMETER,
+        height = CBStyles.SIZES.AVATAR_DIAMETER,
         autosizeimage = true,
         halign = "center",
         valign = "top",
@@ -989,7 +987,7 @@ function CBCharPanel._headerPanel()
     return gui.Panel{
         classes = {"builder-base", "panel-base"},
         width = "99%",
-        height = CharacterBuilder.SIZES.CHARACTER_PANEL_HEADER_HEIGHT,
+        height = CBStyles.SIZES.CHARACTER_PANEL_HEADER_HEIGHT,
         flow = "vertical",
         halign = "center",
         valign = "top",
@@ -1009,7 +1007,7 @@ function CBCharPanel.CreatePanel()
     return gui.Panel{
         id = "characterPanel",
         classes = {"builder-base", "panel-base", "border", "characterPanel"},
-        width = CharacterBuilder.SIZES.CHARACTER_PANEL_WIDTH,
+        width = CBStyles.SIZES.CHARACTER_PANEL_WIDTH,
         height = "99%",
         valign = "center",
         bgimage = true,

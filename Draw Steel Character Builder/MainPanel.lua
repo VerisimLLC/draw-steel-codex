@@ -1,10 +1,6 @@
-local mod = dmhub.GetModLoading()
-
 --[[
     Main panel of the Character Builder
-    ... plus some other WIP that will eventually move out
 ]]
-
 local _getCreature = CharacterBuilder._getCreature
 local _getToken = CharacterBuilder._getToken
 
@@ -15,7 +11,7 @@ function CharacterBuilder._detailPanel()
     detailPanel = gui.Panel{
         id = "detailPanel",
         classes = {"detailPanel", "panel-base", "builder-base"},
-        width = CharacterBuilder.SIZES.CENTER_PANEL_WIDTH,
+        width = CBStyles.SIZES.CENTER_PANEL_WIDTH,
         height = "99%",
         valign = "center",
         borderColor = "blue",
@@ -31,13 +27,13 @@ end
 --- @return Panel
 function CharacterBuilder.CreatePanel()
 
-    local selectorsPanel = CharacterBuilder._selectorsPanel()
+    local selectorsPanel = CBSelectors.CreatePanel()
     local detailPanel = CharacterBuilder._detailPanel()
     local characterPanel = CBCharPanel.CreatePanel()
 
     return gui.Panel{
         id = CharacterBuilder.CONTROLLER_CLASS,
-        styles = CharacterBuilder._getStyles(),
+        styles = CBStyles.GetStyles(),
         classes = {"panel-base", "builder-base", CharacterBuilder.CONTROLLER_CLASS},
         width = "99%",
         height = "99%",

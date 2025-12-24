@@ -1,8 +1,9 @@
-local mod = dmhub.GetModLoading()
-
 --[[
     Description detail
 ]]
+CBDescriptionDetail = RegisterGameType("CBDescriptionDetail")
+
+local mod = dmhub.GetModLoading()
 
 local SELECTOR = "character"
 
@@ -11,7 +12,7 @@ local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 
 --- Build the character description editor panel
 --- @return Panel
-function CharacterBuilder._descriptionEdit()
+function CBDescriptionDetail._editPane()
 
     local function wrapEditor(editor, labelText)
         return gui.Panel{
@@ -29,7 +30,7 @@ function CharacterBuilder._descriptionEdit()
                 bmargin = 2,
                 textAlignment = "left",
                 text = labelText .. ":",
-                color = CharacterBuilder.COLORS.GRAY02,
+                color = CBStyles.COLORS.GRAY02,
             } or nil,
             editor,
         }
@@ -223,7 +224,7 @@ function CharacterBuilder._descriptionEdit()
 
     return gui.Panel{
         classes = {"builder-base", "panel-base"},
-        width = CharacterBuilder.SIZES.DESCRIPTION_PANEL_WIDTH,
+        width = CBStyles.SIZES.DESCRIPTION_PANEL_WIDTH,
         height = "98%",
         hmargin = 12,
         halign = "left",
@@ -245,7 +246,7 @@ function CharacterBuilder._descriptionEdit()
     }
 end
 
-function CharacterBuilder._descriptionArtPane()
+function CBDescriptionDetail._artPane()
     return gui.Panel{
         classes = {"builder-base", "panel-base", "border"},
         width = 300,
@@ -259,10 +260,10 @@ end
 
 --- Build the Character / Description detail panel
 --- @return Panel
-function CharacterBuilder._descriptionDetail()
+function CBDescriptionDetail.CreatePanel()
 
-    local editPane = CharacterBuilder._descriptionEdit()
-    local artPane = CharacterBuilder._descriptionArtPane()
+    local editPane = CBDescriptionDetail._editPane()
+    local artPane = CBDescriptionDetail._artPane()
 
     return gui.Panel{
         id = "descriptionPanel",

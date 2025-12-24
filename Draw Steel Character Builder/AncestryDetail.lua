@@ -1,8 +1,9 @@
-local mod = dmhub.GetModLoading()
-
 --[[
     Ancestry detail / selectors
 ]]
+CBAncestryDetail = RegisterGameType("CBAncestryDetail")
+
+local mod = dmhub.GetModLoading()
 
 local SELECTOR = "ancestry"
 local INITIAL_CATEGORY = "overview"
@@ -15,7 +16,7 @@ local _makeCategoryButton = CharacterBuilder._makeCategoryButton
 
 --- Generate the Ancestry Category Navigation panel
 --- @return Panel
-function CharacterBuilder._ancestryNavPanel()
+function CBAncestryDetail._navPanel()
 
     local function makeCategoryButton(options)
         if options.click == nil then
@@ -65,10 +66,10 @@ function CharacterBuilder._ancestryNavPanel()
 
     return gui.Panel{
         classes = {"categoryNavPanel", "panel-base", "builder-base"},
-        width = CharacterBuilder.SIZES.BUTTON_PANEL_WIDTH + 20,
+        width = CBStyles.SIZES.BUTTON_PANEL_WIDTH + 20,
         height = "99%",
         valign = "top",
-        vpad = CharacterBuilder.SIZES.ACTION_BUTTON_HEIGHT,
+        vpad = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
         flow = "vertical",
         vscroll = true,
         borderColor = "teal",
@@ -95,7 +96,7 @@ end
 --- Build the Ancestry Overview panel
 --- Used when no Ancestry is selected and to overview a selected ancestry
 --- @return Panel
-function CharacterBuilder._ancestryOverviewPanel()
+function CBAncestryDetail._overviewPanel()
 
     local nameLabel = gui.Label{
         classes = {"builder-base", "label", "info", "header"},
@@ -230,7 +231,7 @@ end
 
 --- Create the Ancestry Lore panel
 --- @return Panel
-function CharacterBuilder._ancestryLorePanel()
+function CBAncestryDetail._lorePanel()
     return gui.Panel{
         id = "ancestryLorePanel",
         classes = {"ancestryLorePanel", "builder-base", "panel-base", "collapsed"},
@@ -276,66 +277,10 @@ function CharacterBuilder._ancestryLorePanel()
     }
 end
 
---- Create the Ancestry Features panel
---- @parameter feature CharacterFeature
---- @parameter selectorId string The selector this is a category under
---- @parameter selectedId string The unique identifier of the item associated with the feature
---- @parameter getSelected function(creature)
---- @return Panel|nil
-function CharacterBuilder._featureRegistry(feature, selectorId, selectedId, getSelected)
-
-    local featurePanel = CBFeatureSelector.Panel(feature)
-
-    if featurePanel then
-        return {
-            button = _makeCategoryButton{
-                text = CharacterBuilder._stripSignatureTrait(feature.name),
-                data = {
-                    featureId = feature.guid,
-                    selectedId = selectedId,
-                },
-                click = function(element)
-                    _fireControllerEvent(element, "updateState", {
-                        key = selectorId .. ".category.selectedId",
-                        value = element.data.featureId
-                    })
-                end,
-                refreshBuilderState = function(element, state)
-                    local tokenSelected = getSelected(_getCreature(state)) or "nil"
-                    local isVisible = tokenSelected == element.data.selectedId
-                    element:FireEvent("setAvailable", isVisible)
-                    element:FireEvent("setSelected", element.data.featureId == state:Get(selectorId .. ".category.selectedId"))
-                    element:SetClass("collapsed", not isVisible)
-                end,
-            },
-            panel = gui.Panel{
-                classes = {"featurePanel", "builder-base", "panel-base", "collapsed"},
-                width = "100%",
-                height = "98%",
-                flow = "vertical",
-                valign = "top",
-                halign = "center",
-                tmargin = 12,
-                -- vscroll = true,
-                data = {
-                    featureId = feature.guid,
-                },
-                refreshBuilderState = function(element, state)
-                    local isVisible = element.data.featureId == state:Get(selectorId .. ".category.selectedId")
-                    element:SetClass("collapsed", not isVisible)
-                end,
-                featurePanel,
-            },
-        }
-    end
-
-    return nil
-end
-
 --- Build the Ancestry Select button
 --- @return PrettyButton|Panel
-function CharacterBuilder._ancestrySelectButton()
-    return CharacterBuilder._selectButton{
+function CBAncestryDetail._selectButton()
+    return CharacterBuilder._makeSelectButton{
         classes = {"ancestrySelectButton"},
         click = function(element)
             _fireControllerEvent(element, "applyCurrentAncestry")
@@ -352,14 +297,14 @@ end
 
 --- Build the Ancestry Detail Panel - the main center panel for Ancestry work
 --- @return Panel
-function CharacterBuilder._ancestryDetail()
+function CBAncestryDetail.CreatePanel()
 
-    local ancestryNavPanel = CharacterBuilder._ancestryNavPanel()
+    local ancestryNavPanel = CBAncestryDetail._navPanel()
 
-    local ancestryOverviewPanel = CharacterBuilder._ancestryOverviewPanel()
-    local ancestryLorePanel = CharacterBuilder._ancestryLorePanel()
+    local ancestryOverviewPanel = CBAncestryDetail._overviewPanel()
+    local ancestryLorePanel = CBAncestryDetail._lorePanel()
 
-    local ancestrySelectButton = CharacterBuilder._ancestrySelectButton()
+    local ancestrySelectButton = CBAncestryDetail._selectButton()
 
     local ancestryDetailPanel = gui.Panel{
         id = "ancestryDetailPanel",
@@ -407,7 +352,7 @@ function CharacterBuilder._ancestryDetail()
                         for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
                             local featureId = f.feature:try_get("guid")
                             if featureId and element.data.features[featureId] == nil then
-                                local featureRegistry = CharacterBuilder._featureRegistry(f.feature, SELECTOR, creatureAncestry, function(creature)
+                                local featureRegistry = CharacterBuilder._makeFeatureRegistry(f.feature, SELECTOR, creatureAncestry, function(creature)
                                     return creature:try_get("raceid")
                                 end)
                                 if featureRegistry then

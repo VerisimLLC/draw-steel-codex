@@ -1,7 +1,6 @@
 --[[
     Selector panels
 ]]
-
 CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 
 local _characterHasLevelChoice = CharacterBuilder._characterHasLevelChoice
@@ -77,6 +76,7 @@ function CBFeatureSelector.FeaturePanel(feature)
             refreshBuilderState = function(element, state)
                 element.data.selectedItem = nil
                 local newText = "Empty Slot"
+                local newDesc = ""
                 local creature = _getCreature(state)
                 if creature then
                     local levelChoices = creature:GetLevelChoices()
@@ -89,12 +89,14 @@ function CBFeatureSelector.FeaturePanel(feature)
                                 if option then
                                     element.data.selectedItem = option
                                     newText = formatOptionName(option)
+                                    newDesc = option.description
                                 end
                             end
                         end
                     end
                 end
-                element:FireEventTree("updateText", newText)
+                element:FireEventTree("updateName", newText)
+                element:FireEventTree("updateDesc", newDesc)
                 element:SetClass("filled", element.data.selectedItem ~= nil)
                 element:FireEvent("setVisibility")
             end,
@@ -118,7 +120,13 @@ function CBFeatureSelector.FeaturePanel(feature)
             gui.Label{
                 classes = {"builder-base", "label", "feature-target"},
                 text = "Empty Slot",
-                updateText = function(element, text)
+                updateName = function(element, text)
+                    element.text = text
+                end,
+            },
+            gui.Label{
+                classes = {"builder-base", "label", "feature-target", "desc"},
+                updateDesc = function(element, text)
                     element.text = text
                 end,
             }
@@ -298,7 +306,7 @@ function CBFeatureSelector._buildChildren(feature, targets, options)
         layout = "v",
         width = "96%",
         vpad = 4,
-        bgcolor = CharacterBuilder.COLORS.GOLD,
+        bgcolor = CBStyles.COLORS.GOLD,
     }
 
     children[#children+1] = CBFeatureSelector._containerPanel(options)
@@ -317,7 +325,7 @@ function CBFeatureSelector._mainPanel(feature, targets, options)
 
     local scrollPanel = CBFeatureSelector._scrollPanel(children)
 
-    local selectButton = CharacterBuilder._selectButton{
+    local selectButton = CharacterBuilder._makeSelectButton{
         click = function(element)
             local parent = element:FindParentWithClass("featureSelector")
             if parent then

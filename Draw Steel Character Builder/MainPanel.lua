@@ -148,29 +148,36 @@ function CharacterBuilder.CreatePanel()
         end,
 
         cachePerks = function(element)
-            local perks = {}
-
             local state = element.data.state
             local hero = _getHero(state)
-            if hero then
-                local levelChoices = hero:GetLevelChoices()
-                if levelChoices then
-                    local features = hero:GetClassFeaturesAndChoicesWithDetails()
-                    if features then
-                        for _,f in ipairs(features) do
-                            if f.feature and f.feature.typeName == "CharacterFeatChoice" then
-                                if levelChoices[f.feature.guid] then
-                                    for _,guid in ipairs(levelChoices[f.feature.guid]) do
-                                        perks[guid] = true
-                                    end
-                                end
+            local levelChoices = hero and hero:GetLevelChoices()
+
+            if not levelChoices or #levelChoices == 0 then
+                state:Set({ key = "cachedPerks", value = {} })
+                return
+            end
+
+            local cachedLevelChoices = state:Get("levelChoices")
+            if dmhub.DeepEqual(cachedLevelChoices, levelChoices) then
+                return
+            end
+
+            local perks = {}
+            local features = hero:GetClassFeaturesAndChoicesWithDetails()
+            if features then
+                for _,f in ipairs(features) do
+                    if f.feature and f.feature.typeName == "CharacterFeatChoice" then
+                        local choices = levelChoices[f.feature.guid]
+                        if choices then
+                            for _,guid in ipairs(choices) do
+                                perks[guid] = true
                             end
                         end
                     end
                 end
             end
 
-            state:Set({ key = "cachedPerks", value = perks})
+            state:Set({ key = "cachedPerks", value = perks })
         end,
 
         create = function(element)
@@ -245,8 +252,8 @@ function CharacterBuilder.CreatePanel()
 
                     -- TODO: Remaining data stored into state
 
-                    element:FireEvent("cacheLevelChoices")
                     element:FireEvent("cachePerks")
+                    element:FireEvent("cacheLevelChoices")
 
                     element:FireEventTree("refreshBuilderState", element.data.state)
                 end

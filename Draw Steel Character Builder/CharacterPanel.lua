@@ -114,6 +114,7 @@ function CBCharPanel._statusItem(selector, getSelected)
 
     local function translateTypeName(typeName)
         local s = typeName:match("Character(.+)Choice")
+        if s == "Feat" then s = "Perk" end
         return s
     end
 
@@ -128,7 +129,7 @@ function CBCharPanel._statusItem(selector, getSelected)
 
     local function typeNameOrder(typeName)
         -- The input is translated
-        local typeOrders = { Subclass = 1, Feature = 2, Skill = 3, Language = 4, Feat = 5, Deity = 6, }
+        local typeOrders = { Subclass = 1, Feature = 2, Skill = 3, Language = 4, Perk = 5, Deity = 6, }
         return string.format("%d-%s", typeOrders[typeName] or 9, typeName)
     end
 

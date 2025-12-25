@@ -225,12 +225,12 @@ function CharacterBuilder.CreatePanel()
                 local creature = token.properties
                 if creature:IsHero() then
                     local ancestryId = creature:try_get("raceid")
-                    if ancestryId and ancestryId ~= element.data.state:Get("ancestry.selectedId") then
+                    if ancestryId  then
                         element:FireEvent("selectAncestry", ancestryId, true)
                     end
 
                     local careerItem = creature:Background()
-                    if careerItem and careerItem.id ~= element.data.state:Get("career.selectedId") then
+                    if careerItem then
                         element:FireEvent("selectCareer", careerItem.id, true)
                     end
 
@@ -244,40 +244,38 @@ function CharacterBuilder.CreatePanel()
         end,
 
         selectAncestry = function(element, ancestryId, noFire)
-            if ancestryId ~= element.data.state:Get("ancestry.selectedId") then
-                local state = {
-                    { key = "ancestry.selectedId", value = ancestryId },
-                }
-                local ancestryItem = dmhub.GetTableVisible(Race.tableName)[ancestryId]
-                if ancestryItem then
-                    local featureDetails = {}
-                    ancestryItem:FillFeatureDetails(nil, {}, featureDetails)
-                    state[#state+1] = { key = "ancestry.selectedItem", value = ancestryItem }
-                    state[#state+1] = { key = "ancestry.featureDetails", value = featureDetails }
-                end
-                element.data.state:Set(state)
-                if not noFire then
-                    element:FireEventTree("refreshBuilderState", element.data.state)
-                end
+            local state = {
+                { key = "ancestry.selectedId", value = ancestryId },
+            }
+            local ancestryItem = dmhub.GetTableVisible(Race.tableName)[ancestryId]
+            if ancestryItem then
+                local featureDetails = {}
+                local hero = _getHero(element.data.state)
+                ancestryItem:FillFeatureDetails(nil, hero and hero:GetLevelChoices() or {}, featureDetails)
+                state[#state+1] = { key = "ancestry.selectedItem", value = ancestryItem }
+                state[#state+1] = { key = "ancestry.featureDetails", value = featureDetails }
+            end
+            element.data.state:Set(state)
+            if not noFire then
+                element:FireEventTree("refreshBuilderState", element.data.state)
             end
         end,
 
         selectCareer = function(element, careerId, noFire)
-            if careerId ~= element.data.state:Get("career.selectedId") then
-                local state = {
-                    { key = "career.selectedId", value = careerId },
-                }
-                local careerItem = dmhub.GetTableVisible(Background.tableName)[careerId]
-                if careerItem then
-                    local featureDetails = {}
-                    careerItem:FillFeatureDetails({}, featureDetails)
-                    state[#state+1] = { key = "career.selectedItem", value = careerItem }
-                    state[#state+1] = { key = "career.featureDetails", value = featureDetails }
-                end
-                element.data.state:Set(state)
-                if not noFire then
-                    element:FireEventTree("refreshBuilderState", element.data.state)
-                end
+            local state = {
+                { key = "career.selectedId", value = careerId },
+            }
+            local careerItem = dmhub.GetTableVisible(Background.tableName)[careerId]
+            if careerItem then
+                local featureDetails = {}
+                local hero = _getHero(element.data.state)
+                careerItem:FillFeatureDetails(hero and hero:GetLevelChoices() or {}, featureDetails)
+                state[#state+1] = { key = "career.selectedItem", value = careerItem }
+                state[#state+1] = { key = "career.featureDetails", value = featureDetails }
+            end
+            element.data.state:Set(state)
+            if not noFire then
+                element:FireEventTree("refreshBuilderState", element.data.state)
             end
         end,
 

@@ -320,6 +320,7 @@ function CBFeatureSelector.PerkPanel(feature)
             refreshBuilderState = function(element, state)
                 element.data.selectedItem = nil
                 local newText = "Empty Slot"
+                local newDesc = ""
                 local hero = _getHero(state)
                 if hero then
                     local levelChoices = hero:GetLevelChoices()
@@ -332,12 +333,14 @@ function CBFeatureSelector.PerkPanel(feature)
                                 if item then
                                     element.data.selectedItem = item
                                     newText = item.name
+                                    newDesc = item.description
                                 end
                             end
                         end
                     end
                 end
                 element:FireEventTree("updateText", newText)
+                element:FireEventTree("updateDesc", newDesc)
                 element:SetClass("filled", element.data.selectedItem ~= nil)
             end,
             gui.Label{
@@ -346,7 +349,13 @@ function CBFeatureSelector.PerkPanel(feature)
                 updateText = function(element, text)
                     element.text = text
                 end,
-            }
+            },
+            gui.Label{
+                classes = {"builder-base", "label", "feature-target", "desc"},
+                updateDesc = function(element, text)
+                    element.text = text
+                end,
+            },
         }
     end
 
@@ -378,7 +387,12 @@ function CBFeatureSelector.PerkPanel(feature)
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice"},
                 text = item.item.name,
-            }
+            },
+            gui.Label{
+                classes = {"builder-base", "label", "feature-choice", "desc"},
+                textAlignment = "left",
+                text = item.item.description
+            },
         }
     end
 

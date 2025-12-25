@@ -153,6 +153,23 @@ function CharacterBuilder._countKeyedTable(t)
     return numItems
 end
 
+--- Determine whether the requested feature is avialable in the list of options
+--- @param state CharacterBuilderState
+--- @param selectorId string The selector under which to find the feature / option
+--- @param featureId string The guid of the feature we're looking for
+--- @return boolean
+function CharacterBuilder._featureAvailable(state, selectorId, featureId)
+    local featureDetails = state:Get(selectorId .. ".featureDetails")
+    if featureDetails then
+        for _,f in ipairs(featureDetails) do
+            if f.feature then
+                if f.feature.guid == featureId then return true end
+            end
+        end
+    end
+    return false
+end
+
 --- Fires an event on the main builder panel
 --- @param element Panel The element calling this method
 --- @param eventName string
@@ -328,7 +345,7 @@ function CharacterBuilder._makeFeatureRegistry(feature, selectorId, selectedId, 
                 end,
                 refreshBuilderState = function(element, state)
                     local tokenSelected = getSelected(CharacterBuilder._getHero(state)) or "nil"
-                    local isVisible = tokenSelected == element.data.selectedId
+                    local isVisible = tokenSelected == element.data.selectedId and CharacterBuilder._featureAvailable(state, selectorId, element.data.featureId)
                     element:FireEvent("setAvailable", isVisible)
                     element:FireEvent("setSelected", element.data.featureId == state:Get(selectorId .. ".category.selectedId"))
                     element:SetClass("collapsed", not isVisible)

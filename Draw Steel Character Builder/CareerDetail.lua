@@ -232,33 +232,48 @@ function CBCareerDetail.CreatePanel()
             local visible = state:Get("activeSelector") == element.data.selector
             element:SetClass("collapsed", not visible)
             if visible then
+                local categoryKey = SELECTOR .. ".category.selectedId"
+                local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
                 local hero = _getHero(state)
                 if hero then
                     local heroCareer = hero:try_get("backgroundid")
+
                     if heroCareer ~= nil then
-                        local featureDetails = state:Get(SELECTOR .. ".featureDetails")
-                        for _,f in pairs(featureDetails) do
+                        for id,_ in pairs(element.data.features) do
+                            element.data.features[id] = false
+                        end
+
+                        for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
                             local featureId = f.feature:try_get("guid")
-                            if featureId and element.data.features[featureId] == nil then
-                                local featureRegistry = CharacterBuilder._makeFeatureRegistry(f.feature, SELECTOR, heroCareer, function(hero)
-                                    return hero:try_get("backgroundid")
-                                end)
-                                if featureRegistry then
+                            if featureId then
+                                if element.data.features[featureId] == nil then
+                                    local featureRegistry = CharacterBuilder._makeFeatureRegistry(f.feature, SELECTOR, heroCareer, function(hero)
+                                        return hero:try_get("backgroundid")
+                                    end)
+                                    if featureRegistry then
+                                        element.data.features[featureId] = true
+                                        navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
+                                        detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
+                                    end
+                                else
                                     element.data.features[featureId] = true
-                                    navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
-                                    detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
                                 end
                             end
                         end
                     else
-                        -- No career selected on hero
-                        local categoryKey = SELECTOR .. ".category.selectedId"
-                        local currentCategory = state:Get(categoryKey)
-                        if currentCategory and not AVAILABLE_WITHOUT_CAREER[currentCategory] then
-                            state:Set({key = categoryKey, value = INITIAL_CATEGORY})
+                        if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
+                            currentCategory = INITIAL_CATEGORY
                         end
                     end
                 end
+
+                -- Which category to show?
+                if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
+                    if not element.data.features[currentCategory] then
+                        currentCategory = INITIAL_CATEGORY
+                    end
+                end
+                state:Set{ key = categoryKey, value = currentCategory }
             end
         end,
 

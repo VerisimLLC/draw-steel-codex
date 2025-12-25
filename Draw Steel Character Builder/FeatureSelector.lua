@@ -10,8 +10,8 @@ local _getHero = CharacterBuilder._getHero
 --- Build a feature panel with selections
 --- @return Panel|nil
 function CBFeatureSelector.Panel(feature)
-    -- print("THC:: FEATUREPANEL::", feature)
-    -- print("THC:: FEATUREPANEL::", json(feature))
+    -- print("THC:: FEATUREPANEL::", feature.name, feature)
+    -- print("THC:: FEATUREPANEL::", feature.name, json(feature))
 
     local typeName = feature.typeName or ""
     if typeName == "CharacterDeityChoice" then
@@ -31,20 +31,128 @@ function CBFeatureSelector.Panel(feature)
     return nil
 end
 
+--- Render an ancestry inheritance choice panel (e.g., for Revenant's "former ancestry")
+--- @param feature CharacterAncestryInheritanceChoice
+--- @return Panel
+function CBFeatureSelector.AncestryInheritancePanel(feature)
+
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(Race.tableName)[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._createTargetPanel({ feature = feature, itemIndex = i }))
+            end
+        end,
+    }
+
+    local function createOptionPanel()
+        return gui.Panel{
+            classes = {"builder-base", "panel-base", "feature-choice"},
+            valign = "top",
+            data = {
+                choice = nil,
+            },
+            click = function(element)
+                if not element.data.choice then return end
+                local parent = element:FindParentWithClass("featureSelector")
+                if parent then
+                    parent:FireEvent("selectItem", element.data.choice.id)
+                end
+            end,
+            refreshBuilderState = function(element, state)
+                if not element.data.choice then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                local hero = _getHero(state)
+                if hero then
+                    local levelChoices = hero:GetLevelChoices()
+                    if levelChoices then
+                        local selectedItems = levelChoices[feature.guid]
+                        if selectedItems then
+                            for _, selectedId in ipairs(selectedItems) do
+                                if selectedId == element.data.choice.id then
+                                    element:SetClass("collapsed", true)
+                                    return
+                                end
+                            end
+                        end
+                    end
+                end
+
+                element:FireEventTree("updateText", element.data.choice.text)
+                element:SetClass("collapsed", false)
+            end,
+            refreshSelection = function(element, selectedId)
+                element:SetClass("selected", element.data.choice and selectedId == element.data.choice.id)
+            end,
+            assignChoice = function(element, choice)
+                element.data.choice = choice
+            end,
+            gui.Label{
+                classes = {"builder-base", "label", "feature-choice"},
+                text = "",
+                updateText = function(element, text)
+                    if element.text ~= text then element.text = text end
+                end,
+            }
+        }
+    end
+
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(createOptionPanel())
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, choice in ipairs(currentChoices) do
+                element.children[i]:FireEvent("assignChoice", choice)
+            end
+
+            for i = numOptions + 1, #element.children do
+                element.children[i]:FireEvent("assignChoice", nil)
+            end
+        end,
+    }
+
+    return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
+end
+
 --- Render a feature choice panel
 --- @param feature CharacterFeatureChoice
 --- @return Panel
 function CBFeatureSelector.FeaturePanel(feature)
-
-    local function findOptionByGuid(guid, hero)
-        local levelChoices = hero:GetLevelChoices()
-        for _,option in ipairs(feature:GetOptions(levelChoices)) do
-            if option.guid == guid then
-                return option
-            end
-        end
-        return nil
-    end
 
     local function formatOptionName(option)
         local s = option.name
@@ -55,100 +163,12 @@ function CBFeatureSelector.FeaturePanel(feature)
         return s
     end
 
-    local function createTargetPanel(i)
-        return gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-target", "empty"},
-            data = {
-                featureGuid = feature.guid,
-                costsPoints = feature:try_get("costsPoints", false),
-                itemIndex = i,
-                selectedItem = nil,
-            },
-            click = function(element)
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureGuid,
-                    selectedId = element.data.selectedItem.guid,
-                })
-            end,
-            linger = function(element)
-                if element.data.selectedId then
-                    gui.Tooltip("Press to delete")(element)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                local numChoices = element.parent.data.numChoices or 1
-                if element.data.itemIndex > numChoices then
-                    element:SetClass("collapsed", true)
-                    return
-                end
-                element:SetClass("collapsed", false)
-
-                element.data.selectedItem = nil
-                local newText = "Empty Slot"
-                local newDesc = ""
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[element.data.featureGuid]
-                        if selectedItems and #selectedItems >= element.data.itemIndex then
-                            local selectedId = selectedItems[element.data.itemIndex]
-                            if selectedId then
-                                local option = findOptionByGuid(selectedId, hero)
-                                if option then
-                                    element.data.selectedItem = option
-                                    newText = formatOptionName(option)
-                                    newDesc = option.description
-                                end
-                            end
-                        end
-                    end
-                end
-                element:FireEventTree("updateName", newText)
-                element:FireEventTree("updateDesc", newDesc)
-                element:SetClass("filled", element.data.selectedItem ~= nil)
-                element:FireEvent("setVisibility")
-            end,
-            setVisibility = function(element)
-                local visible = true
-                local numChoices = element.parent.data.numChoices or 1
-                if element.data.costsPoints and element.data.selectedItem == nil then
-                    local container = element.parent
-                    if container then
-                        local pointsSelected = 0
-                        for _,child in ipairs(container.children) do
-                            local selectedItem = child.data and child.data.selectedItem
-                            if selectedItem then
-                                pointsSelected = pointsSelected + selectedItem:try_get("pointsCost", 1)
-                            end
-                        end
-                        visible = pointsSelected < numChoices
-                    end
-                end
-                element:SetClass("collapsed-anim", not visible)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
-                updateName = function(element, text)
-                    element.text = text
-                end,
-            },
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target", "desc"},
-                updateDesc = function(element, text)
-                    element.text = text
-                end,
-            }
-        }
-    end
-
     local targetsContainer = gui.Panel{
         classes = {"builder-base", "panel-base", "container"},
         flow = "vertical",
         data = {
-            builtTargets = 0,
             numChoices = 1,
+            itemCache = {},
         },
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
@@ -157,43 +177,76 @@ function CBFeatureSelector.FeaturePanel(feature)
             local numChoices = feature:NumChoices(hero)
             element.data.numChoices = numChoices
 
-            for i = element.data.builtTargets + 1, numChoices do
-                element:AddChild(createTargetPanel(i))
-                element.data.builtTargets = i
+            local levelChoices = hero:GetLevelChoices()
+            local currentOptions = feature:GetOptions(levelChoices)
+            element.data.itemCache = {}
+            for _, option in ipairs(currentOptions) do
+                element.data.itemCache[option.guid] = option
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._createTargetPanel({
+                    feature = feature,
+                    itemIndex = i,
+                    useDesc = true,
+                    idFieldName = "guid",
+                    formatName = formatOptionName,
+                }))
             end
         end,
     }
 
-    local function createOptionPanel(option)
+    local function createOptionPanel()
         return gui.Panel{
             classes = {"builder-base", "panel-base", "feature-choice"},
             data = {
-                id = feature.guid,
-                item = option,
+                choice = nil,
             },
             click = function(element)
+                if not element.data.choice then return end
                 local parent = element:FindParentWithClass("featureSelector")
                 if parent then
-                    parent:FireEvent("selectItem", element.data.item.guid)
+                    parent:FireEvent("selectItem", element.data.choice.guid)
                 end
             end,
             refreshBuilderState = function(element, state)
+                if not element.data.choice then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
                 local hero = _getHero(state)
                 if hero then
-                    element:SetClass("collapsed", _characterHasLevelChoice(hero, element.data.id, element.data.item.guid))
+                    local collapsed = _characterHasLevelChoice(hero, feature.guid, element.data.choice.guid)
+                    element:SetClass("collapsed", collapsed)
+                    if collapsed then return end
                 end
+
+                element:FireEventTree("updateName", formatOptionName(element.data.choice))
+                element:FireEventTree("updateDesc", element.data.choice.description)
+                element:SetClass("collapsed", false)
             end,
             refreshSelection = function(element, selectedId)
-                element:SetClass("selected", selectedId == element.data.item.guid)
+                local selected = element.data.choice and selectedId == element.data.choice.guid
+                element:SetClass("selected", selected)
+            end,
+            assignChoice = function(element, choice)
+                element.data.choice = choice
             end,
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice"},
-                text = formatOptionName(option)
+                text = "",
+                updateName = function(element, text)
+                    if element.text ~= text then element.text = text end
+                end,
             },
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice", "desc"},
                 textAlignment = "left",
-                text = option.description
+                text = "",
+                updateDesc = function(element, text)
+                    if element.text ~= text then element.text = text end
+                end,
             },
         }
     end
@@ -201,9 +254,6 @@ function CBFeatureSelector.FeaturePanel(feature)
     local optionsContainer = gui.Panel{
         classes = {"builder-base", "panel-base", "container"},
         flow = "vertical",
-        data = {
-            builtOptions = {},
-        },
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
             if not hero then return end
@@ -211,33 +261,21 @@ function CBFeatureSelector.FeaturePanel(feature)
             local levelChoices = hero:GetLevelChoices()
             local currentOptions = feature:GetOptions(levelChoices)
 
-            -- Mark existing as stale
-            for guid, _ in pairs(element.data.builtOptions) do
-                element.data.builtOptions[guid] = false
+            local numOptions = #currentOptions
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(createOptionPanel())
             end
 
-            -- Add new / mark current
-            for _, option in ipairs(currentOptions) do
-                if element.data.builtOptions[option.guid] == nil then
-                    element:AddChild(createOptionPanel(option))
-                end
-                element.data.builtOptions[option.guid] = true
+            table.sort(currentOptions, function(a, b) return a.name < b.name end)
+
+            for i, option in ipairs(currentOptions) do
+                element.children[i]:FireEvent("assignChoice", option)
             end
 
-            -- Remove stale
-            for guid, active in pairs(element.data.builtOptions) do
-                if active == false then
-                    local child = element:FindChildRecursive(function(e)
-                        return e.data and e.data.item and e.data.item.guid == guid
-                    end)
-                    if child then child:DestroySelf() end
-                    element.data.builtOptions[guid] = nil
-                end
+            for i = numOptions + 1, #element.children do
+                element.children[i]:FireEvent("assignChoice", nil)
             end
-            
-            local children = element.children
-            table.sort(children, function(a,b) return a.data.item.name < b.data.item.name end)
-            element.children = children
         end,
     }
 
@@ -249,228 +287,228 @@ end
 --- @return Panel
 function CBFeatureSelector.LanguagePanel(feature)
 
-    local candidateItems = Language.GetDropdownList()
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
 
-    -- Selection targets
-    local targets = {}
-    local numChoices = feature:NumChoices(character)
-    for i = 1, numChoices do
-        targets[#targets+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-target", "empty"},
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(Language.tableName)[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._createTargetPanel({ feature = feature, itemIndex = i }))
+            end
+        end,
+    }
+
+    local function createOptionPanel()
+        return gui.Panel{
+            classes = {"builder-base", "panel-base", "feature-choice"},
+            valign = "top",
             data = {
-                featureGuid = feature.guid,
-                itemIndex = i,
-                selectedItem = nil,
+                choice = nil,
             },
             click = function(element)
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureGuid,
-                    selectedId = element.data.selectedItem.id,
-                })
-            end,
-            linger = function(element)
-                if element.data.selectedId then
-                    gui.Tooltip("Press to delete")(element)
+                if not element.data.choice then return end
+                local parent = element:FindParentWithClass("featureSelector")
+                if parent then
+                    parent:FireEvent("selectItem", element.data.choice.id)
                 end
             end,
             refreshBuilderState = function(element, state)
-                element.data.selectedItem = nil
-                local newText = "Empty Slot"
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[element.data.featureGuid]
-                        if selectedItems and #selectedItems >= element.data.itemIndex then
-                            local selectedId = selectedItems[element.data.itemIndex]
-                            if selectedId then
-                                local item = dmhub.GetTableVisible(Language.tableName)[selectedId]
-                                if item then
-                                    element.data.selectedItem = item
-                                    newText = item.name
-                                end
-                            end
+                if not element.data.choice then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                if element.data.choice.unique then
+                    local hero = _getHero(state)
+                    if hero then
+                        local langsKnown = hero:LanguagesKnown()
+                        if langsKnown and langsKnown[element.data.choice.id] then
+                            element:SetClass("collapsed", true)
+                            return
                         end
                     end
                 end
-                element:FireEventTree("updateText", newText)
-                element:SetClass("filled", element.data.selectedItem ~= nil)
+
+                element:FireEventTree("updateText", element.data.choice.text)
+                element:SetClass("collapsed", false)
+            end,
+            refreshSelection = function(element, selectedId)
+                element:SetClass("selected", element.data.choice and selectedId == element.data.choice.id)
+            end,
+            assignChoice = function(element, choice)
+                element.data.choice = choice
             end,
             gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
+                classes = {"builder-base", "label", "feature-choice"},
+                text = "",
                 updateText = function(element, text)
-                    element.text = text
+                    if element.text ~= text then element.text = text end
                 end,
             }
         }
     end
 
-    -- Candidate items
-    local options = {}
-    for _,item in ipairs(candidateItems) do
-        options[#options+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-choice"},
-            valign = "top",
-            data = {
-                id = item.id,
-                item = item,
-            },
-            click = function(element)
-                local parent = element:FindParentWithClass("featureSelector")
-                if parent then
-                    parent:FireEvent("selectItem", element.data.id)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                local hero = _getHero(state)
-                if hero then
-                    local langsKnown = hero:LanguagesKnown()
-                    if langsKnown then
-                        element:SetClass("collapsed", langsKnown[element.data.id])
-                    end
-                end
-            end,
-            refreshSelection = function(element, selectedId)
-                element:SetClass("selected", selectedId == element.data.id)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-choice"},
-                text = item.text,
-            }
-        }
-    end
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
 
-    local targetsContainer = CBFeatureSelector._containerPanel(targets)
-    local optionsContainer = CBFeatureSelector._containerPanel(options)
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(createOptionPanel())
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, choice in ipairs(currentChoices) do
+                element.children[i]:FireEvent("assignChoice", choice)
+            end
+
+            for i = numOptions + 1, #element.children do
+                element.children[i]:FireEvent("assignChoice", nil)
+            end
+        end,
+    }
+
     return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
 end
 
---- Render a language choice panel
+--- Render a perk choice panel
 --- @param feature CharacterFeatChoice
 --- @return Panel
 function CBFeatureSelector.PerkPanel(feature)
 
-    local candidateItems = {}
-    local includeTags = {}
-    for tag in feature.tag:gmatch("[^,]+") do
-        tag = tag:match("^%s*(.-)%s*$")
-        includeTags[tag:lower()] = true
-    end
-    local perks = dmhub.GetTableVisible(CharacterFeat.tableName)
-    for id,item in pairs(perks) do
-        if includeTags[item.tag:lower()] then
-            candidateItems[#candidateItems+1] = {
-                id = id,
-                item = item
-            }
-        end
-    end
-    table.sort(candidateItems, function(a,b) return a.item.name < b.item.name end)
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
 
-    -- Selection targets
-    local targets = {}
-    local numChoices = feature:NumChoices(character)
-    for i = 1, numChoices do
-        targets[#targets+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-target", "empty"},
-            data = {
-                featureGuid = feature.guid,
-                itemIndex = i,
-                selectedItem = nil,
-            },
-            click = function(element)
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureGuid,
-                    selectedId = element.data.selectedItem.id,
-                })
-            end,
-            linger = function(element)
-                if element.data.selectedId then
-                    gui.Tooltip("Press to delete")(element)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                element.data.selectedItem = nil
-                local newText = "Empty Slot"
-                local newDesc = ""
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[element.data.featureGuid]
-                        if selectedItems and #selectedItems >= element.data.itemIndex then
-                            local selectedId = selectedItems[element.data.itemIndex]
-                            if selectedId then
-                                local item = dmhub.GetTableVisible(CharacterFeat.tableName)[selectedId]
-                                if item then
-                                    element.data.selectedItem = item
-                                    newText = item.name
-                                    newDesc = item.description
-                                end
-                            end
-                        end
-                    end
-                end
-                element:FireEventTree("updateText", newText)
-                element:FireEventTree("updateDesc", newDesc)
-                element:SetClass("filled", element.data.selectedItem ~= nil)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
-                updateText = function(element, text)
-                    element.text = text
-                end,
-            },
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target", "desc"},
-                updateDesc = function(element, text)
-                    element.text = text
-                end,
-            },
-        }
-    end
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
 
-    -- Candidate items
-    local options = {}
-    for _,item in ipairs(candidateItems) do
-        options[#options+1] = gui.Panel{
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(CharacterFeat.tableName)[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._createTargetPanel({ feature = feature, itemIndex = i, useDesc = true }))
+            end
+        end,
+    }
+
+    local function createOptionPanel()
+        return gui.Panel{
             classes = {"builder-base", "panel-base", "feature-choice"},
             valign = "top",
             data = {
-                id = item.id,
-                item = item.item,
+                choice = nil,
             },
             click = function(element)
+                if not element.data.choice then return end
                 local parent = element:FindParentWithClass("featureSelector")
                 if parent then
-                    parent:FireEvent("selectItem", element.data.id)
+                    parent:FireEvent("selectItem", element.data.choice.id)
                 end
             end,
             refreshBuilderState = function(element, state)
-                local cachedPerks = state:Get("cachedPerks")
-                if cachedPerks then
-                    element:SetClass("collapsed", cachedPerks[element.data.id])
+                if not element.data.choice then
+                    element:SetClass("collapsed", true)
+                    return
                 end
+
+                local cachedPerks = state:Get("cachedPerks")
+                local collapsed = cachedPerks and cachedPerks[element.data.choice.id]
+                element:SetClass("collapsed", collapsed)
+                if collapsed then return end
+
+                local perk = dmhub.GetTableVisible(CharacterFeat.tableName)[element.data.choice.id]
+                local desc = perk and perk.description or ""
+                element:FireEventTree("updateText", element.data.choice.text)
+                element:FireEventTree("updateDesc", desc)
             end,
             refreshSelection = function(element, selectedId)
-                element:SetClass("selected", selectedId == element.data.id)
+                element:SetClass("selected", element.data.choice and selectedId == element.data.choice.id)
+            end,
+            assignChoice = function(element, choice)
+                element.data.choice = choice
             end,
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice"},
-                text = item.item.name,
+                text = "",
+                updateText = function(element, text)
+                    if element.text ~= text then element.text = text end
+                end,
             },
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice", "desc"},
                 textAlignment = "left",
-                text = item.item.description
+                text = "",
+                updateDesc = function(element, text)
+                    if element.text ~= text then element.text = text end
+                end,
             },
         }
     end
 
-    local targetsContainer = CBFeatureSelector._containerPanel(targets)
-    local optionsContainer = CBFeatureSelector._containerPanel(options)
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(createOptionPanel())
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, choice in ipairs(currentChoices) do
+                element.children[i]:FireEvent("assignChoice", choice)
+            end
+
+            for i = numOptions + 1, #element.children do
+                element.children[i]:FireEvent("assignChoice", nil)
+            end
+        end,
+    }
+
     return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
 end
 
@@ -479,222 +517,111 @@ end
 --- @return Panel
 function CBFeatureSelector.SkillPanel(feature)
 
-    local candidateItems = {}
-    local categories = feature:try_get("categories", {})
-    local individual = feature:try_get("individual", {})
-    if (categories and next(categories)) or (individual and next(individual)) then
-        local skills = dmhub.GetTableVisible(Skill.tableName)
-        for key,item in pairs(skills) do
-            if (individual and individual[key]) or (categories and categories[item.category]) then
-                candidateItems[#candidateItems+1] = item
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(Skill.tableName)[choice.id]
             end
-        end
-        table.sort(candidateItems, function(a,b) return a.name < b.name end)
-    else
-        candidateItems = Skill.skillsDropdownOptions
-    end
 
-    -- Selection targets
-    local targets = {}
-    local numChoices = feature:NumChoices(character)
-    for i = 1, numChoices do
-        targets[#targets+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-target", "empty"},
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._createTargetPanel({ feature = feature, itemIndex = i }))
+            end
+        end,
+    }
+
+    local function createOptionPanel()
+        return gui.Panel{
+            classes = {"builder-base", "panel-base", "feature-choice"},
+            valign = "top",
             data = {
-                featureGuid = feature.guid,
-                itemIndex = i,
-                selectedItem = nil,
+                choice = nil,
             },
             click = function(element)
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureGuid,
-                    selectedId = element.data.selectedItem.id,
-                })
-            end,
-            linger = function(element)
-                if element.data.selectedId then
-                    gui.Tooltip("Press to delete")(element)
+                if not element.data.choice then return end
+                local parent = element:FindParentWithClass("featureSelector")
+                if parent then
+                    parent:FireEvent("selectItem", element.data.choice.id)
                 end
             end,
             refreshBuilderState = function(element, state)
-                element.data.selectedItem = nil
-                local newText = "Empty Slot"
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[element.data.featureGuid]
-                        if selectedItems and #selectedItems >= element.data.itemIndex then
-                            local selectedId = selectedItems[element.data.itemIndex]
-                            if selectedId then
-                                local item = dmhub.GetTableVisible(Skill.tableName)[selectedId]
-                                if item then
-                                    element.data.selectedItem = item
-                                    newText = item.name
-                                end
-                            end
+                if not element.data.choice then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                if element.data.choice.unique ~= nil and element.data.choice.unique then
+                    local hero = _getHero(state)
+                    if hero then
+                        -- local skill = dmhub.GetTableVisible(Skill.tableName)[element.data.choice.id]
+                        if hero:ProficientInSkill(element.data.choice) then
+                            element:SetClass("collapsed", true)
+                            return
                         end
                     end
                 end
-                element:FireEventTree("updateText", newText)
-                element:SetClass("filled", element.data.selectedItem ~= nil)
+
+                element:FireEventTree("updateText", element.data.choice.text)
+                element:SetClass("collapsed", false)
+            end,
+            refreshSelection = function(element, selectedId)
+                element:SetClass("selected", element.data.choice and selectedId == element.data.choice.id)
+            end,
+            assignChoice = function(element, choice)
+                element.data.choice = choice
             end,
             gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
+                classes = {"builder-base", "label", "feature-choice"},
+                text = "",
                 updateText = function(element, text)
-                    element.text = text
+                    if element.text ~= text then element.text = text end
                 end,
             }
         }
     end
 
-    -- Candidate items
-    local options = {}
-    for _,item in ipairs(candidateItems) do
-        options[#options+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-choice"},
-            valign = "top",
-            data = {
-                id = item.id,
-                item = item,
-            },
-            click = function(element)
-                local parent = element:FindParentWithClass("featureSelector")
-                if parent then
-                    parent:FireEvent("selectItem", element.data.id)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                local hero = _getHero(state)
-                if hero then
-                    element:SetClass("collapsed", hero:ProficientInSkill(element.data.item))
-                end
-            end,
-            refreshSelection = function(element, selectedId)
-                element:SetClass("selected", selectedId == element.data.id)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-choice"},
-                text = item.name,
-            }
-        }
-    end
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
 
-    local targetsContainer = CBFeatureSelector._containerPanel(targets)
-    local optionsContainer = CBFeatureSelector._containerPanel(options)
-    return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
-end
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
 
---- Render an ancestry inheritance choice panel (e.g., for Revenant's "former ancestry")
---- @param feature CharacterAncestryInheritanceChoice
---- @return Panel
-function CBFeatureSelector.AncestryInheritancePanel(feature)
+            local numOptions = #currentChoices
 
-    local candidateItems = feature:Choices(1, {}, nil)
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(createOptionPanel())
+            end
 
-    -- Selection targets
-    local targets = {}
-    local numChoices = feature:NumChoices(character)
-    for i = 1, numChoices do
-        targets[#targets+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-target", "empty"},
-            data = {
-                featureGuid = feature.guid,
-                itemIndex = i,
-                selectedItem = nil,
-            },
-            click = function(element)
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureGuid,
-                    selectedId = element.data.selectedItem.id,
-                })
-            end,
-            linger = function(element)
-                if element.data.selectedId then
-                    gui.Tooltip("Press to delete")(element)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                element.data.selectedItem = nil
-                local newText = "Empty Slot"
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[element.data.featureGuid]
-                        if selectedItems and #selectedItems >= element.data.itemIndex then
-                            local selectedId = selectedItems[element.data.itemIndex]
-                            if selectedId then
-                                local item = dmhub.GetTableVisible(Race.tableName)[selectedId]
-                                if item then
-                                    element.data.selectedItem = item
-                                    newText = item.name
-                                end
-                            end
-                        end
-                    end
-                end
-                element:FireEventTree("updateText", newText)
-                element:SetClass("filled", element.data.selectedItem ~= nil)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
-                updateText = function(element, text)
-                    element.text = text
-                end,
-            }
-        }
-    end
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
 
-    -- Candidate items
-    local options = {}
-    for _,item in ipairs(candidateItems) do
-        options[#options+1] = gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-choice"},
-            valign = "top",
-            data = {
-                id = item.id,
-                text = item.text,
-            },
-            click = function(element)
-                local parent = element:FindParentWithClass("featureSelector")
-                if parent then
-                    parent:FireEvent("selectItem", element.data.id)
-                end
-            end,
-            refreshBuilderState = function(element, state)
-                local hero = _getHero(state)
-                if hero then
-                    local levelChoices = hero:GetLevelChoices()
-                    if levelChoices then
-                        local selectedItems = levelChoices[feature.guid]
-                        local alreadySelected = false
-                        if selectedItems then
-                            for _, selectedId in ipairs(selectedItems) do
-                                if selectedId == element.data.id then
-                                    alreadySelected = true
-                                    break
-                                end
-                            end
-                        end
-                        element:SetClass("collapsed", alreadySelected)
-                    end
-                end
-            end,
-            refreshSelection = function(element, selectedId)
-                element:SetClass("selected", selectedId == element.data.id)
-            end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-choice"},
-                text = item.text,
-            }
-        }
-    end
+            for i, choice in ipairs(currentChoices) do
+                element.children[i]:FireEvent("assignChoice", choice)
+            end
 
-    local targetsContainer = CBFeatureSelector._containerPanel(targets)
-    local optionsContainer = CBFeatureSelector._containerPanel(options)
+            for i = numOptions + 1, #element.children do
+                element.children[i]:FireEvent("assignChoice", nil)
+            end
+        end,
+    }
+
     return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
 end
 
@@ -729,6 +656,104 @@ function CBFeatureSelector._buildChildren(feature, targetsContainer, optionsCont
     children[#children+1] = optionsContainer
 
     return children
+end
+
+--- Create a target panel for a feature
+--- @param config table Configuration: feature, itemIndex, useDesc, idFieldName, formatName
+--- @return Panel
+function CBFeatureSelector._createTargetPanel(config)
+    local feature = config.feature
+    local itemIndex = config.itemIndex
+    local useDesc = config.useDesc or false
+    local costsPoints = feature:try_get("costsPoints", false)
+    local idFieldName = config.idFieldName or "id"
+    local formatName = config.formatName or function(item) return item:try_get("name") end
+
+    return gui.Panel{
+        classes = {"builder-base", "panel-base", "feature-target", "empty"},
+        data = {
+            featureGuid = feature.guid,
+            costsPoints = costsPoints,
+            itemIndex = itemIndex,
+            item = nil,
+            useDesc = useDesc,
+        },
+        click = function(element)
+            if not element.data.item then return end
+            _fireControllerEvent(element, "removeLevelChoice", {
+                levelChoiceGuid = element.data.featureGuid,
+                selectedId = element.data.item[idFieldName],
+            })
+        end,
+        linger = function(element)
+            if element.data.item then
+                gui.Tooltip("Press to delete")(element)
+            end
+        end,
+        refreshBuilderState = function(element, state)
+            local numChoices = element.parent.data.numChoices or 1
+            if element.data.itemIndex > numChoices then
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+
+            local item = nil
+            local hero = _getHero(state)
+            if hero then
+                local levelChoices = hero:GetLevelChoices()
+                if levelChoices then
+                    local selectedItems = levelChoices[element.data.featureGuid]
+                    if selectedItems and #selectedItems >= element.data.itemIndex then
+                        local selectedId = selectedItems[element.data.itemIndex]
+                        if selectedId then
+                            local itemCache = element.parent.data.itemCache or {}
+                            item = itemCache[selectedId]
+                        end
+                    end
+                end
+            end
+
+            element.data.item = item
+            local newText = item and formatName(item) or "Empty Slot"
+            local newDesc = element.data.useDesc and item and item:try_get("description", "") or ""
+            element:FireEventTree("updateName", newText)
+            element:FireEventTree("updateDesc", newDesc)
+            element:SetClass("filled", item ~= nil)
+            element:FireEvent("setVisibility")
+        end,
+        setVisibility = function(element)
+            local visible = true
+            local numChoices = element.parent.data.numChoices or 1
+            if element.data.costsPoints and element.data.item == nil then
+                local container = element.parent
+                if container then
+                    local pointsSelected = 0
+                    for _,child in ipairs(container.children) do
+                        local childItem = child.data and child.data.item
+                        if childItem then
+                            pointsSelected = pointsSelected + childItem:try_get("pointsCost", 1)
+                        end
+                    end
+                    visible = pointsSelected < numChoices
+                end
+            end
+            element:SetClass("collapsed-anim", not visible)
+        end,
+        gui.Label{
+            classes = {"builder-base", "label", "feature-target"},
+            text = "Empty Slot",
+            updateName = function(element, text)
+                if element.text ~= text then element.text = text end
+            end,
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "feature-target", "desc"},
+            updateDesc = function(element, text)
+                if element.text ~= text then element.text = text end
+            end,
+        }
+    }
 end
 
 --- Build a consistent main panel

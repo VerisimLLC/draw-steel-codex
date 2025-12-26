@@ -152,7 +152,7 @@ function CharacterBuilder.CreatePanel()
             local hero = _getHero(state)
             local levelChoices = hero and hero:GetLevelChoices()
 
-            if not levelChoices or #levelChoices == 0 then
+            if not levelChoices or not next(levelChoices) then
                 state:Set({ key = "cachedPerks", value = {} })
                 return
             end
@@ -258,6 +258,8 @@ function CharacterBuilder.CreatePanel()
                     element:FireEventTree("refreshBuilderState", element.data.state)
                 end
             end
+            -- This should never be processed by children. Use refreshBuilderState instead.
+            element:HaltEventPropagation()
         end,
 
         selectAncestry = function(element, ancestryId, noFire)

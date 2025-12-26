@@ -115,6 +115,7 @@ local function _panelStyles()
             height = "auto",
             halign = "left",
             valign = "top",
+            flow = "vertical",
         },
         {
             selectors = {"border"},

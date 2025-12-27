@@ -317,58 +317,66 @@ function CBAncestryDetail.CreatePanel()
         refreshBuilderState = function(element, state)
             local visible = state:Get("activeSelector") == element.data.selector
             element:SetClass("collapsed", not visible)
-            if visible then
-                local categoryKey = SELECTOR .. ".category.selectedId"
-                local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
-                local hero = _getHero(state)
-                if hero then
-                    local heroAncestry = hero:try_get("raceid")
+            if not visible then
+                element:HaltEventPropagation()
+                return
+            end
 
-                    if heroAncestry ~= nil then
-                        for id,_ in pairs(element.data.features) do
-                            element.data.features[id] = false
-                        end
+            local categoryKey = SELECTOR .. ".category.selectedId"
+            local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
+            local hero = _getHero(state)
+            if hero then
+                local heroAncestry = hero:try_get("raceid")
 
-                        for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
-                            local featureId = f.feature:try_get("guid")
-                            if featureId then
-                                if element.data.features[featureId] == nil then
-                                    local featureRegistry = CharacterBuilder._makeFeatureRegistry(f.feature, SELECTOR, heroAncestry, function(hero)
+                if heroAncestry ~= nil then
+                    for id,_ in pairs(element.data.features) do
+                        element.data.features[id] = false
+                    end
+
+                    for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
+                        local featureId = f.feature:try_get("guid")
+                        if featureId then
+                            if element.data.features[featureId] == nil then
+                                local featureRegistry = CharacterBuilder._makeFeatureRegistry{
+                                    feature = f.feature,
+                                    selectorId = SELECTOR,
+                                    selectedId = heroAncestry,
+                                    getSelected = function(hero)
                                         return hero:try_get("raceid")
-                                    end)
-                                    if featureRegistry then
-                                        element.data.features[featureId] = true
-                                        navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
-                                        detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
                                     end
-                                else
+                                }
+                                if featureRegistry then
                                     element.data.features[featureId] = true
+                                    navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
+                                    detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
                                 end
+                            else
+                                element.data.features[featureId] = true
                             end
-                        end
-
-                        for id, active in pairs(element.data.features) do
-                            if active == false then
-                                navPanel:FireEvent("destroyFeature", id)
-                                detailPanel:FireEvent("destroyFeature", id)
-                                element.data.features[id] = nil
-                            end
-                        end
-                    else
-                        if not AVAILABLE_WITHOUT_ANCESTRY[currentCategory] then
-                            currentCategory = INITIAL_CATEGORY
                         end
                     end
-                end
 
-                -- Which category to show?
-                if not AVAILABLE_WITHOUT_ANCESTRY[currentCategory] then
-                    if not element.data.features[currentCategory] then
+                    for id, active in pairs(element.data.features) do
+                        if active == false then
+                            navPanel:FireEvent("destroyFeature", id)
+                            detailPanel:FireEvent("destroyFeature", id)
+                            element.data.features[id] = nil
+                        end
+                    end
+                else
+                    if not AVAILABLE_WITHOUT_ANCESTRY[currentCategory] then
                         currentCategory = INITIAL_CATEGORY
                     end
                 end
-                state:Set{ key = categoryKey, value = currentCategory }
             end
+
+            -- Which category to show?
+            if not AVAILABLE_WITHOUT_ANCESTRY[currentCategory] then
+                if not element.data.features[currentCategory] then
+                    currentCategory = INITIAL_CATEGORY
+                end
+            end
+            state:Set{ key = categoryKey, value = currentCategory }
         end,
 
         navPanel,

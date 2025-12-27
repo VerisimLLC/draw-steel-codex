@@ -54,6 +54,13 @@ function LuaObjectComponent:GetFieldDisplayInfo(obj, fieldName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- Randomize
+--- @param options any
+--- @return nil
+function LuaObjectComponent:Randomize(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- BeginChanges
 --- @return nil
 function LuaObjectComponent:BeginChanges()

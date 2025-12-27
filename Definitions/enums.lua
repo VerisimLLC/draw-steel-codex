@@ -140,6 +140,7 @@
 --- | "RadiusFromCreature"
 --- | "Map"
 --- | "AreaTemplate"
+--- | "Locations"
 
 --- @alias AttackOutcome
 --- | "Hit"

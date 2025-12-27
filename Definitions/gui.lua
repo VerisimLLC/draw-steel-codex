@@ -101,3 +101,10 @@ end
 function gui.GetImageDimensionsCallback(imageid, f)
 	-- dummy implementation for documentation purposes only
 end
+
+--- GetSheetById
+--- @param id string
+--- @return any
+function gui.GetSheetById(id)
+	-- dummy implementation for documentation purposes only
+end

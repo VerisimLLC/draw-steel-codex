@@ -707,7 +707,7 @@ function CBCharPanel._tacticalPanel(tabId)
             local token = state:Get("token")
             if token then
                 if #element.children == 0 then
-                    element:AddChild(CharacterPanel.CreateCharacterDetailsPanel(token))
+                    -- element:AddChild(CharacterPanel.CreateCharacterDetailsPanel(token))
                     element:AddChild(gui.Label{
                         width = "auto",
                         height= "auto",

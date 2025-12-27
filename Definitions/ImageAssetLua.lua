@@ -3,6 +3,7 @@
 --- @field tokenZoom any 
 --- @field ownerid string 
 --- @field canView any 
+--- @field disableCompression boolean 
 ImageAssetLua = {}
 
 --- HaveReadPermissions

@@ -275,6 +275,7 @@ function CBDescriptionDetail.CreatePanel()
         refreshBuilderState = function(element, state)
             local visible = state:Get("activeSelector") == element.data.selector
             element:SetClass("collapsed", not visible)
+            if not visible then element:HaltEventPropagation() end
         end,
 
         editPane,

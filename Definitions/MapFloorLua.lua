@@ -100,8 +100,9 @@ end
 
 --- SpawnObjectLocal
 --- @param objectid any
+--- @param options any
 --- @return any
-function MapFloorLua:SpawnObjectLocal(objectid)
+function MapFloorLua:SpawnObjectLocal(objectid, options)
 	-- dummy implementation for documentation purposes only
 end
 

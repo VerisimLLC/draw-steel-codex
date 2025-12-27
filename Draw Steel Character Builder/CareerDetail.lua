@@ -110,13 +110,16 @@ function CBCareerDetail._overviewPanel()
             local visible = careerId == nil or state:Get(SELECTOR .. ".category.selectedId") == element.data.category
             element:SetClass("collapsed", not visible)
 
-            if visible then
-                if careerId == nil then
-                    element.bgimage = mod.images.careerHome
-                    return
-                end
-                -- TODO: Selected career image?
+            if not visible then
+                element:HaltEventPropagation()
+                return
             end
+
+            if careerId == nil then
+                element.bgimage = mod.images.careerHome
+                return
+            end
+            -- TODO: Selected career image?
         end,
 
         gui.Panel{
@@ -215,6 +218,10 @@ function CBCareerDetail.CreatePanel()
     local overviewPanel = CBCareerDetail._overviewPanel()
     local selectButton = CBCareerDetail._selectButton()
 
+    local function getHeroCareer(hero)
+        return hero:try_get("backgroundid")
+    end
+
     local detailPanel = gui.Panel{
         id = "careerDetailPanel",
         classes = {"builder-base", "panel-base", "inner-detail-panel", "wide", "careerDetailpanel"},
@@ -249,25 +256,66 @@ function CBCareerDetail.CreatePanel()
         refreshBuilderState = function(element, state)
             local visible = state:Get("activeSelector") == element.data.selector
             element:SetClass("collapsed", not visible)
-            if visible then
-                local categoryKey = SELECTOR .. ".category.selectedId"
-                local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
-                local hero = _getHero(state)
-                if hero then
-                    local heroCareer = hero:try_get("backgroundid")
+            if not visible then
+                element:HaltEventPropagation()
+                return
+            end
 
-                    if heroCareer ~= nil then
-                        for id,_ in pairs(element.data.features) do
-                            element.data.features[id] = false
+            local categoryKey = SELECTOR .. ".category.selectedId"
+            local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
+            local hero = _getHero(state)
+            if hero then
+                local heroCareer = hero:try_get("backgroundid")
+
+                if heroCareer ~= nil then
+                    for id,_ in pairs(element.data.features) do
+                        element.data.features[id] = false
+                    end
+
+                    for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
+                        local featureId = f.feature:try_get("guid")
+                        if featureId then
+                            if element.data.features[featureId] == nil then
+                                local featureRegistry = CharacterBuilder._makeFeatureRegistry{
+                                    feature = f.feature,
+                                    selectorId = SELECTOR,
+                                    selectedId = heroCareer,
+                                    getSelected = getHeroCareer,
+                                }
+                                if featureRegistry then
+                                    element.data.features[featureId] = true
+                                    navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
+                                    detailPanel:FireEvent("registerFeaturePanel", featureRegistry.panel)
+                                end
+                            else
+                                element.data.features[featureId] = true
+                            end
                         end
+                    end
 
-                        for _,f in pairs(state:Get(SELECTOR .. ".featureDetails")) do
-                            local featureId = f.feature:try_get("guid")
+                    -- Special case - inciting incidents are in the career item
+                    local careerItem = state:Get(SELECTOR .. ".selectedItem")
+                    if careerItem and careerItem:try_get("characteristics") then
+                        for _,c in ipairs(careerItem.characteristics) do
+                            local featureId = c:try_get("tableid")
                             if featureId then
+
+                                -- Temporarily make it look like a feature
+                                c.guid = c.tableid
+                                c.name = c:Name()
+                                c.guid = c.tableid
+                                if c:try_get("GetDescription") == nil then
+                                    c.GetDescription = function(self) return "" end
+                                end
+
                                 if element.data.features[featureId] == nil then
-                                    local featureRegistry = CharacterBuilder._makeFeatureRegistry(f.feature, SELECTOR, heroCareer, function(hero)
-                                        return hero:try_get("backgroundid")
-                                    end)
+                                    local featureRegistry = CharacterBuilder._makeFeatureRegistry{
+                                        feature = c,
+                                        selectorId = SELECTOR,
+                                        selectedId = heroCareer,
+                                        checkAvailable = CharacterBuilder._careerCharacteristicAvailable,
+                                        getSelected = getHeroCareer,
+                                    }
                                     if featureRegistry then
                                         element.data.features[featureId] = true
                                         navPanel:FireEvent("registerFeatureButton", featureRegistry.button)
@@ -277,31 +325,32 @@ function CBCareerDetail.CreatePanel()
                                     element.data.features[featureId] = true
                                 end
                             end
-                        end
-
-                        -- Clean up orphaned features
-                        for id, active in pairs(element.data.features) do
-                            if active == false then
-                                navPanel:FireEvent("destroyFeature", id)
-                                detailPanel:FireEvent("destroyFeature", id)
-                                element.data.features[id] = nil
-                            end
-                        end
-                    else
-                        if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
-                            currentCategory = INITIAL_CATEGORY
+                            print("THC:: INCITING::", featureId, element.data.features[featureId])
                         end
                     end
-                end
 
-                -- Which category to show?
-                if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
-                    if not element.data.features[currentCategory] then
+                    -- Clean up orphaned features
+                    for id, active in pairs(element.data.features) do
+                        if active == false then
+                            navPanel:FireEvent("destroyFeature", id)
+                            detailPanel:FireEvent("destroyFeature", id)
+                            element.data.features[id] = nil
+                        end
+                    end
+                else
+                    if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
                         currentCategory = INITIAL_CATEGORY
                     end
                 end
-                state:Set{ key = categoryKey, value = currentCategory }
             end
+
+            -- Which category to show?
+            if not AVAILABLE_WITHOUT_CAREER[currentCategory] then
+                if not element.data.features[currentCategory] then
+                    currentCategory = INITIAL_CATEGORY
+                end
+            end
+            state:Set{ key = categoryKey, value = currentCategory }
         end,
 
         navPanel,

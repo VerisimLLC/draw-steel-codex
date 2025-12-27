@@ -7,6 +7,19 @@
 --- @field locations Loc[] 
 LuaShape = {}
 
+--- Clone
+--- @return any
+function LuaShape:Clone()
+	-- dummy implementation for documentation purposes only
+end
+
+--- Grow
+--- @param namount number
+--- @return any
+function LuaShape:Grow(namount)
+	-- dummy implementation for documentation purposes only
+end
+
 --- ContainsToken
 --- @param token any
 --- @return boolean

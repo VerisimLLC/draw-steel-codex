@@ -153,7 +153,7 @@ function CharacterBuilder.CreatePanel()
             local levelChoices = hero and hero:GetLevelChoices()
 
             if not levelChoices or not next(levelChoices) then
-                state:Set({ key = "cachedPerks", value = {} })
+                state:Set{ key = "cachedPerks", value = {} }
                 return
             end
 
@@ -177,7 +177,7 @@ function CharacterBuilder.CreatePanel()
                 end
             end
 
-            state:Set({ key = "cachedPerks", value = perks })
+            state:Set{ key = "cachedPerks", value = perks }
         end,
 
         create = function(element)
@@ -346,7 +346,7 @@ function CharacterBuilder.CreatePanel()
                     detailPanel:AddChild(selectorDetail)
                 end
             end
-            element.data.state:Set({key = "activeSelector", value = newSelector})
+            element.data.state:Set{ key = "activeSelector", value = newSelector }
             element:FireEventTree("refreshBuilderState", element.data.state)
         end,
 

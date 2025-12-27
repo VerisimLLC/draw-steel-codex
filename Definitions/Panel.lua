@@ -1,6 +1,7 @@
 --- @class Panel 
 --- @field id string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
 --- @field idprefix string The prefix of the panel's id. A random ID will be generated but will begin with this prefix.
+--- @field debugBacktrace string|nil 
 --- @field inworld any 
 --- @field blurBackground any 
 --- @field monitorMod string The id of the mod to monitor. When this mod is reloaded the refreshMod event will be fired on the panel.
@@ -71,7 +72,7 @@
 --- @field value any The current value the panel represents, if any. This is used for panels that represent controls that allow you to edit a value, such as a checkbox, a dropdown, a color picker, or similar.
 --- @field text string A synonym for value.
 --- @field thinkTime number|nil The interval in seconds which the 'think' event will be fired on this panel. Allows a panel to regularly calculate some logic. Set to a very small value such as 0.001 to have 'think' fired as often as possible (in practice this will likely fire it at between 30 and 120hz). If set to nil (the default), think will not be fired on this panel. Use think carefully, since it can be performance intensive and slow down the application. Try to use other events instead.
---- @field monitorGame string A path within the game's data store that this panel monitors. When anything within that path changes, the 'refreshGame' event is fired on this panel. This is very useful if you want to update the panel whenever some data changes. For instance, you could monitor a token's path to update the panel whenever the creature that token represents changes.
+--- @field monitorGame nil|string|string[] A path within the game's data store that this panel monitors. When anything within that path changes, the 'refreshGame' event is fired on this panel. This is very useful if you want to update the panel whenever some data changes. For instance, you could monitor a token's path to update the panel whenever the creature that token represents changes.
 --- @field mousePoint Vector2 The position of the mouse within this panel, or (0,0) if the mouse is not within the panel.
 --- @field bgsprite Sprite The @see Sprite object representing the bgimage for this panel.
 --- @field swallowPress boolean (Default: false) If true, if this panel receives the 'press' event its parent panel will not receive the press event. By default, a panel, and its parents, all the way up the hierarchy receive the press event.
@@ -343,6 +344,7 @@ end
 --- @class PanelArgs:PanelArgsBase 
 --- @field id nil|string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
 --- @field idprefix nil|string The prefix of the panel's id. A random ID will be generated but will begin with this prefix.
+--- @field debugBacktrace string|nil 
 --- @field inworld nil|any 
 --- @field blurBackground nil|any 
 --- @field monitorMod nil|string The id of the mod to monitor. When this mod is reloaded the refreshMod event will be fired on the panel.
@@ -409,7 +411,7 @@ end
 --- @field value nil|any The current value the panel represents, if any. This is used for panels that represent controls that allow you to edit a value, such as a checkbox, a dropdown, a color picker, or similar.
 --- @field text nil|string A synonym for value.
 --- @field thinkTime number|nil The interval in seconds which the 'think' event will be fired on this panel. Allows a panel to regularly calculate some logic. Set to a very small value such as 0.001 to have 'think' fired as often as possible (in practice this will likely fire it at between 30 and 120hz). If set to nil (the default), think will not be fired on this panel. Use think carefully, since it can be performance intensive and slow down the application. Try to use other events instead.
---- @field monitorGame nil|string A path within the game's data store that this panel monitors. When anything within that path changes, the 'refreshGame' event is fired on this panel. This is very useful if you want to update the panel whenever some data changes. For instance, you could monitor a token's path to update the panel whenever the creature that token represents changes.
+--- @field monitorGame nil|string|string[] A path within the game's data store that this panel monitors. When anything within that path changes, the 'refreshGame' event is fired on this panel. This is very useful if you want to update the panel whenever some data changes. For instance, you could monitor a token's path to update the panel whenever the creature that token represents changes.
 --- @field mousePoint nil|Vector2 The position of the mouse within this panel, or (0,0) if the mouse is not within the panel.
 --- @field bgsprite nil|Sprite The @see Sprite object representing the bgimage for this panel.
 --- @field swallowPress nil|boolean (Default: false) If true, if this panel receives the 'press' event its parent panel will not receive the press event. By default, a panel, and its parents, all the way up the hierarchy receive the press event.

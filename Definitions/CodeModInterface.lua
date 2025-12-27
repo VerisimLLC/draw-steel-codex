@@ -2,6 +2,7 @@
 --- @field isowner boolean 
 --- @field canedit boolean 
 --- @field modid string 
+--- @field unloaded boolean 
 CodeModInterface = {}
 
 --- GetMod

@@ -543,6 +543,14 @@ function dmhub.EvalGoblinScriptToObject(goblinscript, lookupFunction, reason)
 	-- dummy implementation for documentation purposes only
 end
 
+--- CompileGoblinScriptDeterministic
+--- @param goblinscript any
+--- @param debugOut any
+--- @return any
+function dmhub.CompileGoblinScriptDeterministic(goblinscript, debugOut)
+	-- dummy implementation for documentation purposes only
+end
+
 --- EvalGoblinScriptDeterministic: This evaluates the given goblinscript string with the support of the lookup function which can be used to lookup the value of symbols. The goblinscript should not contain any dice rolls. It will be forced to a numeric result even if there are errors or illicit dice rolls.
 --- @param goblinscript string
 --- @param lookupFunction function
@@ -1412,5 +1420,12 @@ end
 --- @param text string
 --- @return string
 function dmhub.tr(text, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetPanelTrace
+--- @param panelid string
+--- @return string
+function dmhub.GetPanelTrace(panelid)
 	-- dummy implementation for documentation purposes only
 end

@@ -125,6 +125,21 @@ function CharacterBuilder._blankToDashes(s)
     return s
 end
 
+--- Determine whether the requested characteristic is avialable in the list of options
+--- @param state CharacterBuilderState
+--- @param selectorId string The selector under which to find the option
+--- @param tableId string The guid of the roll table we're looking for
+--- @return boolean
+function CharacterBuilder._careerCharacteristicAvailable(state, selectorId, tableId)
+    local careerItem = state:Get(selectorId .. ".selectedItem")
+    if careerItem then
+        for _,c in ipairs(careerItem:try_get("characteristics", {})) do
+            if c:try_get("tableid") == tableId then return true end
+        end
+    end
+    return false
+end
+
 --- Determine if we can find the specified item ID in the feature ID in the character's level choices
 --- @param character character
 --- @param featureId string
@@ -320,12 +335,18 @@ function CharacterBuilder._makeDetailNavButton(selector, options)
 end
 
 --- Create a registry entry for a feature - a button and an editor panel
---- @parameter feature CharacterFeature
+--- @parameter feature CharacterFeature|BackgroundCharacteristic
 --- @parameter selectorId string The selector this is a category under
 --- @parameter selectedId string The unique identifier of the item associated with the feature
+--- @parameter checkAvailable function(state, selectorId, featureId)
 --- @parameter getSelected function(character)
---- @return Panel|nil
-function CharacterBuilder._makeFeatureRegistry(feature, selectorId, selectedId, getSelected)
+--- @return table{button,panel}|nil
+function CharacterBuilder._makeFeatureRegistry(options)
+    local feature = options.feature
+    local selectorId = options.selectorId
+    local selectedId = options.selectedId
+    local checkAvailable = options.checkAvailable or CharacterBuilder._featureAvailable
+    local getSelected = options.getSelected
 
     local featurePanel = CBFeatureSelector.Panel(feature)
 
@@ -334,7 +355,7 @@ function CharacterBuilder._makeFeatureRegistry(feature, selectorId, selectedId, 
             button = CharacterBuilder._makeCategoryButton{
                 text = CharacterBuilder._stripSignatureTrait(feature.name),
                 data = {
-                    featureId = feature.guid,
+                    featureId = feature:try_get("guid", feature:try_get("tableid")),
                     selectedId = selectedId,
                 },
                 click = function(element)
@@ -345,7 +366,7 @@ function CharacterBuilder._makeFeatureRegistry(feature, selectorId, selectedId, 
                 end,
                 refreshBuilderState = function(element, state)
                     local tokenSelected = getSelected(CharacterBuilder._getHero(state)) or "nil"
-                    local isVisible = tokenSelected == element.data.selectedId and CharacterBuilder._featureAvailable(state, selectorId, element.data.featureId)
+                    local isVisible = tokenSelected == element.data.selectedId and checkAvailable(state, selectorId, element.data.featureId)
                     element:FireEvent("setAvailable", isVisible)
                     element:FireEvent("setSelected", element.data.featureId == state:Get(selectorId .. ".category.selectedId"))
                     element:SetClass("collapsed", not isVisible)

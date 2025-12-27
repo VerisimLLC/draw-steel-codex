@@ -8,6 +8,7 @@ local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getHero = CharacterBuilder._getHero
 
 --- Build a feature panel with selections
+--- @param feature CharacterFeature|BackgroundCharacteristic
 --- @return Panel|nil
 function CBFeatureSelector.Panel(feature)
     -- print("THC:: FEATUREPANEL::", feature.name, feature)
@@ -15,6 +16,7 @@ function CBFeatureSelector.Panel(feature)
 
     local typeName = feature.typeName or ""
     if typeName == "CharacterDeityChoice" then
+
     elseif typeName == "CharacterFeatChoice" then
         return CBFeatureSelector.PerkPanel(feature)
     elseif typeName == "CharacterFeatureChoice" then
@@ -24,10 +26,14 @@ function CBFeatureSelector.Panel(feature)
     elseif typeName == "CharacterSkillChoice" then
         return CBFeatureSelector.SkillPanel(feature)
     elseif typeName == "CharacterSubclassChoice" then
+
+    elseif typeName == "BackgroundCharacteristic" then
+        return CBFeatureSelector.RollTablePanel(feature)
     elseif typeName == "CharacterAncestryInheritanceChoice" then
         return CBFeatureSelector.AncestryInheritancePanel(feature)
     end
 
+    -- print("THC:: FEATURESEL:: FALLTHROUGH::", feature.typeName, json(feature))
     return nil
 end
 
@@ -326,6 +332,72 @@ function CBFeatureSelector.PerkPanel(feature)
     return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
 end
 
+--- Render a roll table panel
+--- @param feature BackgroundCharacteristic
+--- @return Panel
+function CBFeatureSelector.RollTablePanel(feature)
+
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            rollTableId = feature.tableid,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            element.data.itemCache = {}
+            local rollTable = feature:GetRollTable()
+            local rollInfo = rollTable:CalculateRollInfo()
+            for i,row in ipairs(rollTable:try_get("rows", {})) do
+                element.data.itemCache[row.id] = {
+                    id = row.id,
+                    text = row.value:ToString(),
+                    range = rollInfo.rollRanges[i]
+                }
+            end
+
+        end,
+        CBFeatureSelector._targetPanel{
+            feature = feature,
+            itemIndex = 1
+        }
+    }
+
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local rollTable = feature:GetRollTable()
+            local rollInfo = rollTable:CalculateRollInfo()
+
+            local numOptions = #rollTable.rows
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(CBFeatureSelector._optionPanel{
+                    feature = feature,
+                    itemIsSelected = function(state, featureGuid, item)
+                        -- TODO: Calculate this
+                        return false
+                    end,
+                })
+            end
+
+            for i,child in ipairs(element.children) do
+                local row = rollTable.rows[i]
+                row.name = row.value:ToString()
+                child:FireEvent("assignItem", row)
+            end
+        end,
+    }
+
+    return CBFeatureSelector._mainPanel(feature, targetsContainer, optionsContainer)
+end
+
 --- Render a skill choice panel
 --- @param feature CharacterSkillChoice
 --- @return Panel
@@ -370,13 +442,13 @@ function CBFeatureSelector.SkillPanel(feature)
             local numOptions = #currentChoices
 
             for _ = #element.children + 1, numOptions do
-                element:AddChild(CBFeatureSelector._optionPanel({
+                element:AddChild(CBFeatureSelector._optionPanel{
                     feature = feature,
                     itemIsSelected = function(state, featureGuid, item)
                         local hero = _getHero(state)
                         return hero and hero:ProficientInSkill(item)
                     end,
-                }))
+                })
             end
 
             table.sort(currentChoices, function(a, b) return a.text < b.text end)
@@ -592,7 +664,7 @@ function CBFeatureSelector._targetPanel(config)
     return gui.Panel{
         classes = {"builder-base", "panel-base", "feature-target", "empty"},
         data = {
-            featureGuid = feature.guid,
+            featureGuid = feature:try_get("guid", feature:try_get("tableid")),
             costsPoints = costsPoints,
             itemIndex = itemIndex,
             item = nil,

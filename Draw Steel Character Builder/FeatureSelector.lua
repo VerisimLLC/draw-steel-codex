@@ -15,90 +15,65 @@ function CBFeatureSelector.EvaluateFeature(feature)
     local typeName = feature.typeName or ""
     if #typeName == 0 then return nil end
 
+    local typeOrder = {
+        CharacterAncestryInheritanceChoice  = 1,
+        CharacterDeityChoice                = 2,
+        CharacterDomainChoice               = 3,
+        CharacterSubclassChoice             = 4,
+        CharacterFeatureChoice              = 5,
+        CharacterSkillChoice                = 6,
+        CharacterLanguageChoice             = 7,
+        CharacterFeatChoice                 = 8,
+        CharacterIncidentChoice             = 9,
+    }
+
     local configs = {
         CharacterAncestryInheritanceChoice = {
             category = "Inherited Ancestry",
-            catOrder = 1,
-            order = "01-" .. feature.name,
             panelFn = CBFeatureSelector.AncestryInheritancePanel,
         },
-        -- CharacterDeityChoice = {
-        --     category = "Deity",
-        --     catOrder = 3,
-        --     order = "03-" .. feature.name,
-        --     panelFn = nil,
-        -- },
+        CharacterDeityChoice = {
+            category = "Deity",
+            panelFn = CBFeatureSelector.DeityPanel,
+        },
+        CharacterDomainChoice = {
+            category = "Domain",
+            panelFn = CBFeatureSelector.DomainPanel,
+        },
         CharacterFeatChoice = {
             category = "Perk",
-            catOrder = 7,
-            order = "07-" .. feature.name,
             panelFn = CBFeatureSelector.PerkPanel,
         },
         CharacterFeatureChoice = {
             category = "Feature",
-            catOrder = 4,
-            order = "04-" .. feature.name,
             panelFn = CBFeatureSelector.FeaturePanel,
         },
         CharacterIncidentChoice = {
             category = "Incident",
-            catOrder = 8,
-            order = "08-" .. feature.name,
             panelFn = CBFeatureSelector.IncidentPanel,
         },
         CharacterLanguageChoice = {
             category = "Language",
-            catOrder = 6,
-            order = "06-" .. feature.name,
             panelFn = CBFeatureSelector.LanguagePanel,
         },
         CharacterSkillChoice = {
             category = "Skill",
-            catOrder = 5,
-            order = "05-" .. feature.name,
             panelFn = CBFeatureSelector.SkillPanel,
         },
         -- CharacterSubclassChoice = {
         --     category = "Subclass",
-        --     catOrder = 2,
-        --     order = "02-" .. feature.name,
         --     panelFn = nil,
         -- },
     }
 
     local item = configs[typeName]
-    if item then item.feature = feature end
-    return item
-end
-
---- Build a feature panel with selections
---- @param feature CharacterFeature|BackgroundCharacteristic
---- @return Panel|nil
-function CBFeatureSelector.Panel(feature)
-    -- print("THC:: FEATUREPANEL::", feature.name, feature)
-    -- print("THC:: FEATUREPANEL::", feature.name, json(feature))
-
-    local typeName = feature.typeName or ""
-    if typeName == "CharacterDeityChoice" then
-
-    elseif typeName == "CharacterFeatChoice" then
-        return CBFeatureSelector.PerkPanel(feature)
-    elseif typeName == "CharacterFeatureChoice" then
-        return CBFeatureSelector.FeaturePanel(feature)
-    elseif typeName == "CharacterLanguageChoice" then
-        return CBFeatureSelector.LanguagePanel(feature)
-    elseif typeName == "CharacterSkillChoice" then
-        return CBFeatureSelector.SkillPanel(feature)
-    elseif typeName == "CharacterSubclassChoice" then
-
-    elseif typeName == "CharacterIncidentChoice" then
-        return CBFeatureSelector.IncidentPanel(feature)
-    elseif typeName == "CharacterAncestryInheritanceChoice" then
-        return CBFeatureSelector.AncestryInheritancePanel(feature)
+    if item then
+        local catOrder = typeOrder[typeName] or 99
+        item.catOrder = catOrder
+        item.order = string.format("%02d-%s", catOrder, feature.name)
+        item.feature = feature
     end
-
-    -- print("THC:: FEATURESEL:: FALLTHROUGH::", feature.typeName, json(feature))
-    return nil
+    return item
 end
 
 --- Render an ancestry inheritance choice panel (e.g., for Revenant's "former ancestry")
@@ -170,6 +145,168 @@ function CBFeatureSelector.AncestryInheritancePanel(feature)
             for i, child in ipairs(element.children) do
                 local choice = currentChoices[i]
                 child:FireEvent("assignItem", choice and dmhub.GetTable(Race.tableName)[choice.id] or nil)
+            end
+        end,
+    }
+
+    return CBFeatureSelector._mainPanel{
+        feature = feature,
+        targetsContainer = targetsContainer,
+        optionsContainer = optionsContainer,
+    }
+end
+
+--- Render deity choice panel
+--- @param feature CharacterDeityChoice
+--- @return Panel
+function CBFeatureSelector.DeityPanel(feature)
+
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(Deity.tableName)[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._targetPanel{ feature = feature, itemIndex = i })
+            end
+        end,
+    }
+
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(CBFeatureSelector._optionPanel({
+                    feature = feature,
+                    itemIsSelected = function(state, featureGuid, item)
+                        local hero = _getHero(state)
+                        if hero then
+                            local levelChoices = hero:GetLevelChoices()
+                            if levelChoices then
+                                local selectedItems = levelChoices[featureGuid]
+                                if selectedItems then
+                                    for _, selectedId in ipairs(selectedItems) do
+                                        return selectedId == item.id
+                                    end
+                                end
+                            end
+                        end
+                        return false
+                    end,
+                }))
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, child in ipairs(element.children) do
+                local choice = currentChoices[i]
+                child:FireEvent("assignItem", choice and dmhub.GetTable(Deity.tableName)[choice.id] or nil)
+            end
+        end,
+    }
+
+    return CBFeatureSelector._mainPanel{
+        feature = feature,
+        targetsContainer = targetsContainer,
+        optionsContainer = optionsContainer,
+    }
+end
+
+--- Render deity choice panel
+--- @param feature CharacterDomainChoice
+--- @return Panel
+function CBFeatureSelector.DomainPanel(feature)
+    print("THC:: DOMAINPANEL::", feature)
+    print("THC:: DOMAINPANEL::", json(feature))
+
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible(DeityDomain.tableName)[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._targetPanel{ feature = feature, itemIndex = i })
+            end
+        end,
+    }
+
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(nil, levelChoices, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(CBFeatureSelector._optionPanel({
+                    feature = feature,
+                    itemIsSelected = function(state, featureGuid, item)
+                        local hero = _getHero(state)
+                        if hero then
+                            local levelChoices = hero:GetLevelChoices()
+                            if levelChoices then
+                                local selectedItems = levelChoices[featureGuid]
+                                if selectedItems then
+                                    for _, selectedId in ipairs(selectedItems) do
+                                        return selectedId == item.id
+                                    end
+                                end
+                            end
+                        end
+                        return false
+                    end,
+                }))
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, child in ipairs(element.children) do
+                local choice = currentChoices[i]
+                child:FireEvent("assignItem", choice and dmhub.GetTable(DeityDomain.tableName)[choice.id] or nil)
             end
         end,
     }

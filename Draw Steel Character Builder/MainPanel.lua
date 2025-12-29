@@ -398,10 +398,10 @@ function CharacterBuilder.CreatePanel()
             }
             local classItem = dmhub.GetTableVisible(Class.tableName)[classId]
             if classItem then
-                local featureDetails = {}
                 local classFill = {}
-                classItem:FillLevelsUpTo(hero:GetClassLevel(), false, "nonprimary", classFill)
-                local filteredFeatures = _filterFeatures(classFill, true)
+                -- classItem:FillLevelsUpTo(hero:GetClassLevel(), false, "nonprimary", classFill)
+                classItem:FillFeatureDetailsForLevel(levelChoices, hero:GetClassLevel(), false, "nonprimary", classFill)
+                local filteredFeatures, featureDetails = _filterFeatures(classFill)
 
                 newState[#newState+1] = { key = "class.selectedItem", value = classItem }
                 newState[#newState+1] = { key = "class.featureDetails", value = featureDetails }

@@ -191,11 +191,13 @@ function CharacterBuilder._featureAvailable(state, selectorId, featureId)
     return false
 end
 
---- Filters and categorizes a feature list
+--- Filters and potentially flattens a feature list
 --- @param featureDetails table list of character features
 --- @return table filteredFeatures
+--- @return table flattenedFeatures Populated only if featureDetails was not flat to begin with
 function CharacterBuilder._filterFeatures(featureDetails)
     local filtered = {}
+    local flattened = {}
 
     local function processFeature(feature)
         local opts = CBFeatureSelector.EvaluateFeature(feature)
@@ -207,6 +209,7 @@ function CharacterBuilder._filterFeatures(featureDetails)
     for _,item in ipairs(featureDetails) do
         if item.features ~= nil then
             for _,feature in ipairs(item.features) do
+                flattened[#flattened+1] = { feature = feature }
                 processFeature(feature)
             end
         elseif item.feature ~= nil then
@@ -216,7 +219,7 @@ function CharacterBuilder._filterFeatures(featureDetails)
 
     table.sort(filtered, function(a,b) return a.order < b.order end)
 
-    return filtered
+    return filtered, #flattened > 0 and flattened or featureDetails
 end
 
 --- Fires an event on the main builder panel

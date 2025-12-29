@@ -30,25 +30,26 @@ function CBCharPanel._getFeatureChoices(feature)
         end
     end
 
-    if feature.typeName == "CharacterDeityChoice" then
-        tableToItems(dmhub.GetTableVisible(Deity.tableName))
-    elseif feature.typeName == "CharacterFeatChoice" then
-        tableToItems(dmhub.GetTableVisible(CharacterFeat.tableName))
+    local tableLookup = {
+        CharacterDeityChoice = Deity.tableName,
+        CharacterDomainChoice = DeityDomain.tableName,
+        CharacterFeatChoice = CharacterFeat.tableName,
+        CharacterLanguageChoice = Language.tableName,
+        CharacterSkillChoice = Skill.tableName,
+        CharacterSubclassChoice = Class.tableName,
+    }
+
+    local tableName = tableLookup[feature.typeName]
+    if tableName then
+        tableToItems(dmhub.GetTableVisible(tableName))
     elseif feature.typeName == "CharacterFeatureChoice" or feature.typeName == "CharacterIncidentChoice" then
         for _,item in ipairs(feature.options) do
-            local newItem = {
+            items[item.guid] = {
                 id = item.guid,
                 name = item.name,
                 pointCost = item:try_get("pointsCost"),
             }
-            items[item.guid] = newItem
         end
-    elseif feature.typeName == "CharacterLanguageChoice" then
-        tableToItems(dmhub.GetTableVisible(Language.tableName))
-    elseif feature.typeName == "CharacterSkillChoice" then
-        tableToItems(dmhub.GetTableVisible(Skill.tableName))
-    elseif feature.typeName == "CharacterSubclassChoice" then
-        tableToItems(dmhub.GetTableVisible(Class.tableName))
     end
 
     return next(items) and items or nil

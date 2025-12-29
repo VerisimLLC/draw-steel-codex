@@ -36,7 +36,7 @@ function CBCharPanel._getFeatureChoices(feature)
         CharacterFeatChoice = CharacterFeat.tableName,
         CharacterLanguageChoice = Language.tableName,
         CharacterSkillChoice = Skill.tableName,
-        CharacterSubclassChoice = Class.tableName,
+        CharacterSubclassChoice = "subclasses",
     }
 
     local tableName = tableLookup[feature.typeName]

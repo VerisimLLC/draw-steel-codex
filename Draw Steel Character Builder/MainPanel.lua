@@ -369,7 +369,7 @@ function CharacterBuilder.CreatePanel()
                         levelChoices[feature.guid] = levelChoice
                     end
                 end
-                
+
                 local filteredFeatures = _filterFeatures(featureDetails)
 
                 newState[#newState+1] = { key = "career.selectedItem", value = careerItem }
@@ -383,29 +383,50 @@ function CharacterBuilder.CreatePanel()
         end,
 
         selectClass = function(element, classId, noFire)
+            -- Read our cache
             local state = element.data.state
             local cachedClassId = state:Get("class.selectedId")
+            local cachedLevel = state:Get("class.level")
+            local cachedSubclasses = state:Get("class.selectedSubclasses")
             local cachedLevelChoices = state:Get("levelChoices")
+
+            -- Read current state / selections
             local hero = _getHero(state)
+            local level = hero and hero:GetClassLevel()
             local levelChoices = hero and hero:GetLevelChoices() or {}
+            local classAndSubClasses = hero and hero:GetClassesAndSubClasses() or {}
 
+            -- If nothing changed, we can stop processing
             local classChanged = classId ~= cachedClassId
-            local levelChoicesChanged = not dmhub.DeepEqual(cachedLevelChoices, levelChoices)
-            if not (classChanged or levelChoicesChanged) then return end
+            local levelChanged = level ~= cachedLevel
+            local subclassChanged = dmhub.DeepEqual(cachedSubclasses, classAndSubClasses) ~= true
+            local levelChoicesChanged = dmhub.DeepEqual(cachedLevelChoices, levelChoices) ~= true
+            if not (classChanged or levelChanged or subclassChanged or levelChoicesChanged) then
+                return
+            end
 
+            -- Something changed so we need to process it
             local newState = {
-                { key = "class.selectedId", value = classId }
+                { key = "class.selectedId", value = classId },
+                { key = "class.level", value = level },
             }
             local classItem = dmhub.GetTableVisible(Class.tableName)[classId]
             if classItem then
                 local classFill = {}
-                -- classItem:FillLevelsUpTo(hero:GetClassLevel(), false, "nonprimary", classFill)
-                classItem:FillFeatureDetailsForLevel(levelChoices, hero:GetClassLevel(), false, "nonprimary", classFill)
+                for _,entry in ipairs(classAndSubClasses) do
+                    entry.class:FillFeatureDetailsForLevel(levelChoices, entry.level, false, "nonprimary", classFill)
+                end
                 local filteredFeatures, featureDetails = _filterFeatures(classFill)
 
                 newState[#newState+1] = { key = "class.selectedItem", value = classItem }
+                newState[#newState+1] = { key = "class.selectedSubclasses", value = classAndSubClasses }
                 newState[#newState+1] = { key = "class.featureDetails", value = featureDetails }
                 newState[#newState+1] = { key = "class.filteredFeatures", value = filteredFeatures }
+            else
+                newState[#newState+1] = { key = "class.selectedItem", nil }
+                newState[#newState+1] = { key = "class.selectedSubclasses", nil }
+                newState[#newState+1] = { key = "class.featureDetails", nil }
+                newState[#newState+1] = { key = "class.filteredFeatures", nil }
             end
             state:Set(newState)
             if not noFire then

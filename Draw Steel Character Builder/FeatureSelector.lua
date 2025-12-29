@@ -6,6 +6,7 @@ CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 local _characterHasLevelChoice = CharacterBuilder._characterHasLevelChoice
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getHero = CharacterBuilder._getHero
+local _safeGet = CharacterBuilder._safeGet
 
 --- Determine if the builder cares about the feature and, if so,
 --- return a structure defining how to interact with it.
@@ -60,10 +61,10 @@ function CBFeatureSelector.EvaluateFeature(feature)
             category = "Skill",
             panelFn = CBFeatureSelector.SkillPanel,
         },
-        -- CharacterSubclassChoice = {
-        --     category = "Subclass",
-        --     panelFn = nil,
-        -- },
+        CharacterSubclassChoice = {
+            category = "Subclass",
+            panelFn = CBFeatureSelector.SubclassPanel,
+        },
     }
 
     local item = configs[typeName]
@@ -96,7 +97,7 @@ function CBFeatureSelector.AncestryInheritancePanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(Race.tableName)[choice.id]
@@ -115,7 +116,7 @@ function CBFeatureSelector.AncestryInheritancePanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -176,7 +177,7 @@ function CBFeatureSelector.DeityPanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(Deity.tableName)[choice.id]
@@ -195,7 +196,7 @@ function CBFeatureSelector.DeityPanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -240,8 +241,6 @@ end
 --- @param feature CharacterDomainChoice
 --- @return Panel
 function CBFeatureSelector.DomainPanel(feature)
-    print("THC:: DOMAINPANEL::", feature)
-    print("THC:: DOMAINPANEL::", json(feature))
 
     local targetsContainer = gui.Panel{
         classes = {"builder-base", "panel-base", "container"},
@@ -258,7 +257,7 @@ function CBFeatureSelector.DomainPanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(DeityDomain.tableName)[choice.id]
@@ -277,7 +276,7 @@ function CBFeatureSelector.DomainPanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -324,8 +323,8 @@ end
 function CBFeatureSelector.FeaturePanel(feature)
 
     local function formatOptionName(option)
-        local s = option.name
-        local pointCost = option:try_get("pointsCost")
+        local s = option.name or option.text
+        local pointCost = _safeGet(option, "pointsCost")
         if pointCost then
             s = string.format("%s (%d point%s)", s, pointCost, pointCost ~= 1 and "s" or "")
         end
@@ -347,10 +346,10 @@ function CBFeatureSelector.FeaturePanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentOptions = feature:GetOptions(levelChoices)
+            local currentOptions = feature:Choices(1, levelChoices[feature.guid] or {}, hero) or {}
             element.data.itemCache = {}
             for _, option in ipairs(currentOptions) do
-                element.data.itemCache[option.guid] = option
+                element.data.itemCache[option.id] = option
             end
 
             for i = #element.children + 1, numChoices do
@@ -358,7 +357,7 @@ function CBFeatureSelector.FeaturePanel(feature)
                     feature = feature,
                     itemIndex = i,
                     useDesc = true,
-                    idFieldName = "guid",
+                    idFieldName = "id",
                     formatName = formatOptionName,
                 }))
             end
@@ -372,7 +371,7 @@ function CBFeatureSelector.FeaturePanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentOptions = feature:GetOptions(levelChoices)
+            local currentOptions = feature:Choices(1, levelChoices[feature.guid] or {}, hero) or {}
 
             local numOptions = #currentOptions
 
@@ -391,7 +390,7 @@ function CBFeatureSelector.FeaturePanel(feature)
                 }))
             end
 
-            table.sort(currentOptions, function(a, b) return a.name < b.name end)
+            table.sort(currentOptions, function(a, b) return a.text < b.text end)
 
             for i, child in ipairs(element.children) do
                 child:FireEvent("assignItem", currentOptions[i])
@@ -584,7 +583,7 @@ function CBFeatureSelector.LanguagePanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(Language.tableName)[choice.id]
@@ -603,7 +602,7 @@ function CBFeatureSelector.LanguagePanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -656,7 +655,7 @@ function CBFeatureSelector.PerkPanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(CharacterFeat.tableName)[choice.id]
@@ -675,7 +674,7 @@ function CBFeatureSelector.PerkPanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -727,7 +726,7 @@ function CBFeatureSelector.SkillPanel(feature)
             element.data.numChoices = numChoices
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
             element.data.itemCache = {}
             for _, choice in ipairs(currentChoices) do
                 element.data.itemCache[choice.id] = dmhub.GetTableVisible(Skill.tableName)[choice.id]
@@ -746,7 +745,7 @@ function CBFeatureSelector.SkillPanel(feature)
             if not hero then return end
 
             local levelChoices = hero:GetLevelChoices()
-            local currentChoices = feature:Choices(nil, levelChoices, hero)
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
 
             local numOptions = #currentChoices
 
@@ -765,6 +764,86 @@ function CBFeatureSelector.SkillPanel(feature)
             for i, child in ipairs(element.children) do
                 local choice = currentChoices[i]
                 child:FireEvent("assignItem", choice and dmhub.GetTableVisible(Skill.tableName)[choice.id] or nil)
+            end
+        end,
+    }
+
+    return CBFeatureSelector._mainPanel{
+        feature = feature,
+        targetsContainer = targetsContainer,
+        optionsContainer = optionsContainer,
+    }
+end
+
+--- Render deity choice panel
+--- @param feature CharacterSubclassChoice
+--- @return Panel
+function CBFeatureSelector.SubclassPanel(feature)
+
+    local targetsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        data = {
+            numChoices = 1,
+            itemCache = {},
+        },
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local numChoices = feature:NumChoices(hero)
+            element.data.numChoices = numChoices
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
+            element.data.itemCache = {}
+            for _, choice in ipairs(currentChoices) do
+                element.data.itemCache[choice.id] = dmhub.GetTableVisible("subclasses")[choice.id]
+            end
+
+            for i = #element.children + 1, numChoices do
+                element:AddChild(CBFeatureSelector._targetPanel{ feature = feature, itemIndex = i })
+            end
+        end,
+    }
+
+    local optionsContainer = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        refreshBuilderState = function(element, state)
+            local hero = _getHero(state)
+            if not hero then return end
+
+            local levelChoices = hero:GetLevelChoices()
+            local currentChoices = feature:Choices(1, levelChoices[feature.guid] or {}, hero)
+
+            local numOptions = #currentChoices
+
+            for _ = #element.children + 1, numOptions do
+                element:AddChild(CBFeatureSelector._optionPanel({
+                    feature = feature,
+                    itemIsSelected = function(state, featureGuid, item)
+                        local hero = _getHero(state)
+                        if hero then
+                            local levelChoices = hero:GetLevelChoices()
+                            if levelChoices then
+                                local selectedItems = levelChoices[featureGuid]
+                                if selectedItems then
+                                    for _, selectedId in ipairs(selectedItems) do
+                                        return selectedId == item.id
+                                    end
+                                end
+                            end
+                        end
+                        return false
+                    end,
+                }))
+            end
+
+            table.sort(currentChoices, function(a, b) return a.text < b.text end)
+
+            for i, child in ipairs(element.children) do
+                local choice = currentChoices[i]
+                child:FireEvent("assignItem", choice and dmhub.GetTable("subclasses")[choice.id] or nil)
             end
         end,
     }
@@ -914,7 +993,7 @@ function CBFeatureSelector._optionPanel(options)
         end,
         refreshBuilderState = function(element, state)
             local item = element.data.item
-            local visible = item ~= nil and (item:try_get("unique", true) == false or not itemIsSelected(state, element.data.featureGuid, item))
+            local visible = item ~= nil and (_safeGet(item, "unique", true) == false or not itemIsSelected(state, element.data.featureGuid, item))
             element:SetClass("collapsed", not visible)
             if not visible then
                 element:HaltEventPropagation()
@@ -975,7 +1054,7 @@ function CBFeatureSelector._targetPanel(config)
     local useDesc = config.useDesc or false
     local costsPoints = feature:try_get("costsPoints", false)
     local idFieldName = config.idFieldName or "id"
-    local formatName = config.formatName or function(item) return item:try_get("name") end
+    local formatName = config.formatName or function(item) return _safeGet(item, "name", "") end
     local selectedItem = config.selectedItem or function(element, hero)
         local levelChoices = hero:GetLevelChoices()
         if levelChoices then
@@ -1027,7 +1106,7 @@ function CBFeatureSelector._targetPanel(config)
 
             element.data.item = item
             local newText = item and formatName(item) or "Empty Slot"
-            local newDesc = element.data.useDesc and item and item:try_get("description", "") or ""
+            local newDesc = element.data.useDesc and item and _safeGet(item, "description", "") or ""
             element:FireEventTree("updateName", newText)
             element:FireEventTree("updateDesc", newDesc)
             element:SetClass("filled", item ~= nil)
@@ -1043,7 +1122,7 @@ function CBFeatureSelector._targetPanel(config)
                     for _,child in ipairs(container.children) do
                         local childItem = child.data and child.data.item
                         if childItem then
-                            pointsSelected = pointsSelected + childItem:try_get("pointsCost", 1)
+                            pointsSelected = pointsSelected + _safeGet(childItem, "pointsCost", 1)
                         end
                     end
                     visible = pointsSelected < numChoices

@@ -282,6 +282,21 @@ function CharacterBuilder._inCharSheet(element)
     return CharacterBuilder._getCharacterSheet(element) ~= nil
 end
 
+--- Safely get a named property from an item, defaulting to nil
+--- Works with both class instances (with try_get) and plain tables
+--- @param item table The item to check
+--- @param propertyName string
+--- @param defaultValue? any
+--- @return any
+function CharacterBuilder._safeGet(item, propertyName, defaultValue)
+    if item.try_get then
+        return item:try_get(propertyName)
+    end
+    local value = item[propertyName]
+    if value == nil then value = defaultValue end
+    return value
+end
+
 function CharacterBuilder._sortArrayByProperty(items, propertyName)
     table.sort(items, function(a,b) return a[propertyName] < b[propertyName] end)
     return items

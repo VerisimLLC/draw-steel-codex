@@ -21,16 +21,7 @@ function RichBar.CreateDisplay(self)
         bgimage = true,
         halign = "left",
         refreshTag = function(element, tag, match, token)
-            if token.stylingInfo ~= nil and token.stylingInfo.colorStack ~= nil and #token.stylingInfo.colorStack > 0 then
-                local color = token.stylingInfo.colorStack[#token.stylingInfo.colorStack]
-                if color ~= nil then
-                    element.selfStyle.bgcolor = color
-                else
-                    element.selfStyle.bgcolor = "#00EEFF"
-                end
-            else
-                element.selfStyle.bgcolor = "#00EEFF"
-            end
+            element.selfStyle.bgcolor = self.GetColorFromToken(token) or "#00EEFF"
         end,
 
         thinkTime = 0.01,

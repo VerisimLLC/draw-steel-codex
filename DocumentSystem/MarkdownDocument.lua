@@ -47,6 +47,14 @@ function RichTag.CreateEditor(self)
     }
 end
 
+function RichTag.GetColorFromToken(token)
+    if token.stylingInfo ~= nil and token.stylingInfo.colorStack ~= nil and #token.stylingInfo.colorStack > 0 then
+        return token.stylingInfo.colorStack[#token.stylingInfo.colorStack]
+    end
+
+    return nil
+end
+
 --- @type table<string, RichTag>
 MarkdownDocument.RichTagRegistry = {}
 

@@ -1794,7 +1794,8 @@ function RollPropertiesPowerTable:ModifyDamage(damage)
     end
 
     for i,tier in ipairs(self.tiers) do
-        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+([a-zA-Z]+\\s+)?damage", {indexes = true})
+        --account for damage dice possibility as well as damage type.
+        local match = regex.MatchGroups(tier, "(?<damage>\\d+)\\s+(\\+\\s*\\d+d\\d+\\s+)?([a-zA-Z]+\\s+)?damage", {indexes = true})
         if match ~= nil then
             local index = match.damage.index
             local length = match.damage.length
@@ -1805,6 +1806,7 @@ function RollPropertiesPowerTable:ModifyDamage(damage)
             local damageValue = round(tonumber(match.damage.value))
             damageValue = max(0, round(damageValue + damage))
 
+            local valueBefore = self.tiers[i]
             self.tiers[i] = string.format("%s%d%s", before, damageValue, after)
         end
     end

@@ -65,13 +65,7 @@ local function InvokeAbility(ability, abilityClone, targetToken, casterToken, op
     local casting = false
 
     local symbols = { invoker = GenerateSymbols(casterToken.properties), upcast = options.symbols.upcast, charges = options.symbols.charges, cast = options.symbols.cast, spellname = options.symbols.spellname, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
-    if casterToken.properties._tmp_aicontrol > 0 then
-        casterToken.properties.ai:InvokeAbility(casterToken, targetToken, abilityClone, symbols)
-        return
-    else
-        ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, targetToken, "prompt", symbols, options)
-	    --gamehud.actionBarPanel:FireEventTree("invokeAbility", targetToken, abilityClone, symbols)
-    end
+    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, targetToken, "prompt", symbols, options)
 end
 
 local function ExecuteDamage(behavior, ability, casterToken, targetToken, options, match)

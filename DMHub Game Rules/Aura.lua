@@ -416,6 +416,16 @@ function Aura:GenerateEditor(options)
 
             gui.Check {
                 halign = "left",
+                text = "Offers Concealment",
+                value = self:try_get("concealment", false),
+                change = function(element)
+                    self.concealment = element.value
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+            },
+
+            gui.Check {
+                halign = "left",
                 text = "Makes Terrain Difficult",
                 value = self:try_get("difficult_terrain", false),
                 change = function(element)
@@ -776,6 +786,10 @@ function AuraInstance:GetDifficultTerrain()
     return self.aura:try_get("difficult_terrain", false)
 end
 
+function AuraInstance:GetConcealment()
+    return self.aura:try_get("concealment", false)
+end
+
 function AuraInstance:GetCover()
     if self.aura:try_get("blocks_line_of_effect", false) then
         return 1
@@ -902,22 +916,22 @@ function AuraComponent.CreatePropertiesEditor(component)
                 characterLimit = 4,
                 halign = "right",
                 valign = "center",
-                text = tostring(self.aura.area.radius),
+                text = tostring(component.properties.aura.area.radius),
                 thinkTime = 0.2,
                 think = function(element)
                     if element.hasInputFocus then
                         return
                     end
 
-                    local text = tostring(self.aura.area.radius)
+                    local text = tostring(component.properties.aura.area.radius)
                     if text ~= element.text then
                         element.text = text
                     end
                 end,
                 change = function(element)
                     component:BeginChanges()
-                    self.aura.area.radius = tonumber(element.text)
-                    element.text = tostring(self.aura.area.radius)
+                    component.properties.aura.area.radius = tonumber(element.text)
+                    element.text = tostring(component.properties.aura.area.radius)
                     component:CompleteChanges("Change radius")
                 end,
             },
@@ -929,8 +943,9 @@ function AuraComponent.CreatePropertiesEditor(component)
             fontSize = 16,
             text = "Edit Aura",
             click = function(element)
-                element.root:AddChild(self.aura.aura:ShowEditDialog {
+                element.root:AddChild(component.properties.aura.aura:ShowEditDialog {
                     close = function()
+                        print("COMPONENT:: UPLOAD")
                         component:Upload()
                     end,
                 })

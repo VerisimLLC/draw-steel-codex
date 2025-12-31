@@ -233,6 +233,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
+    options = options or {}
 
     print("INVOKE:: STARTING:", abilityClone.name)
     --wait until we aren't casting on the action bar to invoke this. Also resolve
@@ -302,13 +303,19 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
             end,
         }
 
+        print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", invokerToken.properties._tmp_aicontrol, "promptCallback =", invokerToken.properties._tmp_aipromptCallback, "for", abilityClone.name, coroutine.running())
+        if targeting == "prompt" and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
+            print("PUSH:: INVOKING!!!!!")
+            targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
+        end
+
         if targeting == "prompt" then
             print("INVOKE:: PROMPT CAST FOR", abilityClone.name, coroutine.running())
             abilityClone.countsAsCast = true
             abilityClone.skippable = true
             gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback)
         else
-            abilityClone.countsAsCast = false
+            abilityClone.countsAsCast = options.countsAsCast or false
             local targets
             if targeting == "self" then
                 targets = { { token = casterToken } }

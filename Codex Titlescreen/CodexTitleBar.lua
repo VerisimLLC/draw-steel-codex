@@ -216,7 +216,7 @@ local function CreateStatusBar()
         gui.Label{
             fontSize = 14,
             minFontSize = 10,
-            width = 360,
+            width = 420,
             height = "100%",
             color = "#aaaaaa",
             text = "",

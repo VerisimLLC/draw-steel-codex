@@ -72,22 +72,14 @@ function RichEncounter.CreateDisplay(self)
         width = "100%",
         height = 18,
 
+        flow = "horizontal",
 
         thinkTime = 1,
         think = function(element)
             element:FireEvent("refreshTag")
         end,
         refreshTag = function(element)
-            local children = element.children
 
-            for _,spawn in ipairs(self:try_get("spawns", {})) do
-                local token = dmhub.GetTokenById(spawn)
-                if token ~= nil then
-                    children[1]:SetClass("collapsed", true)
-                    children[2]:SetClass("collapsed", false)
-                    return
-                end
-            end
 
             --check we have spawn locations for all monsters.
             local canspawn = true
@@ -104,15 +96,31 @@ function RichEncounter.CreateDisplay(self)
                 end
             end
 
+
+            local children = element.children
+
+            for _,spawn in ipairs(self:try_get("spawns", {})) do
+                local token = dmhub.GetTokenById(spawn)
+                if token ~= nil then
+                    --we have some spawns on the map, so offer to despawn.
+                    children[1]:SetClass("collapsed", true)
+                    children[2]:SetClass("collapsed", false)
+                    children[3]:SetClass("collapsed", not canspawn)
+                    return
+                end
+            end
+
             if canspawn then
                 children[1]:SetClass("collapsed", false)
                 children[2]:SetClass("collapsed", true)
+                children[3]:SetClass("collapsed", true)
                 return
             end
 
 
             children[1]:SetClass("collapsed", true)
             children[2]:SetClass("collapsed", true)
+            children[3]:SetClass("collapsed", true)
         end,
 
 
@@ -129,17 +137,36 @@ function RichEncounter.CreateDisplay(self)
             end,
         },
         gui.Button{
-            width = 180,
+            width = 110,
             height = 18,
             fontSize = 12,
-            text = "Remove from Map",
+            text = "Save and Remove",
             halign = "center",
             swallowPress = true,
 
             press = function(element)
                 resultPanel:FireEventTree("despawn")
             end,
-        }
+            hover = function(element)
+                gui.Tooltip("Saves the current positions of the monsters in the encounter, then removes them from the map.")(element)
+            end,
+        },
+        gui.Button{
+            width = 110,
+            height = 18,
+            fontSize = 12,
+            text = "Reset",
+            halign = "center",
+            swallowPress = true,
+
+            press = function(element)
+                resultPanel:FireEventTree("reset")
+            end,
+            hover = function(element)
+                gui.Tooltip("Resets the monsters to their original positions and status.")(element)
+            end,
+        },
+
     }
 
     resultPanel = gui.Panel{
@@ -297,6 +324,12 @@ function RichEncounter.CreateDisplay(self)
                 print("SPAWN:: DOCUMENT UPLOAD")
                 self._tmp_document:Upload()
             end
+        end,
+
+        reset = function(element)
+            local charids = self:try_get("spawns", {})
+            game.DeleteCharacters(charids)
+            element:FireEvent("spawn")
         end,
 
         create = function(element)

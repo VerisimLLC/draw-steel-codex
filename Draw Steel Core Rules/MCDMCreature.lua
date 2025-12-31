@@ -2298,6 +2298,23 @@ function creature:RollConditionSave(condid, abilityOptions)
     ability:Cast(token, { { token = token } }, abilityOptions)
 end
 
+function creature:IsConcealed()
+    local token = dmhub.LookupToken(self)
+    return token ~= nil and token.hasConcealment
+end
+
+creature.RegisterSymbol{
+    symbol = "concealed",
+    lookup = function(c)
+        return c:try_get("_tmp_concealed")
+    end,
+    help = {
+        name = "Concealed",
+        type = "boolean",
+        desc = "True if the creature is in an area that is concealed.",
+    }
+}
+
 creature.RegisterSymbol {
     symbol = "temporarystamina",
     --- @param c creature

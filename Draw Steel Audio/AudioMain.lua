@@ -1043,3 +1043,7 @@ dmhub.TokenMovingOnPath = function(args)
     end
 end
 
+
+Commands.downloadaudio = function()
+    audio.DevDownloadAudio()
+end

@@ -135,9 +135,12 @@ CharacterModifier.RegisterAbilityModifier
 				val = tonumber(value)
 			elseif operation == "Multiply" then
 				val = tonum(ability.range) * tonum(value)
-				printf("VAL:: (%s -> %s) * (%s -> %s) = %s", json(ability.range), json(tonum(ability.range)), json(value), json(tonum(value)), json(val))
 			else
-				val = tonum(ability.range) + tonum(value)
+                if type(ability.range) == "string" and tonumber(ability.range) == nil then
+                    val = string.format("(%s) + (%s)", ability.range, value)
+                else
+				    val = tonum(ability.range) + tonum(value)
+                end
 			end
 
 			if val ~= nil then

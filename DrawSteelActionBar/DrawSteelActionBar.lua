@@ -911,6 +911,88 @@ local function ActionBarDrawer(args)
     return resultPanel
 end
 
+local g_triggerReactionPanel
+
+function UpdateTriggerReactionPanel(options)
+    if g_triggerReactionPanel == nil or not g_triggerReactionPanel.valid then
+        return
+    end
+
+    g_triggerReactionPanel:FireEventTree("refreshTriggerReactions", options)
+end
+
+local function CreateTriggerReactionPanel()
+    local m_stateBaseline = nil
+    local m_state = nil
+    return gui.Panel{
+        classes = {"collapsed"},
+        halign = "center",
+        valign = "bottom",
+        flow = "vertical",
+        height = 96,
+        width = 400,
+        y = -16,
+        refreshTriggerReactions = function(element, options)
+            m_state = options
+            if options == nil then
+                element:SetClass("collapsed", true)
+                element.thinkTime = nil
+                return
+            end
+
+            m_stateBaseline = dmhub.Time()
+            element:SetClass("collapsed", false)
+            element.thinkTime = 0.01
+            element:FireEvent("think")
+        end,
+        think = function(element)
+            local time = dmhub.Time()
+            local elapsed = time - m_stateBaseline
+            local r = ((m_state.current + elapsed) - m_state.start)/(m_state.expire - m_state.start)
+            if m_state.paused then
+                r = 0
+            end
+
+            if r >= 1 then
+                m_state = nil
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:FireEventTree("progress", 1 - r)
+        end,
+        gui.ProgressDice{
+            width = 92,
+            height = 92,
+            halign = "center",
+            thinkTime = 0.01,
+            press = function(element)
+                if m_state ~= nil then
+                    m_state.callback()
+                end
+            end,
+        },
+        gui.Label{
+            tmargin = 4,
+            fontSize = 16,
+            width = "100%",
+            height = 18,
+            textAlignment = "center",
+            bgimage = true,
+            bgcolor = "black",
+            opacity = 0.7,
+            refreshTriggerReactions = function(element, options)
+                if options == nil then
+                    element.text = ""
+                    return
+                end
+
+                element.text = options.text
+            end,
+        }
+    }
+end
+
+
 local function CreateActionBar()
     local resultPanel
 
@@ -1040,7 +1122,18 @@ local function CreateActionBar()
 
     resultPanel:FireEventTree("refresh")
 
-    return resultPanel
+    g_triggerReactionPanel = CreateTriggerReactionPanel()
+
+    local m_containerPanel = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        valign = "bottom",
+        g_triggerReactionPanel,
+        resultPanel,
+    }
+
+    return m_containerPanel
 end
 
 local function AbilityHeading(args)
@@ -1092,6 +1185,10 @@ local function AbilityHeading(args)
         end,
 
         hover = function(element)
+            if dmhub.modKeys['ctrl'] then
+                --do not show ability if ctrl is held.
+                return
+            end
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 menu:FireEvent("showability", m_ability)
@@ -1981,7 +2078,6 @@ local function RemoveTokenTargeting()
 end
 
 
-
 local g_castingEmoteSet = nil
 
 local g_castButton
@@ -2841,6 +2937,8 @@ CreateAbilityController = function()
         halign = "center",
         flow = "vertical",
         y = -70,
+
+        g_triggerReactionPanel,
 
         g_castMessageContainer,
 
@@ -4140,6 +4238,10 @@ local function CalculateSpellTargetFocusing(range)
                     if failReason ~= nil then
                         canTarget = true
                     end
+                end
+
+                if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
+                    failReason = "Cannot target a hidden creature with a strike"
                 end
 
                 local casterLocOverride = g_currentAbility:try_get("casterLocOverride")

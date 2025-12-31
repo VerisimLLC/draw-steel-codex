@@ -1148,6 +1148,11 @@ GameSystem.RegisterCreatureSizes{
 		tiles = 5,
 		radius = 2.5,
 	},
+    {
+		name = "6",
+		tiles = 6,
+		radius = 3,
+	},
 }
 
 Race.size = "1M"
@@ -2560,6 +2565,12 @@ GameSystem.RegisterCreatureSizes{
 		tiles = 5,
 		radius = 2.5,
 	},
+    {
+		name = "6",
+		tiles = 6,
+		radius = 3,
+	},
+
 }
 
 Race.size = "1M"

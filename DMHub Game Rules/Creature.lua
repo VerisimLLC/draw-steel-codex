@@ -175,6 +175,7 @@ monster = RegisterGameType("monster", "creature")
 --- @alias Monster monster
 
 creature._tmp_aicontrol = 0
+creature._tmp_aipromptCallback = false
 creature._tmp_debug = false
 creature._tmp_concealed = false
 
@@ -4330,7 +4331,7 @@ function creature:RefreshToken(token)
 	local modifiers = self:GetActiveModifiers()
     self._tmp_down = self:IsDown()
 
-    self._tmp_concealed = self:CalculateNamedCustomAttribute("Concealed") > 0
+    self._tmp_concealed = self:IsConcealed()
 
     for _,modifier in ipairs(modifiers) do
         modifier.mod:OnTokenRefresh(modifier, self, token)

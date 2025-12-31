@@ -1185,6 +1185,10 @@ local function AbilityHeading(args)
         end,
 
         hover = function(element)
+            if dmhub.modKeys['ctrl'] then
+                --do not show ability if ctrl is held.
+                return
+            end
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 menu:FireEvent("showability", m_ability)

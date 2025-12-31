@@ -215,6 +215,18 @@ function CharacterPanel.DisplayAbility(token, ability, symbols)
 end
 
 function CharacterPanel.HideAbility(ability)
+    local ctrl = dmhub.modKeys['ctrl'] or false
+    if ctrl then
+        dmhub.Coroutine(function()
+            while dmhub.modKeys['ctrl'] do
+                coroutine.yield(0.1)
+            end
+            if g_characterDetailsPanel ~= nil and g_characterDetailsPanel.valid and ability == g_displayedAbility then
+                g_characterDetailsPanel:FireEvent("hideAbility")
+            end
+        end)
+        return true
+    end
     if g_characterDetailsPanel ~= nil and g_characterDetailsPanel.valid and ability == g_displayedAbility then
         g_characterDetailsPanel:FireEvent("hideAbility")
         return true

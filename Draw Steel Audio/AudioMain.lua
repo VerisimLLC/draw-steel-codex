@@ -75,6 +75,40 @@ audio.SoundEvent{
     volume = 0.5,
 }
 
+--Director Pasume/Resume Game
+
+
+audio.SoundEvent{
+    name = "Notify.TimeFreeze_Start",
+    mixgroup = "ui",
+    sounds = {"Notify_TimeFreeze_Start_v1_01.wav"},
+    volume = 0.5,
+    ignoreDuplicates = 1,
+}
+
+audio.SoundEvent{
+    name = "Notify.TimeFreeze_End",
+    mixgroup = "ui",
+    sounds = {"Notify_TimeFreeze_End_v1_01.wav"},
+    volume = 0.5,
+    ignoreDuplicates = 1,
+}
+
+--Rewind/Undo actions
+
+audio.SoundEvent{
+    name = "Notify.Director_Undo",
+    mixgroup = "ui",
+    sounds = {"Notify_Director_Undo_v1_01.wav"},
+    volume = 0.5,
+    ignoreDuplicates = 1,
+}
+
+
+
+
+
+
 --Implemented: plays when a player is prompted to do a dice roll.
 audio.SoundEvent{
     name = "Notify.Diceroll",
@@ -397,6 +431,24 @@ audio.SoundEvent{
 
 
 --Gameplay Sounds
+
+
+--Torch On/Off
+audio.SoundEvent{
+    name = "Ability.Torch_On",
+    mixgroup = "gameplay",
+    sounds = {"abl/Abl_Torch_On_v1_01.wav","abl/Abl_Torch_On_v1_02.wav","abl/Abl_Torch_On_v1_03.wav","abl/Abl_Torch_On_v1_04.wav","abl/Abl_Torch_On_v1_05.wav","abl/Abl_Torch_On_v1_06.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
+
+audio.SoundEvent{
+    name = "Ability.Torch_Off",
+    mixgroup = "gameplay",
+    sounds = {"abl/Abl_Torch_Off_v1_01.wav","abl/Abl_Torch_Off_v1_02.wav","abl/Abl_Torch_Off_v1_03.wav","abl/Abl_Torch_Off_v1_04.wav"},
+    volume = 0.1,
+    pitchRand = 0.1,
+}
 
 
 --Reanimate Dead

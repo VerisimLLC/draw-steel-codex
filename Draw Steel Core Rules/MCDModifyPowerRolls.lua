@@ -1699,6 +1699,21 @@ CharacterModifier.TypeInfo.power = {
                 }
             end
 
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(modifier:try_get("rollRequirement") ~= "surges", "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Change Surge Damage to:",
+                },
+                gui.Dropdown{
+                    idChosen = modifier:try_get("surgeDamageType", "none"),
+                    options = rules.damageTypesAvailable,
+                    change = function(element)
+                        modifier.surgeDamageType = element.idChosen
+                        Refresh()
+                    end,
+                },
+            }
 
             local adjustmentsSymbols = modifier:HelpAdditionalSymbols(helpSymbols)
             adjustmentsSymbols.charges = {

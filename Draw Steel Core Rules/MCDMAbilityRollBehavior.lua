@@ -1812,6 +1812,50 @@ function RollPropertiesPowerTable:ModifyDamage(damage)
     end
 end
 
+--Add damage of a specific type to all tiers
+--@param damage number The amount of damage to add
+--@param damageType string The type of damage (e.g., "fire", "cold", "untyped")
+function RollPropertiesPowerTable:ModifyDamageWithType(damage, damageType)
+    if damage == 0 then
+        return
+    end
+    
+    damageType = damageType or "untyped"
+    
+    for i, tier in ipairs(self.tiers) do
+        -- First, try to find existing damage of the same type and add to it
+        local pattern = "(?<damage>\\d+)\\s+" .. damageType .. "\\s+damage"
+        local match = regex.MatchGroups(tier, pattern, {indexes = true})
+        
+        if match ~= nil then
+            -- Found existing damage of this type, add to it
+            local index = match.damage.index
+            local length = match.damage.length
+            
+            local before = string.sub(tier, 1, index-1)
+            local after = string.sub(tier, index+length)
+            
+            local damageValue = round(tonumber(match.damage.value))
+            damageValue = max(0, round(damageValue + damage))
+            
+            self.tiers[i] = string.format("%s%d%s", before, damageValue, after)
+        else
+            -- No existing damage of this type found, append new damage
+            local extraDamage = string.format("%d %s damage", damage, damageType)
+            extraDamage = trim(extraDamage)
+            
+            -- Try to find any existing damage and place after it
+            local anyDamageMatch = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+([a-zA-Z]+\\s+)?damage)(?<suffix>.*)$")
+            if anyDamageMatch ~= nil then
+                self.tiers[i] = string.format("%s%s; %s%s", anyDamageMatch.prefix, anyDamageMatch.damage, extraDamage, anyDamageMatch.suffix)
+            else
+                -- Just put damage at the front
+                self.tiers[i] = string.format("%s; %s", extraDamage, tier)
+            end
+        end
+    end
+end
+
 local g_tableStyles = {
     gui.Style{
         selectors = {"label"},

@@ -1711,7 +1711,18 @@ function GameHud.CreateRollDialog(self)
                     element:SetClass("inactive",
                         (calculationOptions.surges or rollProperties:try_get("surges", 0)) < index)
                     if (not element:HasClass("inactive")) then
-                        rollProperties:ModifyDamage(creature:HighestCharacteristic())
+                        local mods = GetEnabledModifiers()
+                        local newSurgeDamage
+                        for _, mod in ipairs(mods) do
+                            if mod.modifier ~= nil and mod.modifier:try_get("rollRequirement") == "surges" and mod.modifier:try_get("surgeDamageType") ~= "untyped" then
+                                newSurgeDamage = mod.modifier.surgeDamageType
+                            end
+                        end
+                        if newSurgeDamage ~= nil then
+                            rollProperties:ModifyDamageWithType(creature:HighestCharacteristic(), newSurgeDamage)
+                        else
+                            rollProperties:ModifyDamage(creature:HighestCharacteristic())
+                        end
                     end
                 end
             end,

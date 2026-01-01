@@ -1282,13 +1282,31 @@ function GameHud:CreateFrozenLabel()
 			},
 		},
 
+		data = {
+
+			frozen = nil
+
+		},
+
 		monitorGame = "/frozen",
 		refreshGame = function(element)
 			element:SetClassTree("frozen", dmhub.frozen)
+			if element.data.frozen ~= nil and element.data.frozen ~= dmhub.frozen then
+				if dmhub.frozen then
+					audio.FireSoundEvent("Notify.TimeFreeze_Start")
+				else
+					audio.FireSoundEvent("Notify.TimeFreeze_End")
+				end
+			end
+
+
+			element.data.frozen = dmhub.frozen
+
 		end,
 
 		press = function(element)
 			dmhub.frozen = not dmhub.frozen
+
 		end,
 		gui.Label{
 			text = "FROZEN",

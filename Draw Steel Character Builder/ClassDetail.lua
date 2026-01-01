@@ -286,14 +286,6 @@ function CBClassDetail.CreatePanel()
                         element.data.features[id] = false
                     end
 
-                    if devmode() then
-                        if element.data.features[CHARACTERISTIC_GUID] == nil then
-                            navPanel:FireEvent("registerFeatureButton", CBClassDetail._characteristicButton(heroClass.id))
-                            detailPanel:FireEvent("registerFeaturePanel", CBClassDetail._characteristicPanel(hero, heroClass))
-                        end
-                        element.data.features[CHARACTERISTIC_GUID] = true
-                    end
-
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local features = featureCache:GetSortedFeatures()
                     for _,f in ipairs(features) do
@@ -346,483 +338,578 @@ function CBClassDetail.CreatePanel()
     }
 end
 
-function CBClassDetail._characteristicButton(classId)
-    local key = SELECTOR .. ".category.selectedId"
-    return CharacterBuilder._makeCategoryButton{
-        text = "Characteristics",
-        data = {
-            featureId = CHARACTERISTIC_GUID,
-            selectedId = classId,
-            order = _formatOrder(0, "Characteristics"),
-        },
-        click = function(element)
-            CharacterBuilder._fireControllerEvent(element, "updateState", {
-                key = key,
-                value = element.data.featureId,
-            })
-        end,
-        refreshBuilderState = function(element, state)
-            local tokenSelected = CBClassDetail._getSelectedClass(_getHero(state))
-            local visible = tokenSelected ~= nil
-            element:FireEvent("setAvailable", visible)
-            element:FireEvent("setSelected", element.data.featureId == state:Get(key))
-            element:SetClass("collapsed", not visible)
-        end
-    }
-end
+--- Build the characteristic editor panel, leveraged by injection
+--- through CharacterCharacteristicChoice into the feature editor.
+--- @return Panel
+function CBClassDetail._characteristicPanel()
 
-function CBClassDetail._characteristicPanel(hero, classItem)
-
-    local controllerClass = "characteristicsController"
-    local key = SELECTOR .. ".category.selectedId"
-    local attrInfo = creature.attributesInfo
-
-    local function fireFeatureControllerEventTree(element, eventName, ...)
-        local featureController = element:FindParentWithClass(controllerClass)
-        if featureController then
-            featureController:FireEventTree(eventName, ...)
-        end
-    end
-
-    local header = {
-        name = "Characteristics",
-        description = CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics),
-    }
-
-    local targetPanel = gui.Panel{
-        classes = {"builder-base", "panel-base", "feature-target", "empty"},
-        data = {
-            option = nil,
-        },
-        click = function(element)
-            -- TODO: Remove the selection
-        end,
-        linger = function(element)
-            if element.data.option then
-                gui.Tooltip("Press to delete")(element)
-            end
-        end,
-        refreshBuilderState = function(element, state)
-            -- TODO: Determine if the selected array changed
-        end,
-        gui.Label{
-            classes = {"builder-base", "label", "feature-target"},
-            text = "Empty Slot",
-            updateName = function(element, text)
-                if element.text ~= text then element.text = text end
-            end,
-        },
-    }
-
-    local targetsContainer = {
-        data = {},
-        refreshBuilderState = function(element, state)
-        end,
-        targetPanel,
-    }
-
-    local function arrayPanel(index)
+    local function attrPanel(attr)
         return gui.Panel{
-            classes = {"builder-base", "panel-base", "feature-choice"},
-            valign = "top",
-            data = {
-                index = index,
-                item = nil,
-            },
-            assignItem = function(element, item)
-                element.data.item = item
-            end,
-            click = function(element)
-                fireFeatureControllerEventTree(element, "selectItem", element.data.index)
-            end,
-            refreshBuilderState = function(element, state)
-                local visible = element.data.item ~= nil
-                element:SetClass("collapsed", not visible)
-                if not visible then
-                    element:HaltEventPropagation()
-                    return
-                end
-
-                local array = element.data.item.arrays[element.data.index]
-                table.sort(array, function(a,b) return b < a end)
-                element:FireEventTree("setArrayText", table.concat(array, ", "))
-            end,
-            selectItem = function(element, index)
-                element:SetClass("selected", index == element.data.index)
-            end,
-            gui.Label {
-                classes = {"builder-base", "label", "feature-choice"},
-                textAlignment = "center",
-                setArrayText = function(element, text)
-                    element.text = text
-                end,
-            },
-        }
-    end
-
-    local optionsContainer = {
-        data = {
-            classId = nil,
-        },
-        refreshBuilderState = function(element, state)
-            local classItem = state:Get(SELECTOR .. ".selectedItem")
-            if classItem == nil or classItem.id == element.data.classId then return end
-            element.data.classId = classItem.id
-            local baseChars = classItem.baseCharacteristics
-            if baseChars == nil then return end
-            local numArrays = baseChars.arrays and #baseChars.arrays or 0
-            if numArrays == 0 then return end
-            for i = #element.children + 1, numArrays do
-                element:AddChild(arrayPanel(i))
-            end
-            for i, child in ipairs(element.children) do
-                child:FireEventTree("assignItem", i <= numArrays and baseChars or nil)
-            end
-        end,
-    }
-
-    local selectButton = {
-        data = {
-            selectedIndex = nil,
-        },
-        click = function(element)
-            fireFeatureControllerEventTree(element, "applyCurrentItem")
-        end,
-        create = function(element)
-            element:FireEvent("selectCharacteristics", nil, nil)
-        end,
-        refreshBuilderState = function(element, state)
-            local enabled = element.data.selectedIndex ~= nil
-            element:SetClass("disabled", not enabled)
-            element.interactable = enabled
-        end,
-        selectItem = function(element, index)
-            element.data.selectedIndex = index
-            local enabled = element.data.selectedIndex ~= nil
-            element:SetClass("disabled", not enabled)
-            element.interactable = enabled
-        end,
-    }
-
-    local mainPanel = {
-        data = {
-            selectedIndex = nil,
-        },
-        applyCurrentItem = function(element)
-            if element.data.selectedIndex == nil then return end
-            local hero = _getHero(element)
-            if hero == nil then return end
-            local classItem = hero:GetClass()
-            if classItem == nil then return end
-            local heroAttrs = hero:try_get("attributes")
-            if heroAttrs == nil then return end
-            local attrs = {}
-            local attributeBuild = { array = element.data.selectedIndex }
-            local baseChars = classItem.baseCharacteristics
-            local scoreArray = baseChars.arrays[element.data.selectedIndex]
-            local nextIndex = 1
-            for _,attr in pairs(attrInfo) do
-                if baseChars[attr.id] ~= nil then
-                    attrs[attr.id] = baseChars[attr.id]
-                else
-                    attrs[attr.id] = scoreArray[nextIndex]
-                    attributeBuild[attr.id] = nextIndex
-                    nextIndex = nextIndex + 1
-                end
-            end
-            hero.attributeBuild = attributeBuild
-            for k,v in pairs(attrs) do
-                heroAttrs[k].baseValue = v
-            end
-            _fireControllerEvent(element, "tokenDataChanged")
-            element:FireEventTree("selectItem", nil)
-        end,
-        selectItem = function(element, index)
-            element.data.selectedIndex = index
-        end,
-    }
-
-    local featurePanel = CBFeatureSelector.BuildSelectorPanel{
-        controllerClass = controllerClass,
-        header = header,
-        targetsContainer = targetsContainer,
-        optionsContainer = optionsContainer,
-        selectButton = selectButton,
-        mainPanel = mainPanel,
-    }
-
-    return CharacterBuilder._makeFeaturePanelContainer{
-        data = {
-            featureId = CHARACTERISTIC_GUID,
-            classId = classItem.id,
-        },
-        refreshBuilderState = function(element, state)
-            local classId = CBClassDetail._getSelectedClass(_getHero(state))
-            local visible = element.data.featureId == state:Get(key) and classId ~= nil
-            element:SetClass("collapsed", not visible)
-            if not visible then
-                element:HaltEventPropagation()
-                return
-            end
-
-            if classId ~= element.data.classId then
-                local classItem = state:Get(SELECTOR .. ".selectedItem")
-                if classItem then
-                    element:FireEventTree("updateHeaderDesc", CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics))
-                end
-                element.data.classId = classId
-            end
-        end,
-        featurePanel,
-    }
-end
-
-function CBClassDetail._characteristicPanelFSStyle(hero, classItem)
-
-    local controllerClass = "characteristicsController"
-    local key = SELECTOR .. ".category.selectedId"
-
-    local function fireFeatureControllerEventTree(element, eventName, ...)
-        local featureController = element:FindParentWithClass(controllerClass)
-        if featureController then
-            featureController:FireEventTree(eventName, ...)
-        end
-    end
-
-    local header = {
-        name = "Characteristics",
-        description = CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics),
-    }
-
-    local targetsContainer = {
-        data = {},
-        refreshBuilderState = function(element, state)
-        end,
-        gui.Label{
-            width = "auto",
-            height= "auto",
-            fontSize = 32,
-            floating = true,
-            valign = "center",
-            halign = "center",
-            rotate = 35,
-            color = "red",
-            textAlignment = "center",
-            text = "TARGETS",
-        }
-    }
-
-    local function assignmentPanel(arrayIndex, index)
-        local children = {}
-        for _,item in pairs(character.attributesInfo) do
-            children[#children+1] = gui.Panel{
-                classes = {"builder-base", "panel-base", "chararray", "item"},
-                data = {
-                    order = item.order,
-                },
-                gui.Label{
-                    classes = {"builder-base", "label", "chararray", "item-name"},
-                    text = item.description,
-                },
-                gui.Label{
-                    classes = {"builder-base", "label", "chararray", "item-value"},
-                    text = "",
-                    data = {
-                        arrayIndex = arrayIndex,
-                        index = index,
-                        attrId = item.id,
-                    },
-                    assignArray = function(element, array)
-                        element.text = array and string.format("%+d", array[element.data.attrId]) or ""
-                    end,
-                }
-            }
-        end
-        table.sort(children, function(a,b) return a.data.order < b.data.order end)
-        return gui.Panel{
-            classes = {"builder-base", "panel-base", "chararray", "detail"},
-            valign = "top",
-            data = {
-                arrayIndex = arrayIndex,
-                index = index,
-                array = nil,
-            },
-            assignArray = function(element, array)
-                element.data.array = array
-            end,
-            click = function(element)
-                fireFeatureControllerEventTree(element, "selectCharacteristics", element.data.arrayIndex, element.data.index)
-            end,
-            refreshBuilderState = function(element, state)
-                local visible = element.data.array ~= nil
-                element:SetClass("collapsed", not visible)
-                if not visible then
-                    element:HaltEventPropagation()
-                    return
-                end
-                element:FireEventTree("setArrayLabelText", json(element.data.array))
-            end,
-            selectCharacteristics = function(element, arrayIndex, index)
-                element:SetClass("selected", arrayIndex == element.data.arrayIndex and index == element.data.index)
-            end,
-            children = children,
-        }
-    end
-
-    local function arrayPanel(index)
-        local detailContainer = gui.Panel{
-            classes = {"builder-base", "panel-base", "chararray", "container", "collapsed-anim"},
-            valign = "top",
+            classes = {"builder-base", "panel-base", "attr-item"},
             flow = "vertical",
-            vscroll = true,
             data = {
-                index = index,
-                item = nil,
+                attr = attr,
             },
-            selectArray = function(element, index)
-                element:SetClass("collapsed-anim", index ~= element.data.index)
-            end,
-            assignItem = function(element, item)
-                element.data.item = item
-            end,
             refreshBuilderState = function(element, state)
-                local visible = element.data.item ~= nil
-                element:SetClass("collapsed", not visible)
-                if not visible then
-                    element:HaltEventPropagation()
-                    return
+                local isLocked = true
+                local classItem = state:Get(SELECTOR .. ".selectedItem")
+                if classItem then
+                    local baseChars = classItem:try_get("baseCharacteristics", {})
+                    isLocked = baseChars[element.data.attr.id] ~= nil
                 end
-
-                local potentialArrays = CharacterBuilder._generateAttributeCombinations(element.data.item, element.data.index)
-                for i = #element.children + 1, #potentialArrays do
-                    element:AddChild(assignmentPanel(element.data.index, i))
-                end
-                for i,child in ipairs(element.children) do
-                    child:FireEventTree("assignArray", potentialArrays[i])
-                end
+                element:SetClass("locked", isLocked)
             end,
-        }
-        local headerPanel = gui.Panel{
-            classes = {"builder-base", "panel-base", "chararray", "header"},
-            valign = "top",
-            data = {
-                index = index,
-                item = nil,
+            gui.Label{
+                classes = {"builder-base", "label", "attr-name"},
+                text = attr.description:upper()
             },
-            selectArray = function(element, index)
-                element:SetClass("selected", index == element.data.index)
-            end,
-            assignItem = function(element, item)
-                element.data.item = item
-            end,
-            click = function(element)
-                fireFeatureControllerEventTree(element, "selectArray", element.data.index)
-            end,
-            refreshBuilderState = function(element, state)
-                local visible = element.data.item ~= nil
-                element:SetClass("collapsed", not visible)
-                if not visible then
-                    element:HaltEventPropagation()
-                    return
-                end
-
-                local array = element.data.item.arrays[element.data.index]
-                table.sort(array, function(a,b) return b < a end)
-                element:FireEventTree("setArrayText", table.concat(array, ", "))
-            end,
-            gui.Label {
-                classes = {"builder-base", "label", "chararray", "header"},
-                setArrayText = function(element, text)
-                    element.text = text
+            gui.Label{
+                classes = {"builder-base", "label", "attr-value"},
+                refreshBuilderState = function(element, state)
+                    local hero = _getHero(state)
+                    local attributes = hero:try_get("attributes")
+                    local baseValue = attributes and attributes[attr.id] and attributes[attr.id].baseValue or 0
+                    element.text = string.format("%+d", baseValue)
                 end,
             },
-        }
-        return gui.Panel{
-            classes = {"builder-base", "panel-base", "chararray"},
-            detailContainer,
-            headerPanel,
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "attr-lock"},
+                floating = true,
+            }
         }
     end
 
-    local optionsContainer = {
-        data = {
-            classId = nil,
+    return gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        flow = "vertical",
+        gui.MCDMDivider{
+            classes = {"builder-divider"},
+            layout = "line",
+            width = "96%",
+            vpad = 4,
+            bgcolor = CBStyles.COLORS.GOLD
         },
-        refreshBuilderState = function(element, state)
-            local classItem = state:Get(SELECTOR .. ".selectedItem")
-            if classItem == nil or classItem.id == element.data.classId then return end
-            element.data.classId = classItem.id
-            local baseChars = classItem.baseCharacteristics
-            if baseChars == nil then return end
-            local numArrays = baseChars.arrays and #baseChars.arrays or 0
-            if numArrays == 0 then return end
-            for i = #element.children + 1, numArrays do
-                element:AddChild(arrayPanel(i))
-            end
-            for i, child in ipairs(element.children) do
-                child:FireEventTree("assignItem", i <= numArrays and baseChars or nil)
-            end
-        end,
-    }
+        gui.Panel{
+            classes = {"builder-base", "panel-base", "container", "attr-container"},
+            flow = "horizontal",
+            valign = "top",
 
-    local selectButton = {
-        data = {},
-        click = function(element)
-        end,
-        create = function(element)
-            element:FireEvent("selectCharacteristics", nil, nil)
-        end,
-        refreshBuilderState = function(element, state)
-        end,
-        selectCharacteristics = function(element, arrayIndex, itemIndex)
-            local enabled = arrayIndex ~= nil and itemIndex ~= nil
-            element:SetClass("diabled", not enabled)
-            element.interactable = enabled
-        end,
-    }
-
-    local mainPanel = {
-        data = {},
-        applyCurrentItem = function(element)
-        end,
-        selectArray = function(element, index)
-            element:FireEventTree("selectCharacteristics", nil, nil)
-        end,
-        selectItem = function(element, itemId)
-        end,
-    }
-
-    local featurePanel = CBFeatureSelector.BuildSelectorPanel{
-        controllerClass = controllerClass,
-        header = header,
-        targetsContainer = targetsContainer,
-        optionsContainer = optionsContainer,
-        selectButton = selectButton,
-        mainPanel = mainPanel,
-    }
-
-    return CharacterBuilder._makeFeaturePanelContainer{
-        data = {
-            featureId = CHARACTERISTIC_GUID,
-            classId = classItem.id,
-        },
-        refreshBuilderState = function(element, state)
-            local classId = CBClassDetail._getSelectedClass(_getHero(state))
-            local visible = element.data.featureId == state:Get(key) and classId ~= nil
-            element:SetClass("collapsed", not visible)
-            if not visible then
-                element:HaltEventPropagation()
-                return
-            end
-
-            if classId ~= element.data.classId then
-                local classItem = state:Get(SELECTOR .. ".selectedItem")
-                if classItem then
-                    element:FireEventTree("updateHeaderDesc", CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics))
+            refreshBuilderState = function(element, state)
+                if #element.children == 0 then
+                    local attrInfo = CharacterBuilder._toArray(creature.attributesInfo)
+                    CharacterBuilder._sortArrayByProperty(attrInfo, "order")
+                    for _,attr in ipairs(attrInfo) do
+                        element:AddChild(attrPanel(attr))
+                    end
                 end
-                element.data.classId = classId
-            end
-        end,
-        featurePanel,
+            end,
+        },
+        gui.MCDMDivider{
+            classes = {"builder-divider"},
+            layout = "line",
+            width = "96%",
+            vpad = 4,
+            bgcolor = CBStyles.COLORS.GOLD
+        },
     }
 end
+
+-- function CBClassDetail._characteristicButton(classId)
+--     local key = SELECTOR .. ".category.selectedId"
+--     return CharacterBuilder._makeCategoryButton{
+--         text = "Characteristics",
+--         data = {
+--             featureId = CHARACTERISTIC_GUID,
+--             selectedId = classId,
+--             order = _formatOrder(0, "Characteristics"),
+--         },
+--         click = function(element)
+--             CharacterBuilder._fireControllerEvent(element, "updateState", {
+--                 key = key,
+--                 value = element.data.featureId,
+--             })
+--         end,
+--         refreshBuilderState = function(element, state)
+--             local tokenSelected = CBClassDetail._getSelectedClass(_getHero(state))
+--             local visible = tokenSelected ~= nil
+--             element:FireEvent("setAvailable", visible)
+--             element:FireEvent("setSelected", element.data.featureId == state:Get(key))
+--             element:SetClass("collapsed", not visible)
+--         end
+--     }
+-- end
+
+-- function CBClassDetail._characteristicPanel(hero, classItem)
+
+--     local controllerClass = "characteristicsController"
+--     local key = SELECTOR .. ".category.selectedId"
+--     local attrInfo = creature.attributesInfo
+
+--     local function fireFeatureControllerEventTree(element, eventName, ...)
+--         local featureController = element:FindParentWithClass(controllerClass)
+--         if featureController then
+--             featureController:FireEventTree(eventName, ...)
+--         end
+--     end
+
+--     local function formatArrayLabel(array)
+--         table.sort(array, function(a,b) return b < a end)
+--         return table.concat(array, ", ")
+--     end
+
+--     local header = {
+--         name = "Characteristics",
+--         description = CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics),
+--     }
+
+--     local targetPanel = gui.Panel{
+--         classes = {"builder-base", "panel-base", "feature-target", "empty"},
+--         data = {
+--             selectedArray = nil,
+--         },
+--         click = function(element)
+--             -- TODO: Remove the selection
+--         end,
+--         linger = function(element)
+--             if element.data.selectedArray then
+--                 gui.Tooltip("Press to delete")(element)
+--             end
+--         end,
+--         refreshBuilderState = function(element, state)
+--             element.data.selectedArray = nil
+--             local arrayText = "Empty Slot"
+--             local classItem = state:Get(SELECTOR .. ".selectedItem")
+--             if classItem ~= nil then
+--                 local baseChars = classItem.baseCharacteristics
+--                 local hero = _getHero(state)
+--                 local attrBuild = hero.attributeBuild
+--                 if attrBuild == nil or attrBuild.array == nil then
+--                     attrBuild = CharacterBuilder._deriveAttributeBuild(hero, baseChars)
+--                 end
+--                 element.data.selectedArray = attrBuild and attrBuild.array
+--                 if attrBuild then arrayText = formatArrayLabel(baseChars.arrays[attrBuild.array]) end
+--             end
+
+--             element:FireEventTree("setArrayText", arrayText)
+--             element:SetClass("filled", element.data.selectedArray ~= nil)
+--         end,
+--         gui.Label{
+--             classes = {"builder-base", "label", "feature-target"},
+--             text = "Empty Slot",
+--             textAlignment = "center",
+--             setArrayText = function(element, text)
+--                 if element.text ~= text then element.text = text end
+--             end,
+--         },
+--     }
+
+--     local targetsContainer = {
+--         data = {},
+--         refreshBuilderState = function(element, state)
+--         end,
+--         targetPanel,
+--     }
+
+--     local function arrayPanel(index)
+--         return gui.Panel{
+--             classes = {"builder-base", "panel-base", "feature-choice"},
+--             valign = "top",
+--             data = {
+--                 index = index,
+--                 item = nil,
+--             },
+--             assignItem = function(element, item)
+--                 element.data.item = item
+--             end,
+--             click = function(element)
+--                 fireFeatureControllerEventTree(element, "selectItem", element.data.index)
+--             end,
+--             refreshBuilderState = function(element, state)
+--                 local visible = element.data.item ~= nil
+--                 element:SetClass("collapsed", not visible)
+--                 if not visible then
+--                     element:HaltEventPropagation()
+--                     return
+--                 end
+
+--                 element:FireEventTree("setArrayText", formatArrayLabel(element.data.item.arrays[element.data.index]))
+--             end,
+--             selectItem = function(element, index)
+--                 element:SetClass("selected", index == element.data.index)
+--             end,
+--             gui.Label {
+--                 classes = {"builder-base", "label", "feature-choice"},
+--                 textAlignment = "center",
+--                 setArrayText = function(element, text)
+--                     element.text = text
+--                 end,
+--             },
+--         }
+--     end
+
+--     local optionsContainer = {
+--         data = {
+--             classId = nil,
+--         },
+--         refreshBuilderState = function(element, state)
+--             local classItem = state:Get(SELECTOR .. ".selectedItem")
+--             if classItem == nil or classItem.id == element.data.classId then return end
+--             element.data.classId = classItem.id
+--             local baseChars = classItem.baseCharacteristics
+--             if baseChars == nil then return end
+--             local numArrays = baseChars.arrays and #baseChars.arrays or 0
+--             if numArrays == 0 then return end
+--             for i = #element.children + 1, numArrays do
+--                 element:AddChild(arrayPanel(i))
+--             end
+--             for i, child in ipairs(element.children) do
+--                 child:FireEventTree("assignItem", i <= numArrays and baseChars or nil)
+--             end
+--         end,
+--     }
+
+--     local selectButton = {
+--         data = {
+--             selectedIndex = nil,
+--         },
+--         click = function(element)
+--             fireFeatureControllerEventTree(element, "applyCurrentItem")
+--         end,
+--         create = function(element)
+--             element:FireEvent("selectCharacteristics", nil, nil)
+--         end,
+--         refreshBuilderState = function(element, state)
+--             local enabled = element.data.selectedIndex ~= nil
+--             element:SetClass("disabled", not enabled)
+--             element.interactable = enabled
+--         end,
+--         selectItem = function(element, index)
+--             element.data.selectedIndex = index
+--             local enabled = element.data.selectedIndex ~= nil
+--             element:SetClass("disabled", not enabled)
+--             element.interactable = enabled
+--         end,
+--     }
+
+--     local mainPanel = {
+--         data = {
+--             selectedIndex = nil,
+--         },
+--         applyCurrentItem = function(element)
+--             if element.data.selectedIndex == nil then return end
+--             local hero = _getHero(element)
+--             if hero == nil then return end
+--             local classItem = hero:GetClass()
+--             if classItem == nil then return end
+--             local heroAttrs = hero:try_get("attributes")
+--             if heroAttrs == nil then return end
+--             local attrs = {}
+--             local attributeBuild = { array = element.data.selectedIndex }
+--             local baseChars = classItem.baseCharacteristics
+--             local scoreArray = baseChars.arrays[element.data.selectedIndex]
+--             local nextIndex = 1
+--             for _,attr in pairs(attrInfo) do
+--                 if baseChars[attr.id] ~= nil then
+--                     attrs[attr.id] = baseChars[attr.id]
+--                 else
+--                     attrs[attr.id] = scoreArray[nextIndex]
+--                     attributeBuild[attr.id] = nextIndex
+--                     nextIndex = nextIndex + 1
+--                 end
+--             end
+--             hero.attributeBuild = attributeBuild
+--             for k,v in pairs(attrs) do
+--                 heroAttrs[k].baseValue = v
+--             end
+--             _fireControllerEvent(element, "tokenDataChanged")
+--             element:FireEventTree("selectItem", nil)
+--         end,
+--         selectItem = function(element, index)
+--             element.data.selectedIndex = index
+--         end,
+--     }
+
+--     local featurePanel = CBFeatureSelector.BuildSelectorPanel{
+--         controllerClass = controllerClass,
+--         header = header,
+--         targetsContainer = targetsContainer,
+--         optionsContainer = optionsContainer,
+--         selectButton = selectButton,
+--         mainPanel = mainPanel,
+--     }
+
+--     return CharacterBuilder._makeFeaturePanelContainer{
+--         data = {
+--             featureId = CHARACTERISTIC_GUID,
+--             classId = classItem.id,
+--         },
+--         refreshBuilderState = function(element, state)
+--             local classId = CBClassDetail._getSelectedClass(_getHero(state))
+--             local visible = element.data.featureId == state:Get(key) and classId ~= nil
+--             element:SetClass("collapsed", not visible)
+--             if not visible then
+--                 element:HaltEventPropagation()
+--                 return
+--             end
+
+--             if classId ~= element.data.classId then
+--                 local classItem = state:Get(SELECTOR .. ".selectedItem")
+--                 if classItem then
+--                     element:FireEventTree("updateHeaderDesc", CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics))
+--                 end
+--                 element.data.classId = classId
+--             end
+--         end,
+--         featurePanel,
+--     }
+-- end
+
+-- function CBClassDetail._characteristicPanelFSStyle(hero, classItem)
+
+--     local controllerClass = "characteristicsController"
+--     local key = SELECTOR .. ".category.selectedId"
+
+--     local function fireFeatureControllerEventTree(element, eventName, ...)
+--         local featureController = element:FindParentWithClass(controllerClass)
+--         if featureController then
+--             featureController:FireEventTree(eventName, ...)
+--         end
+--     end
+
+--     local header = {
+--         name = "Characteristics",
+--         description = CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics),
+--     }
+
+--     local targetsContainer = {
+--         data = {},
+--         refreshBuilderState = function(element, state)
+--         end,
+--         gui.Label{
+--             width = "auto",
+--             height= "auto",
+--             fontSize = 32,
+--             floating = true,
+--             valign = "center",
+--             halign = "center",
+--             rotate = 35,
+--             color = "red",
+--             textAlignment = "center",
+--             text = "TARGETS",
+--         }
+--     }
+
+--     local function assignmentPanel(arrayIndex, index)
+--         local children = {}
+--         for _,item in pairs(character.attributesInfo) do
+--             children[#children+1] = gui.Panel{
+--                 classes = {"builder-base", "panel-base", "chararray", "item"},
+--                 data = {
+--                     order = item.order,
+--                 },
+--                 gui.Label{
+--                     classes = {"builder-base", "label", "chararray", "item-name"},
+--                     text = item.description,
+--                 },
+--                 gui.Label{
+--                     classes = {"builder-base", "label", "chararray", "item-value"},
+--                     text = "",
+--                     data = {
+--                         arrayIndex = arrayIndex,
+--                         index = index,
+--                         attrId = item.id,
+--                     },
+--                     assignArray = function(element, array)
+--                         element.text = array and string.format("%+d", array[element.data.attrId]) or ""
+--                     end,
+--                 }
+--             }
+--         end
+--         table.sort(children, function(a,b) return a.data.order < b.data.order end)
+--         return gui.Panel{
+--             classes = {"builder-base", "panel-base", "chararray", "detail"},
+--             valign = "top",
+--             data = {
+--                 arrayIndex = arrayIndex,
+--                 index = index,
+--                 array = nil,
+--             },
+--             assignArray = function(element, array)
+--                 element.data.array = array
+--             end,
+--             click = function(element)
+--                 fireFeatureControllerEventTree(element, "selectCharacteristics", element.data.arrayIndex, element.data.index)
+--             end,
+--             refreshBuilderState = function(element, state)
+--                 local visible = element.data.array ~= nil
+--                 element:SetClass("collapsed", not visible)
+--                 if not visible then
+--                     element:HaltEventPropagation()
+--                     return
+--                 end
+--                 element:FireEventTree("setArrayLabelText", json(element.data.array))
+--             end,
+--             selectCharacteristics = function(element, arrayIndex, index)
+--                 element:SetClass("selected", arrayIndex == element.data.arrayIndex and index == element.data.index)
+--             end,
+--             children = children,
+--         }
+--     end
+
+--     local function arrayPanel(index)
+--         local detailContainer = gui.Panel{
+--             classes = {"builder-base", "panel-base", "chararray", "container", "collapsed-anim"},
+--             valign = "top",
+--             flow = "vertical",
+--             vscroll = true,
+--             data = {
+--                 index = index,
+--                 item = nil,
+--             },
+--             selectArray = function(element, index)
+--                 element:SetClass("collapsed-anim", index ~= element.data.index)
+--             end,
+--             assignItem = function(element, item)
+--                 element.data.item = item
+--             end,
+--             refreshBuilderState = function(element, state)
+--                 local visible = element.data.item ~= nil
+--                 element:SetClass("collapsed", not visible)
+--                 if not visible then
+--                     element:HaltEventPropagation()
+--                     return
+--                 end
+
+--                 local potentialArrays = CharacterBuilder._generateAttributeCombinations(element.data.item, element.data.index)
+--                 for i = #element.children + 1, #potentialArrays do
+--                     element:AddChild(assignmentPanel(element.data.index, i))
+--                 end
+--                 for i,child in ipairs(element.children) do
+--                     child:FireEventTree("assignArray", potentialArrays[i])
+--                 end
+--             end,
+--         }
+--         local headerPanel = gui.Panel{
+--             classes = {"builder-base", "panel-base", "chararray", "header"},
+--             valign = "top",
+--             data = {
+--                 index = index,
+--                 item = nil,
+--             },
+--             selectArray = function(element, index)
+--                 element:SetClass("selected", index == element.data.index)
+--             end,
+--             assignItem = function(element, item)
+--                 element.data.item = item
+--             end,
+--             click = function(element)
+--                 fireFeatureControllerEventTree(element, "selectArray", element.data.index)
+--             end,
+--             refreshBuilderState = function(element, state)
+--                 local visible = element.data.item ~= nil
+--                 element:SetClass("collapsed", not visible)
+--                 if not visible then
+--                     element:HaltEventPropagation()
+--                     return
+--                 end
+
+--                 local array = element.data.item.arrays[element.data.index]
+--                 table.sort(array, function(a,b) return b < a end)
+--                 element:FireEventTree("setArrayText", table.concat(array, ", "))
+--             end,
+--             gui.Label {
+--                 classes = {"builder-base", "label", "chararray", "header"},
+--                 setArrayText = function(element, text)
+--                     element.text = text
+--                 end,
+--             },
+--         }
+--         return gui.Panel{
+--             classes = {"builder-base", "panel-base", "chararray"},
+--             detailContainer,
+--             headerPanel,
+--         }
+--     end
+
+--     local optionsContainer = {
+--         data = {
+--             classId = nil,
+--         },
+--         refreshBuilderState = function(element, state)
+--             local classItem = state:Get(SELECTOR .. ".selectedItem")
+--             if classItem == nil or classItem.id == element.data.classId then return end
+--             element.data.classId = classItem.id
+--             local baseChars = classItem.baseCharacteristics
+--             if baseChars == nil then return end
+--             local numArrays = baseChars.arrays and #baseChars.arrays or 0
+--             if numArrays == 0 then return end
+--             for i = #element.children + 1, numArrays do
+--                 element:AddChild(arrayPanel(i))
+--             end
+--             for i, child in ipairs(element.children) do
+--                 child:FireEventTree("assignItem", i <= numArrays and baseChars or nil)
+--             end
+--         end,
+--     }
+
+--     local selectButton = {
+--         data = {},
+--         click = function(element)
+--         end,
+--         create = function(element)
+--             element:FireEvent("selectCharacteristics", nil, nil)
+--         end,
+--         refreshBuilderState = function(element, state)
+--         end,
+--         selectCharacteristics = function(element, arrayIndex, itemIndex)
+--             local enabled = arrayIndex ~= nil and itemIndex ~= nil
+--             element:SetClass("diabled", not enabled)
+--             element.interactable = enabled
+--         end,
+--     }
+
+--     local mainPanel = {
+--         data = {},
+--         applyCurrentItem = function(element)
+--         end,
+--         selectArray = function(element, index)
+--             element:FireEventTree("selectCharacteristics", nil, nil)
+--         end,
+--         selectItem = function(element, itemId)
+--         end,
+--     }
+
+--     local featurePanel = CBFeatureSelector.BuildSelectorPanel{
+--         controllerClass = controllerClass,
+--         header = header,
+--         targetsContainer = targetsContainer,
+--         optionsContainer = optionsContainer,
+--         selectButton = selectButton,
+--         mainPanel = mainPanel,
+--     }
+
+--     return CharacterBuilder._makeFeaturePanelContainer{
+--         data = {
+--             featureId = CHARACTERISTIC_GUID,
+--             classId = classItem.id,
+--         },
+--         refreshBuilderState = function(element, state)
+--             local classId = CBClassDetail._getSelectedClass(_getHero(state))
+--             local visible = element.data.featureId == state:Get(key) and classId ~= nil
+--             element:SetClass("collapsed", not visible)
+--             if not visible then
+--                 element:HaltEventPropagation()
+--                 return
+--             end
+
+--             if classId ~= element.data.classId then
+--                 local classItem = state:Get(SELECTOR .. ".selectedItem")
+--                 if classItem then
+--                     element:FireEventTree("updateHeaderDesc", CharacterBuilder._parseStartingCharacteristics(classItem.baseCharacteristics))
+--                 end
+--                 element.data.classId = classId
+--             end
+--         end,
+--         featurePanel,
+--     }
+-- end

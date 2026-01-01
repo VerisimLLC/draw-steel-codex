@@ -407,6 +407,7 @@ local TEST_DETAIL = [[
 - Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 - Extra info display is sometimes redundant or an empty panel.
 - Slow start rules aren't honored in class building. Currently gives all 1st level features.
+- Starting characteristics are a WIP.
 
 # Reporing Issues
 
@@ -442,7 +443,7 @@ local function _testDetail()
                 width = "98%",
                 height = "auto",
                 valign = "top",
-                fontSize = 16,
+                fontSize = 18,
                 textAlignment = "topleft",
                 markdown = true,
                 text = TEST_DETAIL,

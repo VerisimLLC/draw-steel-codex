@@ -325,30 +325,99 @@ function CBFeatureWrapper:IsComplete()
     return self:GetSelectedValue() >= self:GetNumChoices()
 end
 
+--- Store data into the hero's levelChoices list
+--- @param hero character
+--- @param optionWrapper CBOptionWrapper
+--- @return boolean saveSuccessful
+function CBFeatureWrapper:_applylevelChoice(hero, optionWrapper)
+
+    local levelChoices = hero:GetLevelChoices()
+    if levelChoices then
+        local choiceId = self:GetGuid()
+        local selectedId = optionWrapper:GetGuid()
+        local numChoices = self:GetNumChoices()
+        if numChoices == nil or numChoices < 1 then numChoices = 1 end
+        if (levelChoices[choiceId] == nil or numChoices == 1) and levelChoices[choiceId] ~= selectedId then
+            levelChoices[choiceId] = { selectedId }
+            return true
+        else
+            local alreadySelected = false
+            for _,id in ipairs(levelChoices[choiceId]) do
+                if id == selectedId then
+                    alreadySelected = true
+                    break
+                end
+            end
+            if not alreadySelected then
+                local option = self:GetOption(selectedId)
+                local numChoices = self:GetNumChoices()
+                local valueSelected = self:GetSelectedValue()
+                local selectedCost = option:GetPointsCost()
+                if numChoices >= valueSelected + selectedCost then
+                    if numChoices > 1 then
+                        levelChoices[choiceId][#levelChoices[choiceId]+1] = selectedId
+                    else
+                        levelChoices[choiceId][1] = selectedId
+                    end
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+--- Remove an option from the hero's levelChoices list
+--- @param hero character
+--- @param optionWrapper CBOptionWrapper
+--- @return boolean removeSuccessful
+function CBFeatureWrapper:_removeLevelChoice(hero, optionWrapper)
+
+    local levelChoices = hero:GetLevelChoices()
+    if levelChoices == nil then return false end
+
+    local levelChoice = levelChoices[self:GetGuid()]
+    if levelChoice == nil then return false end
+
+    for i = #levelChoice, 1, -1 do
+        if levelChoice[i] == optionWrapper:GetGuid() then
+            table.remove(levelChoice, i)
+            return true
+        end
+    end
+
+    return false
+end
+
 --- Callback to support custom setting
 --- @param hero character
 --- @param optionWrapper CBOptionWrapper
 --- @return boolean stopSave Return true to skip default save behavior
-function CBFeatureWrapper:OnApplySelection(hero, optionWrapper)
-    local feature = self:GetFeature()
-    local fn = _hasFn(feature, "OnApplySelection")
-    if fn and type(fn) == "function" then
-        return fn(feature, hero, optionWrapper:GetOption())
-    end
-    return false
+function CBFeatureWrapper:SaveSelection(hero, optionWrapper)
+    local fn = self:_hasFn("SaveSelection")
+    local haltSave = fn
+        and type(fn) == "function"
+        and fn(self:GetFeature(), hero, optionWrapper:GetOption())
+
+    if haltSave then return true end
+
+    return self:_applylevelChoice(hero, optionWrapper)
 end
 
 --- Callback to support custom unsetting
 --- @param hero character
 --- @param optionWrapper CBOptionWrapper
 --- @return boolean stopSave Return true to skip default save behavior
-function CBFeatureWrapper:OnRemoveSelection(hero, optionWrapper)
-    local feature = self:GetFeature()
-    local fn = _hasFn(feature, "OnRemoveSelection")
-    if fn then
-        return fn(feature, hero, optionWrapper:GetOption())
-    end
-    return false
+function CBFeatureWrapper:RemoveSelection(hero, optionWrapper)
+    local fn = self:_hasFn("RemoveSelection")
+    local haltSave = fn
+        and type(fn) == "function"
+        and fn(self:GetFeature(), hero, optionWrapper:GetOption())
+
+    if haltSave then return true end
+
+    return self:_removeLevelChoice(hero, optionWrapper)
 end
 
 --- @return boolean Allowed - was the selection allowed
@@ -361,13 +430,22 @@ function CBFeatureWrapper:SetSelectedOption(optionId)
     return false
 end
 
+--- Return a structure of UI injections or nil
+--- @return table
+function CBFeatureWrapper:UIInjections()
+    if self:_hasFn("UIInjections") then
+        return self:GetFeature():UIInjections() or {}
+    end
+    return {}
+end
+
 --- Update cached state from current hero selections
---- TODO: Perf tuning: This could be called only when the feature is used.
+--- TODO: Perf optimization: Call this only when first accessing a method.
 --- @param hero character
 function CBFeatureWrapper:Update(hero)
     local levelChoices = hero:GetLevelChoices()
 
-    self.selected = levelChoices[self:GetGuid()] or {}
+    self.selected = self:_getSelected(hero)
     self.numChoices = self.feature:NumChoices(hero)
 
     local options = {}
@@ -435,15 +513,17 @@ end
 --- @return string categoryOrder
 function CBFeatureWrapper:_deriveOrder(feature)
     local typeOrder = {
-        CharacterAncestryInheritanceChoice  = 1,
-        CharacterDeityChoice                = 2,
-        CharacterDomainChoice               = 3,
-        CharacterSubclassChoice             = 4,
-        CharacterFeatureChoice              = 5,
-        CharacterSkillChoice                = 6,
-        CharacterLanguageChoice             = 7,
-        CharacterFeatChoice                 = 8,
-        CharacterIncidentChoice             = 9,
+        -- Low numbers are reserved - stay between 100 & 998
+        CharacterAncestryInheritanceChoice  = 110,
+        CharacterCharacteristicChoice       = 120,
+        CharacterDeityChoice                = 130,
+        CharacterDomainChoice               = 140,
+        CharacterSubclassChoice             = 150,
+        CharacterFeatureChoice              = 160,
+        CharacterSkillChoice                = 170,
+        CharacterLanguageChoice             = 180,
+        CharacterFeatChoice                 = 190,
+        CharacterIncidentChoice             = 200,
     }
 
     local orderNum = typeOrder[feature.typeName] or 999
@@ -451,6 +531,23 @@ function CBFeatureWrapper:_deriveOrder(feature)
     local catOrder = _formatOrder(orderNum, self:GetCategory())
 
     return nameOrder, catOrder
+end
+
+--- Get the selected value, attempting to call the underlying feature to get it
+--- @param hero character
+--- @return table
+function CBFeatureWrapper:_getSelected(hero)
+    local fn = self:_hasFn("GetSelected")
+    if fn then return fn(self:GetFeature(), hero) end
+    local levelChoices = hero:GetLevelChoices()
+    return levelChoices[self:GetGuid()] or {}
+end
+
+--- Determine if our wrapped feature has a specific function
+--- @param fnName string
+--- @return function|nil
+function CBFeatureWrapper:_hasFn(fnName)
+    return _hasFn(self:GetFeature(), fnName)
 end
 
 --[[
@@ -489,7 +586,7 @@ end
 
 --- @return string
 function CBOptionWrapper:GetOrder()
-    return self:GetName()
+    return _safeGet(self.option, "order", self:GetName())
 end
 
 --- @return number

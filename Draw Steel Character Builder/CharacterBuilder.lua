@@ -157,6 +157,88 @@ function CharacterBuilder._blankToDashes(s)
     return s
 end
 
+--- Attempt to derive an attribute build from the hero and its class's base characteristics
+--- @param hero character
+--- @param baseChars table
+--- @return table|nil
+function CharacterBuilder._deriveAttributeBuild(hero, baseChars)
+    local heroAttrs = hero:try_get("attributes")
+    if heroAttrs == nil then return nil end
+    local allAttrs = character.attributesInfo
+
+    local searchAttrs = {}
+    for _,attrDef in pairs(allAttrs) do
+        local baseAttrItem = baseChars[attrDef.id]
+        if baseAttrItem ~= nil then
+            if baseAttrItem ~= heroAttrs[attrDef.id] then return nil end
+        else
+            searchAttrs[attrDef.id] = true
+        end
+    end
+
+    -- Build ordered list of search attributes with their hero values
+    local searchList = {}
+    for attrId, _ in pairs(searchAttrs) do
+        local attrInfo = allAttrs[attrId]
+        searchList[#searchList + 1] = {
+            id = attrId,
+            order = attrInfo and attrInfo.order or 999,
+            value = heroAttrs[attrId].baseValue
+        }
+    end
+    table.sort(searchList, function(a, b) return a.order < b.order end)
+
+    -- Extract hero values for comparison
+    local heroValues = {}
+    for i, item in ipairs(searchList) do
+        heroValues[i] = item.value
+    end
+
+    -- Try each array to find a match
+    for arrayIdx, arr in ipairs(baseChars.arrays) do
+        if #arr == #searchList then
+            -- Sort both for multiset comparison
+            local arrSorted = {}
+            for i = 1, #arr do arrSorted[i] = arr[i] end
+            table.sort(arrSorted)
+
+            local heroSorted = {}
+            for i = 1, #heroValues do heroSorted[i] = heroValues[i] end
+            table.sort(heroSorted)
+
+            -- Compare multisets
+            local match = true
+            for i = 1, #arrSorted do
+                if arrSorted[i] ~= heroSorted[i] then
+                    match = false
+                    break
+                end
+            end
+
+            if match then
+                -- Find specific assignment: which array index -> which attribute
+                local assignment = {}
+                local usedIndices = {}
+
+                for _, item in ipairs(searchList) do
+                    for j = 1, #arr do
+                        if not usedIndices[j] and arr[j] == item.value then
+                            assignment[item.id] = j
+                            usedIndices[j] = true
+                            break
+                        end
+                    end
+                end
+
+                assignment.array = arrayIdx
+                return assignment
+            end
+        end
+    end
+
+    return nil
+end
+
 --- Fires an event on the main builder panel
 --- @param element Panel The element calling this method
 --- @param eventName string
@@ -172,6 +254,15 @@ end
 --- @return string
 function CharacterBuilder._formatOrder(n, s)
     return string.format("%03d-%s", n or 999, (s and #s > 0) and s or "zzzunknown-item")
+end
+
+--- If the parameter is a function, return its return value else return the item
+--- @param item any
+--- @return any
+function CharacterBuilder._functionOrValue(item)
+    if item == nil then return nil end
+    if type(item) == "function" then return item() end
+    return item
 end
 
 --- Generates all unique attribute combinations from static values and distributable array.

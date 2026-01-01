@@ -226,6 +226,33 @@ local function _panelStyles()
             borderColor = CBStyles.COLORS.GOLD03,
         },
 
+        -- Attribute editor
+        {
+            selectors = {"attr-container"},
+            width = "100%",
+            height = "auto",
+        },
+        {
+            selectors = {"attr-item"},
+            width = "18%",
+            height = "auto",
+        },
+        {
+            selectors = {"attr-lock"},
+            width = 24,
+            height = 24,
+            halign = "right",
+            valign = "top",
+            hmargin = 18,
+            vmargin = 18,
+            bgimage = "game-icons/padlock.png",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"attr-lock", "parent:locked"},
+            bgcolor = CBStyles.COLORS.GRAY02,
+        },
+
         -- Right-side character panel
         {
             selectors = {"charpanel", "builder-content"},
@@ -387,6 +414,33 @@ local function _labelStyles()
             italics = true,
         },
 
+        -- Attribute editor
+        {
+            selectors = {"attr-name"},
+            width = "98%",
+            height = "auto",
+            halign = "center",
+            bold = false,
+        },
+        {
+            selectors = {"attr-value"},
+            width = 80,
+            height = 80,
+            halign = "center",
+            fontSize = 32,
+            textAlignment = "center",
+            bgimage = true,
+            bgcolor = "clear",
+            borderWidth = 2,
+            cornerRadius = 10,
+            borderColor = CBStyles.COLORS.GOLD,
+        },
+        {
+            selectors = {"attr-value", "parent:locked"},
+            color = CBStyles.COLORS.GRAY02,
+            borderColor = CBStyles.COLORS.GRAY02,
+        },
+
         -- For the right-side character panel / builder tab
         {
             selectors = {"charpanel", "desc-item-label"},
@@ -421,7 +475,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-category"},
-            width = "20%",
+            width = "25%",
             halign = "left",
             valign = "top",
             textAlignment = "topleft",
@@ -429,7 +483,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-status"},
-            width = "15%",
+            width = "10%",
             valign = "top",
             textAlignment = "topleft",
             hmargin = 2,

@@ -87,15 +87,30 @@ function CharacterBuilder.CreatePanel()
         end,
 
         applyCurrentClass = function(element)
-            local classId = element.data.state:Get(SEL.CLASS .. ".selectedId")
+            local state = element.data.state
+            local classId = state:Get(SEL.CLASS .. ".selectedId")
             if classId then
-                local hero = _getHero(element.data.state)
+                local hero = _getHero(state)
                 if hero then
                     local classes = hero:get_or_add("classes", {})
                     classes[1] = {
                         classid = classId,
                         level = hero:CharacterLevel(),
                     }
+
+                    hero.attributeBuild = {}
+
+                    local classItem = state:Get(SEL.CLASS .. ".selectedItem")
+                    if classItem then
+                        local baseChars = classItem:try_get("baseCharacteristics")
+                        local heroAttrs = hero:try_get("attributes")
+                        if baseChars and heroAttrs then
+                            for k,attr in pairs(heroAttrs) do
+                                attr.baseValue = baseChars[k] or 0
+                            end
+                        end
+                    end
+
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -146,6 +161,9 @@ function CharacterBuilder.CreatePanel()
         create = function(element)
             if element.data._cacheToken(element) ~= nil then
                 element:FireEvent("refreshToken")
+            end
+            if element.data.state:Get("activeSelector") == nil then
+                element:FireEvent("selectorChange", CharacterBuilder.INITIAL_SELECTOR)
             end
         end,
 

@@ -95,6 +95,7 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
 }
+CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.CHARACTER
 
 CharacterBuilder.STRINGS = {}
 

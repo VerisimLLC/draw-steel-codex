@@ -365,6 +365,7 @@ CharacterBuilder.RegisterSelector{
     Sharing information about testing status
     TODO: Remove before release
 ]]
+CharacterBuilder.INITIAL_SELECTOR = "test"
 local TEST_DETAIL = [[
 # Testing the New Builder
 
@@ -376,8 +377,8 @@ local TEST_DETAIL = [[
 
 - For What's Working (below), stuff that doesn't work! *(Probably first echelon only until you hear we've released more, then that, too.)*
 - How it looks / renders on your UI. If it's bad, please include a screen shot with your bug submission.
-- How it preforms on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
-- Your experience using the builder - what's good, what's not so good, how might you improve it?
+- How it performs on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
+- Your experience using the builder - what feels good, what feels not so good, how might you improve it?
 
 *You're welcome to test with custom configured elements like ancestries, careers, classes, etc. Please validate that any issues aren't configuration before logging them.*
 

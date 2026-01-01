@@ -440,6 +440,15 @@ local function _labelStyles()
             color = CBStyles.COLORS.GRAY02,
             borderColor = CBStyles.COLORS.GRAY02,
         },
+        {
+            selectors = {"attr-value", "drag-target"},
+            brightness = 1.5,
+        },
+        {
+            selectors = {"attr-value", "drag-target-hover"},
+            brightness = 2.0,
+            borderColor = CBStyles.COLORS.CREAM03,
+        },
 
         -- For the right-side character panel / builder tab
         {

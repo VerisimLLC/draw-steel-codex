@@ -56,12 +56,6 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
     }, overrides.optionsContainer)
     local optionsContainer = overrides.optionsContainer and gui.Panel(optionsContainerDef)
 
-    -- Build selectButton
-    local selectButtonDef = _mergeKeyedTables({
-        data = {},
-    }, overrides.selectButton)
-    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
-
     local headerPanel = gui.Panel{
         classes = {"builder-base", "panel-base"},
         width = "100%",
@@ -133,6 +127,12 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         vpad = 4,
         bgcolor = "white"
     }
+
+    -- Build selectButton
+    local selectButtonDef = _mergeKeyedTables({
+        data = {},
+    }, overrides.selectButton)
+    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
 
     -- Build children array
     local children = { headerPanel, targetsPanel, scrollPanel, bottomDivider, selectButton }

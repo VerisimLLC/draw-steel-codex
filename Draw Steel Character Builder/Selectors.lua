@@ -407,7 +407,6 @@ local TEST_DETAIL = [[
 
 - Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 - In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info.
-- Right side character panel, build tab doesn't scroll.
 
 # Reporing Issues
 

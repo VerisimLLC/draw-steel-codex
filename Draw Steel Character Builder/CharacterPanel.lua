@@ -211,8 +211,9 @@ function CBCharPanel._statusItem(selector, getSelected)
 
     return gui.Panel{
         classes = {"builder-base", "panel-base", "panelStatusController"},
-        width = "100%",
+        width = "96%",
         height = "auto",
+        halign = "left",
         valign = "top",
         flow = "vertical",
         data = {
@@ -247,6 +248,8 @@ function CBCharPanel._builderPanel(tabId)
 
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "builder-content"},
+        height = "100% available",
+        vscroll = true,
         data = {
             id = tabId,
         },

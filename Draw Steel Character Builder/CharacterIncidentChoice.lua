@@ -135,7 +135,7 @@ end
 --- @param hero character
 --- @param option CharacterIncidentOption
 --- @return boolean stopSave Return true to skip default save behavior
-function CharacterIncidentChoice:OnApplySelection(hero, option)
+function CharacterIncidentChoice:SaveSelection(hero, option)
     hero:RemoveNotesForTable(self.guid)
     local noteItem = hero:GetOrAddNoteForTableRow(self.guid, option.guid)
     if noteItem then
@@ -148,7 +148,7 @@ end
 --- @param hero character
 --- @param option CharacterIncidentOption
 --- @return boolean stopSave Return true to skip default save behavior
-function CharacterIncidentChoice:OnRemoveSelection(hero, option)
+function CharacterIncidentChoice:RemoveSelection(hero, option)
     hero:RemoveNoteForTableRow(self.guid, option.guid)
     return false
 end

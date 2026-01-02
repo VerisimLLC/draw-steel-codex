@@ -55,7 +55,7 @@ function CBSelectors._makeItemsPanel(config)
     end
 
     selectorPanel = gui.Panel {
-        classes = {"collapsed"},
+        classes = {"collapsed-anim"},
         width = "90%",
         height = "auto",
         valign = "top",
@@ -63,7 +63,11 @@ function CBSelectors._makeItemsPanel(config)
         flow = "vertical",
         data = { selector = config.selectorName },
         refreshBuilderState = function(element, state)
-            element:SetClass("collapsed", state:Get("activeSelector") ~= element.data.selector)
+            local visible = state:Get("activeSelector") == element.data.selector
+            element:SetClass("collapsed-anim", not visible)
+            if not visible then
+                element:HaltEventPropagation()
+            end
         end,
         children = buttons,
     }
@@ -365,6 +369,7 @@ CharacterBuilder.RegisterSelector{
     Sharing information about testing status
     TODO: Remove before release
 ]]
+CharacterBuilder.INITIAL_SELECTOR = "test"
 local TEST_DETAIL = [[
 # Testing the New Builder
 
@@ -375,15 +380,15 @@ local TEST_DETAIL = [[
 *We're looking for feedback in the following areas:*
 
 - For What's Working (below), stuff that doesn't work! *(Probably first echelon only until you hear we've released more, then that, too.)*
-- How it looks / renders on your UI. If it's bad, please include a screen shot with your bug submission.
-- How it preforms on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
-- Your experience using the builder - what's good, what's not so good, how might you improve it?
+- How it looks / renders on your screen. If it's bad, please include a screen shot with your bug submission.
+- How it performs on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
+- Your experience using the builder - what feels good, what feels not so good, how might we improve it?
 
 *You're welcome to test with custom configured elements like ancestries, careers, classes, etc. Please validate that any issues aren't configuration before logging them.*
 
 # What *(we think)* Is Working
 
-*Our objective is to function at par with the existing builder. That means that you should be able to see and edit everything that the other builder tab does, just with a different user experience.*
+*Our initial objective is to function at par with the existing builder. That means that you should be able to see and edit everything that the other builder tab does, just with a different user experience.*
 
 **Character Section**
 - Everything
@@ -405,14 +410,13 @@ local TEST_DETAIL = [[
 # Known Issues
 
 - Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
-- Extra info display is sometimes redundant or an empty panel.
-- Slow start rules aren't honored in class building. Currently gives all 1st level features.
+- In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info.
 
 # Reporing Issues
 
-- Please use the bug forum on the Codex Discord.
+- Please use the bug forum on the Codex / DMHub Discord.
 - Where applicable, please verify the old builder tab works as expected while new builder fails. If both tabs behave the same, please log as a configuration issue.
-- Detailed reproduction steps, especially each thing you chose along your path, is super helpful.
+- Detailed reproduction steps, especially each thing you chose along your path, help immensely.
 ]]
 local function _testDetail()
     return gui.Panel{
@@ -442,7 +446,7 @@ local function _testDetail()
                 width = "98%",
                 height = "auto",
                 valign = "top",
-                fontSize = 16,
+                fontSize = 18,
                 textAlignment = "topleft",
                 markdown = true,
                 text = TEST_DETAIL,

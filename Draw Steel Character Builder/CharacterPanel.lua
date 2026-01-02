@@ -16,60 +16,6 @@ local SEL = CharacterBuilder.SELECTOR
 CBCharPanel = RegisterGameType("CBCharPanel")
 CBCharPanel.__index = CBCharPanel
 
---- Get the item table for a feature based on its type
---- @param feature table The feature object
---- @return table|nil The visible item table, or nil if no table exists for this feature type
-function CBCharPanel._getFeatureChoices(feature)
-    if not feature or not feature.typeName then return nil end
-    local items = {}
-
-    local function tableToItems(tableItems)
-        for id,item in pairs(tableItems) do
-            items[id] = {
-                id = id,
-                name = item.name
-            }
-        end
-    end
-
-    local tableLookup = {
-        CharacterDeityChoice = Deity.tableName,
-        CharacterDomainChoice = DeityDomain.tableName,
-        CharacterFeatChoice = CharacterFeat.tableName,
-        CharacterLanguageChoice = Language.tableName,
-        CharacterSkillChoice = Skill.tableName,
-        CharacterSubclassChoice = "subclasses",
-    }
-
-    local tableName = tableLookup[feature.typeName]
-    if tableName then
-        tableToItems(dmhub.GetTableVisible(tableName))
-    elseif feature.typeName == "CharacterFeatureChoice" or feature.typeName == "CharacterIncidentChoice" then
-        for _,item in ipairs(feature.options) do
-            items[item.guid] = {
-                id = item.guid,
-                name = item.name,
-                pointCost = item:try_get("pointsCost", 1),
-            }
-        end
-    end
-
-    return next(items) and items or nil
-end
-
---- Calculate the total selected value, accounting for point costs
---- @param choices table Table of available choices keyed by id
---- @param selected table Array of selected choice ids
---- @return number Total value (sum of point costs, or count if no costs)
-function CBCharPanel._calcSelectedValue(choices, selected)
-    local total = 0
-    for _, id in ipairs(selected) do
-        local choice = choices[id]
-        total = total + (choice and choice.pointCost or 1)
-    end
-    return total
-end
-
 --- Create a panel displaying feature information for a single feature type
 --- @return Panel
 function CBCharPanel._statusEntryRow()
@@ -265,8 +211,9 @@ function CBCharPanel._statusItem(selector, getSelected)
 
     return gui.Panel{
         classes = {"builder-base", "panel-base", "panelStatusController"},
-        width = "100%",
+        width = "96%",
         height = "auto",
+        halign = "left",
         valign = "top",
         flow = "vertical",
         data = {
@@ -301,6 +248,8 @@ function CBCharPanel._builderPanel(tabId)
 
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "builder-content"},
+        height = "100% available",
+        vscroll = true,
         data = {
             id = tabId,
         },
@@ -896,18 +845,16 @@ function CBCharPanel._headerPanel()
         end,
 
         refreshAppearance = function(element, info)
-            print("APPEARANCE:: Set avatar", info.token.portrait)
-            element.SetValue(element, info.token.portrait, false)
+            local token = _getToken(element)
+            element.SetValue(element, token.portrait, false)
             element:FireEvent("imageLoaded")
-            element:FireEvent("updatePopout", info.token.popoutPortrait)
+            element:FireEvent("updatePopout", token.popoutPortrait)
         end,
 
         change = function(element)
-            -- local info = CharacterSheet.instance.data.info
-            -- info.token.portrait = element.value
-            -- info.token:UploadAppearance()
-            -- CharacterSheet.instance:FireEvent("refreshAll")
-            -- element:FireEvent("imageLoaded")
+            local token = _getToken(element)
+            token.portrait = element.value
+            token:UploadAppearance()
         end,
     }
 

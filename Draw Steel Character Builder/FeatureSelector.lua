@@ -15,11 +15,15 @@
       - Add it to the sort order list in _deriveOrder in
         FeatureCache.lua.
       - If selections aren't stored in levelChoices, implement
-        OnApplySelection and OnRemoveSelection on the feature class.
+        SaveSelection and RemoveSelection on the feature class.
+      - Your feature class can also inject custom UI at certain
+        points in the UI. See injections in BuildSelectorPanel
+        for details.
 ]]
 CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
+local _functionOrValue = CharacterBuilder._functionOrValue
 local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 local _mergeKeyedTables = CharacterBuilder._mergeKeyedTables
@@ -33,6 +37,12 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
     local controllerClass = overrides.controllerClass or "featureSelector"
     local header = overrides.header or { name = "", description = "" }
     local extraChildren = overrides.extraChildren or {}
+    local injections = overrides.injections or {}
+
+    -- Merge extra children from injections
+    for _,item in ipairs(injections.extraChildren or {}) do
+        extraChildren[#extraChildren+1] = _functionOrValue(item)
+    end
 
     -- Build targetsContainer
     local targetsContainerDef = _mergeKeyedTables({
@@ -49,49 +59,67 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
     }, overrides.optionsContainer)
     local optionsContainer = overrides.optionsContainer and gui.Panel(optionsContainerDef)
 
-    -- Build selectButton
-    local selectButtonDef = _mergeKeyedTables({
-        data = {},
-    }, overrides.selectButton)
-    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
+    local headerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+        gui.Label{
+            classes = {"builder-base", "label", "feature-header", "name"},
+            text = header.name,
+            markdown = true,
+            updateHeaderName = function(element, text)
+                element.text = text
+            end,
+        },
+        gui.Label{
+            classes = {"builder-base", "label", "feature-header", "desc"},
+            text = header.description,
+            markdown = true,
+            updateHeaderDesc = function(element, text)
+                element.text = text
+                element:SetClass("collapsed", element.text == nil or #element.text == 0)
+            end,
+        },
+        _functionOrValue(injections.afterHeader),
+    }
+
+    local targetsPanel = gui.Panel{
+        classes = {"builder-base", "panel-base"},
+        width = "98%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        flow = "vertical",
+        targetsContainer,
+        _functionOrValue(injections.afterTargets),
+        gui.MCDMDivider{
+            classes = {"builder-divider"},
+            layout = "v",
+            width = "96%",
+            vpad = 4,
+            bgcolor = CBStyles.COLORS.GOLD,
+        },
+    }
 
     local scrollPanel = gui.Panel{
         classes = {"builder-base", "panel-base"},
         width = "100%",
-        height = "100%-60",
+        height = "100% available",
         halign = "left",
         valign = "top",
         flow = "vertical",
         vscroll = true,
         gui.Panel{
             classes = {"builder-base", "panel-base", "container"},
+            width = "98%",
+            halign = "left",
             flow = "vertical",
-            gui.Label{
-                classes = {"builder-base", "label", "feature-header", "name"},
-                text = header.name,
-                markdown = true,
-                updateHeaderName = function(element, text)
-                    element.text = text
-                end,
-            },
-            gui.Label{
-                classes = {"builder-base", "label", "feature-header", "desc"},
-                text = header.description,
-                markdown = true,
-                updateHeaderDesc = function(element, text)
-                    element.text = text
-                    element:SetClass("collapsed", element.text == nil or #element.text == 0)
-                end,
-            },
-            targetsContainer,
-            gui.MCDMDivider{
-                classes = {"builder-divider"},
-                layout = "v",
-                width = "96%",
-                vpad = 4,
-                bgcolor = CBStyles.COLORS.GOLD,
-            },
+            _functionOrValue(injections.beforeOptions),
             optionsContainer,
+            _functionOrValue(injections.afterOptions),
         },
     }
 
@@ -103,8 +131,14 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         bgcolor = "white"
     }
 
+    -- Build selectButton
+    local selectButtonDef = _mergeKeyedTables({
+        data = {},
+    }, overrides.selectButton)
+    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
+
     -- Build children array
-    local children = { scrollPanel, bottomDivider, selectButton }
+    local children = { headerPanel, targetsPanel, scrollPanel, bottomDivider, selectButton }
     table.move(extraChildren, 1, #extraChildren, #children + 1, children)
 
     -- Build mainPanel - merge but protect children
@@ -158,23 +192,18 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             click = function(element)
                 if not element.data.option then return end
 
-                -- Custom callback
+                -- Remove the item
                 local state = _getState(element)
                 if state then
                     local hero = _getHero(state)
                     local cachedFeature = getCachedFeature(state, element.data.featureId)
                     if cachedFeature and hero then
-                        if cachedFeature:OnRemoveSelection(hero, element.data.option) then
+                        if cachedFeature:RemoveSelection(hero, element.data.option) then
                             _fireControllerEvent(element, "tokenDataChanged")
                             return
                         end
                     end
                 end
-
-                _fireControllerEvent(element, "removeLevelChoice", {
-                    levelChoiceGuid = element.data.featureId,
-                    selectedId = element.data.option:GetGuid()
-                })
             end,
             dehover = function(element)
                 element:FireEventTree("onDeHover")
@@ -408,19 +437,14 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local selectedOption = cachedFeature:GetSelectedOption()
                     if selectedOption then
 
-                        -- Custom callback
+                        -- Save it via the feature wrapper
                         local hero = _getHero(state)
                         if hero then
-                            if cachedFeature:OnApplySelection(hero, selectedOption) then
+                            if cachedFeature:SaveSelection(hero, selectedOption) then
                                 _fireControllerEvent(element, "tokenDataChanged")
                                 return
                             end
                         end
-
-                        _fireControllerEvent(element, "applyLevelChoice", {
-                            feature = cachedFeature,
-                            selectedId = selectedOption:GetGuid()
-                        })
                     end
                 end
             end
@@ -484,5 +508,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         selectButton = selectButton,
         mainPanel = mainPanel,
         extraChildren = roller and { roller } or {},
+        injections = feature:UIInjections(),
     }
 end

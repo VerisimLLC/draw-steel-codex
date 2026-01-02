@@ -95,6 +95,7 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
 }
+CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.CHARACTER
 
 CharacterBuilder.STRINGS = {}
 
@@ -119,7 +120,7 @@ CharacterBuilder.STRINGS.CLASS.OVERVIEW = [[
 While all your character creation decisions bear narrative weight, none influences the way you play the game like your choice of class. Your class determines how your hero battles the threats of the timescape and overcomes other obstacles. Do you bend elemental forces to your will through the practiced casting of magic spells? Do you channel the ferocity of the Primordial Chaos as you tear across the battlefield, felling foes left and right? Or do you belt out heroic ballads that give your allies a second wind and inspire them to ever-greater achievements?]]
 
 --[[
-    Register selectors - controls down the left side of the window
+    Ability to register selectors - controls down the left side of the window
 ]]
 
 CharacterBuilder.Selectors = {}
@@ -157,6 +158,88 @@ function CharacterBuilder._blankToDashes(s)
     return s
 end
 
+--- Attempt to derive an attribute build from the hero and its class's base characteristics
+--- @param hero character
+--- @param baseChars table
+--- @return table|nil
+function CharacterBuilder._deriveAttributeBuild(hero, baseChars)
+    local heroAttrs = hero:try_get("attributes")
+    if heroAttrs == nil then return nil end
+    local allAttrs = character.attributesInfo
+
+    local searchAttrs = {}
+    for _,attrDef in pairs(allAttrs) do
+        local baseAttrItem = baseChars[attrDef.id]
+        if baseAttrItem ~= nil then
+            if baseAttrItem ~= heroAttrs[attrDef.id].baseValue then return nil end
+        else
+            searchAttrs[attrDef.id] = true
+        end
+    end
+
+    -- Build ordered list of search attributes with their hero values
+    local searchList = {}
+    for attrId, _ in pairs(searchAttrs) do
+        local attrInfo = allAttrs[attrId]
+        searchList[#searchList + 1] = {
+            id = attrId,
+            order = attrInfo and attrInfo.order or 999,
+            value = heroAttrs[attrId].baseValue
+        }
+    end
+    table.sort(searchList, function(a, b) return a.order < b.order end)
+
+    -- Extract hero values for comparison
+    local heroValues = {}
+    for i, item in ipairs(searchList) do
+        heroValues[i] = item.value
+    end
+
+    -- Try each array to find a match
+    for arrayIdx, arr in ipairs(baseChars.arrays) do
+        if #arr == #searchList then
+            -- Sort both for multiset comparison
+            local arrSorted = {}
+            for i = 1, #arr do arrSorted[i] = arr[i] end
+            table.sort(arrSorted)
+
+            local heroSorted = {}
+            for i = 1, #heroValues do heroSorted[i] = heroValues[i] end
+            table.sort(heroSorted)
+
+            -- Compare multisets
+            local match = true
+            for i = 1, #arrSorted do
+                if arrSorted[i] ~= heroSorted[i] then
+                    match = false
+                    break
+                end
+            end
+
+            if match then
+                -- Find specific assignment: which array index -> which attribute
+                local assignment = {}
+                local usedIndices = {}
+
+                for _, item in ipairs(searchList) do
+                    for j = 1, #arr do
+                        if not usedIndices[j] and arr[j] == item.value then
+                            assignment[item.id] = j
+                            usedIndices[j] = true
+                            break
+                        end
+                    end
+                end
+
+                assignment.array = arrayIdx
+                return assignment
+            end
+        end
+    end
+
+    return nil
+end
+
 --- Fires an event on the main builder panel
 --- @param element Panel The element calling this method
 --- @param eventName string
@@ -174,111 +257,13 @@ function CharacterBuilder._formatOrder(n, s)
     return string.format("%03d-%s", n or 999, (s and #s > 0) and s or "zzzunknown-item")
 end
 
---- Generates all unique attribute combinations from static values and distributable array.
---- @param sourceTable table Table with static attribute values and arrays subtable
---- @param arrayIndex number Index into sourceTable.arrays to use for distributable values
---- @return table Array of keyed attribute tables, sorted by weighted priority (descending)
-function CharacterBuilder._generateAttributeCombinations(sourceTable, arrayIndex)
-    -- Helper: generate unique permutations (handles duplicate values)
-    local function generateUniquePermutations(arr)
-        local results = {}
-        local n = #arr
-        if n == 0 then return results end
-
-        -- Sort array to group duplicates together
-        local sorted = {}
-        for i = 1, n do sorted[i] = arr[i] end
-        table.sort(sorted)
-
-        -- Heap's algorithm with duplicate detection
-        local function permute(current, remaining)
-            if #remaining == 0 then
-                local copy = {}
-                for i = 1, #current do copy[i] = current[i] end
-                results[#results + 1] = copy
-                return
-            end
-
-            local used = {}
-            for i = 1, #remaining do
-                local val = remaining[i]
-                if not used[val] then
-                    used[val] = true
-                    local newCurrent = {}
-                    for j = 1, #current do newCurrent[j] = current[j] end
-                    newCurrent[#newCurrent + 1] = val
-
-                    local newRemaining = {}
-                    for j = 1, #remaining do
-                        if j ~= i then newRemaining[#newRemaining + 1] = remaining[j] end
-                    end
-
-                    permute(newCurrent, newRemaining)
-                end
-            end
-        end
-
-        permute({}, sorted)
-        return results
-    end
-
-    -- Extract values array from sourceTable.arrays[arrayIndex]
-    local valuesArray = {}
-    local srcArray = sourceTable.arrays[arrayIndex]
-    for i = 1, #srcArray do
-        valuesArray[i] = srcArray[i]
-    end
-
-    -- Get all attribute keys and identify static vs remaining
-    local staticAttrs = {}
-    local remainingKeys = {}
-    for key, info in pairs(character.attributesInfo) do
-        if type(sourceTable[key]) == "number" then
-            staticAttrs[key] = sourceTable[key]
-        else
-            remainingKeys[#remainingKeys + 1] = { key = key, order = info.order }
-        end
-    end
-
-    -- Sort remaining keys by attribute order for consistent assignment
-    table.sort(remainingKeys, function(a, b) return a.order < b.order end)
-
-    -- Generate all unique permutations of values array
-    local permutations = generateUniquePermutations(valuesArray)
-
-    -- Build result tables with weighted scores
-    local results = {}
-    for _, perm in ipairs(permutations) do
-        local combo = {}
-        local weight = 0
-
-        -- Add static attributes
-        for key, val in pairs(staticAttrs) do
-            combo[key] = val
-            local attrWeight = 6 - character.attributesInfo[key].order
-            weight = weight + val * attrWeight
-        end
-
-        -- Assign permutation values to remaining attributes
-        for i, keyInfo in ipairs(remainingKeys) do
-            combo[keyInfo.key] = perm[i]
-            local attrWeight = 6 - keyInfo.order
-            weight = weight + perm[i] * attrWeight
-        end
-
-        results[#results + 1] = { combo = combo, weight = weight }
-    end
-
-    -- Sort by weight descending
-    table.sort(results, function(a, b) return a.weight > b.weight end)
-
-    -- Extract just the combo tables
-    local output = {}
-    for i, r in ipairs(results) do
-        output[i] = r.combo
-    end
-
-    return output
+--- If the parameter is a function, return its return value else return the item
+--- @param item any
+--- @return any
+function CharacterBuilder._functionOrValue(item)
+    if item == nil then return nil end
+    if type(item) == "function" then return item() end
+    return item
 end
 
 --- Returns the character sheet instance if we're operating inside it

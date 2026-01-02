@@ -87,56 +87,31 @@ function CharacterBuilder.CreatePanel()
         end,
 
         applyCurrentClass = function(element)
-            local classId = element.data.state:Get(SEL.CLASS .. ".selectedId")
+            local state = element.data.state
+            local classId = state:Get(SEL.CLASS .. ".selectedId")
             if classId then
-                local hero = _getHero(element.data.state)
+                local hero = _getHero(state)
                 if hero then
                     local classes = hero:get_or_add("classes", {})
                     classes[1] = {
                         classid = classId,
                         level = hero:CharacterLevel(),
                     }
-                    element:FireEvent("tokenDataChanged")
-                end
-            end
-        end,
 
-        applyLevelChoice = function(element, info)
-            local feature = info.feature
-            local hero = _getHero(element.data.state)
-            if hero then
-                local levelChoices = hero:GetLevelChoices()
-                if levelChoices then
-                    local choiceId = feature:GetGuid()
-                    local selectedId = info.selectedId
-                    local numChoices = feature:GetNumChoices()
-                    if numChoices == nil or numChoices < 1 then numChoices = 1 end
-                    if (levelChoices[choiceId] == nil or numChoices == 1) and levelChoices[choiceId] ~= selectedId then
-                        levelChoices[choiceId] = { selectedId }
-                        element:FireEvent("tokenDataChanged")
-                    else
-                        local alreadySelected = false
-                        for _,id in ipairs(levelChoices[choiceId]) do
-                            if id == selectedId then
-                                alreadySelected = true
-                                break
-                            end
-                        end
-                        if not alreadySelected then
-                            local option = feature:GetOption(selectedId)
-                            local numChoices = feature:GetNumChoices()
-                            local valueSelected = feature:GetSelectedValue()
-                            local selectedCost = option:GetPointsCost()
-                            if numChoices >= valueSelected + selectedCost then
-                                if numChoices > 1 then
-                                    levelChoices[choiceId][#levelChoices[choiceId]+1] = selectedId
-                                else
-                                    levelChoices[choiceId][1] = selectedId
-                                end
-                                element:FireEvent("tokenDataChanged")
+                    hero.attributeBuild = {}
+
+                    local classItem = state:Get(SEL.CLASS .. ".selectedItem")
+                    if classItem then
+                        local baseChars = classItem:try_get("baseCharacteristics")
+                        local heroAttrs = hero:try_get("attributes")
+                        if baseChars and heroAttrs then
+                            for k,attr in pairs(heroAttrs) do
+                                attr.baseValue = baseChars[k] or 0
                             end
                         end
                     end
+
+                    element:FireEvent("tokenDataChanged")
                 end
             end
         end,
@@ -186,6 +161,9 @@ function CharacterBuilder.CreatePanel()
         create = function(element)
             if element.data._cacheToken(element) ~= nil then
                 element:FireEvent("refreshToken")
+            end
+            if element.data.state:Get("activeSelector") == nil then
+                element:FireEvent("selectorChange", CharacterBuilder.INITIAL_SELECTOR)
             end
         end,
 
@@ -260,25 +238,6 @@ function CharacterBuilder.CreatePanel()
                 hero.classes = {}
                 hero.attributeBuild = {}
                 element:FireEvent("tokenDataChanged")
-            end
-        end,
-
-        removeLevelChoice = function(element, info)
-            local hero = _getHero(element.data.state)
-            if hero then
-                local levelChoices = hero:GetLevelChoices()
-                if levelChoices then
-                    local levelChoice = levelChoices[info.levelChoiceGuid]
-                    if levelChoice then
-                        for i = #levelChoice, 1, -1 do
-                            if levelChoice[i] == info.selectedId then
-                                table.remove(levelChoice, i)
-                                element:FireEvent("tokenDataChanged")
-                                break
-                            end
-                        end
-                    end
-                end
             end
         end,
 
@@ -372,29 +331,16 @@ function CharacterBuilder.CreatePanel()
         end,
 
         selectClass = function(element, classId, noFire)
-            -- Read our cache
             local state = element.data.state
-            local cachedClassId = state:Get(SEL.CLASS .. ".selectedId")
-            local cachedLevel = state:Get(SEL.CLASS .. ".level")
-            local cachedSubclasses = state:Get(SEL.CLASS .. ".selectedSubclasses")
-            local cachedLevelChoices = state:Get("levelChoices")
-
-            -- Read current state / selections
             local hero = _getHero(state)
             local level = hero and hero:GetClassLevel()
             local levelChoices = hero and hero:GetLevelChoices() or {}
             local classAndSubClasses = hero and hero:GetClassesAndSubClasses() or {}
 
-            -- If nothing changed, we can stop processing
-            local classChanged = classId ~= cachedClassId
-            local levelChanged = level ~= cachedLevel
-            local subclassChanged = dmhub.DeepEqual(cachedSubclasses, classAndSubClasses) ~= true
-            local levelChoicesChanged = dmhub.DeepEqual(cachedLevelChoices, levelChoices) ~= true
-            if not (classChanged or levelChanged or subclassChanged or levelChoicesChanged) then
-                return
-            end
+            -- TODO: For performance we might try to determine if anything changed
+            -- before doing all this work, but that's complicated because so much
+            -- is associated to class.
 
-            -- Something changed so we need to process it
             local newState = {
                 { key = SEL.CLASS .. ".selectedId", value = classId },
                 { key = SEL.CLASS .. ".level", value = level },
@@ -402,13 +348,25 @@ function CharacterBuilder.CreatePanel()
             local classItem = dmhub.GetTableVisible(Class.tableName)[classId]
             if classItem then
                 local classFill = {}
+
+                -- Special case: Adapt baseCharacteristics to behave like a feature choice
+                local feature = CharacterCharacteristicChoice:new(classItem)
+                if feature then
+                    classFill[#classFill+1] = {
+                        feature = feature,
+                        class = classItem,
+                    }
+                end
+
+                local extraLevelInfo = hero:ExtraLevelInfo()
                 if #classAndSubClasses > 0 then
-                    for _,entry in ipairs(classAndSubClasses) do
-                        entry.class:FillFeatureDetailsForLevel(levelChoices, entry.level, false, "nonprimary", classFill)
+                    for i,entry in ipairs(classAndSubClasses) do
+                        entry.class:FillFeatureDetailsForLevel(levelChoices, entry.level, extraLevelInfo, i ~= 1, classFill)
                     end
                 else
-                    classItem:FillFeatureDetailsForLevel(levelChoices, 1, false, "nonprimary", classFill)
+                    classItem:FillFeatureDetailsForLevel(levelChoices, 1, extraLevelInfo, "nonprimary", classFill)
                 end
+
                 local featureCache = CBFeatureCache:new(hero, classId, classItem.name, classFill)
 
                 newState[#newState+1] = { key = SEL.CLASS .. ".selectedItem", value = classItem }

@@ -1038,6 +1038,7 @@ function GameHud.CreateInitiativeBar(self, info)
                     return
                 end
                 element.data.checkpoint:Restore()
+				audio.DispatchSoundEvent("Notify.Director_Undo")
             end,
         }
     end

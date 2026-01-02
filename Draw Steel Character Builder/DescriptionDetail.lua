@@ -97,6 +97,29 @@ function CBDescriptionDetail._editPane()
             valign = "top",
             bgimage = mod.images.grayD10,
             bgcolor = "white",
+            click = function(element)
+                -- TODO: Remove in production
+                if devmode() then
+                    local hero = _getHero(element)
+                    local desc = hero:Description()
+                    local colors = {"black", "brown", "blonde", "red", "auburn", "chestnut", "gray", "white", "silver", "platinum","blue", "green", "hazel", "amber", "violet", "gold", "copper", "teal", "crimson", "indigo"}
+                    local builds = {"lithe", "burly", "stocky", "lanky", "muscular", "petite", "towering", "wiry", "broad", "slender", "compact", "gaunt"}
+                    local skinTones = {"pale", "fair", "light", "medium", "olive", "tan", "brown", "dark brown", "deep brown", "ebony", "bronze", "golden", "russet", "umber", "mahogany", "sand", "honey", "amber", "copper", "tawny"}
+                    local genders = {"masculine", "feminine", "androgynous", "fluid"}
+                    local pronouns = {"he/him", "she/her", "they/them", "ze/zir", "xe/xem"}
+                    math.randomseed(os.time())
+                    desc:SetHeight(string.format("%dcm", math.random(95, 205)))
+                        :SetWeight(string.format("%dkg", math.random(100,300)))
+                        :SetHair(colors[math.random(#colors)])
+                        :SetEyes(colors[math.random(#colors)])
+                        :SetBuild(builds[math.random(#builds)])
+                        :SetSkinTone(skinTones[math.random(#skinTones)])
+                        :SetGenderPresentation(genders[math.random(#genders)])
+                        :SetPronouns(pronouns[math.random(#pronouns)])
+                        :SetPhysicalFeatures("Their piercing blue eyes that were also a striking amber gold seemed to gaze both directly at you and mysteriously off into the distance while their chiseled jawline softened into gentle cherubic cheeks and their massive shoulders that were nonetheless delicate and lithe extended into lanky noodle-like arms though their legs were impossibly thick tree trunks that somehow allowed them to move with the grace of a dancer, all of which was framed by their flowing raven-black hair that shimmered with copper highlights and their completely bald head that gleamed in the light while their youthful face bearing the weathered lines of a thousand years gave them an appearance both menacing and approachable, dangerous and comforting, ancient and eternally young.")
+                    _fireControllerEvent(element, "tokenDataChanged")
+                end
+            end,
         },
         gui.Label{
             classes = {"builder-base", "label", "header"},

@@ -192,13 +192,7 @@ function CBClassDetail._overviewPanel()
         end,
 
         gui.Panel{
-            width = "100%-2",
-            height = "auto",
-            valign = "bottom",
-            vmargin = 32,
-            flow = "vertical",
-            bgimage = true,
-            vpad = 8,
+            classes = {"builder-base", "panel-base", "detail-overview-labels"},
             nameLabel,
             introLabel,
             detailLabel,

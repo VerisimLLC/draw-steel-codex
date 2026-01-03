@@ -149,15 +149,9 @@ function CBSelectors.CreatePanel()
         flow = "vertical",
         vscroll = true,
         borderColor = "blue",
-        data = {
-            activeSelector = "",
-        },
 
         selectorClick = function(element, selector)
-            if element.data.activeSelector ~= selector then
-                element.data.activeSelector = selector
-                _fireControllerEvent(element, "selectorChange", selector)
-            end
+            _fireControllerEvent(element, "selectorChange", selector)
         end,
 
         children = selectors,
@@ -406,6 +400,9 @@ local TEST_DETAIL = [[
 **Class Section**
 - Everything
 
+**Kits**
+- Selecting and de-selecting kits only
+
 **Character Panel**
 - Description Tab: Everything
 - Builder Tab: Everything
@@ -413,8 +410,17 @@ local TEST_DETAIL = [[
 
 # Known Issues
 
-- Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
+**User Experience**
+- The "Change X" buttons are unfortunately placed.
+
+**Functionality**
+- Some skill lists still show skills you already have selected.
 - In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info.
+
+**Styling / UI**
+- Alignment within selection areas looks sort of off unless you have enough items to scroll.
+- Ability cards do not like to be constrained within parent panels.
+- Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 
 # Reporing Issues
 

@@ -175,6 +175,17 @@ local function _panelStyles()
             halign = "center",
             bgcolor = "white",
         },
+        {
+            selectors = {"detail-overview-labels"},
+            width = "100%-4",
+            height = "auto",
+            halign = "center",
+            valign = "bottom",
+            vmargin = 32,
+            vpad = 8,
+            flow = "vertical",
+            bgimage = true,
+        },
 
         -- Feature selectors
         {

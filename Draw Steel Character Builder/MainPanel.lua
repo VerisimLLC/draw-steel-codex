@@ -178,7 +178,7 @@ function CharacterBuilder.CreatePanel()
         end,
 
         refreshToken = function(element, info)
-            -- print("THC:: MAIN:: REFRESHTOKEN::")
+            print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
             local cachedToken = _getToken(element.data.state)
             local token
             if info then

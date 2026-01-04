@@ -177,6 +177,10 @@ local function _panelStyles()
             bgcolor = "white",
         },
         {
+            selectors = {"detail-overview-panel", "has-kit"},
+            bgcolor = "#666666",
+        },
+        {
             selectors = {"detail-overview-labels"},
             width = "100%-4",
             height = "auto",

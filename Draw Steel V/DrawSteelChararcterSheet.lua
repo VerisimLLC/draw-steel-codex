@@ -1169,7 +1169,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             --subclass of character
             gui.Label {
 
-                classes = { "monstercollapse" },
+                classes = { "monstercollapse", "followercollapse" },
                 text = "Subclass",
                 color = border_color,
                 fontSize = 20,
@@ -1206,7 +1206,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             --subclass label
             gui.Label {
-                classes = { "monstercollapse" },
+                classes = { "monstercollapse", "followercollapse" },
 
                 text = "Subclass",
                 color = border_color,
@@ -1228,21 +1228,11 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                     { id = "elite",   text = "Elite" },
                     { id = "leader",  text = "Leader" },
                     { id = "solo",    text = "Solo" },
-                    { id = "follower", text = "Follower"},
                 },
                 refreshToken = function(element, info)
                     local c = info.token.properties
                     if not c:IsMonster() then
                         return
-                    end
-                    
-                    if c:Organization() == "retainer" then
-                        local currentRole = c:Role()
-                        if currentRole ~= nil then
-                            c.role = "Follower " .. string.upper_first(currentRole)
-                        else
-                            c.role = "Follower"
-                        end
                     end
 
                     if c.minion then
@@ -1272,7 +1262,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             --Followers only
             gui.Dropdown {
-                classes = { "monsteronly", },
+                classes = { "followeronly" },
                 options = {
                     { id = "artisan", text = "Artisan"},
                     { id = "retainer", text = "Retainer"},
@@ -1280,17 +1270,10 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 },
                 refreshToken = function(element, info)
                     local c = info.token.properties
-                    if not c:IsMonster() then
-                        return
-                    end
-                    
-                    if c:Organization() ~= "follower" then
-                        element:SetClass("collapsed", true)
-                        c.followerType = nil
-                        return
-                    end
 
-                    element:SetClass("collapsed", false)
+                    if not c:IsFollower() then
+                        return
+                    end
 
                     if c:try_get("followerType") == nil then
                         c.followerType = "artisan"
@@ -1308,7 +1291,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
             },
 
             gui.Label {
-                classes = { "monsteronly" },
+                classes = { "monsteronly", "followeronly" },
                 text = "Organization",
                 color = border_color,
                 fontSize = 12,
@@ -1321,7 +1304,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
 
             --monster role.
             gui.Dropdown {
-                classes = { "monsteronly" },
+                classes = { "monsteronly", "followeronly" },
                 options = {
                     { id = "ambusher",   text = "Ambusher" },
                     { id = "artillery",  text = "Artillery" },
@@ -1980,6 +1963,14 @@ local function DSCharSheet()
                 selectors = { "monster", "monstercollapse" },
                 collapsed = 1,
             },
+            {
+                selectors = { "~follower", "followeronly" },
+                collapsed = 1,
+            },
+            {
+                selectors = { "follower", "followercollapse" },
+                collapsed = 1,
+            },
         },
 
         bgimage = true,
@@ -1990,9 +1981,14 @@ local function DSCharSheet()
         flow = "horizontal",
 
         refreshToken = function(element, info)
-            if info.token.properties:IsMonster() then
+            if info.token.properties:IsFollower() then
+                element:SetClassTree("follower", true)
+                element:SetClassTree("monster", false)
+            elseif info.token.properties:IsMonster() then
                 element:SetClassTree("monster", true)
+                element:SetClassTree("follower", false)
             else
+                element:SetClassTree("follower", false)
                 element:SetClassTree("monster", false)
             end
         end,
@@ -4441,6 +4437,15 @@ local function DSCharSheet()
                         bgcolor = "clear",
                         width = "21%",
                         height = "100%",
+
+                        refreshToken = function(element, info)
+                            local creature = info.token.properties
+                            if creature:IsFollower() then
+                                element:SetClass("collapsed", true)
+                            else
+                                element:SetClass("collapsed", false)
+                            end
+                        end,
 
                         gui.Label {
 

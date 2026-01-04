@@ -180,6 +180,7 @@ creature._tmp_debug = false
 creature._tmp_concealed = false
 
 creature.max_hitpoints = 1
+creature.temporary_hitpoints = 0
 
 --these will be populated by the game system.
 creature.sizes = {

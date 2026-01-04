@@ -21,6 +21,7 @@ end
 
 MonsterAI:RegisterMove{
     id = "Charge and Free Strike",
+    category = "Basic Strikes",
     description = "Move to melee range and use a free strike, charging if possible. This is a generic move that is used if no other good options are available.",
     abilities = {"Melee Free Strike"},
     score = GenerateStandardStrikeScoreFunction(0.2),
@@ -29,6 +30,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Ranged Free Strike",
+    category = "Basic Strikes",
     description = "Move to ranged attack range and use a free strike. This is a generic move that is used if no other good options are available.",
     abilities = {"Ranged Free Strike"},
     score = GenerateStandardStrikeScoreFunction(0.2),
@@ -45,10 +47,10 @@ local function GetKnockbackScoringFunction(token)
         end
 
         local size = targetToken.properties:CreatureSizeWhenBeingForceMoved()
-        local result = 0.2 - targetToken.properties:Stability()*0.06 + might*0.04
+        local result = 0.2 - targetToken.properties:Stability()*0.06 + might*0.06
 
         if oursize > size then
-            result = result + 0.1
+            result = result + 0.06
         end
 
         if targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved") > 0 then
@@ -62,6 +64,7 @@ end
 
 MonsterAI:RegisterMove{
     id = "Knockback",
+    category = "Maneuvers",
     description = "Maneuver: The generic knockback maneuver. Monsters prefer knocking back smaller and less stable targets. They won't knockback a grabbed target or a target that cannot be force moved, such as a restrained target.",
     abilities = {"Knockback"},
     score = function(self, ai, token, ability)
@@ -110,6 +113,7 @@ end
 
 MonsterAI:RegisterMove{
     id = "Grab",
+    category = "Maneuvers",
     abilities = {"Grab"},
     description = "Grab: The generic grab maneuver. Only targets creatures that aren't already grabbed. Preferred by monsters with high might, and prefer to use on high speed targets. Monsters with low remaining stamina will avoid using grab, since an easily killed monster is not valuable for grabbing.",
     score = function(self, ai, token, ability)
@@ -131,11 +135,21 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Aid Attack",
+    category = "Maneuvers",
     description = "Maneuver: The generic aid attack maneuver. Will usually be less preferred than knockback unless the creature is large or stable.",
     abilities = {"Aid Attack"},
     score = function(self, ai, token, ability)
         --TODO: be selective about target, positioning, etc for knockback.
         local targets = ai:FindValidTargetsOfStrike(token, ability, token.loc)
+        --remove any targets that already have aid attack.
+        if targets ~= nil then
+            for i=#targets,1,-1 do
+                if targets[i].token.properties._tmp_ai_aidAttack then
+                    table.remove(targets, i)
+                end
+            end
+        end
+
         if targets ~= nil and #targets > 0 then
             return {score = 0.1, loc = token.loc}
         end
@@ -153,6 +167,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Spear Charge",
+    category = "Main Actions",
     description = "Goblin Warrior spear charge action, uses charge to get in range.",
     monsters = {"Goblin Warrior"},
     abilities = {"Spear Charge"},
@@ -172,6 +187,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Bury the Point",
+    category = "Main Actions",
     description = "Bury the Point Malice ability. This will be preferred over using Spear Charge if the target is reachable.",
     monsters = {"Goblin Warrior"},
     abilities = {"Bury the Point"},
@@ -190,6 +206,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Shadow Chains",
+    category = "Main Actions",
     description = "Shadow Chains Malice ability. This is the Goblin Assassin's preferred ability as long as they can hit three targets.",
     monsters = {"Goblin Pirate Assassin", "Goblin Assassin"},
     abilities = {"Shadow Chains"},
@@ -213,6 +230,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Sword Stab",
+    category = "Main Actions",
     description = "The Goblin Assassin's main ability. Used when Shadow Chains is not optimal or they can't afford the malice.",
     monsters = {"Goblin Pirate Assassin", "Goblin Assassin"},
     abilities = {"Sword Stab"},
@@ -235,6 +253,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Hide in Concealment",
+    category = "Maneuvers",
     description = "Move to an available concealed location and hide.",
     monsters = {"Goblin Pirate Assassin", "Goblin Assassin"},
     abilities = {"Hide"},
@@ -244,7 +263,7 @@ MonsterAI:RegisterMove{
         end
         local loc = ai:FindReachableConcealment()
         if loc ~= nil then
-            return {score = 0.3, loc = loc}
+            return {score = 0.5, loc = loc}
         end
 
         return nil
@@ -259,6 +278,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Shadow Drag",
+    category = "Main Actions",
     monsters = {"Bugbear Channeler"},
     abilities = {"Shadow Drag"},
     description = "Bugbear Channeler's Shadow Drag ability, pulls targets maximizing collision damage if possible.",
@@ -284,6 +304,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Twist Shape",
+    category = "Main Actions",
     monsters = {"Bugbear Channeler"},
     abilities = {"Twist Shape"},
     description = "Bugbear Channeler's Twist Shape ability. This will be preferred over Shadow Drag if we can afford the malice.",
@@ -308,6 +329,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Blistering Element",
+    category = "Main Actions",
     monsters = {"Bugbear Channeler"},
     abilities = {"Blistering Element"},
     description = "The Bugbear Channeler will run to the middle of a cluster of enemies to use this ability. It will be preferred over other abilities if it can hit at least three targets.",
@@ -327,6 +349,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Two Shot",
+    category = "Main Actions",
     monsters = {"Ryll"},
     abilities = {"Two Shot"},
     description = "Will position to hit two targets if possible.",
@@ -348,6 +371,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Razor Claws",
+    category = "Main Actions",
     monsters = {"Ghoul"},
     abilities = {"Razor Claws"},
     description = "Ghoul's preferred melee attack.",
@@ -357,6 +381,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Leap and Claw",
+    category = "Maneuvers",
     monsters = {"Ghoul"},
     abilities = {"Leap", "Razor Claws"},
     description = "Ghouls will use their Leap ability to target size 1 creatures. Then they will move adjacent to them and use Razor Claws.",
@@ -418,6 +443,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Clobber and Clutch",
+    category = "Main Actions",
     monsters = {"Zombie"},
     abilities = {"Clobber and Clutch"},
     description = "Zombie's preferred melee attack.",
@@ -427,6 +453,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Zombie Dust",
+    category = "Maneuvers",
     monsters = {"Zombie"},
     abilities = {"Zombie Dust"},
     description = "Maneuver: Zombies will use this if they can hit at least three enemies. They will use it after their main attack so they can attack before falling prone.",
@@ -449,6 +476,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Bone Shards",
+    category = "Main Actions",
     monsters = {"Skeleton"},
     abilities = {"Bone Shards"},
     description = "Skeleton's preferred attack.",
@@ -458,6 +486,7 @@ MonsterAI:RegisterMove{
 
 MonsterAI:RegisterMove{
     id = "Bone Spur",
+    category = "Maneuvers",
     monsters = {"Skeleton"},
     abilities = {"Bone Spur"},
     description = "Maneuver: Skeletons will use this if they can hit at least two enemies.",

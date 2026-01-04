@@ -8,8 +8,13 @@ MonsterAI.token = false
 MonsterAI.squadMembers = {}
 MonsterAI.squadCaptain = false
 MonsterAI.abilities = {}
+MonsterAI.tactics = {}
 MonsterAI.paths = false
 MonsterAI.log = {}
+
+MonsterAI.activeTactics = {}
+
+creature._tmp_ai_aidAttack = false
 
 Commands.playai = function(str)
 
@@ -63,6 +68,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
             local squadid = nil
             self.squadCaptain = false
             self.squadMembers = squadMembers
+            self.activeTactics = {}
             if token.valid and token.properties.minion then
                 squadid = token.properties:MinionSquad()
                 for j=1,i-1 do
@@ -142,15 +148,35 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     token.properties._tmp_aipromptCallback = promptCallback
                 end
 
+                self.activeTactics = {}
+                for id,tactic in pairs(self.tactics) do
+                    if self.MoveMatchesMonster(token, tactic) then
+                        self.activeTactics[id] = tactic
+                    end
+                end
+
                 local tokens = dmhub.allTokens
 
+                local aidAttackGuid = "e234f1f4-9953-43bd-894c-d96adbb63f84"
                 self.enemyTokens = {}
+                self.allyTokens = {}
 
                 for _,tok in ipairs(tokens) do
                     local tokenInitiativeId = InitiativeQueue.GetInitiativeId(tok)
                     if tokenInitiativeId ~= nil and queue.entries[tokenInitiativeId] ~= nil then
                         if not dmhub.TokensAreFriendly(token, tok) then
                             self.enemyTokens[#self.enemyTokens+1] = tok
+
+                            local hasAidAttack = false
+                            for _,effect in ipairs(tok.properties:ActiveOngoingEffects()) do
+                                if effect.ongoingEffectid == aidAttackGuid then
+                                    hasAidAttack = true
+                                    break
+                                end
+                            end
+                            tok.properties._tmp_ai_aidAttack = hasAidAttack
+                        else
+                            self.allyTokens[#self.allyTokens+1] = tok
                         end
                     end
                 end
@@ -208,6 +234,9 @@ end
 
 function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
 
+    local meleeAbility = ability:HasKeyword("Melee")
+    local rangedAbility = ability:HasKeyword("Ranged")
+
     local filteredTokens = {}
     for i=1,#self.enemyTokens do
         local enemy = self.enemyTokens[i]
@@ -257,7 +286,37 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
             if dist <= range then
                 local los = token:GetLineOfSight(enemy)
                 if los > 0 then
-                    result[#result+1] = { token = enemy, loc = enemy.loc, charge = chargeLoc }
+
+                    local edges = 0
+
+                    --obstruction.
+                    if los < 1 then
+                        edges = edges - 1
+                    end
+
+                    local tokenLoc = chargeLoc or loc
+
+                    for _,tactic in pairs(self.activeTactics) do
+                        local score = tactic.score(self, token, tokenLoc, enemy, ability) or 0
+                        edges = edges + score
+                    end
+
+                    --nearby enemies with ranged penalty
+                    if rangedAbility and not meleeAbility then
+                        local hasNearbyEnemies = false
+                        for _,enemyToken in ipairs(self.enemyTokens) do
+                            if enemyToken:Distance(tokenLoc) <= 1 then
+                                hasNearbyEnemies = true
+                                break
+                            end
+                        end
+
+                        if hasNearbyEnemies then
+                            edges = edges - 1
+                        end
+                    end
+
+                    result[#result+1] = { token = enemy, loc = enemy.loc, charge = chargeLoc, edges = edges }
                 end
             end
         end
@@ -267,6 +326,8 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
     if hasCharge then
         token:ClearMovementArrow()
     end
+
+    table.sort(result, function(a,b) return a.edges > b.edges end)
 
     return result
 end
@@ -281,6 +342,7 @@ function MonsterAI:FindSquadMemberStrikeOptions(squadMember, ability)
         local targets = self:FindValidTargetsOfStrike(squadMember.token, ability, destLoc, range)
         for _,target in ipairs(targets) do
             local cost = info.cost
+            cost = cost - target.edges * 5 --we love to get edges
             if target.charge ~= nil then
                 --if charging, prefer to move in line with the charge
                 local deltaMove = {x = target.charge.x - squadMember.token.loc.x, y = target.charge.y - squadMember.token.loc.y}
@@ -427,11 +489,22 @@ function MonsterAI:FindBestMoveToUseStrike(token, ability, scorefn)
         if scorefn ~= nil then
             score = 0
             table.sort(targets, function(a,b)
-                return scorefn(a.token) > scorefn(b.token)
+                return scorefn(a.token, a.edges) > scorefn(b.token, b.edges)
             end)
             for i=1,math.min(numTargets, #targets) do
-                score = score + scorefn(targets[i].token)
+                score = score + scorefn(targets[i].token, targets[i].edges)
             end
+        else
+            local maxEdges = nil
+            for _,target in ipairs(targets) do
+                if maxEdges == nil or target.edges > maxEdges then
+                    maxEdges = target.edges
+                end
+            end
+
+            print("AI:: Max Edges for loc", destLoc.x, destLoc.y, "is", maxEdges)
+
+            score = score + (maxEdges or 0)*0.1
         end
 
         score = score - info.cost*0.001
@@ -469,8 +542,17 @@ function MonsterAI:FindBestMoveToUseBurst(token, ability, scorefn)
     return bestMove, bestScore
 end
 
-function MonsterAI.MoveMatchesMonster(token, move)
+function MonsterAI.MoveMatchesMonster(token, move, includeDisabled)
+    if move.id == "Minion Signature Ability" then
+        --minion signatures cannot be disabled.
+        includeDisabled = true
+    end
     local monster_type = token.properties:try_get("monster_type", "")
+    if not includeDisabled then
+        if move.disabledForMonsters ~= nil and move.disabledForMonsters[monster_type] then
+            return false
+        end
+    end
     if move.monsters ~= nil then
         for i=1,#move.monsters do
             if move.monsters[i] == monster_type then
@@ -727,7 +809,19 @@ function MonsterAI:LogMove(monsterType, moveid, message, options)
     end
 end
 
---- @return {monsterType: string, moves: {id: string, abilities: string[]}[] }[]
+MonsterAI.AbilityCategories = {
+    "Main Actions",
+    "Basic Strikes",
+    "Maneuvers",
+    "Tactics",
+}
+
+local g_abilityCategoryOrder = {}
+for i,cat in ipairs(MonsterAI.AbilityCategories) do
+    g_abilityCategoryOrder[cat] = i
+end
+
+--- @return {monsterType: string, moves: {id: string, category: string, abilities: string[]}[] }[]
 function MonsterAI:Analysis()
     local result = {}
     local monstersSeen = {}
@@ -753,14 +847,34 @@ function MonsterAI:Analysis()
                 result[#result+1] = resultEntry
 
                 for moveid,move in pairs(self.moves) do
-                    if self.MoveMatchesMonster(tok, move) then
+                    if self.MoveMatchesMonster(tok, move, true) then
                         resultEntry.moves[#resultEntry.moves+1] = {
+                            monsterType = monsterType,
                             id = moveid,
                             description = move.description,
+                            category = move.category,
                             abilities = move.abilities,
+                            enabled = move.enabled ~= false,
                         }
                     end
                 end
+
+                for moveid,move in pairs(self.tactics) do
+                    if self.MoveMatchesMonster(tok, move, true) then
+                        resultEntry.moves[#resultEntry.moves+1] = {
+                            monsterType = monsterType,
+                            id = moveid,
+                            description = move.description,
+                            category = move.category,
+                            abilities = {},
+                            enabled = move.enabled ~= false,
+                        }
+                    end
+                end
+
+                table.sort(resultEntry.moves, function(a,b)
+                    return (g_abilityCategoryOrder[a.category or "Maneuvers"] or 0) < (g_abilityCategoryOrder[b.category or "Maneuvers"] or 0)
+                end)
 
                 if tok.properties.minion then
                     local abilities = tok.properties:GetActivatedAbilities()
@@ -768,6 +882,7 @@ function MonsterAI:Analysis()
                         if ability.categorization == "Signature Ability" then
                             resultEntry.moves[#resultEntry.moves+1] = {
                                 id = "Minion Signature Ability",
+                                category = "Main Actions",
                                 description = "The Squad will move into a position that can maximize their number of targets and then use this ability.",
                                 abilities = {ability.name},
                             }
@@ -787,7 +902,29 @@ function MonsterAI:SetTargetsForExpectedPrompt(options)
    self._tmp_expectedPromptTarget = options
 end
 
+function MonsterAI:IsMoveEnabledForMonster(monsterType, id)
+    local move = self.moves[id] or self.tactics[id]
+    if move ~= nil then
+        if move.disabledForMonsters ~= nil and move.disabledForMonsters[monsterType] then
+            return false
+        end
+        return true
+    end
+    return false
+end
+
+function MonsterAI:SetMoveEnabledForMonster(monsterType, id, enabled)
+    local move = self.moves[id] or self.tactics[id]
+    if move ~= nil then
+        move.disabledForMonsters = move.disabledForMonsters or {}
+        move.disabledForMonsters[monsterType] = not enabled
+    end
+end
+
 function MonsterAI:RegisterMove(args)
+    if args.category == nil then
+        args.category = "Main Actions"
+    end
     self.moves[args.id] = args
 end
 
@@ -795,5 +932,9 @@ function MonsterAI:RegisterPrompt(args)
     for _,prompt in ipairs(args.prompts) do
         self.prompts[prompt] = args
     end
+end
 
+function MonsterAI:RegisterTactic(args)
+    args.category = "Tactics"
+    self.tactics[args.id] = args
 end

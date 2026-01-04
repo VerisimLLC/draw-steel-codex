@@ -211,39 +211,81 @@ MonsterAIPanel = function()
                         height = "auto",
                         flow = "vertical",
                         data = {
-                            movePanels = {}
+                            movePanels = {},
+                            categoryHeadings = {},
                         },
                         setanalysis = function(element, entry)
-                            local children = element.children
-                            local changed = false
+                            local children = {}
+                            local currentCategory = ""
+                            local newCategoryHeadings = {}
 
                             for j,moveEntry in ipairs(entry.moves) do
+
+                                if moveEntry.category ~= currentCategory then
+                                    currentCategory = moveEntry.category or "Main Actions"
+                                    local headingPanel = element.data.categoryHeadings[currentCategory] or gui.Label{
+                                        fontSize = 16,
+                                        width = "100%",
+                                        height = "auto",
+                                        bold = true,
+                                        text = string.format("<u>%s</u>", currentCategory),
+                                    }
+                                    children[#children+1] = headingPanel
+                                    newCategoryHeadings[currentCategory] = headingPanel
+                                end
+
                                 local movePanel = element.data.movePanels[j+1]
                                 if movePanel == nil then
                                     movePanel = gui.Panel{
                                         width = "100%",
                                         height = "auto",
                                         flow = "vertical",
-                                        gui.Label{
-                                            fontSize = 16,
-                                            lmargin=8,
+
+                                        gui.Panel{
+                                            flow = "horizontal",
                                             width = "100%-16",
                                             height = "auto",
-                                            hover = function(element)
-                                                if element.data.tooltip ~= nil then
-                                                    gui.Tooltip(element.data.tooltip)(element)
-                                                end
-                                            end,
-                                            setmove = function(element, moveEntry)
-                                                element.data.tooltip = moveEntry.description
-                                                local name = moveEntry.id
-                                                local abilities = moveEntry.abilities
-                                                if #abilities == 1 and abilities[1] == name then
-                                                    element.text = string.format("<b>%s</b>", name)
-                                                else
-                                                    element.text = string.format("<b>%s</b> (%s)", name, table.concat(abilities,","))
-                                                end
-                                            end,
+                                            lmargin = 8,
+                                            gui.Check{
+                                                text = "",
+                                                width = 12,
+                                                height = 16,
+                                                minWidth = 12,
+                                                valign = "center",
+                                                value = true,
+                                                setmove = function(element, moveEntry)
+                                                    element:SetClass("hidden", moveEntry.id == "Minion Signature Ability")
+                                                    element.value = MonsterAI:IsMoveEnabledForMonster(moveEntry.monsterType, moveEntry.id)
+                                                    element.data.moveEntry = moveEntry
+                                                end,
+                                                change = function(element)
+                                                    if element.data.moveEntry ~= nil then
+                                                        MonsterAI:SetMoveEnabledForMonster(element.data.moveEntry.monsterType, element.data.moveEntry.id, element.value)
+                                                    end
+                                                end,
+                                            },
+                                            gui.Label{
+                                                fontSize = 16,
+                                                hmargin = 4,
+                                                halign = "left",
+                                                width = "100%-32",
+                                                height = "auto",
+                                                hover = function(element)
+                                                    if element.data.tooltip ~= nil then
+                                                        gui.Tooltip(element.data.tooltip)(element)
+                                                    end
+                                                end,
+                                                setmove = function(element, moveEntry)
+                                                    element.data.tooltip = moveEntry.description
+                                                    local name = moveEntry.id
+                                                    local abilities = moveEntry.abilities
+                                                    if #abilities == 0 or (#abilities == 1 and abilities[1] == name) then
+                                                        element.text = string.format("<b>%s</b>", name)
+                                                    else
+                                                        element.text = string.format("<b>%s</b> (%s)", name, table.concat(abilities,","))
+                                                    end
+                                                end,
+                                            },
                                         },
                                         gui.Label{
                                             fontSize = 14,
@@ -260,37 +302,60 @@ MonsterAIPanel = function()
                                         }
                                     }
                                     element.data.movePanels[j+1] = movePanel
-                                    changed = true
                                 end
 
                                 movePanel:FireEventTree("setmove", moveEntry)
-                                children[j+1] = movePanel
+                                children[#children+1] = movePanel
                             end
 
                             while #element.data.movePanels > #entry.moves do
                                 element.data.movePanels[#element.data.movePanels] = nil
-                                changed = true
                             end
 
-                            if changed then
-                                element.children = children
-                            end
+                            element.children[2].children = children
+                            element.data.categoryHeadings = newCategoryHeadings
                         end,
 
-                        gui.Label{
-                            fontSize = 16,
+                        gui.Panel{
                             width = "100%",
                             height = "auto",
-                            setanalysis = function(element, entry)
-                                local text = entry.monsterType
-                                if entry.language ~= nil then
-                                    text = string.format("<b>%s</b>\nCommunicates in %s", text, entry.language.name)
-                                else
-                                    text = string.format("<b>%s</b>\nNo language", text)
-                                end
-                                element.text = text
-                            end,
+                            flow = "horizontal",
+                            gui.Panel{
+                                classes = {"expanded"},
+                                styles = gui.TriangleStyles,
+                                bgimage = "panels/triangle.png",
+                                bgcolor = "white",
+                                width = 8,
+                                height = 8,
+                                valign = "top",
+                                press = function(element)
+                                    element:SetClass("expanded", not element:HasClass("expanded"))
+                                    local parent = element.parent.parent
+                                    parent.children[2]:SetClass("collapsed", not element:HasClass("expanded"))
+                                end,
+                            },
+                            gui.Label{
+                                fontSize = 16,
+                                width = "100%",
+                                height = "auto",
+                                setanalysis = function(element, entry)
+                                    local text = entry.monsterType
+                                    if entry.language ~= nil then
+                                        text = string.format("<b><u>%s</u></b>\nCommunicates in %s", text, entry.language.name)
+                                    else
+                                        text = string.format("<b><u>%s</u></b>\nNo language", text)
+                                    end
+                                    element.text = text
+                                end,
+                            },
                         },
+
+                        gui.Panel{
+                            width = "100%-16",
+                            height = "auto",
+                            flow = "vertical",
+                            halign = "right",
+                        }
                     }
 
                     m_analysisPanels[i]:FireEventTree("setanalysis", entry)

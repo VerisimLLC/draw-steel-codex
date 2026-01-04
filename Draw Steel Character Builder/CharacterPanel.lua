@@ -1,6 +1,8 @@
 --[[
     Character Panel
 ]]
+CBCharPanel = RegisterGameType("CBCharPanel")
+
 local _blankToDashes = CharacterBuilder._blankToDashes
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _formatOrder = CharacterBuilder._formatOrder
@@ -11,10 +13,6 @@ local _ucFirst = CharacterBuilder._ucFirst
 
 local INITIAL_TAB = "description"
 local SEL = CharacterBuilder.SELECTOR
-
---- Character Panel Class
-CBCharPanel = RegisterGameType("CBCharPanel")
-CBCharPanel.__index = CBCharPanel
 
 --- Create a panel displaying feature information for a single feature type
 --- @return Panel

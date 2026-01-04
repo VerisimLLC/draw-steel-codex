@@ -1,5 +1,6 @@
 --[[
     Kit detail / selectors
+    mcdmkitbuilder.lua
 ]]
 CBKitDetail = RegisterGameType("CBKitDetail")
 

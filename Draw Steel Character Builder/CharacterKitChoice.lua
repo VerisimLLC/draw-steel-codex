@@ -7,13 +7,11 @@
     This supports CBKitDetail.
 ]]
 CharacterKitChoice = RegisterGameType("CharacterKitChoice", "CharacterChoice")
-CharacterKitChoice.__index = CharacterKitChoice
 
 --- Construct from a hero
 --- @param hero character
 --- @return CharacterKitChoice|nil
-function CharacterKitChoice:new(hero)
-    local instance = setmetatable({}, self)
+function CharacterKitChoice.CreateNew(hero)
 
     if hero == nil then return nil end
     if not hero:CanHaveKits() then return nil end
@@ -45,18 +43,20 @@ function CharacterKitChoice:new(hero)
     table.sort(options, function(a,b) return a.name < b.name end)
     table.sort(choices, function(a,b) return a.text < b.text end)
 
-    instance.guid = classItem.id
-    instance.name = "Kit"
-    instance.numChoices = hero:GetNumberOfKits()
-    instance.costsPoints = false
-    instance.hasRoll = false
-    instance.description =
-        instance.numChoices == 2 and "You can use and gain the benefits of two kits, including both their signature abilities."
+    local numChoices = hero:GetNumberOfKits()
+    local description = numChoices == 2 and "You can use and gain the benefits of two kits, including both their signature abilities."
         or "You can use and gain the benefits of a kit."
-    instance.options = options
-    instance.choices = choices
 
-    return instance
+    return CharacterKitChoice.new{
+        guid = classItem.id,
+        name = "Kit",
+        numChoices = numChoices,
+        costsPoints = false,
+        hasRoll = false,
+        description = description,
+        options = options,
+        choices = choices,
+    }
 end
 
 function CharacterKitChoice:CanRepeat()

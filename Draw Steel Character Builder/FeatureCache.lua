@@ -2,18 +2,13 @@
     A cache and wrappers for our features
     to support the builder
 ]]
+CBFeatureCache = RegisterGameType("CBFeatureCache")
+CBFeatureWrapper = RegisterGameType("CBFeatureWrapper")
+CBOptionWrapper = RegisterGameType("CBOptionWrapper")
+
 local _formatOrder = CharacterBuilder._formatOrder
 local _hasFn = CharacterBuilder._hasFn
 local _safeGet = CharacterBuilder._safeGet
-
-CBFeatureCache = RegisterGameType("CBFeatureCache")
-CBFeatureCache.__index = CBFeatureCache
-
-CBFeatureWrapper = RegisterGameType("CBFeatureWrapper")
-CBFeatureWrapper.__index = CBFeatureWrapper
-
-CBOptionWrapper = RegisterGameType("CBOptionWrapper")
-CBOptionWrapper.__index = CBOptionWrapper
 
 --[[
     Feature Cache
@@ -25,15 +20,16 @@ CBOptionWrapper.__index = CBOptionWrapper
 --- @param selectedName string Display name of the selected item
 --- @param features table Array of feature details
 --- @return CBFeatureCache
-function CBFeatureCache:new(hero, selectedId, selectedName, features)
-    local instance = setmetatable({}, self)
+function CBFeatureCache.CreateNew(hero, selectedId, selectedName, features)
 
-    instance.selectedId = selectedId
-    instance.selectedName = selectedName
+    local opts = {
+        selectedId = selectedId,
+        selectedName = selectedName,
+    }
 
-    CBFeatureCache._processFeatures(instance, hero, features)
+    CBFeatureCache._processFeatures(opts, hero, features)
 
-    return instance
+    return CBFeatureCache.new(opts)
 end
 
 --- @return boolean
@@ -75,10 +71,11 @@ function CBFeatureCache:IsFeatureComplete(guid)
     return nil
 end
 
+--- @param opts table
 --- @param hero character
 --- @param features table
 --- @private
-function CBFeatureCache:_processFeatures(hero, features)
+function CBFeatureCache._processFeatures(opts, hero, features)
     local sorted = {}
     local flattened = {}
     local keyed = {}
@@ -95,16 +92,16 @@ function CBFeatureCache:_processFeatures(hero, features)
 
     local function addFeature(feature)
         if not passesPrereq(feature) then return end
-        local cacheFeature = CBFeatureWrapper:new(hero, feature)
+        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()
             keyed[guid] = cacheFeature
             sorted[#sorted+1] = { guid = guid, order = cacheFeature:GetOrder() }
-            if self.allFeaturesComplete then self.allFeaturesComplete = cacheFeature:IsComplete() end
+            if opts.allFeaturesComplete then opts.allFeaturesComplete = cacheFeature:IsComplete() end
         end
     end
 
-    self.allFeaturesComplete = true
+    opts.allFeaturesComplete = true
 
     for _,item in ipairs(features) do
         if item.features ~= nil then
@@ -119,9 +116,9 @@ function CBFeatureCache:_processFeatures(hero, features)
 
     table.sort(sorted, function(a,b) return a.order < b.order end)
 
-    self.sorted = sorted
-    self.keyed = keyed
-    self.flattened = #flattened > 0 and flattened or features
+    opts.sorted = sorted
+    opts.keyed = keyed
+    opts.flattened = #flattened > 0 and flattened or features
 end
 
 --[[
@@ -132,21 +129,23 @@ end
 --- @param hero character
 --- @param feature CharacterChoice
 --- @return CBFeatureWrapper|nil
-function CBFeatureWrapper:new(hero, feature)
+function CBFeatureWrapper.CreateNew(hero, feature)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
 
-    local instance = setmetatable({}, self)
+    local category = CBFeatureWrapper._deriveCategory(feature)
+    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category)
 
-    instance.feature = feature
-    instance.category = CBFeatureWrapper._deriveCategory(feature)
-    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(instance, feature)
-    instance.order = nameOrder
-    instance.categoryOrder = categoryOrder
-    instance.currentOptionId = nil
+    local newObj = CBFeatureWrapper.new{
+        feature = feature,
+        category = category,
+        order = nameOrder,
+        categoryOrder = categoryOrder,
+        currentOptionId = nil,
+    }
 
-    CBFeatureWrapper._update(instance, hero)
+    newObj:_update(hero)
 
-    return instance
+    return newObj
 end
 
 --- Determine whether to allow the current selected option
@@ -444,9 +443,10 @@ end
 
 --- Derive sort order from feature type
 --- @param feature CharacterChoice
+--- @param category string
 --- @return string nameOrder
 --- @return string categoryOrder
-function CBFeatureWrapper:_deriveOrder(feature)
+function CBFeatureWrapper._deriveOrder(feature, category)
     local typeOrder = {
         -- Low numbers are reserved - stay between 100 & 998
         CharacterAncestryInheritanceChoice  = 110,
@@ -462,8 +462,8 @@ function CBFeatureWrapper:_deriveOrder(feature)
     }
 
     local orderNum = typeOrder[feature.typeName] or 999
-    local nameOrder = _formatOrder(orderNum, self:GetName())
-    local catOrder = _formatOrder(orderNum, self:GetCategory())
+    local nameOrder = _formatOrder(orderNum, feature:try_get("name", "Unnamed Feature"))
+    local catOrder = _formatOrder(orderNum, category)
 
     return nameOrder, catOrder
 end
@@ -520,7 +520,7 @@ function CBFeatureWrapper:_update(hero)
     local optionsKeyed = {}
     local featureOptions = self.feature:GetOptions(levelChoices, hero)
     for _,option in ipairs(featureOptions) do
-        local wrappedOption = CBOptionWrapper:new(option)
+        local wrappedOption = CBOptionWrapper.CreateNew(option)
         options[#options+1] = wrappedOption
         optionsKeyed[wrappedOption:GetGuid()] = wrappedOption
     end
@@ -533,7 +533,7 @@ function CBFeatureWrapper:_update(hero)
     local featureChoices = self.feature:Choices(1, self.selected, hero) or {}
     for _,choice in ipairs(featureChoices) do
         if _safeGet(choice, "hidden", false) == false then
-            local wrappedChoice = CBOptionWrapper:new(choice)
+            local wrappedChoice = CBOptionWrapper.CreateNew(choice)
             choices[#choices+1] = wrappedChoice
             choicesKeyed[wrappedChoice:GetGuid()] = wrappedChoice
         end
@@ -567,11 +567,11 @@ end
 
 --- @param option table
 --- @return CBOptionWrapper
-function CBOptionWrapper:new(option)
-    local instance = setmetatable({}, self)
-    instance.option = option
-    instance.isSelected = false
-    return instance
+function CBOptionWrapper.CreateNew(option)
+    return CBOptionWrapper.new{
+        option = option,
+        isSelected = false,
+    }
 end
 
 --- @return string|nil

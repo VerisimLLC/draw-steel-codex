@@ -40,7 +40,7 @@ function CharacterBuilder.CreatePanel()
         flow = "horizontal",
 
         data = {
-            state = CharacterBuilderState:new(),
+            state = CharacterBuilderState.CreateNew(),
 
             detailPanels = {},
 
@@ -190,7 +190,7 @@ function CharacterBuilder.CreatePanel()
 
             if token then
                 if cachedToken and cachedToken.id ~= token.id then
-                    element.data.state = CharacterBuilderState:new()
+                    element.data.state = CharacterBuilderState.CreateNew()
                     element.data.state:Set({key = "token", value = token})
                     element:FireEvent("ensureActiveSelector")
                 end
@@ -283,7 +283,7 @@ function CharacterBuilder.CreatePanel()
                 local featureDetails = {}
                 ancestryItem:FillFeatureDetails(nil, levelChoices, featureDetails)
 
-                local featureCache = CBFeatureCache:new(hero, ancestryId, ancestryItem.name, featureDetails)
+                local featureCache = CBFeatureCache.CreateNew(hero, ancestryId, ancestryItem.name, featureDetails)
 
                 newState[#newState+1] = { key = SEL.ANCESTRY .. ".selectedItem", value = ancestryItem }
                 newState[#newState+1] = { key = SEL.ANCESTRY .. ".inheritedId", value = inheritedAncestryId }
@@ -319,7 +319,7 @@ function CharacterBuilder.CreatePanel()
 
                 -- Special case: Adapt inciting incidents to behave like features
                 for _,item in ipairs(careerItem:try_get("characteristics", {})) do
-                    local feature = CharacterIncidentChoice:new(item)
+                    local feature = CharacterIncidentChoice.CreateNew(item)
                     if feature then
                         featureDetails[#featureDetails+1] = {
                             feature = feature,
@@ -336,7 +336,7 @@ function CharacterBuilder.CreatePanel()
                     end
                 end
 
-                local featureCache = CBFeatureCache:new(hero, careerId, careerItem.name, featureDetails)
+                local featureCache = CBFeatureCache.CreateNew(hero, careerId, careerItem.name, featureDetails)
 
                 newState[#newState+1] = { key = SEL.CAREER .. ".selectedItem", value = careerItem }
                 newState[#newState+1] = { key = SEL.CAREER .. ".featureCache", value = featureCache }
@@ -367,7 +367,7 @@ function CharacterBuilder.CreatePanel()
                 local classFill = {}
 
                 -- Special case: Adapt baseCharacteristics to behave like a feature choice
-                local feature = CharacterCharacteristicChoice:new(classItem)
+                local feature = CharacterCharacteristicChoice.CreateNew(classItem)
                 if feature then
                     classFill[#classFill+1] = {
                         feature = feature,
@@ -383,18 +383,18 @@ function CharacterBuilder.CreatePanel()
                 else
                     classItem:FillFeatureDetailsForLevel(levelChoices, 1, extraLevelInfo, "nonprimary", classFill)
                 end
-                local featureCache = CBFeatureCache:new(hero, classId, classItem.name, classFill)
+                local featureCache = CBFeatureCache.CreateNew(hero, classId, classItem.name, classFill)
 
                 newState[#newState+1] = { key = SEL.CLASS .. ".selectedItem", value = classItem }
                 newState[#newState+1] = { key = SEL.CLASS .. ".selectedSubclasses", value = classAndSubClasses }
                 newState[#newState+1] = { key = SEL.CLASS .. ".featureCache", value = featureCache }
 
-                local kitFeature = CharacterKitChoice:new(hero)
+                local kitFeature = CharacterKitChoice.CreateNew(hero)
                 if kitFeature then
                     local features = {
                         { feature = kitFeature }
                     }
-                    local kitFeatureCache = CBFeatureCache:new(hero, classItem.id, classItem.name, features)
+                    local kitFeatureCache = CBFeatureCache.CreateNew(hero, classItem.id, classItem.name, features)
                     newState[#newState+1] = { key = SEL.KIT .. ".featureCache", value = kitFeatureCache }
                 else
                     newState[#newState+1] = { key = SEL.KIT .. ".featureCache", value = nil }

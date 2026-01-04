@@ -5,10 +5,7 @@
     a feature choice for purposes of the character builder.
 ]]
 CharacterIncidentChoice = RegisterGameType("CharacterIncidentChoice", "CharacterChoice")
-CharacterIncidentChoice.__index = CharacterIncidentChoice
-
 CharacterIncidentOption = RegisterGameType("CharacterIncidentOption")
-CharacterIncidentOption.__index = CharacterIncidentOption
 
 CharacterIncidentChoice.name = "Incident"
 CharacterIncidentChoice.description = "Inciting Incident"
@@ -19,32 +16,29 @@ CharacterIncidentChoice.hasRoll = true
 --- Contruct from a background characteristic
 --- @param c BackgroundCharacteristic
 --- @return CharacterIncidentChoice
-function CharacterIncidentChoice:new(c)
-
-    local instance = setmetatable({}, self)
+function CharacterIncidentChoice.CreateNew(c)
 
     local options = {}
     local rollTable = c:GetRollTable()
     local rollInfo = rollTable:CalculateRollInfo()
     for i,row in ipairs(rollTable.rows) do
-        options[#options+1] = CharacterIncidentOption:new(row, rollInfo.rollRanges[i])
+        options[#options+1] = CharacterIncidentOption.CreateNew(row, rollInfo.rollRanges[i])
     end
 
-    instance.guid = c.tableid
-    instance.name = c:Name()
-    instance.description = (rollTable.details and #rollTable.details) and rollTable.details or c:Name()
-    instance.options = options
-    instance.characteristic = c
-
-    return instance
+    return CharacterIncidentChoice.new{
+        guid = c.tableid,
+        name = c:Name(),
+        description = (rollTable.details and #rollTable.details) and rollTable.details or c:Name(),
+        options = options,
+        characteristic = c,
+    }
 end
 
 --- Construct from data - a roll table entry
 --- @param row
 --- @param rollRange
 --- @return CharacterIncidentOption
-function CharacterIncidentOption:new(row, rollRange)
-    local instance = setmetatable({}, self)
+function CharacterIncidentOption.CreateNew(row, rollRange)
 
     local function parseString(str)
         local name, description
@@ -85,14 +79,14 @@ function CharacterIncidentOption:new(row, rollRange)
     local range = rangeText(rollRange)
     name = string.format("%s: %s", range, name)
 
-    instance.guid = row.id
-    instance.name = name
-    instance.description = description
-    instance.row = row
-    instance.rollRange = rollRange
-    instance.unique = true
-
-    return instance
+    return CharacterIncidentOption.new{
+        guid = row.id,
+        name = name,
+        description = description,
+        row = row,
+        rollRange = rollRange,
+        unique = true,
+    }
 end
 
 function CharacterIncidentChoice:CanRepeat()

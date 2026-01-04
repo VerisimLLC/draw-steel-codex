@@ -1588,7 +1588,13 @@ function creature.SetTemporaryHitpoints(self, amount, note, options)
 	if amount <= 0 then
 		self.temporary_hitpoints = nil
 	else
+
+		if amount > self.temporary_hitpoints then
+			audio.FireSoundEvent("Notify.TempStamina_Gain")
+		end
+
 		self.temporary_hitpoints = amount
+
 	end
 
 	--if we have an ongoing effect tied to a current temporary hitpoints grant, then remove it.

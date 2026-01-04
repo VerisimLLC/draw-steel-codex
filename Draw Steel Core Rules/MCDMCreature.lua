@@ -119,7 +119,7 @@ end
 --@return number|nil
 function creature:AttributeForPotencyResistance(attrid)
     local customAttr = CustomAttribute.attributeInfoByLookupSymbol
-    [string.lower(creature.attributesInfo[attrid].description) .. "potencyresistance"]
+        [string.lower(creature.attributesInfo[attrid].description) .. "potencyresistance"]
     local value = nil
     if customAttr ~= nil then
         local result = self:GetCustomAttribute(customAttr)
@@ -138,7 +138,7 @@ end
 --@return { key: string, value: string}[]
 function creature:AttributeForPotencyResistanceDescription(attrid)
     local customAttr = CustomAttribute.attributeInfoByLookupSymbol
-    [string.lower(creature.attributesInfo[attrid].description) .. "potencyresistance"]
+        [string.lower(creature.attributesInfo[attrid].description) .. "potencyresistance"]
     if customAttr ~= nil then
         local baseValue = customAttr:CalculateBaseValue(self)
         local result = self:DescribeModifications(customAttr.id, baseValue)
@@ -697,7 +697,7 @@ function creature:RefreshSquadInfo(token)
         end
 
         local newHasCaptain = self._tmp_minionSquad.captain ~= nil and self._tmp_minionSquad.captain.valid and
-        (not self._tmp_minionSquad.captain.properties:IsDead())
+            (not self._tmp_minionSquad.captain.properties:IsDead())
         local needInvalidate = self._tmp_minionSquad.hasCaptain ~= newHasCaptain
 
         self._tmp_minionSquad.hasCaptain = newHasCaptain
@@ -855,7 +855,7 @@ creature.RegisterSymbol {
     },
 }
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "playerallied",
     lookup = function(c)
         local token = dmhub.LookupToken(c)
@@ -958,15 +958,14 @@ creature.RegisterSymbol {
 }
 
 function creature:RecoveriesAvailableToSpend()
-
-	local usage = self:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
-	local max = self:GetResources()[CharacterResource.recoveryResourceId] or 0
-	local quantity = max - usage
+    local usage = self:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
+    local max = self:GetResources()[CharacterResource.recoveryResourceId] or 0
+    local quantity = max - usage
 
     local recoverySharing = self:ShareRecoveriesWith()
     if recoverySharing ~= nil then
         local mytoken = dmhub.LookupToken(self)
-        for i,token in ipairs(recoverySharing) do
+        for i, token in ipairs(recoverySharing) do
             if mytoken and token.charid ~= mytoken.charid then
                 local usage = token.properties:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
                 local max = token.properties:GetResources()[CharacterResource.recoveryResourceId] or 0
@@ -1001,7 +1000,7 @@ function creature:CalculatePotencyValue(potency)
     return potencyValue + potencyBonus
 end
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "recoveriesavailabletospend",
     lookup = function(c)
         return c:RecoveriesAvailableToSpend()
@@ -1031,7 +1030,7 @@ creature.RegisterSymbol {
     symbol = "hascaptain",
     lookup = function(c)
         return c.minion and c:has_key("_tmp_minionSquad") and c._tmp_minionSquad.captain ~= nil and
-        c._tmp_minionSquad.captain.valid and (not c._tmp_minionSquad.captain.properties:IsDead())
+            c._tmp_minionSquad.captain.valid and (not c._tmp_minionSquad.captain.properties:IsDead())
     end,
     help = {
         name = "HasCaptain",
@@ -1045,8 +1044,8 @@ creature.RegisterSymbol {
     symbol = "squadcaptain",
     lookup = function(c)
         return c.minion and c:has_key("_tmp_minionSquad") and c._tmp_minionSquad.captain ~= nil and
-        c._tmp_minionSquad.captain.valid and (not c._tmp_minionSquad.captain.properties:IsDead()) and
-        c._tmp_minionSquad.captain.properties
+            c._tmp_minionSquad.captain.valid and (not c._tmp_minionSquad.captain.properties:IsDead()) and
+            c._tmp_minionSquad.captain.properties
     end,
     help = {
         name = "Squad Captain",
@@ -1292,7 +1291,7 @@ creature.RegisterSymbol {
         name = "Immunities",
         type = "function",
         desc = "Given a damage type, will return a creatures total immunity. Will provide a negative when they have a weakness.",
-        examples = {'Target.Immunities("Fire") > 5'},
+        examples = { 'Target.Immunities("Fire") > 5' },
     },
 }
 
@@ -1594,7 +1593,7 @@ end
 function monster:IsDying()
     if self:IsRetainer() then
         local hp = self:CurrentHitpoints()
-        return hp <= 0 and hp > -(self:MaxHitpoints()/2)
+        return hp <= 0 and hp > -(self:MaxHitpoints() / 2)
     end
 
     return false
@@ -1736,7 +1735,7 @@ creature.RegisterSymbol {
     symbol = "aurascaster",
     lookup = function(c)
         return function(auraname)
-			auraname = string.lower(auraname)
+            auraname = string.lower(auraname)
             local token = dmhub.LookupToken(c)
 
             if token then
@@ -1880,7 +1879,7 @@ function creature.ResistanceEntries(self)
             --upper case the first character of damage type description.
             if damageTypeDescription ~= "" then
                 damageTypeDescription = string.upper(string.sub(damageTypeDescription, 1, 1)) ..
-                string.sub(damageTypeDescription, 2)
+                    string.sub(damageTypeDescription, 2)
             end
 
             items[#items + 1] = {
@@ -2072,7 +2071,7 @@ function creature:GetActivatedAbilities(options)
             mod.mod:FillActivatedAbilities(mod, self, result)
         end
     end
-    
+
     if self:has_key("ongoingEffects") then
         for i, cond in ipairs(self.ongoingEffects) do
             if cond:try_get('endAbility') ~= nil and not cond:Expired() then
@@ -2303,7 +2302,7 @@ function creature:IsConcealed()
     return token ~= nil and token.hasConcealment
 end
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "concealed",
     lookup = function(c)
         return c:try_get("_tmp_concealed")
@@ -2366,38 +2365,38 @@ creature.RegisterSymbol {
     symbol = "ConditionCount",
     lookup = function(c)
         local result = {}
-		local conditions = {}
-		local ongoingEffects = c:ActiveOngoingEffects()
-		if #ongoingEffects > 0 then
-			local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-			for i,cond in ipairs(ongoingEffects) do
-				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-				--if this ongoing effect has an underlying condition then record us having that condition since conditions can also have modifiers.
-				if ongoingEffectInfo.condition ~= 'none' then
-					conditions[ongoingEffectInfo.condition] = 1
-				end
-			end
-		end
+        local conditions = {}
+        local ongoingEffects = c:ActiveOngoingEffects()
+        if #ongoingEffects > 0 then
+            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+            for i, cond in ipairs(ongoingEffects) do
+                local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
+                --if this ongoing effect has an underlying condition then record us having that condition since conditions can also have modifiers.
+                if ongoingEffectInfo.condition ~= 'none' then
+                    conditions[ongoingEffectInfo.condition] = 1
+                end
+            end
+        end
 
         --get bestowed conditions.
-        for i,modifier in ipairs(c:GetActiveModifiers()) do
+        for i, modifier in ipairs(c:GetActiveModifiers()) do
             if modifier.mod:CanBestowConditions() and modifier.mod:PassesFilter(c) then
                 modifier.mod:BestowConditions(modifier, c, conditions)
             end
         end
 
-		--we have a table of conditions based on ongoing effects, add any of their modifiers.
-		local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
-		for k,_ in pairs(conditions) do
-			local conditionInfo = conditionsTable[k]
-			result[#result+1] = conditionInfo.name
-		end
+        --we have a table of conditions based on ongoing effects, add any of their modifiers.
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+        for k, _ in pairs(conditions) do
+            local conditionInfo = conditionsTable[k]
+            result[#result + 1] = conditionInfo.name
+        end
 
-		local inflictedConditions = c:get_or_add("inflictedConditions", {})
-		for condid,_ in pairs(inflictedConditions) do
-			result[#result+1] = conditionsTable[condid].name
-		end
-        
+        local inflictedConditions = c:get_or_add("inflictedConditions", {})
+        for condid, _ in pairs(inflictedConditions) do
+            result[#result + 1] = conditionsTable[condid].name
+        end
+
         return #result
     end,
     help = {
@@ -2500,6 +2499,9 @@ function creature:InflictCondition(conditionid, args)
                     return
                 end
             end
+        end
+        if inflictedConditions[conditionid] ~= nil then
+            audio.DispatchSoundEvent(conditionInfo:SoundEvent() .. "_End")
         end
         inflictedConditions[conditionid] = nil
     end
@@ -3019,6 +3021,7 @@ local g_creatureSetTemporaryHitpoints = creature.SetTemporaryHitpoints
 function creature.SetTemporaryHitpoints(self, amount, note, options)
     g_creatureSetTemporaryHitpoints(self, amount, note, options)
 
+
     if mod.unloaded then
         return
     end
@@ -3067,9 +3070,10 @@ function creature.TakeDamage(self, amount, note, info)
 
     if attackerid ~= nil and attackerid == dmhub.LookupTokenId(self) then
         attackerid = nil
-        
+
         print("ATTACKER:: pusher:", info.pusher)
-        local pusher = info.pusher or (info.ability ~= nil and info.ability.name == "Fall Damage" and rawget(self, "_tmp_lastpusher"))
+        local pusher = info.pusher or
+        (info.ability ~= nil and info.ability.name == "Fall Damage" and rawget(self, "_tmp_lastpusher"))
         if pusher ~= nil then
             if type(pusher) == "function" then
                 pusher = pusher("self")
@@ -3121,16 +3125,16 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.banes = info.cast.banesApplied
         end
         if (not info.doesNotTrigger) and amount > 0 then
-        print("LOSEHITPOINTS:: DO LOSE", info.doesNotTrigger)
+            print("LOSEHITPOINTS:: DO LOSE", info.doesNotTrigger)
             self:DispatchEvent("losehitpoints", eventArg)
         end
 
         if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
             self._tmp_lastattacker = eventArg.pusher
-                    print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
+            print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         else
             self._tmp_lastattacker = eventArg.attacker
-                    print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
+            print("ATTACKER::", dmhub.LookupTokenId(self:try_get("_tmp_lastattacker")))
         end
         self._tmp_lastdamagetype = eventArg.damagetype
 
@@ -3225,7 +3229,7 @@ function creature.TakeDamage(self, amount, note, info)
     elseif isWindedNow and not isWindedAtStart then
         self:DispatchEvent("winded", eventArg)
         audio.DispatchSoundEvent("Condition.Winded", {})
-            print("DYING:: WINDED")
+        print("DYING:: WINDED")
     end
 
     if eventArg.attacker == nil or dmhub.LookupTokenId(eventArg.attacker) == dmhub.LookupTokenId(self) then
@@ -3433,19 +3437,19 @@ function creature:DispatchEventAndWait(eventName, info)
     -- Check if there are any triggers for this event first
     local mods = self:GetActiveModifiers()
     local hasTrigger = false
-    for i,mod in ipairs(mods) do
+    for i, mod in ipairs(mods) do
         if mod.mod:HasTriggeredEvent(self, eventName) then
             hasTrigger = true
             break
         end
     end
-    
+
     -- If no triggers, just dispatch normally and return immediately
     if not hasTrigger then
         self:DispatchEvent(eventName, info)
         return
     end
-    
+
     -- If there are triggers, set up waiting mechanism
     local eventComplete = false
 
@@ -3464,128 +3468,129 @@ function creature:PersistentAbilities()
     local result = {}
 
     for i, a in ipairs(self:try_get("persistentAbilities", {})) do
-
-            local q = dmhub.initiativeQueue
-            if q == nil or q.hidden then
+        local q = dmhub.initiativeQueue
+        if q == nil or q.hidden then
+            break
+        elseif (q.round or 0) > (a.round or 0) or ((q.round or 0) == (a.round or 0) and (q.turn or 0) > (a.turn or 0)) then
+            if a.ability == nil then
                 break
-            elseif (q.round or 0) > (a.round or 0) or ((q.round or 0) == (a.round or 0) and (q.turn or 0) > (a.turn or 0)) then
-                if a.ability == nil then
-                    break
-                end
-                local ability = a.ability:MakeTemporaryClone()
+            end
+            local ability = a.ability:MakeTemporaryClone()
 
-                local persistence = ability:Persistence()
-                local persistenceMode = persistence.mode
+            local persistence = ability:Persistence()
+            local persistenceMode = persistence.mode
 
-                if persistenceMode == "none" then
-                    break
-                end
+            if persistenceMode == "none" then
+                break
+            end
 
-                if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
-                    ability = a.ability.recastNewAbility:MakeTemporaryClone()
-                end
+            if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
+                ability = a.ability.recastNewAbility:MakeTemporaryClone()
+            end
 
-                local newAbility = TriggeredAbility.Create()
-                newAbility.trigger = "beginturn"
-                newAbility.guid = dmhub.GenerateGuid()                
-                newAbility.name = ability.name
-                newAbility.resourceNumber = 0
-                newAbility.targetType = "self"
-                newAbility.iconid = ability.iconid
-                newAbility.mandatory = false
-                newAbility.abilityType = "none"
-                newAbility.repeatTargets = false
-                newAbility.whenActive = "combat"
-                newAbility.castImmediately = true
+            local newAbility = TriggeredAbility.Create()
+            newAbility.trigger = "beginturn"
+            newAbility.guid = dmhub.GenerateGuid()
+            newAbility.name = ability.name
+            newAbility.resourceNumber = 0
+            newAbility.targetType = "self"
+            newAbility.iconid = ability.iconid
+            newAbility.mandatory = false
+            newAbility.abilityType = "none"
+            newAbility.repeatTargets = false
+            newAbility.whenActive = "combat"
+            newAbility.castImmediately = true
 
-                ability.persistence = nil
-                ability.actionResourceId = cond(persistenceMode == "recast_maneuver", CharacterResource.maneuverResourceId, "none")
-                ability.resourceNumber = "0"
+            ability.persistence = nil
+            ability.actionResourceId = cond(persistenceMode == "recast_maneuver", CharacterResource.maneuverResourceId,
+                "none")
+            ability.resourceNumber = "0"
 
-                --[[ if a.filter ~= nil then
+            --[[ if a.filter ~= nil then
                     ability.abilityFilter = {a.filter}
                 end ]]
 
-                local targeting = "prompt"
+            local targeting = "prompt"
 
-                local targets = nil
+            local targets = nil
 
-                local filterstr = ""
-                if persistenceMode == "recast_target" then
-                    targeting = "inherit"
-                    targets = {}
-                    for i,targetid in ipairs(a.targets or {}) do
-                        if i == #a.targets then
-                            filterstr = string.format("%s %s", filterstr, string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                        else
-                            filterstr = string.format("%s or %s", filterstr, string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
-                        end
-                    end
-                    for _,targetid in ipairs(a.targets or {}) do
-                        local targetToken = dmhub.GetTokenById(targetid)
-                        if targetToken ~= nil then
-                            targets[#targets+1] = {
-                                token = targetToken,
-                            }
-                        end
-                    end
-                    ability.targetFilter = filterstr
-
-                elseif persistenceMode == "recast_with_one_target" then
-                    ability.numTargets = 1
-                end
-
-                ability.OnFinishCast = function(ability)
-                    local q = dmhub.initiativeQueue
-                    if q == nil or q.hidden then
-                        return
-                    end
-                    local m_token = dmhub.LookupToken(self)
-                    local persistentAbilities = self:try_get("persistentAbilities", {})
-                    for _,entry in ipairs(persistentAbilities) do
-                        if entry.name == ability.name then
-                            m_token:ModifyProperties{
-                                description = "Update Persistent Ability",
-                                undoable = false,
-                                execute = function()
-                                    entry.turn = q.turn
-                                    entry.round = q.round
-                                end,
-                            }
-                        end
+            local filterstr = ""
+            if persistenceMode == "recast_target" then
+                targeting = "inherit"
+                targets = {}
+                for i, targetid in ipairs(a.targets or {}) do
+                    if i == #a.targets then
+                        filterstr = string.format("%s %s", filterstr,
+                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
+                    else
+                        filterstr = string.format("%s or %s", filterstr,
+                            string.format("self.id = %s", Utils.HashGuidToNumber(targetid)))
                     end
                 end
-
-                local invoke = ActivatedAbilityInvokeAbilityBehavior.new{
-                    customAbility = ability,
-                    promptText = string.format(tr("Persistence: Recast %s"), ability.name),
-                    targeting = "prompt",
-                    --targetingFormula = filterstr,
-                    --targets = targets,
-                }
-
-                local persistCast = ActivatedAbilityPersistenceCastBehavior.new{
-                    token = dmhub.LookupToken(self),
-                    ability = ability,
-                    targets = targets,
-                }
-
-                local behavior = newAbility:get_or_add("behaviors", {})
-                behavior[#behavior + 1] = invoke
-
-                local mod = CharacterModifier.new{
-                    guid = dmhub.GenerateGuid(),
-                    source = "Persistent Ability",
-                    name = string.format("Persistent: %s", newAbility.name),
-                    behavior = "trigger",
-                    triggeredAbility = newAbility,
-                    description = "",
-                    domains = {},
-                }
-
-                result[#result + 1] = mod
+                for _, targetid in ipairs(a.targets or {}) do
+                    local targetToken = dmhub.GetTokenById(targetid)
+                    if targetToken ~= nil then
+                        targets[#targets + 1] = {
+                            token = targetToken,
+                        }
+                    end
+                end
+                ability.targetFilter = filterstr
+            elseif persistenceMode == "recast_with_one_target" then
+                ability.numTargets = 1
             end
+
+            ability.OnFinishCast = function(ability)
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then
+                    return
+                end
+                local m_token = dmhub.LookupToken(self)
+                local persistentAbilities = self:try_get("persistentAbilities", {})
+                for _, entry in ipairs(persistentAbilities) do
+                    if entry.name == ability.name then
+                        m_token:ModifyProperties {
+                            description = "Update Persistent Ability",
+                            undoable = false,
+                            execute = function()
+                                entry.turn = q.turn
+                                entry.round = q.round
+                            end,
+                        }
+                    end
+                end
+            end
+
+            local invoke = ActivatedAbilityInvokeAbilityBehavior.new {
+                customAbility = ability,
+                promptText = string.format(tr("Persistence: Recast %s"), ability.name),
+                targeting = "prompt",
+                --targetingFormula = filterstr,
+                --targets = targets,
+            }
+
+            local persistCast = ActivatedAbilityPersistenceCastBehavior.new {
+                token = dmhub.LookupToken(self),
+                ability = ability,
+                targets = targets,
+            }
+
+            local behavior = newAbility:get_or_add("behaviors", {})
+            behavior[#behavior + 1] = invoke
+
+            local mod = CharacterModifier.new {
+                guid = dmhub.GenerateGuid(),
+                source = "Persistent Ability",
+                name = string.format("Persistent: %s", newAbility.name),
+                behavior = "trigger",
+                triggeredAbility = newAbility,
+                description = "",
+                domains = {},
+            }
+
+            result[#result + 1] = mod
         end
+    end
 
     return result
 end
@@ -3596,16 +3601,16 @@ function creature:MostRecentPersistentAbility()
         return nil
     end
 
-	return persistentAbilities[#persistentAbilities]
+    return persistentAbilities[#persistentAbilities]
 end
 
 function creature:MostRecentPersistentAbilityId()
-	local persistentAbility = self:MostRecentPersistentAbility()
-	if persistentAbility == nil then
-		return nil
-	end
+    local persistentAbility = self:MostRecentPersistentAbility()
+    if persistentAbility == nil then
+        return nil
+    end
 
-	return persistentAbility.guid
+    return persistentAbility.guid
 end
 
 function creature:EndPersistentAbilityById(guid)
@@ -3617,7 +3622,7 @@ function creature:EndPersistentAbilityById(guid)
     local persistentAbilities = self:try_get("persistentAbilities", {})
     local persistentIndex = nil
     local targets = {}
-    for i,entry in ipairs(persistentAbilities) do
+    for i, entry in ipairs(persistentAbilities) do
         if entry.guid == guid then
             persistentIndex = i
             targets = entry.targets or {}
@@ -3632,7 +3637,7 @@ function creature:EndPersistentAbilityById(guid)
             local ongoingEffects = target:try_get("ongoingEffects", {})
             for i, effect in ipairs(ongoingEffects) do
                 if effect and effect.casterInfo and effect.casterInfo.persistenceId == guid then
-                    targetToken:ModifyProperties{
+                    targetToken:ModifyProperties {
                         description = "End Persistent Ability Target",
                         undoable = false,
                         execute = function()
@@ -3644,14 +3649,14 @@ function creature:EndPersistentAbilityById(guid)
         end
     end
 
-    for _,objref in ipairs(persistentAbilities[persistentIndex]:try_get("objects") or {}) do
+    for _, objref in ipairs(persistentAbilities[persistentIndex]:try_get("objects") or {}) do
         local obj = game.LookupObject(objref.floorid, objref.objid)
         if obj ~= nil then
             obj:Destroy()
         end
     end
 
-    token:ModifyProperties{
+    token:ModifyProperties {
         description = "End Persistent Ability",
         undoable = false,
         execute = function()
@@ -3678,7 +3683,7 @@ creature.RegisterSymbol {
                 if levelObject ~= nil then
                     local otherKeywords = levelObject.keywords
                     if otherKeywords then
-                        for k,_ in pairs(otherKeywords) do
+                        for k, _ in pairs(otherKeywords) do
                             if not table.contains(keywords, k) then
                                 keywords[#keywords + 1] = k
                             end
@@ -3688,7 +3693,7 @@ creature.RegisterSymbol {
             end
         end
 
-        return StringSet.new{
+        return StringSet.new {
             strings = keywords,
         }
     end,
@@ -3808,7 +3813,7 @@ creature.RegisterSymbol {
     }
 }
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "boundcreatures",
     lookup = function(c)
         return function(effectName)
@@ -3830,11 +3835,11 @@ creature.RegisterSymbol{
                 for _, token in ipairs(tokens) do
                     tokenids[#tokenids + 1] = token.charid
                 end
-                local set = CreatureSet.new{ creatures = tokenids }
+                local set = CreatureSet.new { creatures = tokenids }
                 return set
             end
 
-            return CreatureSet.new{}
+            return CreatureSet.new {}
         end
     end,
 
@@ -3849,7 +3854,7 @@ creature.RegisterSymbol{
     },
 }
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "boundongoingeffect",
     lookup = function(c)
         return function(other, effectName)
@@ -3892,7 +3897,7 @@ creature.RegisterSymbol{
     }
 }
 
-creature.RegisterSymbol{
+creature.RegisterSymbol {
     symbol = "complications",
     lookup = function(c)
         local results = {}
@@ -3941,29 +3946,29 @@ function creature:EndCombat()
     end)
 
     if self:has_key("auras") then
-		local expires = false
-		for i,aura in ipairs(self.auras) do
-			if aura:HasExpired() then
-				expires = true
-			end
-		end
+        local expires = false
+        for i, aura in ipairs(self.auras) do
+            if aura:HasExpired() then
+                expires = true
+            end
+        end
 
-		if expires then
-			local newAuras = {}
-			for i,aura in ipairs(self.auras) do
-				if aura:HasExpired() then
-					aura:DestroyAura(self)
-				else
-					newAuras[#newAuras+1] = aura
-				end
-			end
-			self.auras = newAuras
-		end
-	end
+        if expires then
+            local newAuras = {}
+            for i, aura in ipairs(self.auras) do
+                if aura:HasExpired() then
+                    aura:DestroyAura(self)
+                else
+                    newAuras[#newAuras + 1] = aura
+                end
+            end
+            self.auras = newAuras
+        end
+    end
 
     if not self:has_key("temporary_hitpoints_effect") and self:TemporaryHitpoints() > 0 then
         local token = dmhub.LookupToken(self)
-        token:ModifyProperties{
+        token:ModifyProperties {
             description = "Remove Temporary Hit Points",
             execute = function()
                 self.temporary_hitpoints = nil
@@ -3971,7 +3976,7 @@ function creature:EndCombat()
         }
     end
 
-    token:ModifyProperties{
+    token:ModifyProperties {
         description = "Reset Heroic Resource",
         execute = function()
             local resources = self:try_get("resources")
@@ -3983,7 +3988,6 @@ function creature:EndCombat()
             end
         end,
     }
-
 end
 
 function creature:RemoveMatchingOngoingEffects(predicate)
@@ -4074,11 +4078,11 @@ local g_initiativeGroupings = {}
 
 local function GroupingHud(groupid)
     local floorid = dmhub.floorid
-	local sheetParent = dmhub.GetWorldSpacePanel(floorid, "grouping-" .. groupid)
-    
+    local sheetParent = dmhub.GetWorldSpacePanel(floorid, "grouping-" .. groupid)
+
     if sheetParent ~= nil and sheetParent.sheet == nil then
         local m_lines = {}
-        local m_sheet = gui.Panel{
+        local m_sheet = gui.Panel {
             width = 1,
             height = 1,
             halign = "center",
@@ -4088,7 +4092,7 @@ local function GroupingHud(groupid)
             think = function(element)
                 local removes = nil
                 local count = 0
-                for _,token in pairs(g_initiativeGroupings[groupid].tokens) do
+                for _, token in pairs(g_initiativeGroupings[groupid].tokens) do
                     if token ~= nil and token.valid and token.floorid == floorid then
                         count = count + 1
                     else
@@ -4098,7 +4102,7 @@ local function GroupingHud(groupid)
                 end
 
                 if removes ~= nil then
-                    for _,charid in ipairs(removes) do
+                    for _, charid in ipairs(removes) do
                         g_initiativeGroupings[groupid].tokens[charid] = nil
                     end
                 end
@@ -4112,12 +4116,12 @@ local function GroupingHud(groupid)
 
                 local floor = game.GetFloor(floorid)
 
-                local center = {x = 0, y = 0}
+                local center = { x = 0, y = 0 }
                 local count = 0
                 local tokenSelected = false
-                for _,token in pairs(g_initiativeGroupings[groupid].tokens) do
+                for _, token in pairs(g_initiativeGroupings[groupid].tokens) do
                     if not tokenSelected then
-                        for _,tok in ipairs(selectedTokens) do
+                        for _, tok in ipairs(selectedTokens) do
                             if tok == token then
                                 tokenSelected = true
                                 break
@@ -4128,7 +4132,7 @@ local function GroupingHud(groupid)
                     tokenPos = floor:AdjustParallaxPositionOnGround(tokenPos.x, tokenPos.y)
                     center.x = center.x + tokenPos.x
                     center.y = center.y + tokenPos.y
-                    count = count+1
+                    count = count + 1
                 end
 
                 if not tokenSelected then
@@ -4143,12 +4147,12 @@ local function GroupingHud(groupid)
 
                 local changes = false
 
-                for key,token in pairs(g_initiativeGroupings[groupid].tokens) do
+                for key, token in pairs(g_initiativeGroupings[groupid].tokens) do
                     local tokenPos = token.pos
                     tokenPos = floor:AdjustParallaxPositionOnGround(tokenPos.x, tokenPos.y)
 
                     local dir = core.Vector2(center.x - tokenPos.x, center.y - tokenPos.y).unit
-                    
+
                     --get the position on the edge.
                     tokenPos = {
                         x = tokenPos.x + dir.x * token.radiusInTiles,
@@ -4157,10 +4161,10 @@ local function GroupingHud(groupid)
 
 
                     local line = m_lines[key]
-                    
+
                     if line == nil then
                         changes = true
-                        line = gui.Panel{
+                        line = gui.Panel {
                             bgimage = true,
                             bgcolor = "white",
                             halign = "center",
@@ -4177,13 +4181,13 @@ local function GroupingHud(groupid)
                     local dy = tokenPos.y - center.y
                     local angle = math.atan(dy, dx)
                     line.selfStyle.rotate = math.deg(angle) + 90
-                    line.selfStyle.height = g_tileSize*math.sqrt(dx*dx + dy*dy)
+                    line.selfStyle.height = g_tileSize * math.sqrt(dx * dx + dy * dy)
 
-                    line.selfStyle.x = (tokenPos.x + center.x)*g_tileSize*0.5
-                    line.selfStyle.y = -(tokenPos.y + center.y)*g_tileSize*0.5
+                    line.selfStyle.x = (tokenPos.x + center.x) * g_tileSize * 0.5
+                    line.selfStyle.y = -(tokenPos.y + center.y) * g_tileSize * 0.5
                 end
 
-                for key,line in pairs(m_lines) do
+                for key, line in pairs(m_lines) do
                     if g_initiativeGroupings[groupid].tokens[key] == nil then
                         changes = true
                         line:Destroy()
@@ -4193,7 +4197,7 @@ local function GroupingHud(groupid)
 
                 if changes then
                     local children = {}
-                    for _,line in pairs(m_lines) do
+                    for _, line in pairs(m_lines) do
                         children[#children + 1] = line
                     end
                     element.children = children
@@ -4205,14 +4209,13 @@ local function GroupingHud(groupid)
 
         sheetParent.sheet = m_sheet
     end
-
 end
 
 function creature:RefreshInitiativeGrouping(token)
     if not token.canControl then
         return
     end
-    local grouping = g_initiativeGroupings[self.initiativeGrouping] or {tokens = {}}
+    local grouping = g_initiativeGroupings[self.initiativeGrouping] or { tokens = {} }
     g_initiativeGroupings[self.initiativeGrouping] = grouping
 
     local curFloor = dmhub.floorid
@@ -4222,7 +4225,7 @@ function creature:RefreshInitiativeGrouping(token)
 
     local count = 0
     local removes = nil
-    for charid,token in pairs(grouping.tokens) do
+    for charid, token in pairs(grouping.tokens) do
         if token == nil or not token.valid or (token.floorid ~= curFloor) then
             removes = removes or {}
             removes[#removes + 1] = charid
@@ -4232,25 +4235,22 @@ function creature:RefreshInitiativeGrouping(token)
     end
 
     if removes ~= nil then
-        for _,charid in ipairs(removes) do
+        for _, charid in ipairs(removes) do
             grouping.tokens[charid] = nil
         end
     end
 
     if grouping.tokens[token.charid] == nil then
         grouping.tokens[token.charid] = token
-        count = count+1
+        count = count + 1
     end
 
     if count > 1 then
         GroupingHud(self.initiativeGrouping)
     end
-
-
-
 end
 
-function  creature:GetTitles()
+function creature:GetTitles()
     return self:get_or_add("titles", {})
 end
 
@@ -4267,7 +4267,7 @@ function creature:Titles()
     local results = {}
     local titles = self:GetTitles()
     local t = dmhub.GetTable(Title.tableName) or {}
-    for titleid,_ in pairs(titles) do
+    for titleid, _ in pairs(titles) do
         local titleInfo = t[titleid]
         if titleInfo ~= nil then
             results[#results + 1] = titleInfo
@@ -4278,5 +4278,4 @@ end
 
 dmhub.RegisterEventHandler("ClearTemporaryState", function()
     print("CLEARSTATE:: CLEARING STATE", #dmhub.allTokens)
-
 end)

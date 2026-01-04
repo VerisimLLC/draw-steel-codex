@@ -362,6 +362,14 @@ function gui.CloseButton(options)
 		args[k] = option
 	end
 
+	if options.press ~= nil then
+		args.press = function (element)
+			audio.FireSoundEvent("UI.WindowClose")
+			options.press(element)
+		end
+	end
+
+
 	return gui.Panel(args)
 end
 

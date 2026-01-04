@@ -38,7 +38,8 @@ function RichDice.CreateDisplay(self)
                 element.selfStyle.opacity = 0.5
             end,
 
-            refreshTag = function(element, tag)
+            refreshTag = function(element, tag, match, token)
+                element.selfStyle.bgcolor = self.GetColorFromToken(token) or "white"
                 if tag.identifier == false then
                     tag.identifier = "2d10"
                 end

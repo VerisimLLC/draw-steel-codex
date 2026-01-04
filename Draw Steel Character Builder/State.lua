@@ -2,14 +2,11 @@
 --- @class CharacterBuilderState
 --- @field data table The root data table containing all state
 local CharacterBuilderState = RegisterGameType("CharacterBuilderState")
-CharacterBuilderState.__index = CharacterBuilderState
 
 --- Creates a new CharacterBuilderState instance
 --- @return CharacterBuilderState
-function CharacterBuilderState:new()
-    local instance = setmetatable({}, self)
-    instance.data = {}
-    return instance
+function CharacterBuilderState.CreateNew()
+    return CharacterBuilderState.new{data = {}}
 end
 
 --- Sets a value at the specified path in the data table

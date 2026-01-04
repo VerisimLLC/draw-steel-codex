@@ -5,35 +5,22 @@
     feature choice for purposes of the character builder.
 ]]
 CharacterCharacteristicChoice = RegisterGameType("CharacterCharacteristicChoice", "CharacterChoice")
-CharacterCharacteristicChoice.__index = CharacterCharacteristicChoice
 
 --- Construct from a class
 --- @param classItem Class
 --- @return CharacterCharacteristicChoice
-function CharacterCharacteristicChoice:new(classItem)
-    local instance = setmetatable({}, self)
+function CharacterCharacteristicChoice.CreateNew(classItem)
 
     local function formatArrayLabel(array)
         table.sort(array, function(a,b) return b < a end)
         return table.concat(array, ", ")
     end
 
+    local options = {}
+    local choices = {}
+
     local baseChars, description = CharacterCharacteristicChoice._getBaseCharacteristics(classItem)
-
-    instance.guid = classItem.id
-    instance.name = "Characteristics"
-    instance.description = "Base Characteristics"
-    instance.numChoices = 1
-    instance.costsPoints = false
-    instance.hasRoll = false
-    instance.baseChars = baseChars
-    instance.description = description or "Choose your Starting Characteristics."
-    instance.options = {}
-    instance.choices = {}
-
     if baseChars then
-        local options = {}
-
         for i,array in ipairs(baseChars.arrays) do
             local guid = dmhub.GenerateGuid()
             local name = formatArrayLabel(array)
@@ -50,7 +37,6 @@ function CharacterCharacteristicChoice:new(classItem)
                 order = order,
             }
         end
-        local choices = {}
         table.sort(options, function(a,b) return b.order < a.order end)
         for i,item in ipairs(options) do
             item.order = CharacterBuilder._formatOrder(i, item.name)
@@ -62,12 +48,19 @@ function CharacterCharacteristicChoice:new(classItem)
                 order = item.order,
             }
         end
-
-        instance.options = options
-        instance.choices = choices
     end
 
-    return instance
+    return CharacterCharacteristicChoice.new{
+        guid = classItem.id,
+        name = "Characteristics",
+        numChoices = 1,
+        costsPoints = false,
+        hasRoll = false,
+        baseChars = baseChars,
+        description = description or "Choose your Starting Characteristics.",
+        options = options,
+        choices = choices,
+    }
 end
 
 function CharacterCharacteristicChoice:CanRepeat()

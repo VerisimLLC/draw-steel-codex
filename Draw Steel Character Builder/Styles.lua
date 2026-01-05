@@ -190,6 +190,7 @@ local function _panelStyles()
             vpad = 8,
             flow = "vertical",
             bgimage = true,
+            bgcolor = "#10110FE5",
         },
 
         -- Feature selectors
@@ -346,8 +347,6 @@ local function _labelStyles()
             hpad = 12,
             fontSize = 18,
             textAlignment = "left",
-            bgimage = true,
-            bgcolor = "#10110FE5",
         },
         {
             selectors = {"header"},
@@ -487,6 +486,21 @@ local function _labelStyles()
         {
             selectors = {"attr-value", "drag-target-hover"},
             brightness = 2.0,
+            borderColor = CBStyles.COLORS.CREAM03,
+        },
+
+        -- Kit bonus selectors
+        {
+            selectors = {"bonus-selector"},
+            color = CBStyles.COLORS.GRAY02,
+            bgimage = true,
+            borderColor = CBStyles.COLORS.gray02,
+            border = 1,
+            cornerRadius = 3,
+        },
+        {
+            selectors = {"bonus-selector", "selected"},
+            color = CBStyles.COLORS.GOLD03,
             borderColor = CBStyles.COLORS.CREAM03,
         },
 

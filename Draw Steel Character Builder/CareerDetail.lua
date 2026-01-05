@@ -147,7 +147,7 @@ function CBCareerDetail._navPanel()
         text = string.format("Change %s", GameSystem.BackgroundName),
         data = { category = "change" },
         press = function(element)
-            _fireControllerEvent(element, "removeCareer")
+            _fireControllerEvent("removeCareer")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
@@ -162,7 +162,7 @@ function CBCareerDetail._navPanel()
         vscroll = true,
 
         create = function(element)
-            _fireControllerEvent(element, "updateState", {
+            _fireControllerEvent("updateState", {
                 key = SELECTOR .. ".category.selectedId",
                 value = INITIAL_CATEGORY,
             })
@@ -195,7 +195,7 @@ function CBCareerDetail._selectButton()
     return CharacterBuilder._makeSelectButton{
         classes = {"selectButton"},
         press = function(element)
-            _fireControllerEvent(element, "applyCurrentCareer")
+            _fireControllerEvent("applyCurrentCareer")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)

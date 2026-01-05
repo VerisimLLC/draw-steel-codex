@@ -58,7 +58,7 @@
 
  The helper functions used most frequently include:
 
- _fireControllerEvent(element, eventName, ...)
+ _fireControllerEvent(eventName, ...)
  Fires an event on the main window / controller. Pass the current UI element.
 
  _getHero(source)
@@ -258,8 +258,8 @@ end
 --- @param element Panel The element calling this method
 --- @param eventName string
 --- @param ... any|nil
-function CharacterBuilder._fireControllerEvent(element, eventName, ...)
-    local controller = CharacterBuilder._getController(element)
+function CharacterBuilder._fireControllerEvent(eventName, ...)
+    local controller = CharacterBuilder._getController()
     if controller then controller:FireEvent(eventName, ...) end
 end
 
@@ -281,29 +281,25 @@ function CharacterBuilder._functionOrValue(item)
 end
 
 --- Returns the character sheet instance if we're operating inside it
---- @return CharacterSheet|nil
-function CharacterBuilder._getCharacterSheet(element)
-    return element:FindParentWithClass(CharacterBuilder.ROOT_CHAR_SHEET_CLASS)
+--- @return Panel|nil
+function CharacterBuilder._getCharacterSheet()
+    local controller = CharacterBuilder._getController()
+    if controller then
+        return controller:FindParentWithClass(CharacterBuilder.ROOT_CHAR_SHEET_CLASS)
+    end
+    return nil
 end
 
 --- Returns the builder controller
 --- @return Panel
-function CharacterBuilder._getController(element)
-    if element == nil or not element.valid then
-        return nil
-    end
-    if element.data == nil then element.data = {} end
-    if element.data.controller == nil then
-        element.data.controller = element:FindParentWithClass(CharacterBuilder.CONTROLLER_CLASS)
-    end
-    return element.data.controller
+function CharacterBuilder._getController()
+    return CharacterBuilder:try_get("builderPanel")
 end
 
 --- Returns the hero (character where :IsHero() is true) we're working on
---- @param source CharacterBuilderState|Panel
 --- @return character|nil
-function CharacterBuilder._getHero(source)
-    local token = CharacterBuilder._getToken(source)
+function CharacterBuilder._getHero()
+    local token = CharacterBuilder._getToken()
     if token and token.properties and token.properties:IsHero() then
         return token.properties
     end
@@ -312,20 +308,16 @@ end
 
 --- Returns the builder state
 --- @return @CharacterBuilderState|nil
-function CharacterBuilder._getState(element)
-    local controller = CharacterBuilder._getController(element)
+function CharacterBuilder._getState()
+    local controller = CharacterBuilder._getController()
     if controller then return controller.data.state end
     return nil
 end
 
 --- Returns the character token we are working with or nil if we can't get to it
---- @param source CharacterBuilderState|Panel
 --- @return LuaCharacterToken|nil
-function CharacterBuilder._getToken(source)
-    if source.typeName == "CharacterBuilderState" then
-        return source:Get("token")
-    end
-    local state = CharacterBuilder._getState(source)
+function CharacterBuilder._getToken()
+    local state = CharacterBuilder._getState()
     if state then return state:Get("token") end
     return nil
 end
@@ -547,7 +539,7 @@ end
 function CharacterBuilder._makeDetailNavButton(selector, options)
     if options.press == nil then
         options.press = function(element)
-            CharacterBuilder._fireControllerEvent(element, "updateState", {
+            CharacterBuilder._fireControllerEvent("updateState", {
                 key = selector .. ".category.selectedId",
                 value = element.data.category
             })
@@ -608,7 +600,7 @@ function CharacterBuilder._makeFeatureRegistry(options)
                     order = feature:GetOrder(),
                 },
                 press = function(element)
-                    CharacterBuilder._fireControllerEvent(element, "updateState", {
+                    CharacterBuilder._fireControllerEvent("updateState", {
                         key = selector .. ".category.selectedId",
                         value = element.data.featureId
                     })

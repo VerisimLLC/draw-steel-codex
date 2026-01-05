@@ -29,7 +29,7 @@ function CharacterBuilder.CreatePanel()
     local detailPanel = CharacterBuilder._detailPanel()
     local characterPanel = CBCharPanel.CreatePanel()
 
-    return gui.Panel{
+    CharacterBuilder.builderPanel = gui.Panel{
         id = CharacterBuilder.CONTROLLER_CLASS,
         styles = CBStyles.GetStyles(),
         classes = {"panel-base", "builder-base", CharacterBuilder.CONTROLLER_CLASS},
@@ -174,11 +174,11 @@ function CharacterBuilder.CreatePanel()
 
         refreshBuilderState = function(element, state)
             -- We shouldn't do anything here; we fire this event
-            -- print("THC:: MAIN:: RBS::")
+            -- print("THC:: MAIN:: RBS::", json(state))
         end,
 
         refreshToken = function(element, info)
-            print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
+            -- print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
             local cachedToken = _getToken(element.data.state)
             local token
             if info then
@@ -192,8 +192,8 @@ function CharacterBuilder.CreatePanel()
                 if cachedToken and cachedToken.id ~= token.id then
                     element.data.state = CharacterBuilderState.CreateNew()
                     element.data.state:Set({key = "token", value = token})
-                    element:FireEvent("ensureActiveSelector")
                 end
+                element:FireEvent("ensureActiveSelector")
 
                 local creature = token.properties
                 if creature:IsHero() then
@@ -457,6 +457,8 @@ function CharacterBuilder.CreatePanel()
         detailPanel,
         characterPanel,
     }
+
+    return CharacterBuilder.builderPanel
 end
 
 -- TODO: Remove the gate on the setting
@@ -465,7 +467,7 @@ setting{
     description = "Test WIP Builder",
     editor = "check",
     default = false,
-    storage = "Game",
+    storage = "preference",
     section = "game",
 }
 

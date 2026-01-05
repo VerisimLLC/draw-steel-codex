@@ -865,7 +865,7 @@ function CBCharPanel._headerPanel()
                 if token then
                     if token.name ~= element.data.text then
                         token.name = element.data.text
-                        _fireControllerEvent(element, "tokenDataChanged")
+                        _fireControllerEvent("tokenDataChanged")
                     end
                 end
             end

@@ -33,7 +33,7 @@ function CBSelectors._makeItemsPanel(config)
             end,
 
             press = function(element)
-                _fireControllerEvent(element, "selectItem", {
+                _fireControllerEvent("selectItem", {
                     selector = config.selectorName,
                     id = element.data.id,
                 })
@@ -151,7 +151,7 @@ function CBSelectors.CreatePanel()
         borderColor = "blue",
 
         selectorClick = function(element, selector)
-            _fireControllerEvent(element, "selectorChange", selector)
+            _fireControllerEvent("selectorChange", selector)
         end,
 
         children = selectors,
@@ -401,7 +401,7 @@ local TEST_DETAIL = [[
 - Everything
 
 **Kits**
-- Selecting and de-selecting kits only
+- Everything
 
 **Character Panel**
 - Description Tab: Everything
@@ -412,6 +412,9 @@ local TEST_DETAIL = [[
 
 **User Experience**
 - The "Change X" buttons are unfortunately placed.
+- Long text for overview panels should scroll instead of being truncated.
+- When selecting a kit bonus when you have 2 kits, the UI doesn't remember the kit you had selected.
+- Culture button opens inconsistently. (But its functionality isn't implemented yet.)
 
 **Functionality**
 - Some skill lists still show skills you already have selected.
@@ -419,7 +422,8 @@ local TEST_DETAIL = [[
 
 **Styling / UI**
 - Alignment within selection areas looks sort of off unless you have enough items to scroll.
-- Ability cards do not like to be constrained within parent panels.
+- Some ability cards do not like to be constrained within parent panels.
+- Panels in overview frames should have clear background spacing in between them.
 - Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 
 # Reporing Issues

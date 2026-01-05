@@ -11,6 +11,7 @@ local SELECTOR = CharacterBuilder.SELECTOR.KIT
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getHero = CharacterBuilder._getHero
+local _getState = CharacterBuilder._getState
 
 function CBKitDetail._navPanel()
     -- TODO: Maybe put inside another panel to shrink vertically.
@@ -48,6 +49,123 @@ end
 --- The panel for showing information about kits or the selected kit
 --- @return Panel
 function CBKitDetail._overviewPanel()
+
+    local function makeBonusChoicePanel(bonusItem)
+        local kitKey = "kitBonusChoices"
+
+        local choiceLabels = {}
+        for i = 1, 2 do
+            choiceLabels[i] = gui.Label{
+                classes = {"builder-base", "label", "info", "overview", "bonus-selector"},
+                textWrap = true,
+                width = "auto",
+                lmargin = 8,
+                data = {
+                    index = i,
+                    kit = nil,
+                    bonusItemId = bonusItem.id,
+                },
+                assignKits = function(element, values)
+                    element.data.kit = values[element.data.index].item
+                    element.text = values[element.data.index].text
+                    element:FireEvent("refreshBuilderState", element, _getState(element))
+                end,
+                press = function(element)
+                    if element.data.kit == nil then return end
+                    element.parent:FireEvent("selectKit", element.data.kit)
+                end,
+                refreshBuilderState = function(element, state)
+                    if state == nil then state = _getState(element) end
+                    local hero = _getHero(state)
+                    local kit = element.data.kit
+                    if hero == nil or kit == nil then return end
+                    local levelChoices = hero:GetLevelChoices() or {}
+                    local bonusChoices = levelChoices[kitKey]
+                    element:SetClass("selected", bonusChoices[element.data.bonusItemId] == kit.id)
+                end,
+            }
+        end
+
+        return gui.Panel{
+            classes = {"builder-base", "panel-base", "info", "overview", "container"},
+            width = "100%",
+            flow = "horizontal",
+            data = {
+                bonusItemId = bonusItem.id
+            },
+            selectKit = function(element, kit)
+                local hero = _getHero(element)
+                if hero == nil or kit == nil then return end
+                local levelChoices = hero:GetLevelChoices() or {}
+                local bonusChoices = levelChoices[kitKey] or {}
+                bonusChoices[element.data.bonusItemId] = kit.id
+                _fireControllerEvent("tokenDataChanged")
+            end,
+            gui.Label{
+                classes = {"builder-base", "label", "info", "overview"},
+                width = "auto",
+                textWrap = false,
+                bold = true,
+                text = bonusItem.text .. ": ",
+            },
+            choiceLabels[1],
+            choiceLabels[2],
+            -- gui.Label{
+            --     classes = {"builder-base", "label", "info", "overview", "bonus-selector"},
+            --     textWrap = true,
+            --     width = "auto",
+            --     lmargin = 8,
+            --     data = {
+            --         kit = nil,
+            --         bonusItemId = bonusItem.id,
+            --     },
+            --     assignKits = function(element, values)
+            --         element.data.kit = values.kit1.item
+            --         element.text = values.kit1.text
+            --         element:FireEvent("refreshBuilderState", element, _getState(element))
+            --     end,
+            --     press = function(element)
+            --         if element.data.kit == nil then return end
+            --         element.parent:FireEvent("selectKit", element.data.kit)
+            --     end,
+            --     refreshBuilderState = function(element, state)
+            --         local hero = _getHero(state)
+            --         local kit = element.data.kit
+            --         if hero == nil or kit == nil then return end
+            --         local levelChoices = hero:GetLevelChoices() or {}
+            --         local bonusChoices = levelChoices[kitKey]
+            --         element:SetClass("selected", bonusChoices[element.data.bonusItemId] == kit.id)
+            --     end,
+            -- },
+            -- gui.Label{
+            --     classes = {"builder-base", "label", "info", "overview", "bonus-selector"},
+            --     textWrap = true,
+            --     width = "auto",
+            --     lmargin = 8,
+            --     data = {
+            --         kit = nil,
+            --         bonusItemId = bonusItem.id,
+            --     },
+            --     assignKits = function(element, values)
+            --         element.data.kit = values.kit2.item
+            --         element.text = values.kit2.text
+            --         element:FireEvent("refreshBuilderState", element, _getState(element))
+            --     end,
+            --     press = function(element)
+            --         if element.data.kit == nil then return end
+            --         element.parent:FireEvent("selectKit", element.data.kit)
+            --     end,
+            --     refreshBuilderState = function(element, state)
+            --         local hero = _getHero(state)
+            --         local kit = element.data.kit
+            --         if hero == nil or kit == nil then return end
+            --         local levelChoices = hero:GetLevelChoices() or {}
+            --         local bonusChoices = levelChoices[kitKey]
+            --         element:SetClass("selected", bonusChoices[element.data.bonusItemId] == kit.id)
+            --     end,
+            -- },
+        }
+    end
 
     local nameLabel = gui.Label{
         classes = {"builder-base", "label", "info", "overview", "header"},
@@ -205,24 +323,32 @@ function CBKitDetail._overviewPanel()
         gui.Panel{
             classes = {"container"},
             height = "auto",
+            data = {
+                panels = {},
+            },
             updateSelectedKit = function(element, kitItem, kitItem2)
                 if kitItem == nil or kitItem2 == nil then
-                    element:SetClass("collapsed")
+                    element:SetClass("collapsed", true)
                     return
                 end
-                -- TODO: Bonus selection when we have 2 kits and they both have
-                -- the same bonus type
-
-                -- for _,bonusEntry in ipairs(Kit.damageBonusTypes) do
-                --     local bonusText1 = kitItem and kitItem:FormatDamageBonus(bonusEntry.id)
-                --     local bonusText2 = kitItem2 and kitItem2:FormatDamageBonus(bonusEntry.id)
-                --     if bonusText1 then
-                --         bonuses[#bonuses+1] = string.format("**%s:** %s", bonusEntry.text, bonusText1)
-                --     end
-                --     if bonusText2 then
-                --         bonuses[#bonuses+1] = string.format("**%s:** %s", bonusEntry.text, bonusText2)
-                --     end
-                -- end
+                local newPanels = {}
+                local children = {}
+                for _,bonusEntry in ipairs(Kit.damageBonusTypes) do
+                    local bonusText1 = kitItem and kitItem:FormatDamageBonus(bonusEntry.id)
+                    local bonusText2 = kitItem2 and kitItem2:FormatDamageBonus(bonusEntry.id)
+                    if #(bonusText1 or "") > 0 and #(bonusText2 or "") > 0 then
+                        newPanels[bonusEntry.id] = element.data.panels[bonusEntry.id] or makeBonusChoicePanel(bonusEntry)
+                        children[#children+1] = newPanels[bonusEntry.id]
+                        local kits = {
+                            { item = kitItem, text = bonusText1, },
+                            { item = kitItem2, text = bonusText2, },
+                        }
+                        newPanels[bonusEntry.id]:FireEventTree("assignKits", kits)
+                    end
+                end
+                element.data.panels = newPanels
+                element.children = children
+                element:SetClass("collapsed", false)
             end,
         }
     }
@@ -234,7 +360,7 @@ function CBKitDetail._overviewPanel()
         updateSelectedKit = function(element, kitItem)
             local visible = kitItem ~= nil
             element:SetClass("collapsed", not visible)
-            if not visible then 
+            if not visible then
                 element:HaltEventPropagation()
                 return
             end
@@ -247,8 +373,6 @@ function CBKitDetail._overviewPanel()
             classes = {"builder-base", "panel-base", "container"},
             height = "44%",
             vscroll = true,
-            bgimage = true,
-            bgcolor = "#10110FE5",
             updateSelectedKit = function(element, kitItem, kitItem2)
                 local children = {}
                 local function processAbilities(item)
@@ -377,9 +501,10 @@ function CBKitDetail.Listener()
             local kitPanel = element:FindParentWithClass("kitPanel")
             if featureCache and kitPanel then
                 local feature = featureCache:GetFeature(featureCache:GetSelectedId())
+
                 local kitId = feature and feature:GetSelectedOptionId()
-                local kitItem = dmhub.GetTableVisible(Kit.tableName)[kitId]
-                local kitItem2
+                local kitItems = {}
+                kitItems[#kitItems+1] = dmhub.GetTableVisible(Kit.tableName)[kitId]
 
                 -- Special case: If the hero can choose >1 kits and the kit selected
                 -- is one of them, we need to send both along to updateSelectedKit
@@ -396,12 +521,15 @@ function CBKitDetail.Listener()
                             end
                         end
                         if foundKit1 and kitId2 ~= nil and #kitId2 > 0 then
-                            kitItem2 = dmhub.GetTableVisible(Kit.tableName)[kitId2]
+                            kitItems[#kitItems+1] = dmhub.GetTableVisible(Kit.tableName)[kitId2]
                         end
                     end
                 end
+                if #kitItems > 1 then
+                    table.sort(kitItems, function(a,b) return a.name < b.name end)
+                end
 
-                kitPanel:FireEventTree("updateSelectedKit", kitItem, kitItem2)
+                kitPanel:FireEventTree("updateSelectedKit", kitItems[1], kitItems[2])
             end
         end,
     }

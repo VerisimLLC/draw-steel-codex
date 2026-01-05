@@ -31,7 +31,7 @@ function CBAncestryDetail._navPanel()
         text = "Change Ancestry",
         data = { category = "change" },
         press = function(element)
-            _fireControllerEvent(element, "removeAncestry")
+            _fireControllerEvent("removeAncestry")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
@@ -46,7 +46,7 @@ function CBAncestryDetail._navPanel()
         vscroll = true,
 
         create = function(element)
-            _fireControllerEvent(element, "updateState", {
+            _fireControllerEvent("updateState", {
                 key = SELECTOR .. ".category.selectedId",
                 value = INITIAL_CATEGORY,
             })
@@ -258,7 +258,7 @@ function CBAncestryDetail._selectButton()
     return CharacterBuilder._makeSelectButton{
         classes = {"selectButton"},
         press = function(element)
-            _fireControllerEvent(element, "applyCurrentAncestry")
+            _fireControllerEvent("applyCurrentAncestry")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)

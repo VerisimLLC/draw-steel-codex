@@ -69,7 +69,7 @@ function CBDescriptionDetail._editPane()
                 if desc then
                     if element.text ~= getter(desc) then
                         setter(desc, element.text)
-                        _fireControllerEvent(element, "tokenDataChanged")
+                        _fireControllerEvent("tokenDataChanged")
                     end
                 end
             end
@@ -117,7 +117,7 @@ function CBDescriptionDetail._editPane()
                         :SetGenderPresentation(genders[math.random(#genders)])
                         :SetPronouns(pronouns[math.random(#pronouns)])
                         :SetPhysicalFeatures("Their piercing blue eyes that were also a striking amber gold seemed to gaze both directly at you and mysteriously off into the distance while their chiseled jawline softened into gentle cherubic cheeks and their massive shoulders that were nonetheless delicate and lithe extended into lanky noodle-like arms though their legs were impossibly thick tree trunks that somehow allowed them to move with the grace of a dancer, all of which was framed by their flowing raven-black hair that shimmered with copper highlights and their completely bald head that gleamed in the light while their youthful face bearing the weathered lines of a thousand years gave them an appearance both menacing and approachable, dangerous and comforting, ancient and eternally young.")
-                    _fireControllerEvent(element, "tokenDataChanged")
+                    _fireControllerEvent("tokenDataChanged")
                 end
             end,
         },
@@ -198,7 +198,7 @@ function CBDescriptionDetail._editPane()
                     classInfo.level = hero.levelOverride
                 end
 
-                _fireControllerEvent(element, "tokenDataChanged")
+                _fireControllerEvent("tokenDataChanged")
             end
         end
     })

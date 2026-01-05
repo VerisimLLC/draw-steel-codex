@@ -36,7 +36,7 @@ function CBClassDetail._navPanel()
         text = "Change Class",
         data = { category = "change" },
         press = function(element)
-            _fireControllerEvent(element, "removeClass")
+            _fireControllerEvent("removeClass")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
@@ -52,7 +52,7 @@ function CBClassDetail._navPanel()
         vscroll = true,
 
         create = function(element)
-            _fireControllerEvent(element, "updateState", {
+            _fireControllerEvent("updateState", {
                 key = SELECTOR .. ".category.selectedId",
                 value = INITIAL_CATEGORY,
             })
@@ -207,7 +207,7 @@ function CBClassDetail._selectButton()
     return CharacterBuilder._makeSelectButton{
         classes = {"selectButton"},
         press = function(element)
-            _fireControllerEvent(element, "applyCurrentClass")
+            _fireControllerEvent("applyCurrentClass")
         end,
         refreshBuilderState = function(element, state)
             local hero = _getHero(state)
@@ -389,7 +389,7 @@ function CBClassDetail._characteristicPanel()
                         attributeBuild[attrId2] = attrIdx1
                     end
 
-                    _fireControllerEvent(element, "tokenDataChanged")
+                    _fireControllerEvent("tokenDataChanged")
                 end,
                 refreshBuilderState = function(element, state)
                     local hero = _getHero(state)

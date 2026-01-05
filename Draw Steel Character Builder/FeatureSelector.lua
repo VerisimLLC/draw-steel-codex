@@ -453,7 +453,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                                 actionComplete = cachedFeature:SaveSelection(hero, selectedOption)
                             end
                             if actionComplete then
-                                _fireControllerEvent(element, "tokenDataChanged")
+                                _fireControllerEvent("tokenDataChanged")
                                 return
                             end
                         end

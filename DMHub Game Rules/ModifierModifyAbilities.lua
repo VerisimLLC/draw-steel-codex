@@ -81,6 +81,33 @@ CharacterModifier.RegisterAbilityModifier
 
 CharacterModifier.RegisterAbilityModifier
 {
+	id = "addkeywords",
+	text = "Add Keywords",
+	operations = { "Add", "Set", "Remove" },
+	set = function(modifier, creature, ability, attr)
+		if attr.operation == "Set" then
+			ability.keywords = attr.keywords
+			return true
+		elseif attr.operation == "Remove" then
+			local keywords = attr.keywords or {}
+			local abilityKeywords = ability:get_or_add("keywords", {})
+			for keyword, _ in pairs(keywords) do
+				abilityKeywords[keyword] = nil
+			end
+			return true
+		else
+			local keywords = attr.keywords or {}
+			local abilityKeywords = ability:get_or_add("keywords", {})
+			for keyword, _ in pairs(keywords) do
+				abilityKeywords[keyword] = true
+			end
+			return true
+		end
+	end,
+}
+
+CharacterModifier.RegisterAbilityModifier
+{
 	id = "targettype",
 	text = "Target Type",
 	operations = { "targeting" },
@@ -420,7 +447,7 @@ CharacterModifier.TypeInfo.modifyability = {
 		for i,attr in ipairs(modifier.attributes) do
 			local info = abilityModifierOptionsById[attr.id]
 			if info ~= nil then
-				if attr.id == "targettype" then
+				if attr.id == "targettype" or attr.id == "addkeywords" then
 					info.set(modifier, creature, ability, attr)
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
@@ -778,6 +805,16 @@ CharacterModifier.TypeInfo.modifyability = {
 									end,
 									documentation = info.documentation,
 								},
+							}
+						elseif attr.id == "addkeywords" then
+							local keywords = attr and attr.keywords or {}
+
+							children[#children+1] = gui.KeywordSelector{
+								keywords = keywords,
+								change = function()
+									attr.keywords = keywords
+									Refresh()
+								end,
 							}
 						else
 							children[#children+1] = gui.Panel{

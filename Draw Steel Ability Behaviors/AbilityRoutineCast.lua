@@ -30,8 +30,13 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
     local canceled = false
 
     local caster = casterToken:GetCreature()
+    local numRoutines = caster:CalculateNamedCustomAttribute("Num Routines")
 
-    local selectedRoutine = caster:try_get("routineSelected")
+    local selectedRoutines = caster:try_get("routinesSelected", {})
+    -- Ensure it's a table
+    if type(selectedRoutines) ~= "table" then
+        selectedRoutines = {}
+    end
 
     local createRoutineAbilityPanel = function(ability)
         local abilityPanel = gui.Panel{
@@ -58,28 +63,57 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
                 halign = "center",
                 text = "Select",
                 click = function(element)
-                    if selectedRoutine == ability.guid then
-                        selectedRoutine = nil
+                    -- Toggle selection
+                    if selectedRoutines[ability.guid] then
+                        -- Deselect
+                        selectedRoutines[ability.guid] = nil
+                        element:RemoveClass("selected")
                     else
-                        selectedRoutine = ability.guid
-                    end
-                    
-                    local routinePanel = element:Get("routineAbilityPanel")
-                    if routinePanel and routinePanel.children then
-                        for _, child in pairs(routinePanel.children) do
-                            if child.children and child.children[2] then
-                                child.children[2]:RemoveClass("selected")
+                        -- Check if we've reached the limit
+                        local selectedCount = 0
+                        for _ in pairs(selectedRoutines) do
+                            selectedCount = selectedCount + 1
+                        end
+                        
+                        if selectedCount >= numRoutines then
+                            -- Find and remove the oldest selection
+                            local oldestGuid = nil
+                            local oldestTime = nil
+                            for guid, timestamp in pairs(selectedRoutines) do
+                                if oldestTime == nil or timestamp < oldestTime then
+                                    oldestTime = timestamp
+                                    oldestGuid = guid
+                                end
+                            end
+                            if oldestGuid then
+                                selectedRoutines[oldestGuid] = nil
+                                -- Find and update the UI for the deselected routine
+                                local routinePanel = element:Get("routineAbilityPanel")
+                                if routinePanel then
+                                    for _, child in ipairs(routinePanel.children) do
+                                        if child.data and child.data.ability and child.data.ability.guid == oldestGuid then
+                                            -- Find the button in this panel and remove selected class
+                                            for _, panelChild in ipairs(child.children) do
+                                                if panelChild.classes and table.contains(panelChild.classes, 'effect-button') then
+                                                    panelChild:RemoveClass("selected")
+                                                    break
+                                                end
+                                            end
+                                            break
+                                        end
+                                    end
+                                end
                             end
                         end
-                    end
-                    
-                    if selectedRoutine == ability.guid then
+                        
+                        -- Add the new selection
+                        selectedRoutines[ability.guid] = ServerTimestamp()
                         element:AddClass("selected")
                     end
                 end,
 
                 create = function(element)
-                    if selectedRoutine == ability.guid then
+                    if selectedRoutines[ability.guid] then
                         element:AddClass("selected")
                     end
                 end,
@@ -168,11 +202,7 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
                     casterToken:ModifyProperties{
                         description = "Routine Selection",
                         execute = function()
-                            if selectedRoutine then
-                                casterToken.properties.routineSelected = selectedRoutine
-                            else
-                                casterToken.properties.routineSelected = nil
-                            end
+                            casterToken.properties.routinesSelected = selectedRoutines
                         end,
                     }
                     finished = true

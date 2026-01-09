@@ -307,8 +307,8 @@ end
 creature.RegisterSymbol{
     symbol = "routinedistance",
     lookup = function(c)
-        local routineSelected = c:try_get("routineSelected")
-        if routineSelected == nil or routineSelected == "" then
+        local routinesSelected = c:try_get("routinesSelected", {})
+        if routinesSelected == nil then
             return 0
         end
 
@@ -318,7 +318,7 @@ creature.RegisterSymbol{
         end
 
         for _,routine in ipairs(routines) do
-            if routine.guid == routineSelected then
+            if routinesSelected[routine.guid] then
                 local match = regex.MatchGroups(routine.distance, "^(?<distance>\\d+).*")
                 if match == nil then
                     return 0

@@ -639,13 +639,8 @@ local function RoutinesPanel(m_token)
             end
 
             local initiative = dmhub.initiativeQueue
-            if initiative == nil or initiative.hidden or initiative.turn ~= 1 or (not initiative:ChoosingTurn()) then
-                routinesLabel.text = "Routines"
-            else
-                routinesLabel.text = "Routines: Choose routine for this round"
-            end
 
-            local routineSelected = m_token.properties:try_get("routineSelected")
+            local routinesSelected = m_token.properties:try_get("routinesSelected")
 
             element:SetClass("collapsed", false)
 
@@ -663,7 +658,7 @@ local function RoutinesPanel(m_token)
                     m_token:ModifyProperties{
                         description = tr("Select Routine"),
                         execute = function()
-                            m_token.properties.routineSelected = nil
+                            m_token.properties.routinesSelected = nil
                         end,
                     }
                 end,
@@ -672,44 +667,65 @@ local function RoutinesPanel(m_token)
                         return
                     end
 
-                    local routineSelected = m_token.properties:try_get("routineSelected")
-                    element:FireEvent("selected", routineSelected == nil)
+                    local routinesSelected = m_token.properties:try_get("routinesSelected")
+                    element:FireEvent("selected", routinesSelected == nil)
                 end,
             }
+
+            local routinesSelected = m_token.properties:try_get("routinesSelected") or {}
 
             local children = {startDiv, routinesLabel, nonePanel}
 
             for routineIndex,routine in ipairs(routines) do
-                local panel = m_routinePanels[routine.guid] or gui.Label{
+                local panel = m_routinePanels[routine.guid] or gui.Panel{
                     data = {
                         selected = false,
                     },
-                    text = routine.name,
                     classes = {"routine"},
                     bgimage = true,
                     width = "100%",
                     height = "auto",
-                    fontSize = 14,
                     flow = "horizontal",
-                    hover = function(element)
-                        element.tooltip = gui.TooltipFrame(routine:Render{})
-                    end,
-                    press = function(element)
-                        m_token:ModifyProperties{
-                            description = tr("Select Routine"),
-                            execute = function()
-                                m_token.properties.routineSelected = routine.guid
-                            end,
-                        }
-                    end,
+
+                    gui.Label{
+                        classes = {"routine"},
+                        text = routine.name,
+                        inherit_selectors = true,
+                        bgimage = true,
+                        width = "50%",
+                        height = "auto",
+                        fontSize = 14,
+                        hover = function(element)
+                            element.tooltip = gui.TooltipFrame(routine:Render{})
+                        end,
+                        press = function(element)
+                            m_token:ModifyProperties{
+                                description = tr("Select Routine"),
+                                execute = function()
+                                    local selected = m_token.properties:get_or_add("routinesSelected", {})
+                                    if selected[routine.guid] then
+                                        selected[routine.guid] = nil
+                                    else
+                                        selected[routine.guid] = ServerTimestamp()
+                                    end
+                                    m_token.properties.routinesSelected = selected
+                                end,
+                            }
+                        end,
+                    },
 
                     selectionChanged = function(element, selected)
+                        element:SetClass("selected", selected)
+                        local labelChild = element.children[1]
+                        labelChild:SetClass("selected", selected)
+                        
                         if not selected then
-                            element.children = {}
+                            element.children = {labelChild}
                             return
                         end
 
                         element.children = {
+                            labelChild,
                             gui.VisibilityPanel{
                                 valign = "center",
                                 halign = "right",
@@ -773,10 +789,9 @@ local function RoutinesPanel(m_token)
                     end,
                 }
 
-                local selected = (routine.guid == routineSelected)
+                local selected = (routinesSelected ~= nil and routinesSelected[routine.guid])
                 if selected ~= panel.data.selected then
                     panel.data.selected = selected
-                    panel:SetClass("selected", selected)
                     panel:FireEvent("selectionChanged", selected)
                 end
 

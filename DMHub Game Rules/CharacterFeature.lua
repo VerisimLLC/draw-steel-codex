@@ -62,7 +62,8 @@ function CharacterFeature:FillModifiers(creature, result, params)
         end
         result[#result+1] = t
 
-        if mod.behavior == "routine" and creature:try_get("routineSelected") ~= mod.ability.guid then
+		local routinesSelected = creature:try_get("routinesSelected", {})
+        if mod.behavior == "routine" and routinesSelected[mod.ability.guid] == nil then
             --routines block other modifiers on the feature unless the routine is selected.
             break
         end

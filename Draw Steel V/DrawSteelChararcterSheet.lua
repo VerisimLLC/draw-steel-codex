@@ -6,9 +6,11 @@ local border_color = "white"
 
 local g_mainActionId = "d19658a2-4d7b-4504-af9e-1a5410fb17fd"
 local g_maneuverId = "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b"
+local g_triggeredactionId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 local g_abilityActionSortOrder = {
     [g_mainActionId] = -2,
     [g_maneuverId] = -1,
+    [g_triggeredactionId] = 0,
 }
 
 local SwatchBlack = "#000000"
@@ -415,10 +417,121 @@ local function CreateAbilityPanel()
     return resultPanel
 end
 
+local function CreateTriggeredAbilityPanel()
+    local resultPanel
+    local m_triggeredAbility = nil
+
+    resultPanel = gui.Panel {
+        classes = { "abilityHeading" },
+        width = "100%",
+        height = 60,
+        vmargin = 0,
+        linger = function(element)
+            local token = CharacterSheet.instance.data.info.token
+            element.tooltip = gui.TooltipFrame(m_triggeredAbility:Render{token = token}, {width = 500, halign = "right", valign = "center", pad = 8})
+        end,
+        triggeredAbility = function(element, ability, c)
+            m_triggeredAbility = ability
+            element:SetClass("collapsed", false)
+        end,
+
+        --[[ rightClick = function(element)
+            element.popup = gui.ContextMenu {
+                entries = {
+
+                    {
+                        text = "Copy",
+                        click = function()
+                            element.popup = nil
+                            dmhub.CopyToInternalClipboard(m_triggeredAbility)
+                            CharacterSheet.instance:FireEvent("refreshAll")
+                        end
+                    }
+                },
+            }
+        end, ]]
+
+        gui.Panel {
+            classes = { "abilityInfoPanel" },
+            gui.Label {
+                classes = { "abilityTitle" },
+                hmargin = 8,
+                text = "Ability Name",
+                triggeredAbility = function(element, ability, c)
+                    element.text = ability.name
+                end,
+            },
+            gui.Label {
+                classes = { "abilityInfoLabel" },
+                hmargin = 8,
+                text = "Keywords",
+                triggeredAbility = function(element, ability, c)
+                    local keywords = table.keys(ability.keywords)
+                    table.sort(keywords)
+                    element.text = string.join(keywords, ", ")
+                end,
+            },
+        },
+
+        --[[ gui.SettingsButton {
+            floating = true,
+            halign = "right",
+            valign = "top",
+            width = 16,
+            height = 16,
+            tmargin = 2,
+            rmargin = 4,
+            ability = function(element, ability, c)
+                element:SetClass("hidden", not c:IsActivatedAbilityInnate(ability))
+            end,
+            press = function(element)
+                CharacterSheet.instance:AddChild(m_triggeredAbility:ShowEditActivatedAbilityDialog {
+                    close = function(element)
+                        CharacterSheet.instance:FireEvent("refreshAll")
+                    end,
+                    delete = function(element)
+                        CharacterSheet.instance.data.info.token.properties:RemoveInnateActivatedAbility(m_ability)
+                    end,
+                })
+            end,
+        }, ]]
+
+        --[[ gui.Panel {
+            classes = { "costDiamond", "collapsed" },
+            floating = true,
+            rotate = 135,
+            gui.Panel {
+                classes = { "costInnerDiamond" },
+                gui.Label {
+                    classes = { "abilityCostLabel" },
+                    rotate = -135,
+                    triggeredAbility = function(element, ability, c)
+                        local cost = GetHeroicResourceOrMaliceCost(ability,
+                            { mode = 1, charges = ability:DefaultCharges() })
+
+                        if cost == nil then
+                            element.parent.parent:SetClass("collapsed", true)
+                            return
+                        end
+
+                        element.parent.parent:SetClass("collapsed", false)
+
+                        element.text = string.format("%d", cost)
+                    end,
+                },
+            },
+        }, ]]
+
+    }
+
+    return resultPanel
+end
+
 local function CreateAbilityListPanel()
     local resultPanel
 
     local m_abilityPanels = {}
+    local m_triggeredAbilityPanels = {}
     local m_mainActionsLabel = gui.Label {
         classes = { "submenuHeading" },
         data = { ord = g_mainActionId },
@@ -453,6 +566,23 @@ local function CreateAbilityListPanel()
         },
     }
 
+    local m_triggersLabel = gui.Label {
+        classes = { "submenuHeading" },
+        data = { ord = g_triggeredactionId },
+        width = "100%",
+        color = "white",
+        fontSize = 20,
+        text = "Triggered Actions",
+        press = function(element)
+            element:SetClassTree("collapseSet", not element:HasClass("collapseSet"))
+            resultPanel:FireEvent("refreshToken")
+        end,
+        gui.CollapseArrow {
+            halign = "right",
+            valign = "center",
+        },
+    }
+
     local m_otherActionsLabel = gui.Label {
         classes = { "submenuHeading" },
         data = { ord = "other" },
@@ -472,6 +602,7 @@ local function CreateAbilityListPanel()
 
     m_mainActionsLabel:SetClassTree("collapseSet", true)
     m_maneuversLabel:SetClassTree("collapseSet", true)
+    m_triggersLabel:SetClassTree("collapseSet", true)
     m_otherActionsLabel:SetClassTree("collapseSet", true)
 
     local GetActionId = function(ability)
@@ -485,6 +616,7 @@ local function CreateAbilityListPanel()
     resultPanel = gui.Panel {
         m_mainActionsLabel,
         m_maneuversLabel,
+        m_triggersLabel,
         m_otherActionsLabel,
         styles = {
             Styles.ActionMenu,
@@ -529,6 +661,15 @@ local function CreateAbilityListPanel()
                 end
             end
 
+            -- Collect triggered abilities separately
+            local triggeredAbilities = {}
+            if not m_triggersLabel:HasClass("collapseSet") then
+                triggeredAbilities = c:GetTriggeredActions()
+                table.sort(triggeredAbilities, function(a, b)
+                    return a.name < b.name
+                end)
+            end
+
             abilities = filteredAbilities
 
             table.sort(abilities, function(a, b)
@@ -542,6 +683,7 @@ local function CreateAbilityListPanel()
                 return a.name < b.name
             end)
 
+            -- Create panels for activated abilities
             while #m_abilityPanels < #abilities do
                 local panel = CreateAbilityPanel()
                 m_abilityPanels[#m_abilityPanels + 1] = panel
@@ -554,8 +696,20 @@ local function CreateAbilityListPanel()
                 children[#children + 1] = m_abilityPanels[i]
             end
 
+            -- Create panels for triggered abilities
+            while #m_triggeredAbilityPanels < #triggeredAbilities do
+                local panel = CreateTriggeredAbilityPanel()
+                m_triggeredAbilityPanels[#m_triggeredAbilityPanels + 1] = panel
+            end
+
+            for i = 1, #triggeredAbilities do
+                m_triggeredAbilityPanels[i]:FireEventTree("triggeredAbility", triggeredAbilities[i], c)
+                m_triggeredAbilityPanels[i].data.ord = g_triggeredactionId
+                children[#children + 1] = m_triggeredAbilityPanels[i]
+            end
+
             --now insert the headings at the right locations.
-            local headings = { m_mainActionsLabel, m_maneuversLabel, m_otherActionsLabel }
+            local headings = { m_mainActionsLabel, m_maneuversLabel, m_triggersLabel, m_otherActionsLabel }
             local j = 1
             while #headings > 0 and j <= #children do
                 for n, heading in ipairs(headings) do
@@ -577,6 +731,11 @@ local function CreateAbilityListPanel()
             for i = #abilities + 1, #m_abilityPanels do
                 m_abilityPanels[i]:SetClass("collapsed", true)
                 children[#children + 1] = m_abilityPanels[i]
+            end
+
+            for i = #triggeredAbilities + 1, #m_triggeredAbilityPanels do
+                m_triggeredAbilityPanels[i]:SetClass("collapsed", true)
+                children[#children + 1] = m_triggeredAbilityPanels[i]
             end
 
             element.children = children

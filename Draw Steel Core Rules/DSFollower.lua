@@ -7,6 +7,29 @@ follower = RegisterGameType("follower", "monster")
 
 follower.availableRolls = 0
 
+Commands.convertmonstertofollower = function(str)
+    local tokens = dmhub.selectedTokens
+
+    for _, token in ipairs(tokens) do
+        if token and token.properties and token.properties.monster_type then
+            if token.properties:IsMonster() then
+                token:ModifyProperties{
+                    description = "Convert to follower",
+                    execute = function()
+                        local creature = token.properties
+                        creature.__typeName = "follower"
+                        creature.role = creature.role or "follower"
+                        creature.followerType = cond(creature.retainer, "retainer", "artisan")
+                        creature.availableRolls = 0
+                    end,
+                }
+            else
+                break
+            end
+        end
+    end
+end
+
 function follower.CreateNew(followerType)
     local result = follower.new{
 		cr = 1,

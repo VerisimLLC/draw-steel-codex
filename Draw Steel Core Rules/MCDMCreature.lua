@@ -3437,8 +3437,10 @@ function creature:DispatchEventAndWait(eventName, info)
     -- Check if there are any triggers for this event first
     local mods = self:GetActiveModifiers()
     local hasTrigger = false
+    local modName
     for i, mod in ipairs(mods) do
         if mod.mod:HasTriggeredEvent(self, eventName) then
+            modName = mod.mod.name
             hasTrigger = true
             break
         end
@@ -3459,7 +3461,21 @@ function creature:DispatchEventAndWait(eventName, info)
 
     self:DispatchEvent(eventName, info)
 
-    while not eventComplete do
+    --Briefly wait for available triggers to populate
+    coroutine.yield(0.5)
+    local triggerId
+    --track this trigger's id
+    for _, triggerInfo in pairs(self:GetAvailableTriggers()) do
+        if triggerInfo.text == modName then
+            triggerId = triggerInfo.id
+            break
+        end
+    end
+
+    --wait for event or trigger to be dismissed
+    local clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
+    while not eventComplete and not clearedTriggers[triggerId] do
+        clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
         coroutine.yield(0.1)
     end
 end

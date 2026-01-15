@@ -289,35 +289,53 @@ function CharacterBuilder.CreatePanel()
         removeAncestry = function(element)
             local hero = _getHero(element.data.state)
             if hero and (hero:try_get("raceid") or hero:try_get("subraceid")) then
-                hero.raceid = nil
-                hero.subraceid = nil
-                element:FireEvent("tokenDataChanged")
+                element:AddChild(CharacterBuilder._confirmDialog{
+                    title = "Confirm Change Ancestry",
+                    message = "Click Confirm to remove your Ancestry and all related selections.",
+                    onConfirm = function()
+                        hero.raceid = nil
+                        hero.subraceid = nil
+                        element:FireEvent("tokenDataChanged")
+                    end,
+                })
             end
         end,
 
         removeCareer = function(element)
             local hero = _getHero(element.data.state)
             if hero then
-                hero.backgroundid = nil
-                element:FireEvent("tokenDataChanged")
+                element:AddChild(CharacterBuilder._confirmDialog{
+                    title = "Confirm Change Career",
+                    message = "Click Confirm to remove your Career and all related selections.",
+                    onConfirm = function()
+                        hero.backgroundid = nil
+                        element:FireEvent("tokenDataChanged")
+                    end,
+                })
             end
         end,
 
         removeClass = function(element)
             local hero = _getHero(element.data.state)
             if hero then
-                hero.classes = {}
-                for _,attr in pairs(hero:try_get("attributes" or {})) do
-                    attr.baseValue = 0
-                end
-                hero.attributeBuild = {}
-                hero.kitid = nil
-                hero.kitid2 = nil
-                local levelChoices = hero:GetLevelChoices() or {}
-                if levelChoices["kitBonusChoices"] then
-                    levelChoices["kitBonusChoices"] = nil
-                end
-                element:FireEvent("tokenDataChanged")
+                element:AddChild(CharacterBuilder._confirmDialog{
+                    title = "Confirm Change Career",
+                    message = "Click Confirm to remove your Career and all related selections.",
+                    onConfirm = function()
+                        hero.classes = {}
+                        for _,attr in pairs(hero:try_get("attributes" or {})) do
+                            attr.baseValue = 0
+                        end
+                        hero.attributeBuild = {}
+                        hero.kitid = nil
+                        hero.kitid2 = nil
+                        local levelChoices = hero:GetLevelChoices() or {}
+                        if levelChoices["kitBonusChoices"] then
+                            levelChoices["kitBonusChoices"] = nil
+                        end
+                        element:FireEvent("tokenDataChanged")
+                    end,
+                })
             end
         end,
 

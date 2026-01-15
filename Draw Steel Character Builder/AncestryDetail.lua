@@ -25,9 +25,10 @@ function CBAncestryDetail._navPanel()
         text = "Lore",
         data = { category = "lore" },
     })
-    local changeButton = _makeDetailNavButton(SELECTOR, {
-        styles = CBStyles.SelectorButtonOverrides(),
-        classes = {"changeAncestry", "destructive"},
+    local changeButton = gui.PrettyButton{
+        classes = {"changeAncestry", "builder-base", "button", "select", "destructive"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Change Ancestry",
         data = { category = "change" },
         press = function(element)
@@ -36,10 +37,12 @@ function CBAncestryDetail._navPanel()
         refreshBuilderState = function(element, state)
             local hero = _getHero()
             if hero then
-                element:FireEvent("setAvailable", hero:try_get("raceid") ~= nil)
+                local isAvailable = hero:try_get("raceid") ~= nil
+                element:SetClass("collapsed", not isAvailable)
+                element:FireEvent("setAvailable", isAvailable)
             end
         end,
-    })
+    }
 
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
@@ -54,8 +57,8 @@ function CBAncestryDetail._navPanel()
 
         registerFeatureButton = function(element, button)
             element:AddChild(button)
-            local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeAncestry") end)
-            if changeButton then changeButton:SetAsLastSibling() end
+            -- local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeAncestry") end)
+            -- if changeButton then changeButton:SetAsLastSibling() end
             element.children = CharacterBuilder._sortButtons(element.children)
         end,
 
@@ -68,9 +71,9 @@ function CBAncestryDetail._navPanel()
             end
         end,
 
+        changeButton,
         overviewButton,
         loreButton,
-        changeButton,
     }
 end
 

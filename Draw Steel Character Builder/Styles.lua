@@ -23,7 +23,7 @@ CBStyles.COLORS = {
 
     DESTRUCTIVE_BG = "#2A1414",
     DESTRUCTIVE_BORDER = "#B94A30",
-    DESTRUCTIVE_TEXT = "#D97166",
+    DESTRUCTIVE_TEXT = "#ffffffcc", --"#D97166",
 }
 
 CBStyles.SIZES = {
@@ -139,6 +139,20 @@ local function _panelStyles()
             borderColor = CBStyles.COLORS.CREAM,
             border = 2,
             cornerRadius = 10,
+        },
+
+        --- Dialog
+        {
+            selectors = {"dialog"},
+            halign = "center",
+            valign = "center",
+            bgcolor = "#111111ff",
+            borderWidth = 2,
+            borderColor = Styles.textColor,
+            bgimage = "panels/square.png",
+            flow = "vertical",
+            hpad = 10,
+            vpad = 10,
         },
 
         -- Detail Panels
@@ -368,6 +382,28 @@ local function _labelStyles()
             tmargin = 12,
         },
 
+        -- Dialog
+        {
+            selectors = {"dialog-header"},
+            width = "100%",
+            height = 30,
+            halign = "center",
+            valign = "top",
+            fontSize = 24,
+            textAlignment = "center",
+            bold = true,
+        },
+        {
+            selectors = {"dialog-message"},
+            width = "100%",
+            height = 80,
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            fontSize = 18,
+            textWrap = true,
+        },
+
         -- Overview panel
         {
             selectors = {"overview"},
@@ -582,6 +618,12 @@ local function _buttonStyles()
             borderWidth = 1,
         },
         {
+            selectors = {"dialog"},
+            width = 120,
+            height = 36,
+            cornerRadius = 5,
+        },
+        {
             selectors = {"category"},
             width = CBStyles.SIZES.ACTION_BUTTON_WIDTH,
             height = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
@@ -610,6 +652,25 @@ local function _buttonStyles()
             borderColor = CBStyles.COLORS.GRAY02,
             color = CBStyles.COLORS.GRAY02,
         },
+        {
+            selectors = {"destructive"},
+            valign = "top",
+            halign = "center",
+            bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN,
+            fontSize = 24,
+            bold = false,
+            cornerRadius = 10,
+            border = 1,
+            borderWidth = 1,
+            borderColor = CBStyles.COLORS.DESTRUCTIVE_BORDER,
+            bgcolor = CBStyles.COLORS.DESTRUCTIVE_BG,
+            color = CBStyles.COLORS.DESTRUCTIVE_TEXT,
+        },
+        {
+            selectors = {"destructive", "hover"},
+            bgcolor = "#330000",
+            color = "#9F0000",
+        }
     })
 end
 

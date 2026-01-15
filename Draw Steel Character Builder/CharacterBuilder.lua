@@ -532,6 +532,107 @@ end
     Consistent UI
 ]]
 
+--- Display a confrmation dialog, calling callbacks as necessary
+--- @param opts table {title, message, confirmText, cancelText, onConfirm, onCancel}
+function CharacterBuilder._confirmDialog(opts)
+    local title = (opts.title and opts.title ~= "") and opts.title or "Confirm"
+    local message = (opts.message and opts.message ~= "") and opts.message or "Are you sure you want to take this action?"
+    local confirmText = (opts.confirmText and opts.confirmText ~= "") and opts.confirmText or "Confirm"
+    local cancelText = (opts.cancelText and opts.cancelText ~= "") and opts.cancelText or "Cancel"
+
+    local onCancel = function()
+        if opts.onCancel and type(opts.onCancel) == "function" then
+            opts.onCancel()
+        end
+    end
+
+    local onConfirm = function()
+        if opts.onConfirm and type(opts.onConfirm) == "function" then
+            opts.onConfirm()
+        end
+    end
+
+    local resultPanel = nil
+    resultPanel = gui.Panel {
+        styles = CBStyles.GetStyles(),
+        classes = {"confirmDialogController", "builder-base", "panel-base", "dialog"},
+        width = 500,
+        height = 300,
+        floating = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        data = {
+            close = function()
+                resultPanel:DestroySelf()
+            end,
+        },
+
+        close = function(element)
+            element.data.close()
+        end,
+
+        escape = function(element)
+            onCancel()
+            element:FireEvent("close")
+        end,
+
+        children = {
+            -- Header
+            gui.Label{
+                classes = {"builder-base", "label", "dialog-header"},
+                text = title,
+            },
+            gui.MCDMDivider{
+                classes = {"builder-divider"},
+                layout = "dot",
+                width = "50%",
+                vpad = 4,
+                -- bgcolor = CBStyles.COLORS.GOLD,
+            },
+
+            -- Confirmation message
+            gui.Label{
+                classes = {"builder-base", "label", "dialog-message"},
+                text = message,
+            },
+
+            -- Button panel
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "container"},
+                -- width = "100%",
+                height = 40,
+                halign = "center",
+                valign = "bottom",
+                flow = "horizontal",
+                gui.Button{
+                    classes = {"builder-base", "button", "dialog"},
+                    width = 120,
+                    text = cancelText,
+                    click = function(element)
+                        local controller = element:FindParentWithClass("confirmDialogController")
+                        if controller then
+                            controller:FireEvent("escape")
+                        end
+                    end
+                },
+                gui.Button{
+                    classes = {"builder-base", "button", "dialog"},
+                    width = 120,
+                    halign = "right",
+                    text = confirmText,
+                    click = function(element)
+                        onConfirm()
+                        local controller = element:FindParentWithClass("confirmDialogController")
+                        if controller then controller:FireEvent("close") end
+                    end
+                }
+            }
+        },
+    }
+
+    return resultPanel
+end
+
 --- Build a Category button, forcing consistent styling.
 --- Be sure to add behaviors for click and refreshBuilderState
 --- @param options ButtonOptions

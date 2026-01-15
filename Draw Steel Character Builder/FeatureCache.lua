@@ -318,6 +318,24 @@ function CBFeatureWrapper:GetSelectedValue()
     return self:try_get("selectedValue", 0)
 end
 
+--- Return a status table with status details
+--- @return table
+function CBFeatureWrapper:GetStatus()
+    local status = {
+        numChoices = self:GetNumChoices(),
+        selected = self:GetSelectedValue(),
+        selectedNames = self:GetSelectedNames(),
+    }
+    local fn = self:_hasFn("GetStatus")
+    if fn then
+        local innerStatus = self.feature:GetStatus()
+        for k,v in pairs(innerStatus) do
+            status[k] = v
+        end
+    end
+    return status
+end
+
 --- @return boolean
 function CBFeatureWrapper:HasRoll()
     return self:try_get("hasRoll", false)
@@ -449,7 +467,8 @@ end
 function CBFeatureWrapper._deriveOrder(feature, category)
     local typeOrder = {
         -- Low numbers are reserved - stay between 100 & 998
-        CharacterAspectChoice              = 101,
+        CharacterAspectChoice               = 101,
+        CharacterComplicationChoice         = 105,
         CharacterAncestryInheritanceChoice  = 110,
         CharacterCharacteristicChoice       = 120,
         CharacterDeityChoice                = 130,

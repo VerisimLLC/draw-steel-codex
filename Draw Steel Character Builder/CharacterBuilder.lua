@@ -142,6 +142,10 @@ CharacterBuilder.STRINGS.KIT.OVERVIEW = [[
 # Customizing Equipment Appearances
 You should absolutely feel free to describe your equipment in a way that makes sense for the story of your game and hero. For instance, if your hero uses a weapon in the whip category as part of their kit, they could use a leather whip, a spiked chain, or a dagger tied to a knotted rope. A hero who wears heavy armor might wear a suit of chain mail, plate armor, or heavy wooden planks tied together. Your choices for equipment aren't limited just to the examples in this book.]]
 
+CharacterBuilder.STRINGS.COMPLICATION = {}
+CharacterBuilder.STRINGS.COMPLICATION.INTRO = [[
+Beyond the abilities and features bestowed by ancestry and class, your hero might have something else that makes them ... unusual. Perhaps an earth elemental lives in your body. Maybe your eldritch blade devastates enemies but feeds on your own vitality. A complication is an optional feature you can select to enrich your hero's backstory, with any complication providing you both a positive benefit and a negative drawback.]]
+
 --[[
     Ability to register selectors - controls down the left side of the window
 ]]

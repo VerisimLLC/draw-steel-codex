@@ -360,7 +360,8 @@ CharacterBuilder.RegisterSelector{
 CharacterBuilder.RegisterSelector{
     id = SEL.COMPLICATION,
     ord = 8,
-    selector = CBSelectors._complication
+    selector = CBSelectors._complication,
+    detail = CBComplicationDetail.CreatePanel,
 }
 
 --[[

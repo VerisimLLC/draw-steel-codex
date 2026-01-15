@@ -533,9 +533,9 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             if injectedBeforeOptions ~= nil then _functionOrValue(injectedBeforeOptions) end
             return gui.Input{
                 classes = {"builder-base", "input", "primary"},
-                width = "94%",
-                halign = "center",
-                placeholderText = "Start typing to filter...",
+                width = "95%",
+                halign = "left",
+                placeholderText = "Start typing to filter; Start with > for starts with...",
                 editlag = 0.5,
                 data = {
                     featureId = feature:GetGuid()

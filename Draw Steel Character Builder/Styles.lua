@@ -546,7 +546,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-category"},
-            width = "25%",
+            width = "30%",
             halign = "left",
             valign = "top",
             textAlignment = "topleft",
@@ -562,7 +562,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-detail"},
-            width = "60%",
+            width = "57%",
             halign = "left",
             valign = "top",
             hmargin = 2,

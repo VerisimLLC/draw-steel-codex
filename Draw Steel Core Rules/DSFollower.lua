@@ -50,6 +50,10 @@ function creature:EnsureFollowers()
     return {}
 end
 
+function creature:GetAvailableRolls()
+    return self:try_get("availableRolls", 0)
+end
+
 function follower:GetAvailableRolls()
     return self:try_get("availableRolls", 0)
 end

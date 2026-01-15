@@ -2362,7 +2362,7 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
-    symbol = "ConditionCount",
+    symbol = "conditioncount",
     lookup = function(c)
         local result = {}
         local conditions = {}

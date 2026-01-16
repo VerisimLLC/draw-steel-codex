@@ -1,4 +1,4 @@
-local mod = dmhub.GetModLoading()
+6 mod = dmhub.GetModLoading()
 
 --- @class ActivatedAbilityApplyRidersBehavior
 ActivatedAbilityApplyRidersBehavior = RegisterGameType("ActivatedAbilityApplyRidersBehavior", "ActivatedAbilityBehavior")

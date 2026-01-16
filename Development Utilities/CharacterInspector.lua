@@ -46,8 +46,9 @@ CreateInspectorPanel = function()
 
     local customEntriesPanel = gui.Panel{
         flow = "vertical",
-        width = "100%",
+        width = "95%",
         height = "auto",
+        halign = "left",
         thinkTime = 0.2,
         think = function(element)
             local selectedTokens = dmhub.selectedTokens or {}

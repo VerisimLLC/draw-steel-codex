@@ -143,25 +143,22 @@ function TriggeredAbility:GenerateEditor(options)
 
             local chooseTriggerLocal
 
-    		children[#children+1] = gui.Check{
-    			classes = {"abilityInfo"},
-		    	text = "Choose whether to trigger this ability",
-		    	value = not self.mandatory,
-		    	change = function(element)
-		    		self.mandatory = not element.value
-					heroicResourceCostPanel:SetClass("collapsed", self.mandatory)
-					triggerPromptPanel:SetClass("collapsed", self.mandatory)
-                    chooseTriggerLocal:SetClass("collapsed", self.mandatory)
-		    	end,
-		    }
-
-            children[#children+1] = gui.Check{
-                classes = {"abilityInfo", cond(self.mandatory, "collapsed")},
-                text = "Only choose when triggered by different player",
-                value = self:try_get("mandatoryDifferentPlayer", false),
-                change = function(element)
-                    self.mandatoryDifferentPlayer = element.value
-                end,
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel"},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Triggering:",
+                },
+                gui.Dropdown{
+                    options = TriggeredAbility.mandatoryTriggerSettings,
+                    idChosen = self.mandatory,
+                    change = function(element)
+                        self.mandatory = element.idChosen
+                        heroicResourceCostPanel:SetClass("collapsed", not self:MayBePrompted())
+                        triggerPromptPanel:SetClass("collapsed", not self:MayBePrompted())
+                        chooseTriggerLocal:SetClass("collapsed", not self:MayBePrompted())
+                    end,
+                }
             }
 
             children[#children+1] = gui.Check{
@@ -176,7 +173,7 @@ function TriggeredAbility:GenerateEditor(options)
             chooseTriggerLocal = children[#children]
 
             triggerPromptPanel = gui.Panel{
-                classes = {"formPanel", cond(self.mandatory, "collapsed")},
+                classes = {"formPanel", cond(not self:MayBePrompted(), "collapsed")},
                 gui.Label{
                     text = "Prompt:",
                     classes = {"formLabel"},
@@ -194,7 +191,7 @@ function TriggeredAbility:GenerateEditor(options)
             children[#children+1] = triggerPromptPanel
 
 			heroicResourceCostPanel = gui.Panel{
-				classes = {"abilityInfo", "formPanel", cond(self.mandatory, "collapsed")},
+				classes = {"abilityInfo", "formPanel", cond(not self:MayBePrompted(), "collapsed")},
 				gui.Label{
 					text = "Resource Cost:",
 					classes = {"formLabel"},

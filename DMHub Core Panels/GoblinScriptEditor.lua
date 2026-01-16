@@ -586,6 +586,10 @@ function gui.GoblinScriptInput(options)
 	end
 
     local changeEvent = options.change
+    if changeEvent == nil and options.events then
+        changeEvent = options.events.change
+        options.events.change = nil
+    end
     options.change = nil
 
 	local args
@@ -801,6 +805,12 @@ function gui.GoblinScriptInput(options)
 
             checkerror = function(element, value)
                 if type(value) ~= "string" then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                if string.find(value, "<<") ~= nil or string.find(value, ">>") ~= nil or string.find(value, "%f[%w]d%f[%W]") ~= nil or string.find(value, "%dd%d") ~= nil or string.find(value, "%f[%w]d%d") ~= nil or string.find(value, "%dd%f[%W]") ~= nil then
+                    --this is not a normal deterministic goblin script.
                     element:SetClass("collapsed", true)
                     return
                 end

@@ -5659,11 +5659,11 @@ function creature:OnMove(path)
         }
     })
 
-    if path.shifting or path.forced then
+    if path.forced then
         return
     end
 
-    local immuneFromOpportunityAttacks = self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0
+    local immuneFromOpportunityAttacks = path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
 
 
     local allTokens = dmhub.allTokens
@@ -8412,6 +8412,7 @@ end
 
 --- @param triggerInfo ActiveTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
+    print("RECALCULATE:: DISPATCH TRIGGER:", triggerInfo)
     if triggerInfo.clearOnDismiss and (triggerInfo.dismissed or (self:get_or_add("_tmp_clearedTriggers", {})[triggerInfo.id] == true)) then
         self:ClearAvailableTrigger(triggerInfo)
         return
@@ -8446,6 +8447,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 end
 
 function creature:ClearAvailableTrigger(triggerInfo)
+    print("RECALCULATE:: CLEAR TRIGGER:", triggerInfo)
     local clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
     clearedTriggers[triggerInfo.id] = true
 

@@ -225,48 +225,7 @@ local CalculateGameTimeSeek = function()
 	return t - math.floor(t), isSeeking
 end
 
-local DayTypes = {
-	daynight = {
-		description = "Above Ground",
-		timeLabel = 'Time of Day',
-		outside = true,
-		illumination = 1.0,
-		GetShadows = function(t)
-			local lengthMultiplier = 1
-
-			--normalized position of sun during the day.
-			local r = (t - 5 / 24) / (19 / 24 - 5 / 24)
-
-			if t < 5 / 24 or t > 19 / 24 then
-				--at night normalize between dusk and dawn instead.
-				if t > 19 / 24 then
-					r = (t - 19 / 24) / (10 / 24)
-				else
-					r = (t + 5 / 24) / (10 / 24)
-				end
-				r = 1 - r
-				lengthMultiplier = 0.4
-			end
-
-
-			--controls how long shadows should be north. The larger this value the further
-			--north of the equator the players are (and/or the closer to winter it is).
-			--Values negative for Southern Hemisphere.
-			local shadowNorth = g_solarLatitude:Get()
-
-			--controls how long shadows should be east/west.
-			local shadowConstant = 3
-
-			local shadowLength = lengthMultiplier * shadowConstant * math.tan((r - 0.5) * math.pi / 2)
-
-
-			return {
-				dir = core.Vector2(shadowLength, shadowNorth),
-				color = core.Color { r = 0.5, g = 0.5, b = 0.5 },
-			}
-		end,
-
-		gradient = core.Gradient {
+local g_dayNightGradient = core.Gradient {
 			point_a = { x = 0, y = 0 },
 			point_b = { x = 1, y = 0 },
 			stops = {
@@ -307,21 +266,9 @@ local DayTypes = {
 					color = '#312c5a',
 				},
 			},
-		},
+		}
 
-	},
-	underground = {
-		var = "undergroundillumination",
-		description = "Underground",
-		timeLabel = 'Illumination',
-		outside = false,
-		illumination = 0.5,
-
-		GetShadows = function(t)
-			return nil
-		end,
-
-		gradient = core.Gradient {
+local g_undergroundGradient = core.Gradient {
 			point_a = { x = 0, y = 0 },
 			point_b = { x = 1, y = 0 },
 			stops = {
@@ -334,7 +281,69 @@ local DayTypes = {
 					color = '#ffffff',
 				},
 			},
-		},
+		}
+
+
+
+local g_colorGray = core.Color { r = 0.5, g = 0.5, b = 0.5 }
+local g_shadowVec = core.Vector2(0,0)
+local DayTypes = {
+	daynight = {
+		description = "Above Ground",
+		timeLabel = 'Time of Day',
+		outside = true,
+		illumination = 1.0,
+		GetShadows = function(t)
+			local lengthMultiplier = 1
+
+			--normalized position of sun during the day.
+			local r = (t - 5 / 24) / (19 / 24 - 5 / 24)
+
+			if t < 5 / 24 or t > 19 / 24 then
+				--at night normalize between dusk and dawn instead.
+				if t > 19 / 24 then
+					r = (t - 19 / 24) / (10 / 24)
+				else
+					r = (t + 5 / 24) / (10 / 24)
+				end
+				r = 1 - r
+				lengthMultiplier = 0.4
+			end
+
+
+			--controls how long shadows should be north. The larger this value the further
+			--north of the equator the players are (and/or the closer to winter it is).
+			--Values negative for Southern Hemisphere.
+			local shadowNorth = g_solarLatitude:Get()
+
+			--controls how long shadows should be east/west.
+			local shadowConstant = 3
+
+			local shadowLength = lengthMultiplier * shadowConstant * math.tan((r - 0.5) * math.pi / 2)
+
+            g_shadowVec.x = shadowLength
+            g_shadowVec.y = shadowNorth
+
+			return {
+				dir = g_shadowVec,
+				color = g_colorGray,
+			}
+		end,
+
+		gradient = g_dayNightGradient,
+	},
+	underground = {
+		var = "undergroundillumination",
+		description = "Underground",
+		timeLabel = 'Illumination',
+		outside = false,
+		illumination = 0.5,
+
+		GetShadows = function(t)
+			return nil
+		end,
+
+        gradient = g_undergroundGradient,
 	},
 }
 
@@ -388,6 +397,8 @@ function MoveGameTime(days)
 	UploadTimeBasis()
 end
 
+local g_lightingColor = core.Color { r = 1, g = 1, b = 1 }
+local g_shadowColor = core.Color { r = 1, g = 1, b = 1 }
 dmhub.GetLightingInfo = function(floorid)
 	local dayInfo = GetDayType(floorid)
 
@@ -418,19 +429,17 @@ dmhub.GetLightingInfo = function(floorid)
 	local shadows = dayInfo.GetShadows(t)
 	if dayInfo.outside then
 		local sunlight = dmhub.GetSettingValue("sunbrightness")
-		color = core.Color {
-			r = color.r * sunlight,
-			g = color.g * sunlight,
-			b = color.b * sunlight,
-		}
+		color = g_lightingColor
+		color.r = color.r * sunlight
+		color.g = color.g * sunlight
+		color.b = color.b * sunlight
 
 		if shadows ~= nil then
 			local ambient = dmhub.GetSettingValue("ambientlight")
-			shadows.color = core.Color {
-				r = ambient,
-				g = ambient,
-				b = ambient,
-			}
+			g_shadowColor.r = ambient
+			g_shadowColor.g = ambient
+			g_shadowColor.b = ambient
+			shadows.color = g_shadowColor
 		end
 	end
 

@@ -263,16 +263,23 @@ local function CreateFolderPanel(journalPanel, folderid)
         },
 
         expanded = builtinFolder,
+        queryNode = function(element, info)
+            local folders = journalPanel.data.documentFoldersTable
+            local folder = folders[folderid]
+            info.node = folder
+        end,
 
         draggable = not builtinFolder,
         canDragOnto = function(element, target)
-            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel")) and
+            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
                 target:FindParentWithClass("documentFolder") ~= nil
         end,
         drag = function(element, target)
             if target == nil then
                 return
             end
+
+            local originalTarget = target
 
             target = target:FindParentWithClass("documentFolder")
             if target == nil then
@@ -286,6 +293,11 @@ local function CreateFolderPanel(journalPanel, folderid)
             end
 
             folder.parentFolder = target.data.folderid
+
+            if originalTarget:HasClass("dragDocumentSiblingSpacer") then
+                
+            end
+
             folder:Upload()
         end,
 
@@ -402,6 +414,11 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
 
                 if member.nodeType == "pdf" or member.nodeType == "image" or member.nodeType == "pdffragment" or member.nodeType == "custom" then
                     p = m_documentPanels[k] or gui.Panel {
+                        gui.Panel{
+                            classes = {"dragDocumentSiblingSpacer"},
+                            floating = true,
+                            dragTarget = true,
+                        },
                         draggable = dragTarget,
                         hover = function(element) --vback
                             if member.nodeType ~= "pdf" then
@@ -491,7 +508,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                             element.tooltip:MakeNonInteractiveRecursive()
                         end,
                         canDragOnto = function(element, target)
-                            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel")) and
+                            return target ~= nil and (target:HasClass("folder") or target:HasClass("contentPanel") or target:HasClass("dragDocumentSiblingSpacer")) and
                                 target:FindParentWithClass("documentFolder") ~= nil
                         end,
                         drag = function(element, target)
@@ -499,14 +516,42 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 return
                             end
 
+                            local originalTarget = target
+
                             target = target:FindParentWithClass("documentFolder")
                             if target == nil then
                                 return
                             end
 
+                            if originalTarget:HasClass("dragDocumentSiblingSpacer") then
+                                local parentNode = originalTarget.parent.parent
+                                local ord = nil
+                                for _,child in ipairs(parentNode.children) do
+                                    local info = {}
+                                    child:FireEvent("queryNode", info)
+                                    if info.node ~= nil and info.node ~= element.data.doc then
+                                        if ord ~= nil and info.node.ord <= ord then
+                                            info.node.ord = ord + 1
+                                            info.node:Upload()
+                                        end
+                                        if child == originalTarget.parent then
+                                            if ord == nil then
+                                                element.data.doc.ord = info.node.ord - 1
+                                            else
+                                                element.data.doc.ord = (ord + info.node.ord) / 2
+                                            end
+                                        end
+                                        ord = info.node.ord
+                                    end
+                                end
+                                
+                            end
 
                             element.data.doc.parentFolder = target.data.folderid
                             element.data.doc:Upload()
+                        end,
+                        queryNode = function(element, info)
+                            info.node = element.data.doc
                         end,
                         data = {
                             showBookmarks = false,
@@ -610,7 +655,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
 
                         refreshDoc = function(element, doc)
                             local parentElement = element
-                            element.data.ord = string.lower("b" .. doc.description)
+                            element.data.ord = doc.ord
+                            element.data.ordDesc = string.lower("b" .. doc.description)
                             element.data.doc = doc
 
                             --try to order according to info bubbles.
@@ -627,7 +673,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                                 end
 
                                 if ord ~= nil then
-                                    element.data.ord = string.format("b%09d-%s", ord, doc.description)
+                                    element.data.ord = doc.ord
+                                    element.data.ordDesc = string.format("b%09d-%s", ord, doc.description)
                                 end
                             end
 
@@ -905,7 +952,8 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                     p:FireEventTree("refreshDoc", member)
                 elseif member.nodeType == "folder" or member.nodeType == "builtinFolder" then
                     p = m_documentPanels[k] or CreateFolderPanel(journalPanel, k)
-                    p.data.ord = string.lower("a" .. member.description)
+                    p.data.ord = member.ord
+                    p.data.ordDesc = string.lower("a" .. member.description)
                 end
 
 
@@ -913,7 +961,12 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
                 children[#children + 1] = p
             end
 
-            table.sort(children, function(a, b) return a.data.ord < b.data.ord end)
+            table.sort(children, function(a, b)
+                if a.data.ord ~= b.data.ord then
+                    return a.data.ord < b.data.ord
+                end
+                return a.data.ordDesc < b.data.ordDesc
+            end)
 
             m_documentPanels = newDocumentPanels
             element.children = children
@@ -1201,6 +1254,22 @@ CreateJournalPanel = function()
                     priority = 5,
                     selectors = { "folder", "drag-target-hover" },
                     brightness = 2,
+                },
+                {
+                    classes = {"dragDocumentSiblingSpacer"},
+                    width = "100%",
+                    height = 2,
+                    valign = "top",
+                    bgimage = "panels/square.png",
+                    bgcolor = "clear",
+                },
+                {
+                    classes = {"dragDocumentSiblingSpacer", "drag-target-hover"},
+                    bgcolor = "white",
+                },
+                {
+                    classes = {"dragDocumentSiblingSpacer", "parent:dragging"},
+                    collapsed = 1,
                 },
                 {
                     priority = 5,

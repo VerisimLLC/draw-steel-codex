@@ -565,7 +565,7 @@ local SetData = function(tableName, conditionPanel, condid)
 			{
 				classes = {'modsPanel'},
 				width = 800,
-				height = 600,
+                height = "auto",
 				halign = 'left',
 			},
 			{
@@ -583,6 +583,7 @@ local SetData = function(tableName, conditionPanel, condid)
 		},
 
 		condition:EditorPanel{
+            noscroll = true,
 			modifierRefreshed = function(element)
 				dmhub.Debug("REFRESH:: MODIFIERS UPLOAD")
 				UploadCondition()

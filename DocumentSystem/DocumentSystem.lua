@@ -26,6 +26,7 @@ CustomDocument.AddAlias("name", "description")
 CustomDocument.bookmarks = {}
 CustomDocument.vscroll = true
 CustomDocument.textStorage = false
+CustomDocument.ord = 0
 
 CustomDocument.MaxLength = 8192*4
 

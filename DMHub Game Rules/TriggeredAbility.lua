@@ -18,6 +18,51 @@ TriggeredAbility.DespawnBehaviors = {
     },
 }
 
+setting{
+    id = "game:heroicresourcetriggers",
+    classes = {"dmonly"},
+    storage = "game",
+    section = "Game",
+    editor = "check",
+    description = "Automated Heroic Resource Gains",
+    default = true,
+}
+
+TriggeredAbility.mandatoryTriggerSettings = {
+    {
+        id = true,
+        text = "Occurs Automatically",
+    },
+    {
+        id = false,
+        text = "Prompt",
+    },
+    {
+        id = "game:heroicresourcetriggers",
+        text = "Automatic Heroic Resource Setting",
+    }
+}
+
+function TriggeredAbility:IsMandatory()
+    if self.mandatory == true then
+        return true
+    elseif self.mandatory == false then
+        return false
+    end
+
+    --mandatory/automatic.
+    local mandatory = dmhub.GetSettingValue(self.mandatory)
+    return mandatory
+end
+
+function TriggeredAbility:MayBePrompted()
+    if self.mandatory == true then
+        return false
+    end
+
+    return true
+end
+
 ActivatedAbility.OnTypeRegistered = function()
 	TriggeredAbility.Types = {}
 
@@ -875,7 +920,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		g_triggerDepth = g_triggerDepth - 1
 	end
 
-	if self.mandatory or (self:try_get("mandatoryDifferentPlayer", false) and casterToken.activeControllerId == nil) then
+	if self:IsMandatory() or (self:try_get("mandatoryDifferentPlayer", false) and casterToken.activeControllerId == nil) then
 		executeTrigger()
 	else
 		dmhub.Coroutine(function()

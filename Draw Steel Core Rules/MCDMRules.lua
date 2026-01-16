@@ -1110,48 +1110,48 @@ GameSystem.RegisterCreatureSizes{
 	{
 		name = "1T",
 		tiles = 1,
-		radius = 0.25,
+		radius = 0.2,
 	},
 	{
 		name = "1S",
 		tiles = 1,
-		radius = 0.4,
+		radius = 0.32,
 	},
 	{
 		name = "1M",
 		tiles = 1,
-		radius = 0.5,
+		radius = 0.4,
 		defaultSize = true,
 	},
 	{
 		name = "1L",
 		tiles = 1,
-		radius = 0.6,
+		radius = 0.5,
 	},
 	{
 		name = "2",
 		tiles = 2,
-		radius = 0.95,
+		radius = 0.85,
 	},
 	{
 		name = "3",
 		tiles = 3,
-		radius = 1.45,
+		radius = 1.35,
 	},
 	{
 		name = "4",
 		tiles = 4,
-		radius = 2.0,
+		radius = 1.7,
 	},
 	{
 		name = "5",
 		tiles = 5,
-		radius = 2.5,
+		radius = 2.2,
 	},
     {
 		name = "6",
 		tiles = 6,
-		radius = 3,
+		radius = 2.7,
 	},
 }
 

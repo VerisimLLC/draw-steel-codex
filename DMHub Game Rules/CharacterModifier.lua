@@ -3412,7 +3412,7 @@ function CharacterModifier:TriggerEvent(creature, eventName, info, modContext, d
 			return false
 		end
 
-        if  ((not self.triggeredAbility.mandatory) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
+        if  ((not self.triggeredAbility:IsMandatory()) and (not creature:TriggeredAbilityEnabled(self.triggeredAbility))) then
             if debugLog ~= nil then
                 debugLog[#debugLog+1] = {
                     name = self.triggeredAbility.name,

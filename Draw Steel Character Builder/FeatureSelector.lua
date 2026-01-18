@@ -243,6 +243,14 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 element:SetClass("filled", option ~= nil)
                 element:SetClass("selected", isSelected)
             end,
+            removeItem = function(element)
+                if element.data.option then
+                    local controller = getFeatureSelController(element)
+                    if controller then
+                        controller:FireEvent("removeItem", element.data.option)
+                    end
+                end
+            end,
             gui.Label{
                 classes = {"builder-base", "label", "feature-target"},
                 text = "Empty Slot",
@@ -279,6 +287,16 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
                     element:SetClass("collapsed-anim", not visible)
                 end,
+            },
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-selector", "remove"},
+                floating = true,
+                press = function(element)
+                    element.parent:FireEvent("removeItem")
+                end,
+                refreshBuilderState = function(element, state)
+                    element:SetClass("collapsed", not element.parent:HasClass("filled"))
+                end
             }
         }
     end
@@ -461,6 +479,19 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                                 return
                             end
                         end
+                    end
+                end
+            end
+        end,
+        removeItem = function(element, option)
+            local state = _getState()
+            local hero = _getHero()
+            if state and hero then
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature then
+                    local actionComplete = cachedFeature:RemoveSelection(hero, option)
+                    if actionComplete then
+                        _fireControllerEvent("tokenDataChanged")
                     end
                 end
             end

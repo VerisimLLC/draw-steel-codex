@@ -233,7 +233,8 @@ function CBAncestryDetail._overviewPanel()
                 local currentSelected = state:Get(SELECTOR .. ".selectedId")
                 if currentSelected ~= element.data.lastSelected then
                     element.data.lastSelected = currentSelected
-                    print("THC:: SCROLLER::", element)
+                    -- TODO: Scroll back to top. This doesn't work.
+                    -- element.vscrollPositon = 0
                 end
             end,
 

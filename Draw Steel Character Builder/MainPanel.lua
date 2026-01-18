@@ -304,13 +304,15 @@ function CharacterBuilder.CreatePanel()
         end,
 
         removeCareer = function(element)
-            local hero = _getHero(element.data.state)
+            local state = element.data.state
+            local hero = _getHero(state)
             if hero then
                 element:AddChild(CharacterBuilder._confirmDialog{
                     title = "Confirm Change Career",
                     message = "Click Confirm to remove your Career and all related selections.",
                     onConfirm = function()
                         hero.backgroundid = nil
+                        state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
                     end,
                 })
@@ -381,13 +383,22 @@ function CharacterBuilder.CreatePanel()
 
         selectCareer = function(element, careerId, noFire)
             local state = element.data.state
+
             local cachedCareerId = state:Get(SEL.CAREER .. ".selectedId")
             local cachedLevelChoices = state:Get("levelChoices")
+            
             local hero = _getHero()
             local levelChoices = hero and hero:GetLevelChoices() or {}
 
             local careerChanged = careerId ~= cachedCareerId
             local levelChoicesChanged = not dmhub.DeepEqual(cachedLevelChoices, levelChoices)
+
+            -- Always update blockFeatureSelection based on current hero state
+            local blockFeatureSelection = hero == nil or hero:try_get("backgroundid") == nil
+            local cachedBlock = state:Get(SEL.CAREER .. ".blockFeatureSelection")
+            if cachedBlock ~= blockFeatureSelection then
+                state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = blockFeatureSelection }
+            end
 
             if not (careerChanged or levelChoicesChanged) then
                 return
@@ -424,6 +435,7 @@ function CharacterBuilder.CreatePanel()
 
                 newState[#newState+1] = { key = SEL.CAREER .. ".selectedItem", value = careerItem }
                 newState[#newState+1] = { key = SEL.CAREER .. ".featureCache", value = featureCache }
+                newState[#newState+1] = { key = SEL.CAREER .. ".blockFeatureSelection", value = hero:try_get("backgroundid") == nil}
             end
             state:Set(newState)
             if not noFire then

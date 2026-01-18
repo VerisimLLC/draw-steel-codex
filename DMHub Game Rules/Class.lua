@@ -376,6 +376,54 @@ function CharacterChoice:GetSummaryText()
 	return string.format("<b>%s</b>.  %s", self.name, self.description)
 end
 
+function CharacterChoice:GetDetailedSummaryText()
+	return self:GetSummaryText()
+end
+
+function CharacterFeatureChoice:GetDetailedSummaryText()
+	local summary = self:GetSummaryText()
+	local options = self:try_get("options", {})
+	local traits = {}
+	for _,option in ipairs(options) do
+		local descr = option.description or ""
+		descr = descr:trim()
+		if #descr > 0 then
+			local pointValue = ""
+			if self:try_get("costsPoints", false) then
+				local pointCost = option.pointsCost or 1
+				pointValue = string.format(" (%d Point%s)", pointCost, pointCost ~= 1 and "s" or "")
+			end
+			traits[#traits+1] = string.format("* <b>%s%s:</b> %s", option.name, pointValue, option.description or "")
+		end
+	end
+	if #traits > 0 then
+		summary = string.format("%s\n\n%s", summary, table.concat(traits, "\n"))
+	end
+	return summary
+end
+
+function CharacterFeatureList:GetDetailedSummaryText()
+	local summary = self:GetSummaryText()
+	local options = self:try_get("options", {})
+	local traits = {}
+	for _,option in ipairs(options) do
+		local descr = option.description or ""
+		descr = descr:trim()
+		if #descr > 0 then
+			local pointValue = ""
+			if self:try_get("costsPoints", false) then
+				local pointCost = option.pointsCost or 1
+				pointValue = string.format(" (%d Point%s)", pointCost, pointCost ~= 1 and "s" or "")
+			end
+			traits[#traits+1] = string.format("* <b>%s%s:</b> %s", option.name, pointValue, option.description or "")
+		end
+	end
+	if #traits > 0 then
+		summary = string.format("%s\n\n%s", summary, table.concat(traits, "\n"))
+	end
+	return summary
+end
+
 function CharacterChoice:CharacterUniqueID()
 	return self.guid
 end

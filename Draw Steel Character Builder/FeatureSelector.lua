@@ -418,10 +418,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             local mode = element.data.selectMode
             local visible = false
             local enabled = false
-            local cachedFeature = getCachedFeature(state, element.data.featureId)
-            if cachedFeature then
-                visible = true
-                enabled = SELECT_MODES[mode] ~= nil and (SELECT_MODES[mode] == SELECT_MODES.REMOVE or cachedFeature:AllowCurrentSelection())
+            local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+            if not blockSel then
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature then
+                    visible = true
+                    enabled = SELECT_MODES[mode] ~= nil and (SELECT_MODES[mode] == SELECT_MODES.REMOVE or cachedFeature:AllowCurrentSelection())
+                end
             end
             element.text = string.upper(SELECT_MODES[mode] or "unknown mode")
             element:SetClass("collapsed", not visible)

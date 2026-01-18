@@ -13,15 +13,6 @@ local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _getHero = CharacterBuilder._getHero
 local _makeDetailNavButton = CharacterBuilder._makeDetailNavButton
 
---- Return the hero's currently selected class
---- @param hero character
---- @return string|nil classId
-function CBClassDetail._getSelectedClass(hero)
-    local class = hero:GetClass()
-    if class then return class.id end
-    return nil
-end
-
 --- Generate the navigation panel
 --- @return Panel
 function CBClassDetail._navPanel()
@@ -30,9 +21,10 @@ function CBClassDetail._navPanel()
         text = "Overview",
         data = { category = INITIAL_CATEGORY },
     })
-    local changeButton = _makeDetailNavButton(SELECTOR, {
-        styles = CBStyles.SelectorButtonOverrides(),
-        classes = {"changeClass", "destructive"},
+    local changeButton = gui.PrettyButton{
+        classes = {"changeClass", "builder-base", "button", "selector", "destructive"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Change Class",
         data = { category = "change" },
         press = function(element)
@@ -42,10 +34,30 @@ function CBClassDetail._navPanel()
             local hero = _getHero()
             if hero then
                 local classes = hero:try_get("classes", {})
-                element:FireEvent("setAvailable", #classes > 0)
+                local isAvailable = #classes > 0
+                element:SetClass("collapsed", not isAvailable)
+                element:FireEvent("setAvailable", isAvailable)
             end
         end,
-    })
+    }
+
+    local selectButton = gui.PrettyButton{
+        classes = {"changeClass", "builder-base", "button", "selector"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
+        text = "Select Class",
+        data = { category = "select" },
+        press = function(element)
+            _fireControllerEvent("applyCurrentClass")
+        end,
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            local heroClass = hero and hero:GetClass()
+            local isAvailable = state:Get(SELECTOR .. ".selectedId") ~= nil and heroClass == nil
+            element:SetClass("collapsed", not isAvailable)
+            element:FireEvent("setAvailable", isAvailable)
+        end,
+    }
 
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
@@ -60,8 +72,6 @@ function CBClassDetail._navPanel()
 
         registerFeatureButton = function(element, button)
             element:AddChild(button)
-            local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeClass") end)
-            if changeButton then changeButton:SetAsLastSibling() end
             element.children = CharacterBuilder._sortButtons(element.children)
         end,
 
@@ -74,8 +84,9 @@ function CBClassDetail._navPanel()
             end
         end,
 
-        overviewButton,
+        selectButton,
         changeButton,
+        overviewButton,
     }
 end
 
@@ -148,7 +159,7 @@ function CBClassDetail._overviewPanel()
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local featureDetails = featureCache:GetFlattenedFeatures()
                     for _,item in ipairs(featureDetails) do
-                        local s = item.feature:GetSummaryText()
+                        local s = item.feature:GetDetailedSummaryText()
                         if s ~= nil and #s > 0 then
                             textItems[#textItems+1] = s
                         end
@@ -159,6 +170,12 @@ function CBClassDetail._overviewPanel()
                 element.text = text
             end
         }
+    }
+
+    local spacerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        width = "50%",
+        height = "66%",
     }
 
     return gui.Panel{
@@ -195,29 +212,24 @@ function CBClassDetail._overviewPanel()
             bmargin = 32,
             valign = "bottom",
             vscroll = true,
+            data = {
+                lastSelected = nil,
+            },
+
+            refreshBuilderState = function(element, state)
+                local currentSelected = state:Get(SELECTOR .. ".selectedId")
+                if currentSelected ~= element.data.lastSelected then
+                    element.data.lastSelected = currentSelected
+                    -- TODO: Scroll back to top. This doesn't work.
+                    -- element.vscrollPositon = 0
+                end
+            end,
+            
+            spacerPanel,
             nameLabel,
             introLabel,
             detailLabel,
         }
-    }
-end
-
---- Build the Select button
---- @return PrettyButton|Panel
-function CBClassDetail._selectButton()
-    return CharacterBuilder._makeSelectButton{
-        classes = {"selectButton"},
-        press = function(element)
-            _fireControllerEvent("applyCurrentClass")
-        end,
-        refreshBuilderState = function(element, state)
-            local hero = _getHero()
-            if hero then
-                local heroClass = hero:GetClass()
-                local canSelect = heroClass == nil and state:Get(SELECTOR .. ".selectedId") ~= nil
-                element:SetClass("collapsed", not canSelect)
-            end
-        end,
     }
 end
 
@@ -228,8 +240,6 @@ function CBClassDetail.CreatePanel()
     local navPanel = CBClassDetail._navPanel()
 
     local overviewPanel = CBClassDetail._overviewPanel()
-
-    local selectButton = CBClassDetail._selectButton()
 
     local detailPanel = gui.Panel{
         id = "classDetailPanel",
@@ -251,7 +261,6 @@ function CBClassDetail.CreatePanel()
         end,
 
         overviewPanel,
-        selectButton,
     }
 
     return gui.Panel{
@@ -274,7 +283,7 @@ function CBClassDetail.CreatePanel()
             local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
             local hero = _getHero()
             if hero then
-                local heroClass = hero:GetClass()
+                local heroClass = state:Get(SELECTOR .. ".selectedId")
 
                 if heroClass ~= nil then
                     for id,_ in pairs(element.data.features) do
@@ -291,8 +300,10 @@ function CBClassDetail.CreatePanel()
                                 local featureRegistry = CharacterBuilder._makeFeatureRegistry{
                                     feature = feature,
                                     selector = SELECTOR,
-                                    selectedId = heroClass.id,
-                                    getSelected = CBClassDetail._getSelectedClass,
+                                    selectedId = heroClass,
+                                    getSelected = function(hero)
+                                        return heroClass
+                                    end,
                                 }
                                 if featureRegistry then
                                     element.data.features[featureId] = true

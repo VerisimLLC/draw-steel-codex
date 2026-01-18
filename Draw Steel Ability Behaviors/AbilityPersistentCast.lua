@@ -58,6 +58,8 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         end
     end
 
+    startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, caster:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
+
     local stopPresistence = {}
 
     local createPersistenceAbilityPanel = function(ability)

@@ -287,7 +287,8 @@ function CharacterBuilder.CreatePanel()
         end,
 
         removeAncestry = function(element)
-            local hero = _getHero(element.data.state)
+            local state = element.data.state
+            local hero = _getHero(state)
             if hero and (hero:try_get("raceid") or hero:try_get("subraceid")) then
                 element:AddChild(CharacterBuilder._confirmDialog{
                     title = "Confirm Change Ancestry",
@@ -295,6 +296,7 @@ function CharacterBuilder.CreatePanel()
                     onConfirm = function()
                         hero.raceid = nil
                         hero.subraceid = nil
+                        state:Set{ key = SEL.ANCESTRY .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
                     end,
                 })
@@ -302,13 +304,15 @@ function CharacterBuilder.CreatePanel()
         end,
 
         removeCareer = function(element)
-            local hero = _getHero(element.data.state)
+            local state = element.data.state
+            local hero = _getHero(state)
             if hero then
                 element:AddChild(CharacterBuilder._confirmDialog{
                     title = "Confirm Change Career",
                     message = "Click Confirm to remove your Career and all related selections.",
                     onConfirm = function()
                         hero.backgroundid = nil
+                        state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
                     end,
                 })
@@ -316,11 +320,12 @@ function CharacterBuilder.CreatePanel()
         end,
 
         removeClass = function(element)
-            local hero = _getHero(element.data.state)
+            local state = element.data.state
+            local hero = _getHero(state)
             if hero then
                 element:AddChild(CharacterBuilder._confirmDialog{
-                    title = "Confirm Change Career",
-                    message = "Click Confirm to remove your Career and all related selections.",
+                    title = "Confirm Change Class",
+                    message = "Click Confirm to remove your Class and all related selections.",
                     onConfirm = function()
                         hero.classes = {}
                         for _,attr in pairs(hero:try_get("attributes" or {})) do
@@ -333,6 +338,7 @@ function CharacterBuilder.CreatePanel()
                         if levelChoices["kitBonusChoices"] then
                             levelChoices["kitBonusChoices"] = nil
                         end
+                        state:Set{ key = SEL.CLASS .. ".blockFeatureSelection", value = true }
                         element:FireEvent("tokenDataChanged")
                     end,
                 })
@@ -369,6 +375,7 @@ function CharacterBuilder.CreatePanel()
                 newState[#newState+1] = { key = SEL.ANCESTRY .. ".selectedItem", value = ancestryItem }
                 newState[#newState+1] = { key = SEL.ANCESTRY .. ".inheritedId", value = inheritedAncestryId }
                 newState[#newState+1] = { key = SEL.ANCESTRY .. ".featureCache", value = featureCache }
+                newState[#newState+1] = { key = SEL.ANCESTRY .. ".blockFeatureSelection", value = hero:try_get("raceid") == nil}
             end
             state:Set(newState)
             if not noFire then
@@ -378,13 +385,22 @@ function CharacterBuilder.CreatePanel()
 
         selectCareer = function(element, careerId, noFire)
             local state = element.data.state
+
             local cachedCareerId = state:Get(SEL.CAREER .. ".selectedId")
             local cachedLevelChoices = state:Get("levelChoices")
+            
             local hero = _getHero()
             local levelChoices = hero and hero:GetLevelChoices() or {}
 
             local careerChanged = careerId ~= cachedCareerId
             local levelChoicesChanged = not dmhub.DeepEqual(cachedLevelChoices, levelChoices)
+
+            -- Always update blockFeatureSelection based on current hero state
+            local blockFeatureSelection = hero == nil or hero:try_get("backgroundid") == nil
+            local cachedBlock = state:Get(SEL.CAREER .. ".blockFeatureSelection")
+            if cachedBlock ~= blockFeatureSelection then
+                state:Set{ key = SEL.CAREER .. ".blockFeatureSelection", value = blockFeatureSelection }
+            end
 
             if not (careerChanged or levelChoicesChanged) then
                 return
@@ -421,6 +437,7 @@ function CharacterBuilder.CreatePanel()
 
                 newState[#newState+1] = { key = SEL.CAREER .. ".selectedItem", value = careerItem }
                 newState[#newState+1] = { key = SEL.CAREER .. ".featureCache", value = featureCache }
+                newState[#newState+1] = { key = SEL.CAREER .. ".blockFeatureSelection", value = hero:try_get("backgroundid") == nil}
             end
             state:Set(newState)
             if not noFire then
@@ -448,6 +465,15 @@ function CharacterBuilder.CreatePanel()
             local levelChanged = level ~= cachedLevel or extraLevelInfo ~= cachedExtraLevel
             local subclassesChanged = dmhub.DeepEqual(classAndSubClasses, cachedSubclasses) ~= true
             local levelChoicesChanged = dmhub.DeepEqual(levelChoices, cachedLevelChoices) ~= true
+
+            -- Always update blockFeatureSelection based on current hero state
+            local heroHasClass = hero ~= nil and hero:GetClass() ~= nil
+            local blockFeatureSelection = not heroHasClass
+            local cachedBlock = state:Get(SEL.CLASS .. ".blockFeatureSelection")
+            if cachedBlock ~= blockFeatureSelection then
+                state:Set{ key = SEL.CLASS .. ".blockFeatureSelection", value = blockFeatureSelection }
+            end
+
             if not (classChanged or levelChanged or subclassesChanged or levelChoicesChanged) then
                 -- Caching is not working. Calculate always.
                 -- return

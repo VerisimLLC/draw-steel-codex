@@ -40,11 +40,13 @@ function CharacterSkillChoice:_cache()
 			tags[#tags+1] = {
 				id = k,
 				text = skill.name,
+                description = skill:try_get("description"),
 				unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
 			}
             options[#options+1] = {
                 guid = k,
                 name = skill.name,
+                description = skill:try_get("description"),
                 unique = true,
             }
 		end

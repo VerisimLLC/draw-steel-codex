@@ -15,19 +15,7 @@ function DTFollowers.CreateNew(followers, token)
     if followers and type(followers) == "table" and next(followers) then
         for followerId,_ in pairs(followers) do
             local follower = dmhub.GetCharacterById(followerId)
-            if follower then
-                instance.followers[follower.id] = follower
-                -- local type = string.lower(follower.properties:try_get("followerType", ""))
-                -- local dtFollower = DTFollower:new(follower, token)
-                -- if type == "artisan" then
-                --     dtFollower = DTFollowerArtisan:new(follower, token)
-                -- elseif type == "sage" then
-                --     dtFollower = DTFollowerSage:new(follower, token)
-                -- end
-                -- if dtFollower then
-                --     instance.followers[dtFollower:GetID()] = dtFollower
-                -- end
-            end
+            instance.followers[follower.id] = follower
         end
     end
 

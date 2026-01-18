@@ -3465,7 +3465,7 @@ function creature:DispatchEventAndWait(eventName, info)
     coroutine.yield(0.5)
     local triggerId
     --track this trigger's id
-    for _, triggerInfo in pairs(self:GetAvailableTriggers()) do
+    for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
         if triggerInfo.text == modName then
             triggerId = triggerInfo.id
             break

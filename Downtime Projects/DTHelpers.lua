@@ -6,6 +6,25 @@ DTHelpers = RegisterGameType("DTHelpers")
 -- Turn on the background to see lines around the downtime tab panels
 local DEBUG_PANEL_BG = DTConstants.DEVUI and "panels/square.png" or nil
 
+--- Find a token given a creature object
+--- @param creature creature
+--- @return CharacterToken|nil
+function DTHelpers.GetTokenFromCreature(creature)
+    local token = dmhub.LookupToken(creature)
+    if token ~= nil then return token end
+
+    -- TODO: Is there a better way to find them when their
+    -- token is not on the map?
+    local allTokens = table.values(game.GetGameGlobalCharacters())
+    for _,token in ipairs(allTokens) do
+        if dmhub.DeepEqual(token.properties, creature) then
+            return token
+        end
+    end
+
+    return nil
+end
+
 --- Return the owning token's uniuqe ID given a project id
 --- @param projectId string The project to find the owner for
 --- @return string ownerId The unique identifier for the owner

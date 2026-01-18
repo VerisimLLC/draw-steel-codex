@@ -678,13 +678,13 @@ function CBCharPanel._detailPanel()
             text = "Exploration",
             content = CBCharPanel._explorationPanel,
         },
-        tactical = {
-            icon = "panels/initiative/initiative-icon.png",
-            text = "Tactical",
-            content = CBCharPanel._tacticalPanel,
-        }
+        -- tactical = {
+        --     icon = "panels/initiative/initiative-icon.png",
+        --     text = "Tactical",
+        --     content = CBCharPanel._tacticalPanel,
+        -- }
     }
-    local tabOrder = {"description", "builder", "exploration", "tactical"}
+    local tabOrder = {"description", "builder", "exploration"} --, "tactical"}
 
     local tabButtons = {}
     for _,tabId in ipairs(tabOrder) do

@@ -91,6 +91,12 @@ function CBCareerDetail._overviewPanel()
         }
     }
 
+    local spacerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        width = "50%",
+        height = "66%",
+    }
+
     return gui.Panel{
         id = "careerOverviewPanel",
         classes = {"careerOverviewPanel", "builder-base", "panel-base", "detail-overview-panel", "border", "collapsed"},
@@ -124,6 +130,20 @@ function CBCareerDetail._overviewPanel()
             bmargin = 32,
             valign = "bottom",
             vscroll = true,
+            data = {
+                lastSelected = nil,
+            },
+
+            refreshBuilderState = function(element, state)
+                local currentSelected = state:Get(SELECTOR .. ".selectedId")
+                if currentSelected ~= element.data.lastSelected then
+                    element.data.lastSelected = currentSelected
+                    -- TODO: Scroll back to top. This doesn't work.
+                    -- element.vscrollPositon = 0
+                end
+            end,
+
+            spacerPanel,
             nameLabel,
             introLabel,
             detailLabel,
@@ -140,10 +160,11 @@ function CBCareerDetail._navPanel()
         data = { category = INITIAL_CATEGORY },
     })
 
-    local changeButton = _makeDetailNavButton(SELECTOR, {
-        styles = CBStyles.SelectorButtonOverrides(),
-        classes = {"changeCareer", "destructive"},
-        text = string.format("Change %s", GameSystem.BackgroundName),
+    local changeButton = gui.PrettyButton{
+        classes = {"changeCareer", "builder-base", "button", "selector", "destructive"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
+        text = "Change Career",
         data = { category = "change" },
         press = function(element)
             _fireControllerEvent("removeCareer")
@@ -151,10 +172,29 @@ function CBCareerDetail._navPanel()
         refreshBuilderState = function(element, state)
             local hero = _getHero()
             if hero then
-                element:FireEvent("setAvailable", hero:try_get("backgroundid") ~= nil)
+                local isAvailable = hero:try_get("backgroundid") ~= nil
+                element:SetClass("collapsed", not isAvailable)
+                element:FireEvent("setAvailable", isAvailable)
             end
         end,
-    })
+    }
+
+    local selectButton = gui.PrettyButton{
+        classes = {"changeCareer", "builder-base", "button", "selector"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
+        text = "Select Career",
+        data = { category = "select" },
+        press = function(element)
+            _fireControllerEvent("applyCurrentCareer")
+        end,
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            local isAvailable = state:Get(SELECTOR .. ".selectedId") ~= nil and hero:try_get("backgroundid") == nil
+            element:SetClass("collapsed", not isAvailable)
+            element:FireEvent("setAvailable", isAvailable)
+        end,
+    }
 
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
@@ -169,8 +209,6 @@ function CBCareerDetail._navPanel()
 
         registerFeatureButton = function(element, button)
             element:AddChild(button)
-            local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeCareer") end)
-            if changeButton then changeButton:SetAsLastSibling() end
             element.children = CharacterBuilder._sortButtons(element.children)
         end,
 
@@ -183,26 +221,9 @@ function CBCareerDetail._navPanel()
             end
         end,
 
-        overviewButton,
+        selectButton,
         changeButton,
-    }
-end
-
---- Build the Select button
---- @return PrettyButton|Panel
-function CBCareerDetail._selectButton()
-    return CharacterBuilder._makeSelectButton{
-        classes = {"selectButton"},
-        press = function(element)
-            _fireControllerEvent("applyCurrentCareer")
-        end,
-        refreshBuilderState = function(element, state)
-            local hero = _getHero()
-            if hero then
-                local canSelect = hero:try_get("backgroundid") == nil and state:Get(SELECTOR .. ".selectedId") ~= nil
-                element:SetClass("collapsed", not canSelect)
-            end
-        end,
+        overviewButton,
     }
 end
 
@@ -212,7 +233,6 @@ function CBCareerDetail.CreatePanel()
 
     local navPanel = CBCareerDetail._navPanel()
     local overviewPanel = CBCareerDetail._overviewPanel()
-    local selectButton = CBCareerDetail._selectButton()
 
     local detailPanel = gui.Panel{
         id = "careerDetailPanel",
@@ -234,7 +254,6 @@ function CBCareerDetail.CreatePanel()
         end,
 
         overviewPanel,
-        selectButton,
     }
 
     return gui.Panel{
@@ -257,7 +276,7 @@ function CBCareerDetail.CreatePanel()
             local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
             local hero = _getHero()
             if hero then
-                local heroCareer = hero:try_get("backgroundid")
+                local heroCareer = state:Get(SELECTOR .. ".selectedId") --hero:try_get("backgroundid")
 
                 if heroCareer ~= nil then
                     for id,_ in pairs(element.data.features) do
@@ -276,7 +295,7 @@ function CBCareerDetail.CreatePanel()
                                     selector = SELECTOR,
                                     selectedId = heroCareer,
                                     getSelected = function(hero)
-                                        return hero:try_get("backgroundid")
+                                        return heroCareer
                                     end,
                                 }
                                 if featureRegistry then

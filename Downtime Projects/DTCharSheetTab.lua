@@ -45,7 +45,7 @@ function DTCharSheetTab.CreateDowntimePanel()
             local thisTokenId = CharacterSheet.instance.data.info.token.id
             local rollerTokenId = roller:GetTokenID()
             if thisTokenId ~= rollerTokenId then
-                local t = dmhub.GetTokenById(rollerTokenId)
+                local t = dmhub.GetCharacterById(rollerTokenId)
                 if t then
                     t:ModifyProperties{
                         description = "Adjust available rolls",
@@ -291,8 +291,6 @@ function DTCharSheetTab._createHeaderPanel()
                         end
                     end
                 end
-            else
-                print("THC:: BOOM:: DTCharSheetTab._createHeaderPanel click Add Button")
             end
         end
     }
@@ -409,10 +407,7 @@ end
 --- Reconciles existing editor panels with current project list to avoid expensive panel recreation
 --- @param element table The projects list container element
 function DTCharSheetTab._refreshProjectsList(element)
-    if CharacterSheet.instance.data.info == nil then
-        print("THC:: BOOM:: DTCharSheetTab._refreshProjectsList")
-        return
-    end
+    if CharacterSheet.instance.data.info == nil then return end
     local token = CharacterSheet.instance.data.info.token
     if not token or not token.properties or not token.properties:IsHero() then
         element.children = {}

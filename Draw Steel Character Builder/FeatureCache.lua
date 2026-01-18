@@ -209,6 +209,14 @@ function CBFeatureWrapper:GetDescription()
     return self.feature:GetDescription()
 end
 
+--- @return string
+function CBFeatureWrapper:GetDetailedSummaryText()
+    if self:_hasFn("GetDetailedSummaryText") then
+        return self.feature:GetDetailedSummaryText()
+    end
+    return self.feature:GetSummaryText()
+end
+
 --- Get the underlying feature
 --- @return CharacterChoice
 function CBFeatureWrapper:GetFeature()

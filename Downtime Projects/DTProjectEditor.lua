@@ -1526,7 +1526,7 @@ function DTProjectEditor:_createRollButton(options)
                 gui.Tooltip(element.data.tooltipText)(element)
             end
         end,
-        click = function(element)
+        press = function(element)
             if not element.data.enabled then return end
             local project = element.data.getProject(element)
             local controller = element:FindParentWithClass("projectController")

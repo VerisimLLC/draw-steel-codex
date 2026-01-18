@@ -7,6 +7,7 @@ Skill.tableName = "Skills"
 Skill.hasPassive = false
 Skill.specializations = false
 Skill.category = "crafting"
+Skill.description = ""
 
 Skill.categories = {
     {
@@ -331,6 +332,29 @@ local ShowSkillsPanel = function(parentPanel)
 				skill.hasPassive = element.value
 				UploadSkill()
 			end,
+		}
+
+		--Skill description..
+		children[#children + 1] = gui.Panel {
+			classes = { 'formPanel' },
+			height = 'auto',
+			gui.Label {
+				text = "Description:",
+				valign = "center",
+				width = 135,
+			},
+			gui.Input {
+				text = skill.description or "",
+				multiline = true,
+				minHeight = 50,
+				height = 'auto',
+				width = 400,
+				textAlignment = "topleft",
+				change = function(element)
+					skill.description = element.text
+					UploadSkill()
+				end,
+			}
 		}
 
 		children[#children+1] = gui.Label{

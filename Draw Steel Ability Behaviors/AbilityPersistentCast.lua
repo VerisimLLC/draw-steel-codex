@@ -53,7 +53,7 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         local heroicResource = classInfo.class:get_or_add("heroicResourceChecklist", {})
         for _, resourceInfo in pairs(heroicResource) do
             if string.lower(resourceInfo.name or "") == "start of turn" then
-                startOfTurnHeroicResource = resourceInfo.quantity or 0
+                startOfTurnHeroicResource = tonumber(resourceInfo.quantity) or 0
             end
         end
     end
@@ -186,7 +186,7 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
 
                     element.text = string.format("Essence Gained: %d", startOfTurnHeroicResource - expectedCost)
 
-                    if expectedCost > tonumber(startOfTurnHeroicResource) then
+                    if expectedCost > startOfTurnHeroicResource then
                         element:AddClass("cannot-afford")
                     else
                         element:RemoveClass("cannot-afford")

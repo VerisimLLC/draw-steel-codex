@@ -1,4 +1,5 @@
 --- @class LuaShape 
+--- @field perimeter Vector2[] 
 --- @field xpos number 
 --- @field ypos number 
 --- @field shape SpellShapes 

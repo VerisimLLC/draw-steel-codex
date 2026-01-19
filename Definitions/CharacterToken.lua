@@ -85,7 +85,7 @@
 --- @field creatureSize string (Read-only) the size of the creature.
 --- @field creatureSizeNumber number (Read-only) the creature size as a 1-based number.
 --- @field creatureDimensions Vector2 (Read-only) The width/height of the token.
---- @field chargeDistance any 
+--- @field chargeDistance number 
 --- @field lookAtMouse boolean 
 --- @field floorIndex number 
 --- @field initiativeStatus InitiativeStatus (Read-only) the initiative status of the token.

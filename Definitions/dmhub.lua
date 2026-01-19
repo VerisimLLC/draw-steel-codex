@@ -432,7 +432,7 @@ function dmhub.MarkLocs(args)
 end
 
 --- CalculateShape: Create an object describing a shape on the map.
---- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean }
+--- @param args {shape: SpellShapes, token: CharacterToken, objectTemplate: nil|string, targetPoint: Vector3, range: nil|number, radius: nil|number, locOverride: nil|Loc, requireEmpty: nil|boolean, checklos: nil|boolean }
 --- @return LuaShape
 function dmhub.CalculateShape(args)
 	-- dummy implementation for documentation purposes only
@@ -1027,14 +1027,14 @@ end
 --- GetTokenById: Gets the token associated with the given tokenid. This only searches live tokens that are currently spawned on the map, so it will have to be on the map that is currently loaded. Otherwise nil will be returned. @see GetCharacterById to get a token anywhere in the game.
 --- @param tokenid string
 --- @return nil|CharacterToken
-function dmhub.GetTokenById(id)
+function dmhub.GetTokenById(idStr)
 	-- dummy implementation for documentation purposes only
 end
 
 --- GetCharacterIdsInParty: Returns a list of all the tokenid's in the given party. Returns an empty list if the party is empty or if the party doesn't exist.
 --- @param partyid string The id of the party to get token ids for.
 --- @return string[]
-function dmhub.GetCharacterIdsInParty(partyid)
+function dmhub.GetCharacterIdsInParty(partyidStr)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1047,7 +1047,7 @@ end
 --- GetCharacterById: Gets the token associated with the given tokenid. This retrieves the token as long as it is defined anywhere in the game, it need not be spawned in the map.
 --- @param tokenid string
 --- @return nil|CharacterToken
-function dmhub.GetCharacterById(tokenid)
+function dmhub.GetCharacterById(idStr)
 	-- dummy implementation for documentation purposes only
 end
 

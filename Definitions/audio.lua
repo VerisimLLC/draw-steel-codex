@@ -3,8 +3,8 @@
 --- @field muted any 
 --- @field masterVolume any 
 --- @field currentlyPlaying any 
---- @field numPlayingSounds any 
---- @field numActiveSoundEvents any 
+--- @field numPlayingSounds number 
+--- @field numActiveSoundEvents number 
 --- @field soundEvents any 
 audio = {}
 

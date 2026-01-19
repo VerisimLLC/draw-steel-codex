@@ -1259,6 +1259,7 @@ function gui.GoblinScriptLuaDialog(options)
             halign = "center",
             valign = "center",
             text = lua,
+            editable = true,
             clear = function(element)
                 element.text = lua
             end,

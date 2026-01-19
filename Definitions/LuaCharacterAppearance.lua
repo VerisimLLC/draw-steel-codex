@@ -4,10 +4,10 @@
 --- @field portraitRibbon string 
 --- @field anthem string 
 --- @field portraitRect any 
---- @field tokenZoom any 
+--- @field tokenZoom number 
 --- @field tokenOffset any 
---- @field frameHueShift any 
---- @field frameSaturation any 
---- @field frameBrightness any 
+--- @field frameHueShift number 
+--- @field frameSaturation number 
+--- @field frameBrightness number 
 --- @field characterName any 
 LuaCharacterAppearance = {}

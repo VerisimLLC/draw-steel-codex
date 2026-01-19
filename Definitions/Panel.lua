@@ -193,6 +193,13 @@ function Panel:FindChildRecursive(predicate)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetChild: Gets the nth child of the panel
+--- @param n number
+--- @return Panel|nil
+function Panel:GetChild(n)
+	-- dummy implementation for documentation purposes only
+end
+
 --- IsDescendantOf: Returns true if this panel is a child, direct or indirect, of the 'other' panel.
 --- @param other Panel
 --- @return boolean

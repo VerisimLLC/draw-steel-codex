@@ -955,6 +955,7 @@ function creature:FillCalculatedStatusIcons(result)
             icon = "ui-icons/eye.png",
             hoverText = "Concealed",
             statusIcon = true,
+            statusText = "Concealed",
         }
     end
 
@@ -974,6 +975,7 @@ function creature:FillCalculatedStatusIcons(result)
 				icon = conditionInfo.iconid,
 				style = conditionInfo.display,
 				hoverText = string.format("%s%s: %s\n\n<b>%s</b>", conditionInfo.name, quantityText, conditionInfo.description, explanation),
+                statusText = conditionInfo.name,
 				quantity = v,
 				statusIcon = true,
 			}
@@ -1004,6 +1006,7 @@ function creature:FillCalculatedStatusIcons(result)
                     icon = conditionInfo.iconid,
                     style = conditionInfo.display,
                     hoverText = hoverText,
+                    statusText = conditionInfo.name,
                     quantity = v.stacks,
                     statusIcon = true,
                     casterid = casterid,

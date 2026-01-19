@@ -499,6 +499,44 @@ function CBFeatureWrapper._deriveOrder(feature, category)
     return nameOrder, catOrder
 end
 
+--- Determine whether to exclude the choice based on hero state
+--- @param hero character
+--- @param choice CBOptionWrapper
+--- @return boolean
+function CBFeatureWrapper:_excludeChoice(hero, choice)
+    if choice:GetUnique() == false then return false end
+
+    local validators = {
+        CharacterLanguageChoice = function(hero, choice)
+            local langsKnown = hero:LanguagesKnown() or {}
+            return langsKnown[choice:GetGuid()] or false
+        end,
+        CharacterSkillChoice = function(hero, choice)
+            local skillItem = dmhub.GetTableVisible(Skill.tableName)[choice:GetGuid()]
+            if skillItem then return hero:ProficientInSkill(skillItem) end
+            return false
+        end,
+    }
+
+    local fn = validators[self.feature.typeName]
+    if fn then return fn(hero, choice) end
+
+    -- Look for it in level choices
+    local choiceId = choice:GetGuid()
+    local levelChoices = hero:GetLevelChoices() or {}
+    for _,featureChoices in pairs(levelChoices) do
+        for _,id in ipairs(featureChoices) do
+            if id == choiceId then return true end
+        end
+    end
+    -- local featureChoices = levelChoices[self:GetGuid()] or {}
+    -- for _,id in ipairs(featureChoices) do
+    --     if id == choiceId then return true end
+    -- end
+
+    return false
+end
+
 --- Get the selected value, attempting to call the underlying feature to get it
 --- @param hero character
 --- @return table
@@ -565,8 +603,10 @@ function CBFeatureWrapper:Update(hero)
     for _,choice in ipairs(featureChoices) do
         if _safeGet(choice, "hidden", false) == false then
             local wrappedChoice = CBOptionWrapper.CreateNew(choice)
-            choices[#choices+1] = wrappedChoice
-            choicesKeyed[wrappedChoice:GetGuid()] = wrappedChoice
+            if not self:_excludeChoice(hero, wrappedChoice) then
+                choices[#choices+1] = wrappedChoice
+                choicesKeyed[wrappedChoice:GetGuid()] = wrappedChoice
+            end
         end
     end
     table.sort(choices, function(a,b) return a:GetOrder() < b:GetOrder() end)

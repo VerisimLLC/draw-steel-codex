@@ -37,6 +37,48 @@ function CBFeatureCache:AllFeaturesComplete()
     return self:try_get("allFeaturesComplete", false)
 end
 
+--- Calculate and return status
+--- @return table
+function CBFeatureCache:CalculateStatus()
+    local statusEntries = self:try_get("statusEntries", {})
+    if #statusEntries > 0 then return statusEntries end
+
+    local numSelected = 0
+    local numAvailable = 0
+
+    for _,item in ipairs(self:GetSortedFeatures()) do
+        local feature = self:GetFeature(item.guid)
+        local key = feature:GetCategoryOrder()
+        if statusEntries[key] == nil then
+            statusEntries[key] = {
+                id = feature:GetCategory(),
+                order = key,
+                available = 0,
+                selected = 0,
+                selectedDetail = {},
+            }
+        end
+        local statusEntry = statusEntries[key]
+        local featureStatus = feature:GetStatus()
+        statusEntry.available = statusEntry.available + featureStatus.numChoices
+        statusEntry.selected = statusEntry.selected + featureStatus.selected
+
+        numSelected = numSelected + featureStatus.selected
+        numAvailable = numAvailable + featureStatus.numChoices
+
+        local selectedNames = featureStatus.selectedNames
+        table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
+        table.sort(statusEntry.selectedDetail)
+    end
+
+    statusEntries = CharacterBuilder._toArray(statusEntries)
+
+    self.numSelected = numSelected
+    self.numAvailable = numAvailable
+    self.statusEntries = statusEntries
+    return statusEntries
+end
+
 --- @param guid string
 --- @return CBFeatureWrapper|nil
 function CBFeatureCache:GetFeature(guid)
@@ -61,6 +103,13 @@ end
 --- @return table
 function CBFeatureCache:GetSortedFeatures()
     return self.sorted
+end
+
+--- @return integer numSelected
+--- @return integer numAvailable
+function CBFeatureCache:GetStatusSummary(hero)
+    self:CalculateStatus(hero)
+    return self:try_get("numSelected", 0), self:try_get("numAvailable", 0)
 end
 
 --- @param guid string

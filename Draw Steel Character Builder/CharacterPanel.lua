@@ -128,6 +128,7 @@ function CBCharPanel._statusItem(selector, visible, suppressRow1)
         calculateStatus = function(element, state)
             local hero = _getHero()
             local featureCache = state:Get(selector .. ".featureCache")
+
             local statusEntries = {}
             if not suppressRow1 then
                 statusEntries[headingText] = {
@@ -145,28 +146,9 @@ function CBCharPanel._statusItem(selector, visible, suppressRow1)
                     statusEntries[headingText].selectedDetail = { featureCache:GetSelectedName() }
                 end
 
-                for _,item in ipairs(featureCache:GetSortedFeatures()) do
-                    local feature = featureCache:GetFeature(item.guid)
-                    local key = feature:GetCategoryOrder()
-                    if statusEntries[key] == nil then
-                        statusEntries[key] = {
-                            id = feature:GetCategory(),
-                            order = key,
-                            available = 0,
-                            selected = 0,
-                            selectedDetail = {},
-                        }
-                    end
-                    local statusEntry = statusEntries[key]
-                    local featureStatus = feature:GetStatus()
-                    statusEntry.available = statusEntry.available + featureStatus.numChoices --feature:GetNumChoices()
-                    statusEntry.selected = statusEntry.selected + featureStatus.selected --feature:GetSelectedValue()
-                    local selectedNames = featureStatus.selectedNames --feature:GetSelectedNames()
-                    table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
-                    table.sort(statusEntry.selectedDetail)
-                end
+                local featureStatusEntries = featureCache:CalculateStatus()
+                statusEntries = CharacterBuilder._mergeKeyedTables(statusEntries, featureStatusEntries)
             end
-
             statusEntries = CharacterBuilder._toArray(statusEntries)
             table.sort(statusEntries, function(a,b) return a.order < b.order end)
 

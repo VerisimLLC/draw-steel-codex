@@ -43,7 +43,7 @@ function CBSelectors._makeItemsPanel(config)
                 local hero = _getHero()
                 if hero then
                     local tokenSelected = config.getSelected(hero)
-                    element:SetClass("collapsed", tokenSelected and tokenSelected ~= element.data.id)
+                    element:SetClass("collapsed", tokenSelected and tokenSelected ~= nil) --element.data.id)
                     element:FireEvent("setAvailable", not tokenSelected or tokenSelected == element.data.id)
                     if tokenSelected and tokenSelected == element.data.id and tokenSelected ~= state:Get(config.selectorName .. ".selectedId") then
                         element:FireEvent("press")
@@ -189,7 +189,10 @@ end
 function CBSelectors._makeDetailed(config)
     local selectorButton = CBSelectors._makeButton{
         text = config.text,
-        data = { selector = config.selectorName },
+        data = {
+            defaultText = config.text,
+            selector = config.selectorName
+        },
         refreshBuilderState = function(element, state)
             local selfSelected = state:Get("activeSelector") == element.data.selector
             local parentPane = element:FindParentWithClass(config.selectorName .. "-selector")
@@ -197,6 +200,24 @@ function CBSelectors._makeDetailed(config)
                 element:FireEvent("setSelected", selfSelected)
                 parentPane:FireEvent("showDetail", selfSelected)
             end
+            local text = element.data.defaultText
+            if config.selectedText ~= nil then
+                local hero = _getHero()
+                local heroText = hero and config.selectedText(hero)
+                if heroText and #heroText > 0 then
+                    text = heroText
+                    -- local featureCache = state:Get(element.data.selector .. ".featureCache")
+                    -- if featureCache then
+                    --     if featureCache:AllFeaturesComplete() then
+                    --         text = text .. " chk"
+                    --     else
+                    --         local sel, avail = featureCache:GetStatusSummary()
+                    --         text = string.format("%s (%d/%d)", text, sel, avail)
+                    --     end
+                    -- end
+                end
+            end
+            element:FireEvent("setText", text)
         end,
     }
 
@@ -222,7 +243,7 @@ function CBSelectors._makeDetailed(config)
         end,
 
         children = {
-            selectorButton
+            selectorButton,
         },
     }
 
@@ -257,6 +278,14 @@ function CBSelectors._ancestry()
         text = "Ancestry",
         selectorName = SEL.ANCESTRY,
         createChoicesPane = CBSelectors._ancestryItems,
+        selectedText = function(hero)
+            local ancestryId = hero:try_get("raceid")
+            if ancestryId then
+                local ancestryItem = dmhub.GetTableVisible(Race.tableName)[ancestryId]
+                if ancestryItem then return ancestryItem.name end
+            end
+            return nil
+        end,
     }
 end
 
@@ -274,6 +303,14 @@ function CBSelectors._career()
         text = "Career",
         selectorName = SEL.CAREER,
         createChoicesPane = CBSelectors._careerItems,
+        selectedText = function(hero)
+            local careerId = hero:try_get("backgroundid")
+            if careerId then
+                local careerItem = dmhub.GetTableVisible(Background.tableName)[careerId]
+                if careerItem then return careerItem.name end
+            end
+            return nil
+        end,
     }
 end
 
@@ -283,6 +320,11 @@ function CBSelectors._class()
         text = "Class",
         selectorName = SEL.CLASS,
         createChoicesPane = CBSelectors._classItems,
+        selectedText = function(hero)
+            local classItem = hero:GetClass()
+            if classItem then return classItem.name end
+            return nil
+        end,
     }
 end
 
@@ -386,16 +428,16 @@ local TEST_DETAIL = [[
 
 *You're welcome to test with custom configured elements like ancestries, careers, classes, etc. Please validate that any issues aren't configuration before logging them.*
 
-# Recent Changes
+# Recent Changes *(Please test!)*
 
-* Skill items will display descriptions (requires Compendium deployment).
+* Skill items display descriptions.
 * Selecting and de-selecting Ancestry, Career, and Class changed - new buttons above Overview button.
-* Updated selection of features like skills, languages, etc. Removed the Select/Remove button at the bottom. Let us know what you think of the new way.
+* Updated selection of features like skills, languages, etc. Removed the Select/Remove button at the bottom in favor of buttons on the choices. Let us know what you think of the new way.
+* Should be a lot smarter about excluding already selected items from choice lists.
 
 # Known Issues
 
 **Functionality**
-* Some skill lists still show skills you already have selected. (*If you find one of these, please let me know how you got to it via a bug report.*)
 * In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info. But try hovering it.
 * Exploration tab should list Perks.
 

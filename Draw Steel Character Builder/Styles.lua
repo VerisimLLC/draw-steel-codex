@@ -52,6 +52,10 @@ CBStyles.SIZES = {
     SELECT_BUTTON_WIDTH = 200,
     SELECT_BUTTON_HEIGHT = 36,
 
+    -- The little buttons top right on feature selector pane 3
+    FEATURE_SELECT_WIDTH = 24,
+    FEATURE_SELECT_HEIGHT = 24,
+
     BUTTON_SPACING = 12,
 
 }
@@ -261,6 +265,35 @@ local function _panelStyles()
         {
             selectors = {"feature-choice", "filtered"},
             collapsed = true,
+        },
+        {
+            selectors = {"feature-selector"},
+            width = CBStyles.SIZES.FEATURE_SELECT_WIDTH,
+            height = CBStyles.SIZES.FEATURE_SELECT_HEIGHT,
+            halign = "right",
+            valign = "top",
+            hmargin = 4,
+            vmargin = -4,
+            bgcolor = "white",
+        },
+        {
+            selectors = {"feature-selector", "remove"},
+            bgimage = "icons/icon_tool/icon_tool_43.png",
+            bgcolor = CBStyles.COLORS.GOLD03,
+        },
+        {
+            selectors = {"feature-selector", "remove", "hover"},
+            bgimage = "icons/icon_tool/icon_tool_44.png",
+            bgcolor = "#fc0000",
+        },
+        {
+            selectors = {"feature-selector", "select"},
+            bgimage = "ui-icons/Back.png", --"panels/open-inventory-arrow.png",
+            bgcolor = "white",
+        },
+        {
+            selectors = {"feature-selector", "select", "hover"},
+            brightness = 1.5,
         },
 
         -- Attribute editor
@@ -635,7 +668,7 @@ local function _buttonStyles()
             textAlignment = "left",
             bold = false,
         },
-        {
+        {  -- TODO: Rework into "selector", below when we don't need this button
             selectors = {"select"},
             width = CBStyles.SIZES.SELECT_BUTTON_WIDTH,
             height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,

@@ -83,7 +83,7 @@ function CharacterAspectChoice:SaveSelection(hero, option)
         culture = Culture.CreateNew()
         hero.culture = culture
     end
-    culture.aspects[self.guid] = option.guid
+    culture.aspects[self.guid] = option.id
     return true
 end
 

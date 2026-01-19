@@ -152,15 +152,7 @@ end
 --- in the UI to be added to the hero.
 --- @return boolean
 function CBFeatureWrapper:AllowCurrentSelection()
-
-    local option = self:GetSelectedOption()
-    if option == nil then return false end
-
-    if self:AllowOverselect() then return true end
-
-    local curVal = self:GetSelectedValue()
-
-    return curVal + option:GetPointsCost() <= self:GetNumChoices()
+    return self:AllowSelection(self:GetSelectedOptionId())
 end
 
 --- Determine whether we'll let the user select items into
@@ -168,6 +160,17 @@ end
 --- @return boolean
 function CBFeatureWrapper:AllowOverselect()
     return self:GetNumChoices() == 1
+end
+
+--- Determine whether to allow selection of a specific item
+--- @id string
+--- @return boolean
+function CBFeatureWrapper:AllowSelection(id)
+    local option = self:GetOption(id)
+    if option == nil then return false end
+    if self:AllowOverselect() then return true end
+    local curVal = self:GetSelectedValue()
+    return curVal + option:GetPointsCost() <= self:GetNumChoices()
 end
 
 --- @return boolean

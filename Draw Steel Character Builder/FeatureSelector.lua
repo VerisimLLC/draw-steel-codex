@@ -136,30 +136,15 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         _functionOrValue(injections.afterOptions),
     }
 
-    local bottomDivider = gui.MCDMDivider{
-        classes = {"builder-divider"},
-        layout = "line",
-        width = "96%",
-        vpad = 4,
-        bgcolor = "white"
-    }
-
-    -- Build selectButton
-    local selectButtonDef = _mergeKeyedTables({
-        data = {},
-        bmargin = -40,
-    }, overrides.selectButton)
-    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
-
     -- Build children array
-    local children = { headerPanel, targetsPanel, optionsPanel, bottomDivider, selectButton }
+    local children = { headerPanel, targetsPanel, optionsPanel }
     table.move(extraChildren, 1, #extraChildren, #children + 1, children)
 
     -- Build mainPanel - merge but protect children
     local mainPanelDef = _mergeKeyedTables({
         classes = {controllerClass, "builder-base", "panel-base"},
         width = "98%",
-        height = "100%-42",
+        height = "100%-4",
         halign = "left",
         flow = "vertical",
         data = {},
@@ -359,6 +344,14 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 element:FireEventTree("updateDesc", option:GetDescription())
                 element:FireEventTree("customPanel", option:Panel())
             end,
+            selectItem = function(element)
+                if element.data.option then
+                    local controller = getFeatureSelController(element)
+                    if controller then
+                        controller:FireEvent("applyItem", element.data.option)
+                    end
+                end
+            end,
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice"},
                 text = "",
@@ -397,6 +390,27 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
                     element:SetClass("collapsed-anim", not visible)
                 end,
+            },
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-selector", "select"},
+                floating = true,
+                rotate = -90,
+                press = function(element)
+                    element.parent:FireEvent("selectItem")
+                end,
+                refreshBuilderState = function(element, state)
+                    local visible = false
+                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                    if not blockSel then
+                        local cachedFeature = getCachedFeature(state, element.parent.data.featureId)
+                        local option = element.parent.data.option
+                        if cachedFeature and option then
+                            visible = cachedFeature:AllowSelection(element.parent.data.option:GetGuid())
+                        end
+                    end
+                    element:SetClass("collapsed", not visible)
+                    element.interactable = visible
+                end
             }
         }
     end
@@ -421,64 +435,19 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         end,
     }
 
-    local selectButton = {
-        data = {
-            featureId = feature:GetGuid(),
-            selectMode = SELECT_MODES.SELECT,
-        },
-        press = function(element)
-            local controller = getFeatureSelController(element)
-            if controller then
-                controller:FireEvent("applyCurrentItem", element.data.selectMode)
-            end
-        end,
-        refreshBuilderState = function(element, state)
-            local mode = element.data.selectMode
-            local visible = false
-            local enabled = false
-            local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-            if not blockSel then
-                local cachedFeature = getCachedFeature(state, element.data.featureId)
-                if cachedFeature then
-                    visible = true
-                    enabled = SELECT_MODES[mode] ~= nil and (SELECT_MODES[mode] == SELECT_MODES.REMOVE or cachedFeature:AllowCurrentSelection())
-                end
-            end
-            element.text = string.upper(SELECT_MODES[mode] or "unknown mode")
-            element:SetClass("collapsed", not visible)
-            element:SetClass("disabled", not enabled)
-            element.interactable = visible and enabled
-        end,
-        setSelectMode = function(element, mode)
-            element.data.selectMode = mode
-        end,
-    }
-
     local mainPanel = {
         data = {
             featureId = feature:GetGuid(),
         },
-        applyCurrentItem = function(element, mode)
-            if SELECT_MODES[mode] == nil then return end
+        applyItem = function(element, option)
             local state = _getState()
-            if state then
+            local hero = _getHero()
+            if state and hero then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local selectedOption = cachedFeature:GetSelectedOption()
-                    if selectedOption then
-                        local hero = _getHero()
-                        if hero then
-                            local actionComplete = false
-                            if mode == SELECT_MODES.REMOVE then
-                                actionComplete = cachedFeature:RemoveSelection(hero, selectedOption)
-                            else
-                                actionComplete = cachedFeature:SaveSelection(hero, selectedOption)
-                            end
-                            if actionComplete then
-                                _fireControllerEvent("tokenDataChanged")
-                                return
-                            end
-                        end
+                    local actionComplete = cachedFeature:SaveSelection(hero, option)
+                    if actionComplete then
+                        _fireControllerEvent("tokenDataChanged")
                     end
                 end
             end
@@ -530,16 +499,25 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         local faces = CharacterBuilder._validateRollFaces(rollInfo.rollFaces)
         roller = gui.UserDice{
             floating = true,
-            halign = "left",
-            valign = "bottom",
-            hmargin = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
-            bmargin = -40,
             width = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
             height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
+            halign = "left",
+            valign = "top",
+            hmargin = 8,
+            tmargin = 6,
             faces = faces,
+            data= {
+                featureId = feature:GetGuid(),
+            },
             press = function(element)
+                local state = _getState()
+                if state == nil then return end
                 local hero = _getHero()
                 if hero == nil then return end
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature == nil then return end
+                local controller = getFeatureSelController(element)
+                if controller == nil then return end
                 element:SetClass("collapsed-anim", true)
                 dmhub.Roll{
                     roll = rollInfo.roll,
@@ -550,12 +528,16 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         if rowIndex == nil then return end
 
                         local row = rollTable.rows[rowIndex]
-                        element.parent:FireEvent("selectChoice", row.id)
-                        element.parent:FireEvent("applyCurrentItem", SELECT_MODES.SELECT)
+                        local option = cachedFeature:GetOption(row.id)
+                        controller:FireEvent("applyItem", option)
 
                         element:SetClass("collapsed-anim", false)
                     end,
                 }
+            end,
+            refreshBuilderState = function(element, state)
+                local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
+                element:SetClass("collapsed", not visible)
             end,
         }
     end
@@ -591,7 +573,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         header = header,
         targetsContainer = targetsContainer,
         optionsContainer = optionsContainer,
-        selectButton = selectButton,
         mainPanel = mainPanel,
         extraChildren = roller and { roller } or {},
         injections = injections,

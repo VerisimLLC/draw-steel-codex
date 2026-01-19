@@ -380,33 +380,34 @@ local TEST_DETAIL = [[
 
 *We're looking for feedback in the following areas:*
 
-- How it looks / renders on your screen. If it's bad, please include a screen shot with your bug submission.
-- How it performs on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
-- Your experience using the builder - what feels good, what feels not so good, how might we improve it?
+* How it looks / renders on your screen. If it's bad, please include a screen shot with your bug submission.
+* How it performs on your machine. If it seems slow, please let us know your processor, RAM, video card, and operating system.
+* Your experience using the builder - what feels good, what feels not so good, how might we improve it?
 
 *You're welcome to test with custom configured elements like ancestries, careers, classes, etc. Please validate that any issues aren't configuration before logging them.*
 
 # Recent Changes
 
-- Skill items will display descriptions (requires Compendium deployment).
-- Selecting and de-selecting Ancestry, Career, and Class changed - new buttons above Overview button.
+* Skill items will display descriptions (requires Compendium deployment).
+* Selecting and de-selecting Ancestry, Career, and Class changed - new buttons above Overview button.
+* Updated selection of features like skills, languages, etc. Removed the Select/Remove button at the bottom. Let us know what you think of the new way.
 
 # Known Issues
 
 **Functionality**
-- Some skill lists still show skills you already have selected. (*If you find one of these, please let me know how you got to it via a bug report.*)
-- In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info. But try hovering it.
-- Exploration tab should list Perks.
+* Some skill lists still show skills you already have selected. (*If you find one of these, please let me know how you got to it via a bug report.*)
+* In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info. But try hovering it.
+* Exploration tab should list Perks.
 
 **Styling / UI**
-- Some ability cards do not like to be constrained within parent panels.
-- Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
+* Some ability cards do not like to be constrained within parent panels.
+* Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 
 # Reporing Issues
 
-- Please use the bug forum on the Codex / DMHub Discord.
-- Where applicable, please verify the old builder tab works as expected while new builder fails. If both tabs behave the same, please log as a configuration issue.
-- Detailed reproduction steps, especially each thing you chose along your path, help immensely.
+* Please use the bug forum on the Codex / DMHub Discord.
+* Where applicable, please verify the old builder tab works as expected while new builder fails. If both tabs behave the same, please log as a configuration issue.
+* Detailed reproduction steps, especially each thing you chose along your path, help immensely.
 ]]
 local function _testDetail()
     return gui.Panel{

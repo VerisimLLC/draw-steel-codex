@@ -278,18 +278,22 @@ local function _panelStyles()
         },
         {
             selectors = {"feature-selector", "remove"},
-            bgimage = "icons/standard/Icon_App_Refresh.png",
+            bgimage = "icons/icon_tool/icon_tool_43.png",
             bgcolor = CBStyles.COLORS.GOLD03,
         },
         {
             selectors = {"feature-selector", "remove", "hover"},
+            bgimage = "icons/icon_tool/icon_tool_44.png",
             bgcolor = "#fc0000",
         },
         {
             selectors = {"feature-selector", "select"},
             bgimage = "ui-icons/Back.png", --"panels/open-inventory-arrow.png",
-            rotate = 135,
             bgcolor = "white",
+        },
+        {
+            selectors = {"feature-selector", "select", "hover"},
+            brightness = 1.5,
         },
 
         -- Attribute editor

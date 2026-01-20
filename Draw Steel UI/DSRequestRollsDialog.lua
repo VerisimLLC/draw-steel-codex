@@ -511,6 +511,7 @@ function GameHud:RequireRollListenerPanel()
 										alternateOptions = alternateOptions,
 										alternateChosen = checkIndex,
 										chooseAlternate = function(alternateIndex)
+										    gamehud.rollDialog.data.Cancel()
 											ShowPromptDialog(alternateIndex, true)
 										end,
 

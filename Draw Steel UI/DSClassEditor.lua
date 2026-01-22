@@ -341,8 +341,20 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 						element.popup = nil
 						dmhub.CopyToInternalClipboard(feature)
 					end,
-				}
+				},
 			}
+
+            local ref = CompendiumReference.CreateFromObject(feature)
+            if ref ~= nil then
+                entries[#entries+1] = {
+                    text = "Copy Reference...",
+                    click = function()
+                        element.popup = nil
+						dmhub.CopyToInternalClipboard(ref)
+                        dmhub.CopyToClipboard(ref.targetTable .. "/" .. ref.targetid .. "/" .. ref.targetPath)
+                    end,
+                }
+            end
 
 			if index > 1 then
 				entries[#entries+1] = {
@@ -649,6 +661,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 					end,
 				}
 			},
+
 
 			prerequisitesEditor,
 
@@ -1423,6 +1436,73 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
                     resultPanel:FireEvent('change')
                 end
             }
+
+            if self.inheritChoice then
+                for i,ref in ipairs(self.inheritChoice) do
+                    local resolved = ref:Resolve()
+                    local label = nil
+                    if resolved == nil then
+                        label = gui.Label{
+                            text = "Inheriting choices from an invalid reference.",
+                            color = "#ff5555",
+                        }
+                    else
+                        label = gui.Label{
+                            text = string.format("Inheriting choices from: %s", resolved.name),
+                            color = "#55ff55",
+                        }
+                    end
+
+                    children[#children+1] = gui.Panel{
+                        flow = "horizontal",
+                        width = "auto",
+                        height = "auto",
+                        label,
+                        gui.DeleteItemButton{
+                            floating = true,
+                            halign = "right",
+                            valign = "center",
+                            x = 16,
+                            width = 12,
+                            height = 12,
+                            requireConfirm = true,
+                            click = function(element)
+                                table.remove(self.inheritChoice, i)
+                                resultPanel:FireEvent('create')
+                                resultPanel:FireEvent('change')
+                            end,
+                        }
+                    }
+                end
+            end
+
+            local clipboardRef = dmhub.GetInternalClipboard()
+            if clipboardRef ~= nil and clipboardRef.typeName == "CompendiumReference" then
+                local ref = clipboardRef:Resolve()
+                local alreadyHave = false
+                if self.inheritChoice then
+                    for _,existingRef in ipairs(self.inheritChoice) do
+                        if dmhub.DeepEqual(existingRef, clipboardRef) then
+                            alreadyHave = true
+                            break
+                        end
+                    end
+                end
+
+                if (not alreadyHave) and ref ~= nil and (ref.typeName == "CharacterFeatureChoice") and ref ~= self and (rawget(ref,"id") or rawget(ref,"guid")) ~= (rawget(self,"id") or rawget(self,"guid")) then
+                    children[#children+1] = gui.Button{
+                        text = string.format("Inherit Choices from %s", ref.name),
+                        width = 440,
+                        height = 30,
+                        click = function(element)
+                            self.inheritChoice = self.inheritChoice or {}
+                            self.inheritChoice[#self.inheritChoice+1] = clipboardRef
+                            resultPanel:FireEvent('create')
+                            resultPanel:FireEvent('change')
+                        end,
+                    }
+                end
+            end
 
 			children[#children+1] = gui.Input{
 				width = 200,

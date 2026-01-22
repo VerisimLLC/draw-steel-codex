@@ -359,6 +359,7 @@ end
 CharacterChoice.name = "Choice"
 CharacterChoice.rulesText = ""
 CharacterChoice.description = "Choose a feature"
+CharacterChoice.inheritChoice = false
 
 function CharacterChoice:CreateDropdownPanel()
     return nil
@@ -475,6 +476,7 @@ function CharacterSubclassChoice:Describe()
 	return "Subclass"
 end
 
+
 CharacterFeatureChoice.costsPoints = false
 CharacterFeatureChoice.pointsName = "Points"
 CharacterFeatureChoice.allowFormerLifeChoices = false
@@ -539,8 +541,33 @@ function CharacterFeatureChoice:GetOptions(choices)
                 return inheritedOptions
             end 
         end
-        
     end
+
+    if self.inheritChoice and #self.inheritChoice > 0 then
+        local options = rawget(self, "_tmp_options")
+        if options ~= nil then
+            return options
+        end
+
+        options = {}
+        self._tmp_options = options
+        for _,choiceRef in ipairs(self.inheritChoice) do
+            local choice = choiceRef:Resolve()
+            if choice ~= nil then
+                local choiceOptions = choice:GetOptions(choices)
+                for _,option in ipairs(choiceOptions) do
+                    options[#options+1] = option
+                end
+            end
+        end
+        
+        for _,option in ipairs(self.options) do
+            options[#options+1] = option
+        end
+
+        return options
+    end
+
     return self.options
 end
 

@@ -6429,6 +6429,10 @@ function creature:MatchesString(viewingToken, token, str)
         return true
     end
 
+    if str == "minion" then
+        return self.minion
+    end
+
     local features = self:GetFeatures()
     local modifiers = self:GetActiveModifiers()
     if string.find(str, "*") then

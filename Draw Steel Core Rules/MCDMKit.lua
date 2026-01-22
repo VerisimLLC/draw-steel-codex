@@ -969,3 +969,114 @@ function creature:CanHaveKits()
 
     return not table.empty(result)
 end
+
+Kit.helpSymbols = {
+	__name = "Kit",
+	__sampleFields = {"speed"},
+
+	stamina = {
+        name = "Stamina",
+        type = "number",
+        desc = "Stamina bonus from the current kit.",
+    },
+	speed = {
+        name = "Speed",
+        type = "number",
+        desc = "Speed bonus from the current kit.",
+    },
+	distance = {
+        name = "Distance",
+        type = "number",
+        desc = "Distance bonus from the current kit.",
+    },
+	reach = {
+        name = "Reach",
+        type = "number",
+        desc = "Reach bonus from the current kit.",
+    },
+	area = {
+        name = "Area",
+        type = "number",
+        desc = "Area bonus from the current kit.",
+    },
+	disengage = {
+        name = "Disengage",
+        type = "number",
+        desc = "Disengage bonus from the current kit.",
+    },
+	stability = {
+        name = "Stability",
+        type = "number",
+        desc = "Stability bonus from the current kit.",
+    },
+	damagebonus = {
+		name = "Damage Bonus",
+		type = "function",
+		desc = "Damage bonus from the current kit. Returns the bonus to the specified tier result and damage type, melee, ranged, or supernatural. if no type is specified will return the highest damage of any type.",
+		example = {'kit.damage bonus(1, "melee")', 'kit.damage bonus(2)'},
+	},
+}
+
+Kit.lookupSymbols = {
+	datatype = function(c)
+		return "kit"
+	end,
+	stamina = function(c)
+		return c.health
+	end,
+	speed = function(c)
+		return c.speed
+	end,
+	distance = function(c)
+		return c.range
+	end,
+	reach = function(c)
+		return c.reach
+	end,
+	area = function(c)
+		return c.area
+	end,
+	disengage = function(c)
+		return c.disengage
+	end,
+	stability = function(c)
+		return c.stability
+	end,
+	damagebonus = function(c)
+		return function(tier, id)
+            if tier == nil or type(tier) ~= "number" then
+				return 0
+			end
+			if id ~= nil then
+				local bonuses = c:DamageBonuses()[id]
+				if bonuses ~= nil then
+					return bonuses[tier]
+				end
+			else
+				local bestBonus = 0
+				for _,bonuses in pairs(c:DamageBonuses()) do
+					if bonuses[tier] ~= nil and bonuses[tier] > bestBonus then
+						bestBonus = bonuses[tier]
+					end
+				end
+				return bestBonus
+			end
+			return 0
+        end
+	end,
+}
+
+creature.RegisterSymbol {
+    symbol = "kit",
+    lookup = function(c)
+        return c:Kit()
+    end,
+    help = {
+        name = "Kit",
+        type = "kit",
+        desc = "The current kit of this creature, if any.",
+        example = "Kit.speed <= 5",
+    },
+}
+
+RegisterGoblinScriptTypeInfo("kit", Kit.helpSymbols)

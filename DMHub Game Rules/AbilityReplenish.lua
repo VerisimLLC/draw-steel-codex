@@ -437,7 +437,11 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
             end
 
             local hasSomeResources = false
-            for _,quantity in pairs(resourceidToQuantity) do
+            for id ,quantity in pairs(resourceidToQuantity) do
+                --If resource is heroic resource, allow attribute modification
+                if id == CharacterResource.heroicResourceId then
+                    resourceidToQuantity[id] = quantity + target.token.properties:CalculateNamedCustomAttribute("Heroic Resource Gain Modification")
+                end
                 if quantity > 0 then
                     hasSomeResources = true
                     break
@@ -509,7 +513,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
                         ResourceChatMessage.new{
                             tokenid = target.token.charid,
                             resourceid = self.resourceid,
-                            quantity = quantity,
+                            quantity = resourceidToQuantity[self.resourceid] or quantity,
                             mode = self.mode,
                             checklistBefore = checklistBefore,
                             reason = chatMessageOverride or self.chatMessage,

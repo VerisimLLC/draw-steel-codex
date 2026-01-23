@@ -594,6 +594,8 @@ local g_rulePatterns = {
             casterToken:ModifyProperties{
                 description = "Gain " .. match.resource,
                 execute = function()
+                    --Allow Attribute Modification of HR amount
+                    quantity = quantity + casterToken.properties:CalculateNamedCustomAttribute("Heroic Resource Gain Modification")
                     local num = casterToken.properties:RefreshResource(CharacterResource.heroicResourceId, resourceInfo.usageLimit, quantity, ability.name)
                     if options.symbols and options.symbols.cast then
                         options.symbols.cast.heroicresourcesgained = options.symbols.cast.heroicresourcesgained + num

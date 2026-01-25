@@ -327,6 +327,12 @@ function CharacterFeatChoice:_cache()
 
 	local featsTable = dmhub.GetTable(CharacterFeat.tableName)
 	for k,feat in pairs(featsTable) do
+		local holdFeature
+		for _, feature in ipairs(feat.modifierInfo.features) do 
+			if feature:HasCustomDropdownPanel() then
+				holdFeature = feature
+			end
+		end
         for _,tag in ipairs(tags) do
             if feat:HasTag(tag) then
                 tagCache[#tagCache+1] = {
@@ -336,6 +342,11 @@ function CharacterFeatChoice:_cache()
                     unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
                     prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
                     hidden = feat:try_get("hidden"),
+					hasCustomPanel = holdFeature ~= nil,
+					
+					panel = function()
+                    	return holdFeature:CreateDropdownPanel(feat.name)
+                	end,
                 }
 				if feat:try_get("hidden", false) == false then
 					optCache[#optCache+1] = {
@@ -344,6 +355,10 @@ function CharacterFeatChoice:_cache()
 						description = feat.description,
 						unique = true,
 						prerequisite = cond(feat.prerequisite ~= "", feat.prerequisite),
+						hasCustomPanel = holdFeature ~= nil,
+						panel = function()
+                    		return holdFeature:CreateDropdownPanel(feat.name)
+                		end,
 					}
 				end
                 break

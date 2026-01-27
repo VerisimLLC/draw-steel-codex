@@ -3203,6 +3203,32 @@ function GameHud.CreateRollDialog(self)
                 }
 
                 g_activeRollArgs = rollArgs
+
+                -- Hook for external mods to intercept rolls
+                local hookResult = nil
+                if RollDialog_BeforeRoll then
+                    hookResult = RollDialog_BeforeRoll({
+                        rollArgs = rollArgs,
+                        roll = rollArgs.roll,
+                        description = rollArgs.description,
+                        creature = rollArgs.creature,
+                        tokenid = rollArgs.tokenid,
+                        properties = rollArgs.properties,
+                        dmonly = rollArgs.dmonly,
+                        instant = rollArgs.instant,
+                        silent = rollArgs.silent,
+                        delay = rollArgs.delay,
+                        guid = rollArgs.guid,
+                        modifiers = modifiersUsed,
+                        multitargets = multitargetsUsed,
+                        boons = m_boons,
+                    })
+                end
+
+                if hookResult == "intercept" then
+                    return
+                end                
+
                 activeRoll = dmhub.Roll(rollArgs)
                 print("ROLL:: ACTIVE ROLL FROM", rollArgs, "HAVE", activeRoll)
 

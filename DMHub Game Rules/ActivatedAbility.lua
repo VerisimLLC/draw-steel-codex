@@ -2416,7 +2416,10 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                     section = "effects",
                 }
             end
+
+            print("Cast:: Casting behavior:", behavior.typeName, "with caster", casterToken.charid, "apply to targets:", #behavior:ApplyToTargets(self, casterToken, targets, options))
 			behavior:Cast(self, casterToken, behavior:ApplyToTargets(self, casterToken, targets, options), options)
+            print("Cast:: Finished casting behavior:", behavior.typeName)
             if options.abort and (not options.pay) then
                 break
             end
@@ -2789,9 +2792,6 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 	local result = {}
 
-	if #targets == 0 then
-		return result
-	end
     if self.applyto == "none" then
         --none -- don't apply to any targets.
 	elseif self.applyto == 'targets' then
@@ -2868,6 +2868,8 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
                 },
             }
         end
+
+        print("Cast:: apply to targets ->", #result)
 
     elseif self.applyto == "caster_and_targets" then
 
@@ -3697,6 +3699,11 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 				tokenid = casterid,
 				abilityName = ability.name,
 			}
+
+            if casterToken.properties.minion then
+                casterInfo.minionSquad = casterToken.properties:MinionSquad()
+            end
+
 			if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
 				casterInfo.concentrationid = casterToken.properties:MostRecentConcentrationId()
 			end

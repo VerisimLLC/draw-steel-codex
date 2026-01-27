@@ -245,7 +245,11 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 				local panel = panelCache['mod'] or gui.Label{
 					classes = {'single-roll-panel','complete'},
 				}
-				panel.text = ModifierStr(mod)
+                if mod == 0 then
+                    panel.text = ""
+                else
+				    panel.text = ModifierStr(mod)
+                end
 				newPanelCache['mod'] = panel
 				children[#children+1] = panel
 			end

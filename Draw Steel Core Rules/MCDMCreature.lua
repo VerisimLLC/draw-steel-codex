@@ -569,6 +569,10 @@ function creature:GetMinionSquadInfo()
     return g_minionSquadTables[squadid]
 end
 
+function creature.GetMinionSquadInfoForNamedSquad(squadid)
+    return g_minionSquadTables[squadid]
+end
+
 -- When a minion dies, we see if we need to demote their captain.
 function creature:MinionDeath()
     if self:has_key("_tmp_minionSquad") == false then

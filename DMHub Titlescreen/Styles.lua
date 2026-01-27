@@ -63,6 +63,9 @@ Styles = {
     Gold03 = "srgb:#F1D3A5",
     Gold02 = "srgb:#49362C",
 
+    ModifierBuffColor = "srgb:#2A4DFF",
+    ModifierDebuffColor = "red",
+
 
 	bullet = "\u{2022}",
 	emdash = "\u{2014}",

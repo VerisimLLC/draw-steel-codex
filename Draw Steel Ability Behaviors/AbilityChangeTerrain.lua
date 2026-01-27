@@ -24,7 +24,9 @@ function ActivatedAbilityChangeTerrainBehavior:Cast(ability, casterToken, target
 
     if options.targetArea ~= nil then
         local points = {}
-        for _,pt in ipairs(options.targetArea.perimeter) do
+        local perim = options.targetArea.perimeter
+        for i=1,#perim do
+            local pt = perim[i]
             points[#points + 1] = pt.x
             points[#points + 1] = pt.y
         end

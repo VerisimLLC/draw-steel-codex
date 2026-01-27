@@ -348,6 +348,12 @@ function Panel:HaltEventPropagation()
 	-- dummy implementation for documentation purposes only
 end
 
+--- SetAsDicePreviewPanel
+--- @return nil
+function Panel:SetAsDicePreviewPanel()
+	-- dummy implementation for documentation purposes only
+end
+
 --- @class PanelArgs:PanelArgsBase 
 --- @field id nil|string The unique id of the panel. If not specified a random id will be assigned. It is important that each panel have a unique ID, so if you assign an ID explicitly ensure it is unique.
 --- @field idprefix nil|string The prefix of the panel's id. A random ID will be generated but will begin with this prefix.

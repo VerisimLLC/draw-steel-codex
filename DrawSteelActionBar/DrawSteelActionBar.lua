@@ -2688,7 +2688,7 @@ CreateAbilityController = function()
                                 g_abilityController.mapfocus = false
                             end
 
-                            if g_currentAbility ~= nil and g_currentAbility.targetType == "emptyspace" then
+                            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                                 local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                                 local shifting = (movementType == "shift")
                                 if shifting then
@@ -3199,7 +3199,7 @@ CreateAbilityController = function()
             end
 
 
-            if g_currentAbility ~= nil and g_currentAbility.targetType == "emptyspace" then
+            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                 local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                 local shifting = (movementType == "shift")
                 if shifting then

@@ -5991,6 +5991,8 @@ end
 
 function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
 
+    print("Caster:: Info:", casterInfo, json(casterInfo))
+
 	--use this as an opportunity to clean up any ongoingEffects that are no longer active.
 	self.ongoingEffects = self:ActiveOngoingEffects(true)
 
@@ -6845,6 +6847,18 @@ creature.helpSymbols = {
 		desc = "Given the name of a condition or ongoing effect, will return the creature that cast that condition or ongoing effect on this creature.",
 	},
 
+    squadcaster = {
+        name = "SquadCaster",
+        type = "function",
+        desc = "Given the name of an ongoing effect, will return the squad that cast that ongoing effect on this creature.",
+    },
+
+    squadlivemembers = {
+        name = "SquadLiveMembers",
+        type = "function",
+        desc = "Given the name of a squad, will return the number of members who are alive.",
+    },
+
 	conditions = {
 		name = "Conditions",
 		type = "set",
@@ -7384,6 +7398,41 @@ creature.lookupSymbols = {
 
 		return nil
 	end,
+
+    squadcaster = function(c)
+        return function(condname)
+			condname = string.lower(condname)
+
+			local seqFound = -1
+			local result = nil
+
+			local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
+			local ongoingEffects = c:ActiveOngoingEffects()
+			local conditionsTable = GetTableCached(CharacterCondition.tableName)
+			for i,effectInfo in ipairs(ongoingEffects) do
+				if effectInfo.seq > seqFound and effectInfo:try_get("casterInfo") ~= nil then
+					local ongoingEffectInfo = ongoingEffectsTable[effectInfo.ongoingEffectid]
+					local cond = conditionsTable[ongoingEffectInfo.condition]
+					if (cond ~= nil and string.lower(cond.name) == condname) or string.lower(ongoingEffectInfo.name) == condname then
+                        return effectInfo.casterInfo.minionSquad
+					end
+				end
+			end
+
+			return result
+        end
+    end,
+
+    squadlivemembers = function(c)
+        return function(squadid)
+            local entry = creature.GetMinionSquadInfoForNamedSquad(squadid)
+            if entry == nil then
+                return 0
+            end
+
+            return entry.liveMinions or 0
+        end
+    end,
 
 	conditioncaster = function(c)
 		return function(condname)

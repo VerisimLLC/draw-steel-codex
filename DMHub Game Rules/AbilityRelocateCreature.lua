@@ -164,6 +164,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					local loc = targets[1].loc
 
 					local path = movementInfo.path
+                print("RELOCATE:: to", loc.x, loc.y, loc.altitude, "->", path.destination.x, path.destination.y, path.destination.altitude)
 					local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 					local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
 					local pathDist = path.destination:DistanceInTiles(path.origin)

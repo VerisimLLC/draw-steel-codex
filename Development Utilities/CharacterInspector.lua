@@ -87,6 +87,9 @@ CreateInspectorPanel = function()
                         halign = "right",
                         valign = "center",
                         updateValue = function(element, val)
+                            if tonumber(val) ~= nil and round(tonumber(val)) == tonumber(val) then
+                                val = string.format("%d", round(tonumber(val)))
+                            end
                             element.text = val
                         end,
 

@@ -205,6 +205,11 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
                             casterToken.properties.routinesSelected = selectedRoutines
                         end,
                     }
+
+                    --instantly refresh the token.
+                    game.Refresh{
+                        tokens = {casterToken.charid},
+                    }
                     finished = true
                     gui.CloseModal()
                 end,

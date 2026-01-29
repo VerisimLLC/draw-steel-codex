@@ -4,6 +4,7 @@
 --- @class DTInfo
 --- @field availableRolls number Counter that the Director increments via Grant Rolls to All
 --- @field downtimeProjects DTProject[] The list of DTProject records for the character
+--- @field followerRolls table<string, number> Map of follower GUID to available rolls count
 DTInfo = RegisterGameType("DTInfo")
 DTInfo.availableRolls = 0
 
@@ -44,6 +45,74 @@ function DTInfo:UseAvailableRolls(rolls)
     local useCount = math.max(0, math.floor(rolls or 0))
     self.availableRolls = math.max(0, self:GetAvailableRolls() - useCount)
     return self
+end
+
+--- Determine if we've been migrated - has .followerRolls
+--- @return boolean
+function DTInfo:IsMigrated()
+    return self:try_get("followerRolls") ~= nil
+end
+
+--- Gets the follower rolls map (read-only, cannot create outside character sheet context)
+--- @return table<string, number> followerRolls Map of follower GUID to roll count
+function DTInfo:GetFollowerRollsMap()
+    return self:try_get("followerRolls", {})
+end
+
+--- Gets the number of available rolls for a specific follower
+--- @param followerId string The GUID of the follower
+--- @return number rolls The number of available rolls for this follower
+function DTInfo:GetFollowerRolls(followerId)
+    if followerId == nil or followerId == "" then return 0 end
+    return self:GetFollowerRollsMap()[followerId] or 0
+end
+
+--- Sets the number of available rolls for a specific follower
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param followerId string The GUID of the follower
+--- @param rolls number The new number of available rolls
+--- @return DTInfo self For chaining
+function DTInfo:SetFollowerRolls(followerId, rolls)
+    if followerId == nil or followerId == "" then return self end
+    if self:try_get("followerRolls") == nil then
+        self.followerRolls = {}
+    end
+    self.followerRolls[followerId] = math.max(0, math.floor(rolls or 0))
+    return self
+end
+
+--- Grants (or revokes) rolls for a specific follower
+--- IMPORTANT: Must be called within token:ModifyProperties context
+--- @param followerId string The GUID of the follower
+--- @param amount number The number of rolls to grant (negative to revoke)
+--- @return DTInfo self For chaining
+function DTInfo:GrantFollowerRolls(followerId, amount)
+    if followerId == nil or followerId == "" then return self end
+    local currentRolls = self:GetFollowerRolls(followerId)
+    self:SetFollowerRolls(followerId, currentRolls + (amount or 0))
+    return self
+end
+
+--- Gets the total aggregate of all follower rolls
+--- @return number total The sum of all follower rolls
+function DTInfo:AggregateFollowerRolls()
+    local total = 0
+    for _, rolls in pairs(self:GetFollowerRollsMap()) do
+        total = total + (rolls or 0)
+    end
+    return total
+end
+
+--- Gets all follower IDs that have available rolls greater than zero
+--- @return table<string, number> Map of follower GUID to roll count for followers with rolls > 0
+function DTInfo:GetFollowerIdsWithRolls()
+    local result = {}
+    for followerId, rolls in pairs(self:GetFollowerRollsMap()) do
+        if rolls and rolls > 0 then
+            result[followerId] = rolls
+        end
+    end
+    return result
 end
 
 --- Gets all downtime projects for this character

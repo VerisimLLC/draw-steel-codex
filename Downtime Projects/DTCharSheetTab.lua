@@ -30,6 +30,31 @@ function DTCharSheetTab.CreateDowntimePanel()
             end,
         },
 
+        refreshToken = function(element)
+            local token = CharacterSheet.instance.data.info.token
+            if token and token.properties and token.properties:IsHero() then
+                local downtimeInfo = token.properties:GetDowntimeInfo()
+                if not downtimeInfo:IsMigrated() then
+
+                    local migratedRolls = {}
+                    local followers = token.properties:try_get(DTConstants.FOLLOWERS_STORAGE_KEY)
+                    if followers and type(followers) == "table" then
+                        for followerId, _ in pairs(followers) do
+                            local follower = dmhub.GetCharacterById(followerId)
+                            if follower and follower.properties then
+                                local legacyRolls = follower.properties:try_get(DTConstants.FOLLOWER_AVAILROLL_KEY)
+                                if legacyRolls and legacyRolls > 0 then
+                                    migratedRolls[followerId] = legacyRolls
+                                end
+                            end
+                        end
+                    end
+
+                    downtimeInfo.followerRolls = migratedRolls
+                end
+            end
+        end,
+
         deleteProject = function(element, projectId)
             if projectId and type(projectId) == "string" and #projectId then
                 local downtimeInfo = element.data.getDowntimeInfo()
@@ -310,9 +335,9 @@ function DTCharSheetTab._createHeaderPanel()
                     if CharacterSheet.instance.data.info then
                         local token = CharacterSheet.instance.data.info.token
                         if token and token.properties and token.properties:IsHero() then
-                            local followers = token.properties:GetDowntimeFollowers()
-                            if followers then
-                                availableRolls = followers:AggregateAvailableRolls()
+                            local downtimeInfo = token.properties:GetDowntimeInfo()
+                            if downtimeInfo then
+                                availableRolls = downtimeInfo:AggregateFollowerRolls()
                             else
                                 msg = " (Can't get follower rolls)"
                             end

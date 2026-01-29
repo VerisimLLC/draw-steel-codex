@@ -1482,8 +1482,8 @@ function DTProjectEditor:_createRollButton(options)
                 return 0
             end,
             followerRolls = function(element)
-                local followers = element.data.getDowntimeFollowers(element)
-                if followers then return followers:AggregateAvailableRolls() end
+                local downtimeInfo = element.data.getDowntimeInfo(element)
+                if downtimeInfo then return downtimeInfo:AggregateFollowerRolls() end
                 return 0
             end,
         },

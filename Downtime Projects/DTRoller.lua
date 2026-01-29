@@ -38,7 +38,17 @@ function DTRoller.CreateNew(object, mentorId)
     elseif DTRoller._isFollowerType(_object) then
         instance.mentorId = foundMentorId
         instance._adjustRolls = function(self, amount)
-            self.object:GrantRolls(amount)
+            -- Token in character sheet context is always the mentor
+            local token = CharacterSheet.instance.data.info.token
+            if token and token.properties and token.properties:IsHero() then
+                local downtimeInfo = token.properties:GetDowntimeInfo()
+                if downtimeInfo then
+                    local followerId = self:GetFollowerID()
+                    if followerId then
+                        downtimeInfo:GrantFollowerRolls(followerId, amount)
+                    end
+                end
+            end
         end
     end
 

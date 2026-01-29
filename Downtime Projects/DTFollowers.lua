@@ -11,6 +11,7 @@ function DTFollowers.CreateNew(followers, token)
     local instance = DTFollowers.new{
         followers = {}
     }
+    instance.token = token
 
     if followers and type(followers) == "table" and next(followers) then
         for followerId,_ in pairs(followers) do
@@ -32,19 +33,28 @@ end
 --- Retrieve the total number of rolls the followers have
 --- @return number numRolls The number of rolls
 function DTFollowers:AggregateAvailableRolls()
-    local numRolls = 0
-    for _, follower in pairs(self.followers or {}) do
-        numRolls = numRolls + (follower.properties:GetAvailableRolls())
+    if self.token and self.token.properties and self.token.properties:IsHero() then
+        local downtimeInfo = self.token.properties:GetDowntimeInfo()
+        if downtimeInfo then
+            return downtimeInfo:AggregateFollowerRolls()
+        end
     end
-    return numRolls
+    return 0
 end
 
 --- Find all the followers that have available rolls
 --- @return table followers The followers with rolls
 function DTFollowers:GetFollowersWithAvailbleRolls()
     local followers = {}
+    if not (self.token and self.token.properties and self.token.properties:IsHero()) then
+        return followers
+    end
+
+    local downtimeInfo = self.token.properties:GetDowntimeInfo()
+    if not downtimeInfo then return followers end
+
     for id, follower in pairs(self.followers or {}) do
-        if follower.properties:GetAvailableRolls() > 0 then
+        if downtimeInfo:GetFollowerRolls(id) > 0 then
             followers[id] = follower
         end
     end

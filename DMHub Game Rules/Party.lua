@@ -9,6 +9,7 @@ Party.name = "New Party"
 Party.details = ""
 Party.tableName = "parties"
 Party.playerParty = false
+Party.noncombatant = false
 Party.color = "#ffffff"
 Party.ord = 1
 
@@ -254,6 +255,15 @@ SetData = function(tableName, partyPanel, partyid)
 			end,
 		}
 	}
+
+    children[#children+1] = gui.Check{
+        text = "Non-Combatant",
+        value = party.noncombatant,
+		change = function(element)
+			party.noncombatant = element.value
+			UploadParty()
+		end,
+    }
 
 	--party default.
 	if party.playerParty then

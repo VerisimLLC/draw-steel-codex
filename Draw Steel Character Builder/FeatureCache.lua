@@ -142,9 +142,9 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         return true
     end
 
-    local function addFeature(feature)
+    local function addFeature(feature, level)
         if not passesPrereq(feature) then return end
-        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature)
+        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()
             keyed[guid] = cacheFeature
@@ -158,16 +158,18 @@ function CBFeatureCache._processFeatures(opts, hero, features)
     for _,item in ipairs(features) do
         local itemFeatures = _safeGet(item, "features")
         local itemFeature = _safeGet(item, "feature")
+        local levels = _safeGet(item, "levels")
+        local level = levels and levels[1] or 1
         if itemFeatures ~= nil then
             for _,feature in ipairs(itemFeatures) do
                 flattened[#flattened+1] = { feature = feature }
-                addFeature(feature)
+                addFeature(feature, level)
             end
         elseif itemFeature ~= nil then
-            addFeature(item.feature)
+            addFeature(item.feature, level)
         else
             flattened[#flattened+1] = { feature = item }
-            addFeature(item)
+            addFeature(item, level)
         end
     end
 
@@ -185,12 +187,13 @@ end
 --- Create a new feature wrapper
 --- @param hero character
 --- @param feature CharacterChoice
+--- @param level integer
 --- @return CBFeatureWrapper|nil
-function CBFeatureWrapper.CreateNew(hero, feature)
+function CBFeatureWrapper.CreateNew(hero, feature, level)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
 
     local category = CBFeatureWrapper._deriveCategory(feature)
-    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category)
+    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category, level)
 
     local newObj = CBFeatureWrapper.new{
         feature = feature,
@@ -542,9 +545,10 @@ end
 --- Derive sort order from feature type
 --- @param feature CharacterChoice
 --- @param category string
+--- @param level integer
 --- @return string nameOrder
 --- @return string categoryOrder
-function CBFeatureWrapper._deriveOrder(feature, category)
+function CBFeatureWrapper._deriveOrder(feature, category, level)
     local typeOrder = {
         -- Low numbers are reserved - stay between 100 & 998
         CharacterCultureAggregateChoice     = 102,
@@ -562,9 +566,10 @@ function CBFeatureWrapper._deriveOrder(feature, category)
         CharacterIncidentChoice             = 200,
     }
 
-    local orderNum = typeOrder[feature.typeName] or 999
-    local nameOrder = _formatOrder(orderNum, _safeFeatureName(feature)) --feature:try_get("name", "Unnamed Feature"))
-    local catOrder = _formatOrder(orderNum, category)
+    local typeOrder = typeOrder[feature.typeName] or 999
+    local levelOrder = level or 99
+    local nameOrder = _formatOrder(levelOrder, _formatOrder(typeOrder, _safeFeatureName(feature)))
+    local catOrder = _formatOrder(levelOrder, _formatOrder(typeOrder, category))
 
     return nameOrder, catOrder
 end

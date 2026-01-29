@@ -188,6 +188,9 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 itemIndex = itemIndex,
                 option = nil,
             },
+            doubleclick = function(element)
+                element:FireEvent("removeItem")
+            end,
             press = function(element)
                 if element.data.option == nil then return end
                 local controller = getFeatureSelController(element)
@@ -320,6 +323,9 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             assignItem = function(element, option)
                 element.data.option = option
             end,
+            doubleclick = function(element)
+                element:FireEvent("selectItem")
+            end,
             press = function(element)
                 if element.data.option == nil then return end
                 local controller = getFeatureSelController(element)
@@ -396,6 +402,9 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 classes = {"builder-base", "panel-base", "feature-selector", "select"},
                 floating = true,
                 rotate = -90,
+                hover = function(element)
+                    gui.Tooltip("Select")(element)
+                end,
                 press = function(element)
                     element.parent:FireEvent("selectItem")
                 end,

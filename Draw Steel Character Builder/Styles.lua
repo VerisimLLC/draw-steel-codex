@@ -289,7 +289,7 @@ local function _panelStyles()
         },
         {
             selectors = {"feature-selector", "select"},
-            bgimage = "ui-icons/Back.png",
+            bgimage = "ui-icons/Plus.png", --"ui-icons/Back.png",
             bgcolor = "white",
         },
         {

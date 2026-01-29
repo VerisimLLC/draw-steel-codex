@@ -427,14 +427,14 @@ CharacterBuilder.RegisterSelector{
 
 CharacterBuilder.RegisterSelector{
     id = SEL.CHARACTER,
-    ord = 2,
+    ord = 3,
     selector = CBSelectors._character,
     detail = CBDescriptionDetail.CreatePanel,
 }
 
 CharacterBuilder.RegisterSelector{
     id = SEL.ANCESTRY,
-    ord = 3,
+    ord = 2,
     selector = CBSelectors._ancestry,
     detail = CBAncestryDetail.CreatePanel,
 }
@@ -498,16 +498,19 @@ local TEST_DETAIL = [[
 
 **Latest Release**
 
+* Swapped order of Ancestry & Character buttons.
+* Removed the debug randomizer on character description.
+* Resolved issue w/ caching Ancestry too aggressively - status indicators lingering when they should not.
+
+**Previous Releases**
+
 * Everyone is opted in. Happy testing. Let us know what we broke.
 * Added double-click as a way to select & deselect features (column 3).
 * Added drag & drop as a way to select & deselect features (column 3).
 * Changed the select feature icon / button to a + (column 3) & added hover tooltip.
 
-**Previous Releases**
-
 * Added the ability to select aggregate cultures as starting points, then you can still change individual aspects.
 * Modified the progress indicators on the buttons in column 2.
-
 * Made the background on certain ability cards dark instead of transparent.
 * Added status indicator to Character left-side button.
 * Fixed issue with ability cards not appearing in selected items.
@@ -526,7 +529,7 @@ local TEST_DETAIL = [[
 * Some ability cards do not like to be constrained within parent panels.
 * Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized.
 
-# Reporing Issues
+# Reporting Issues
 
 * Please use the bug forum on the Codex / DMHub Discord.
 * Where applicable, please verify the old builder tab works as expected while new builder fails. If both tabs behave the same, please log as a configuration issue.

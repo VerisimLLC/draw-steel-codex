@@ -755,6 +755,7 @@ function CharacterBuilder._makeFeatureRegistry(options)
                         if visible then
                             local featureCache = state:Get(selector .. ".featureCache")
                             local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
+                            visible = visible and (feature and not feature:SuppressStatus())
                             local filled = feature and feature:IsComplete()
                             element:SetClass("filled", filled)
                         end

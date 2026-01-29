@@ -270,6 +270,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             },
             gui.Label{
                 classes = {"builder-base", "label", "feature-target", "desc"},
+                markdown = true,
                 updateDesc = function(element, text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
@@ -429,6 +430,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 classes = {"builder-base", "label", "feature-choice", "desc"},
                 textAlignment = "left",
                 text = "",
+                markdown = true,
                 updateDesc = function(element, text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)

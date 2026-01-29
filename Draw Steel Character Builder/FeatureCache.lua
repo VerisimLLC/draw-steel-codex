@@ -48,27 +48,29 @@ function CBFeatureCache:CalculateStatus()
 
     for _,item in ipairs(self:GetSortedFeatures()) do
         local feature = self:GetFeature(item.guid)
-        local key = feature:GetCategoryOrder()
-        if statusEntries[key] == nil then
-            statusEntries[key] = {
-                id = feature:GetCategory(),
-                order = key,
-                available = 0,
-                selected = 0,
-                selectedDetail = {},
-            }
+        if not feature:SuppressStatus() then
+            local key = feature:GetCategoryOrder()
+            if statusEntries[key] == nil then
+                statusEntries[key] = {
+                    id = feature:GetCategory(),
+                    order = key,
+                    available = 0,
+                    selected = 0,
+                    selectedDetail = {},
+                }
+            end
+            local statusEntry = statusEntries[key]
+            local featureStatus = feature:GetStatus()
+            statusEntry.available = statusEntry.available + featureStatus.numChoices
+            statusEntry.selected = statusEntry.selected + featureStatus.selected
+
+            numSelected = numSelected + featureStatus.selected
+            numAvailable = numAvailable + featureStatus.numChoices
+
+            local selectedNames = featureStatus.selectedNames
+            table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
+            table.sort(statusEntry.selectedDetail)
         end
-        local statusEntry = statusEntries[key]
-        local featureStatus = feature:GetStatus()
-        statusEntry.available = statusEntry.available + featureStatus.numChoices
-        statusEntry.selected = statusEntry.selected + featureStatus.selected
-
-        numSelected = numSelected + featureStatus.selected
-        numAvailable = numAvailable + featureStatus.numChoices
-
-        local selectedNames = featureStatus.selectedNames
-        table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
-        table.sort(statusEntry.selectedDetail)
     end
 
     statusEntries = CharacterBuilder._toArray(statusEntries)
@@ -450,6 +452,12 @@ function CBFeatureWrapper:SetSelectedOption(optionId)
         return true
     end
     return false
+end
+
+--- @return boolean
+function CBFeatureWrapper:SuppressStatus()
+    local fn = self:_hasFn("SuppressStatus")
+    return fn and fn() or false
 end
 
 function CBFeatureWrapper:UIChoicesFilter()

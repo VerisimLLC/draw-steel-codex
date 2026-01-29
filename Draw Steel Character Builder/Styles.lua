@@ -838,7 +838,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-status"},
-            width = "10%",
+            width = "13%",
             valign = "top",
             textAlignment = "topleft",
             hmargin = 2,
@@ -846,7 +846,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-detail"},
-            width = "57%",
+            width = "54%",
             halign = "left",
             valign = "top",
             hmargin = 2,

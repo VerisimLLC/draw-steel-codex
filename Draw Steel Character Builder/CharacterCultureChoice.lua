@@ -17,6 +17,11 @@ CharacterAspectChoice.numChoices = 1
 CharacterAspectChoice.costsPoints = false
 CharacterAspectChoice.hasRoll = false
 
+CharacterCultureAggregateChoice.description = [[
+Selecting an aggregate culture, like ancestry or archetypical, is an optional step.
+Choosing one will fill in all 3 Culture aspects: Environment, Organization, and Upbringing with the values associated with that aggregate.
+You will be able to change any or all of these aspects after choosing an aggregate.]]
+
 function CharacterAspectChoice.CreateNew(aspect)
     local options, choices = CharacterAspectChoice._optionsAndChoices(aspect.id)
 
@@ -166,23 +171,39 @@ function CharacterCultureAggregateChoice.CreateAll(hero)
     return features
 end
 
+local g_descriptionCache = {}
 function CharacterCultureAggregateChoice.CreateNew(items)
     local group = items[1].group
+
+    local aspectsTable = dmhub.GetTableVisible(CultureAspect.tableName)
 
     local options = {}
     local choices = {}
     for _,item in ipairs(items) do
+
+        local description = g_descriptionCache[item.id]
+        if description == nil then
+            local e = aspectsTable[item.aspects.environment]
+            local o = aspectsTable[item.aspects.organization]
+            local u = aspectsTable[item.aspects.upbringing]
+            e = e and e.name or "(not found)"
+            o = o and o.name or "(not found)"
+            u = u and u.name or "(not found)"
+            description = string.format("**Environment:** %s; **Organization:** %s; **Upbringing:** %s", e, o, u)
+            g_descriptionCache[item.id] = description
+        end
+
         options[#options+1] = {
             guid = item.id,
             name = item.name,
-            description = nil,
+            description = description,
             unique = true,
             aspects = item.aspects,
         }
         choices[#choices+1] = {
             id = item.id,
             text = item.name,
-            description = nil,
+            description = description,
             unique = true,
             aspects = item.aspects
         }
@@ -255,6 +276,10 @@ function CharacterCultureAggregateChoice:SaveSelection(hero, option)
     end
     culture.aspects = dmhub.DeepCopy(option.aspects)
     culture.aggregate = option.id
+    return true
+end
+
+function CharacterCultureAggregateChoice:SuppressStatus()
     return true
 end
 

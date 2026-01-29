@@ -131,6 +131,10 @@ end
 function CharacterCultureAggregateChoice.CreateAll(hero)
 
     local culture = hero:try_get("culture")
+    if culture == nil then
+        hero.culture = Culture.CreateNew()
+        culture = hero:try_get("culture")
+    end
     if culture and culture.aspects then
         local aspects = culture.aspects
         if aspects.environment ~= nil and #aspects.environment > 0 then return {} end

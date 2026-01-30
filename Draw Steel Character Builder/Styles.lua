@@ -986,10 +986,10 @@ local function _inputStyles()
             height = 48,
             fontSize = 20,
         },
-        {
-            selectors = {"secondary"},
-            height = 36,
-        },
+        -- {
+        --     selectors = {"secondary"},
+        --     height = 36,
+        -- },
         {
             selectors = {"multiline"},
             height = 48*3,
@@ -1009,11 +1009,11 @@ local function _dropdownStyles()
             cornerRadius = 4,
             borderWidth = 2,
         },
-        {
-            selectors = {"dropdownLabel"},
-            textAlignment = "left",
-            halign = "left",
-        },
+        -- {
+        --     selectors = {"dropdownLabel"},
+        --     textAlignment = "left",
+        --     halign = "left",
+        -- },
         {
             selectors = {"primary"},
             height = 48,

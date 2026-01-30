@@ -535,7 +535,6 @@ local TEST_DETAIL = [[
 
 **Styling / UI**
 * Some ability cards do not like to be constrained within parent panels. This will also be resolved after we're confident enough to remove the previous builder.
-* Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized. Primarily an issue in Class, which can get very long.
 
 # Reporting Issues
 

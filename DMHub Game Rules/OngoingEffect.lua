@@ -557,7 +557,7 @@ function creature:ShareRecoveriesWith()
         if cond.bondid then
             local dataTable = dmhub.GetTable("characterOngoingEffects")
             local ongoingEffect = dataTable[cond.ongoingEffectid]
-            if ongoingEffect ~= nil and ongoingEffect.recoverySharing then
+            if ongoingEffect ~= nil and ongoingEffect:try_get("recoverySharing", false) then
                 local result = creature.GetTokensWithBoundOngoingEffect(cond.bondid)
                 if result ~= nil and #result > 1 then
                     return result

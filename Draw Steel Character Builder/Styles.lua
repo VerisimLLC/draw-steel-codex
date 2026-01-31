@@ -439,16 +439,17 @@ local function _panelStyles()
         },
         {
             selectors = {"progress-pip", "solo"},
-            bgcolor = CBStyles.COLORS.BLACK,
+            bgcolor = CBStyles.COLORS.BLACK03,
             border = 1,
+        },
+        {
+            selectors = {"progress-pip", "secondary"},
+            bgcolor = CBStyles.COLORS.GRAY02,
+            border = 0,
         },
         {
             selectors = {"progress-pip", "filled"},
             bgcolor = CBStyles.COLORS.GOLD03,
-        },
-        {
-            selectors = {"progress-pip", "filled", "solo"},
-            bgcolor = CBStyles.COLORS.CREAM03
         },
 
         -- Gradient-based progress pip styles (fill from bottom to top)

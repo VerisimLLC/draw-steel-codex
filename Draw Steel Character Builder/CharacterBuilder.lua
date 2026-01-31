@@ -766,14 +766,13 @@ function CharacterBuilder._makeFeatureRegistry(options)
                 },
                 CharacterBuilder.ProgressPip(1, {
                     rotate = 0,
-                    classes = {"builder-base", "panel-base", "progress-pip", "solo"},
+                    classes = {"builder-base", "panel-base", "progress-pip", "secondary"},
                     halign = "right",
                     valign = "top",
                     hmargin = 3,
                     vmargin = 3,
                     width = 12,
                     height = 12,
-                    borderColor = CBStyles.COLORS.GOLD,
                     refreshBuilderState = function(element, state)
                         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
                         if visible then

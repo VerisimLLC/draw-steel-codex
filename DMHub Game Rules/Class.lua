@@ -650,6 +650,7 @@ function CharacterFeatureChoice:Choices(numOption, existingChoices, creature)
 				description = feature.description,
 				classes = classes,
 				pointsCost = feature:try_get("pointsCost", 1),
+				modifiers = feature:try_get("modifiers"),
                 hasCustomPanel = feature:HasCustomDropdownPanel(),
                 panel = function()
                     return feature:CreateDropdownPanel(text)

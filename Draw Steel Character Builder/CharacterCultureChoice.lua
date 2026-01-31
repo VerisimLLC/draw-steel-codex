@@ -21,7 +21,7 @@ CharacterCultureAggregateChoice.description = [[
 Selecting an aggregate culture, like ancestry or archetypical, is an optional step.
 Choosing one will fill in all 3 Culture aspects: Environment, Organization, and Upbringing with the values associated with that aggregate.
 If the aggregate has a language, that will also be selected.
-You will be able to change any or all of these aspects after choosing an aggregate.]]
+You will be able to change any or all of these choices after choosing an aggregate.]]
 
 function CharacterAspectChoice.CreateNew(aspect)
     local options, choices = CharacterAspectChoice._optionsAndChoices(aspect.id)

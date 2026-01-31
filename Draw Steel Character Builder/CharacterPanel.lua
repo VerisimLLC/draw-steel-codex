@@ -1,5 +1,6 @@
 --[[
     Character Panel
+    The right-side status panel
 ]]
 CBCharPanel = RegisterGameType("CBCharPanel")
 

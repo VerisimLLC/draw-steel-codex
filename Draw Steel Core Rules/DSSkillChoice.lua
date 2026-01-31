@@ -37,7 +37,7 @@ function CharacterSkillChoice:_cache()
     local tags = {}
     local options = {}
 
-	local skillsTable = dmhub.GetTable(Skill.tableName)
+	local skillsTable = dmhub.GetTableVisible(Skill.tableName)
 	for k,skill in pairs(skillsTable) do
         all[#all+1] = {
             id = k,

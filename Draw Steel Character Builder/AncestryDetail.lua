@@ -96,7 +96,6 @@ function CBAncestryDetail._navPanel()
 end
 
 --- Build the Ancestry Overview panel
---- Used when no Ancestry is selected and to overview a selected ancestry
 --- @return Panel
 function CBAncestryDetail._overviewPanel()
 

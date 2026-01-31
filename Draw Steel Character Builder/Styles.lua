@@ -15,7 +15,7 @@ CBStyles.COLORS = {
     GOLD03 = "#F1D3A5",
     GRAY02 = "#666663",
     PANEL_BG = "#080B09",
-    GRAY_TRANSPARENT = "#10110FF0",
+    GRAY_TRANSPARENT = "#10110FF3",
 
     -- For selections like skills etc.
     FILLED_ITEM_BG = "#E9B86F0F",
@@ -344,6 +344,30 @@ local function _panelStyles()
             bgcolor = CBStyles.COLORS.GRAY02,
         },
 
+        -- Level Dividers in Class Panel
+        {
+            selectors = {"class-divider", "builder-header"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+            tmargin = 4,
+        },
+        {
+            selectors = {"class-divider", "builder-check"},
+            halign = "right",
+            valign = "center",
+            hmargin = 40,
+            width = 24,
+            height = 24,
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"class-divider", "builder-check", "complete"},
+            bgcolor = CBStyles.COLORS.GOLD03,
+        },
+
         -- Right-side character panel
         {
             selectors = {"charpanel", "tab-content"},
@@ -415,16 +439,17 @@ local function _panelStyles()
         },
         {
             selectors = {"progress-pip", "solo"},
-            bgcolor = CBStyles.COLORS.BLACK,
+            bgcolor = CBStyles.COLORS.BLACK03,
             border = 1,
+        },
+        {
+            selectors = {"progress-pip", "secondary"},
+            bgcolor = CBStyles.COLORS.GRAY02,
+            border = 0,
         },
         {
             selectors = {"progress-pip", "filled"},
             bgcolor = CBStyles.COLORS.GOLD03,
-        },
-        {
-            selectors = {"progress-pip", "filled", "solo"},
-            bgcolor = CBStyles.COLORS.CREAM03
         },
 
         -- Gradient-based progress pip styles (fill from bottom to top)
@@ -801,6 +826,21 @@ local function _labelStyles()
             borderColor = CBStyles.COLORS.CREAM03,
         },
 
+        -- Class panel level dividers
+        {
+            selectors = {"class-divider", "builder-header"},
+            halign = "left",
+            valign = "bottom",
+            width = "90%",
+            textAlignment = "left",
+            vpad = 4,
+            fontSize = 20,
+            color = CBStyles.COLORS.GOLD03,
+            bgimage = true,
+            border = {y1 = 2, y2 = 0, x1 = 0, x2 = 0},
+            borderColor = CBStyles.COLORS.GOLD03,
+        },
+
         -- For the right-side character panel / builder tab
         {
             selectors = {"charpanel", "desc-item-label"},
@@ -947,10 +987,10 @@ local function _inputStyles()
             height = 48,
             fontSize = 20,
         },
-        {
-            selectors = {"secondary"},
-            height = 36,
-        },
+        -- {
+        --     selectors = {"secondary"},
+        --     height = 36,
+        -- },
         {
             selectors = {"multiline"},
             height = 48*3,
@@ -970,11 +1010,11 @@ local function _dropdownStyles()
             cornerRadius = 4,
             borderWidth = 2,
         },
-        {
-            selectors = {"dropdownLabel"},
-            textAlignment = "left",
-            halign = "left",
-        },
+        -- {
+        --     selectors = {"dropdownLabel"},
+        --     textAlignment = "left",
+        --     halign = "left",
+        -- },
         {
             selectors = {"primary"},
             height = 48,

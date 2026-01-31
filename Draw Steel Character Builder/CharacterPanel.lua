@@ -1,5 +1,6 @@
 --[[
     Character Panel
+    The right-side status panel
 ]]
 CBCharPanel = RegisterGameType("CBCharPanel")
 
@@ -10,7 +11,7 @@ local _getState = CharacterBuilder._getState
 local _getToken = CharacterBuilder._getToken
 local _ucFirst = CharacterBuilder._ucFirst
 
-local INITIAL_TAB = "description"
+local INITIAL_TAB = "builder"
 local SEL = CharacterBuilder.SELECTOR
 
 --- Create a panel displaying feature information for a single feature type
@@ -631,7 +632,7 @@ function CBCharPanel._detailPanel()
         --     content = CBCharPanel._tacticalPanel,
         -- }
     }
-    local tabOrder = {"description", "builder", "exploration"} --, "tactical"}
+    local tabOrder = {"builder", "exploration", "description"} --, "tactical"}
 
     local tabButtons = {}
     for _,tabId in ipairs(tabOrder) do

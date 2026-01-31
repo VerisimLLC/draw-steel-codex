@@ -1,10 +1,7 @@
 --[[
  Character Builder:  Building a character step by step.
- Functions standalone or as a tab in CharacterSheet.
-
- TODO::
- - Old builder attributes are in MCDMClassCarousel.lua start line 1481
- - Slow start rules aren't honored - still pulling full level 1 class features
+ Functions standalone (not yet; probably buggy) or as a 
+ tab in CharacterSheet.
 
  - Overall Design
  - Responding to Events
@@ -44,7 +41,7 @@
  Ancestry in the builder. It's important to note that these are not necessarily
  stored in a table structure. So, while "token" is a key, you cannot use
  state:Get("token.properties") to get the creature on the token. Instead you
- would use state:Get(token).properties.
+ would use state:Get("token").properties.
 
  Typically you will only need the state object when responding to refreshBuilderState
  and that event always provides it. There is a helper function to get state. See
@@ -59,22 +56,20 @@
  The helper functions used most frequently include:
 
  _fireControllerEvent(eventName, ...)
- Fires an event on the main window / controller. Pass the current UI element.
+ Fires an event on the main window / controller.
 
- _getHero(source)
- Returns the character in the token in the state object. Source can be any UI
- element or the state object. Ensures the object returned is a hero via :IsHero()
- or returns nil.
+ _getHero()
+ Returns the character in the token in the state object. Ensures the object
+ returned is a hero via :IsHero()  or returns nil.
 
- _getToken(source)
- Returns the token in the state object. Source can be any UI element or the
- state object.
+ _getToken()
+ Returns the token in the state object.
 
  OPTIMIZATION OPPORTUNITIES
 
  When responding to refreshBuilderState, if your element might not be visible,
  check that first. If it's not visible, then don't bother calculating anything
- else unless it needs to be used elsewhere.
+ else unless it needs to be used elsewhere, and halt event propagation.
  
  We might consider re-using the choice selection UI - panels built in
  FeatureSelector.lua.
@@ -89,9 +84,8 @@ CharacterBuilder.ROOT_CHAR_SHEET_CLASS = "characterSheetHarness"
 -- of available options is >= this number
 CharacterBuilder.FILTER_VISIBLE_COUNT = 20
 
---- Trim long text on overview pages to this length
-CharacterBuilder.OVERVIEW_MAX_LENGTH = 1200
-
+-- The selectors / column 1 primary buttons. Used as keys throughout
+-- the builder.
 CharacterBuilder.SELECTOR = {
     BACK        = "back",
     CHARACTER   = "character",
@@ -102,8 +96,10 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
 }
-CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.CHARACTER
+CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
+-- Static strings that we'll use in places like overviews when no
+-- item is selected.
 CharacterBuilder.STRINGS = {}
 
 CharacterBuilder.STRINGS.ANCESTRY = {}
@@ -268,7 +264,6 @@ function CharacterBuilder._deriveAttributeBuild(hero, baseChars)
 end
 
 --- Fires an event on the main builder panel
---- @param element Panel The element calling this method
 --- @param eventName string
 --- @param ... any|nil
 function CharacterBuilder._fireControllerEvent(eventName, ...)
@@ -478,6 +473,7 @@ function CharacterBuilder._sortArrayByProperty(items, propertyName)
     return items
 end
 
+--- Removes "Signature Trait" from a string
 --- @return string
 function CharacterBuilder._stripSignatureTrait(str)
     local result = regex.MatchGroups(str, "(?i)^signature\\s+trait:?\\s*(?<name>.*)$")
@@ -496,32 +492,7 @@ function CharacterBuilder._toArray(t)
     return a
 end
 
---- Trims and truncates a string to a maximum length
---- @param str string The string to process
---- @param maxLength number The maximum length before truncation
---- @param stopAtNewline? boolean Whether to trim to the first newline
---- @return string The processed string
-function CharacterBuilder._trimToLength(str, maxLength, stopAtNewline)
-    stopAtNewline = stopAtNewline == nil and true or stopAtNewline
-
-    -- Trim leading whitespace
-    str = str:match("^%s*(.*)") or str
-
-    -- Cut at first newline if exists
-    local newlinePos = str:find("\n")
-    if newlinePos and stopAtNewline then
-        str = str:sub(1, newlinePos - 1)
-    end
-
-    -- Check if length is within acceptable range
-    if #str <= maxLength + 3 then
-        return str
-    end
-
-    -- Truncate and add ellipsis
-    return str:sub(1, maxLength) .. "..."
-end
-
+--- Uppercase the first character in a string
 --- @return string
 function CharacterBuilder._ucFirst(str)
     if str and #str > 0 then
@@ -537,7 +508,7 @@ function CharacterBuilder._validateRollFaces(rollFaces)
     local validFaces = {2, 3, 6, 8, 10, 12, 20, 100}
     for _, faces in ipairs(validFaces) do
         if faces >= rollFaces then
-            if faces == 10 then return 20 end
+            if faces == 10 then return 20 end -- Djordice, obvs
             return faces
         end
     end
@@ -709,7 +680,9 @@ end
 --- @field checkAvailable? function (state, selector, featureId)
 --- @field getSelected function(hero) Return the currently selected value - match to or replace selectedId
 
---- Create a registry entry for a feature - a button & an editor panel
+--- Create a registry entry for a feature - a button & an editor panel.
+--- This is the mechanism by which the various detail panels add buttons
+--- and feature selectors into columns 2 & 3.
 --- @param options CBFeatureRegistryOptions
 --- @param feature CBFeatureWrapper
 --- @return table|nil
@@ -730,12 +703,20 @@ function CharacterBuilder._makeFeatureRegistry(options)
                     featureId = feature:GetGuid(),
                     selectedId = selectedId,
                     order = feature:GetOrder(),
+                    level = feature:GetLevel(),
+                    visible = true,
                 },
                 press = function(element)
                     CharacterBuilder._fireControllerEvent("updateState", {
                         key = selector .. ".category.selectedId",
                         value = element.data.featureId
                     })
+                end,
+                showLevel = function(element, level, expanded)
+                    if element.data.level == level then
+                        element.data.visible = expanded
+                    end
+                    element:SetClass("collapsed-anim", not element.data.visible)
                 end,
                 CharacterBuilder._makeCategoryButton{
                     text = CharacterBuilder._stripSignatureTrait(feature:GetName()),
@@ -750,22 +731,21 @@ function CharacterBuilder._makeFeatureRegistry(options)
                         local featureCache = state:Get(selector .. ".featureCache")
                         feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
                         local featureAvailable = feature ~= nil
-                        local visible = tokenSelected == element.parent.data.selectedId and featureAvailable
+                        local visible = (tokenSelected == element.parent.data.selectedId) and featureAvailable
                         element:FireEvent("setAvailable", visible)
                         element:FireEvent("setSelected", element.parent.data.featureId == state:Get(selector .. ".category.selectedId"))
                         element:SetClass("collapsed", not visible)
                     end,
                 },
                 CharacterBuilder.ProgressPip(1, {
-                    rotate = 45,
-                    classes = {"builder-base", "panel-base", "progress-pip", "solo"},
+                    rotate = 0,
+                    classes = {"builder-base", "panel-base", "progress-pip", "secondary"},
                     halign = "right",
                     valign = "top",
-                    hmargin = -6,
-                    vmargin = -6,
+                    hmargin = 3,
+                    vmargin = 3,
                     width = 12,
                     height = 12,
-                    borderColor = CBStyles.COLORS.GOLD,
                     refreshBuilderState = function(element, state)
                         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
                         if visible then
@@ -778,25 +758,6 @@ function CharacterBuilder._makeFeatureRegistry(options)
                         element:SetClass("collapsed", not visible)
                     end,
                 }),
-                -- CharacterBuilder.ProgressBar{
-                --     vmargin = CBStyles.SIZES.PROGRESS_PIP_SIZE + 7,
-                --     minPips = 1,
-                --     refreshBuilderState = function(element, state)
-                --         local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
-                --         if visible then
-                --             local featureCache = state:Get(selector .. ".featureCache")
-                --             local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
-                --             local status = feature and feature:GetStatus()
-                --             if status then
-                --                 element:FireEventTree("updateProgress", {
-                --                     slots = status.numChoices,
-                --                     done = status.selected,
-                --                 })
-                --             end
-                --         end
-                --         element:SetClass("collapsed", not visible)
-                --     end,
-                -- }
             },
             panel = CharacterBuilder._makeFeaturePanelContainer{
                 data = {
@@ -878,6 +839,8 @@ function CharacterBuilder._sortButtons(children)
     return result
 end
 
+--- A single progress pip. Can be made small to compose a status bar
+--- (see below) or larger to be standalone.
 --- @return Panel
 function CharacterBuilder.ProgressPip(index, opts)
     local options = {
@@ -911,6 +874,10 @@ function CharacterBuilder.ProgressPip(index, opts)
     return gui.Panel(options)
 end
 
+--- A bar of progress pips. Used in the col1 buttons. Constrains the
+--- number of pips to 20, which is about how many will fit across those
+--- col 1 buttons. At 20, this effectively switches to a regular old
+--- progress bar with 5% increments.
 --- @return Panel
 function CharacterBuilder.ProgressBar(opts)
 

@@ -500,6 +500,11 @@ local TEST_DETAIL = [[
 **Latest Release**
 
 * Resolved issue with (sometimes?) not displaying ability cards in selected features.
+* Added filter to Complications, Languages, Perks, and Skills selectors when they have >~20 entries.
+* Added level groupings to Class feature selection (col2).
+* Resolved ability cards painting outside the "lines".
+* Removed redundant extra information when expanding a feature choice.
+* Reordered right side tabs.
 
 **Previous Releases**
 
@@ -527,13 +532,7 @@ local TEST_DETAIL = [[
 
 # Known Issues
 
-**Functionality**
-* In the selection lists, we sometimes display redundant, empty, or meaningless extra info / description info. But try hovering it. We can fix this once we're confident enough to remove the previous builder.
 * Exploration tab should list Perks.
-
-**Styling / UI**
-* Some ability cards do not like to be constrained within parent panels. This will also be resolved after we're confident enough to remove the previous builder.
-* Second tier selection buttons, like after you've selected a class, are displayed in a long (albeit sorted) list instead of categorized. Primarily an issue in Class, which can get very long.
 
 # Reporting Issues
 

@@ -1,7 +1,5 @@
 --[[
     Kit detail / selectors
-    mcdmkitbuilder.lua
-      Kit merge ~607
 ]]
 CBKitDetail = RegisterGameType("CBKitDetail")
 
@@ -14,7 +12,6 @@ local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 
 function CBKitDetail._navPanel()
-    -- TODO: Maybe put inside another panel to shrink vertically.
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "wide", "detail-nav-panel"},
         vscroll = true,

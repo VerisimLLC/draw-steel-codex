@@ -475,8 +475,9 @@ function gui.SelectorButton(options)
 
             gui.Label{
                 classes = labelClasses,
-                width = "98%",
+                width = "98%-40",
                 height = "98%",
+                hmargin = 20,
                 halign = labelAlign,
                 fontFace = fontFace,
                 fontSize = fontSize,

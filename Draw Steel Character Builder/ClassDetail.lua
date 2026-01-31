@@ -10,6 +10,7 @@ local INITIAL_CATEGORY = "overview"
 local AVAILABLE_WITHOUT_CLASS = {overview = true}
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
+local _formatOrder = CharacterBuilder._formatOrder
 local _getHero = CharacterBuilder._getHero
 local _makeDetailNavButton = CharacterBuilder._makeDetailNavButton
 
@@ -63,6 +64,10 @@ function CBClassDetail._navPanel()
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
         vscroll = true,
 
+        data = {
+            levelPanels = {}
+        },
+
         create = function(element)
             _fireControllerEvent("updateState", {
                 key = SELECTOR .. ".category.selectedId",
@@ -70,7 +75,101 @@ function CBClassDetail._navPanel()
             })
         end,
 
+        refreshBuilderState = function(element, state)
+            local featureCache = state:Get(SELECTOR .. ".featureCache")
+            if featureCache then
+                local levelStatus = {}
+                local features = featureCache:GetKeyedFeatures()
+                for _,feature in pairs(features) do
+                    local level = feature:GetLevel()
+                    if level and level > 0 then
+                        if levelStatus[level] == nil then
+                            levelStatus[level] = {
+                                available = 0,
+                                selected = 0,
+                                complete = false,
+                            }
+                        end
+                        local item = levelStatus[level]
+                        local featureStatus = feature:GetStatus()
+                        item.available = item.available + featureStatus.numChoices
+                        item.selected = item.selected + featureStatus.selected
+                        item.complete = item.selected >= item.available
+                    end
+                end
+
+                element:FireEventTree("updateLevelStatus", levelStatus)
+            end
+        end,
+
         registerFeatureButton = function(element, button)
+            local level = button.data.level
+            if level and level > 0 then
+                if element.data.levelPanels[level] == nil then
+                    local labelText = string.format("Level %d", level)
+                    local levelPanel = gui.Panel{
+                        classes = {"builder-base", "panel-base", "class-divider", "builder-header"},
+                        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH + 20,
+                        valign = "top",
+                        halign = "center",
+                        vmargin = 8,
+                        data = {
+                            level = level,
+                            order = _formatOrder(level or 99, _formatOrder(0, labelText)),
+                            expanded = true,
+                        },
+                        press = function(element)
+                            local data = element.data
+                            data.expanded = not data.expanded
+                            element.parent:FireEventTree("showLevel", data.level, data.expanded)
+                        end,
+                        gui.Label{
+                            classes = {"builder-base", "label", "class-divider", "builder-header"},
+                            text = labelText,
+                        },
+                        gui.Panel{
+                            classes = {"builder-base", "panel-base", "class-divider", "builder-check"},
+                            updateLevelStatus = function(element, levelStatus)
+                                local level = element.parent.data.level
+                                if level and level > 0 then
+                                    local info = levelStatus[level]
+                                    if info then
+                                        element:SetClass("complete", info.complete)
+                                    end
+                                end
+                            end,
+                        },
+                        gui.Label{
+                            classes = {"builder-base", "label", "class-divider", "builder-header"},
+                            width = "auto",
+                            halign = "right",
+                            hmargin = 40,
+                            updateLevelStatus = function(element, levelStatus)
+                                local level = element.parent.data.level
+                                if level and level > 0 then
+                                    local info = levelStatus[level]
+                                    if info then
+                                        element.text = string.format("%d/%d", info.selected, info.available)
+                                        element:SetClass("collapsed", info.complete)
+                                    end
+                                end
+                            end,
+                        },
+                        gui.CollapseArrow{
+                            halign = "right",
+                            valign = "center",
+                            bgcolor = CBStyles.COLORS.GOLD03,
+                            showLevel = function(element, level, expanded)
+                                if level == element.parent.data.level then
+                                    element:SetClass("collapseSet", not expanded)
+                                end
+                            end,
+                        }
+                    }
+                    element.data.levelPanels[level] = levelPanel
+                    element:AddChild(levelPanel)
+                end
+            end
             element:AddChild(button)
             element.children = CharacterBuilder._sortButtons(element.children)
         end,

@@ -62,7 +62,10 @@ function CharacterComplicationChoice:NumChoices()
 end
 
 function CharacterComplicationChoice:OfferFilter()
+<<<<<<< HEAD
     -- TODO: This throws the list height off. Need to resolve that.
+=======
+>>>>>>> 5023b65f8da1d2d7f38a535abf3c7e6e5ecdca90
     return true
 end
 

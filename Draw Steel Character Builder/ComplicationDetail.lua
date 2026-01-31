@@ -76,17 +76,6 @@ function CBComplicationDetail._overviewPanel()
         },
     }
 
-    -- local detailLabel = gui.Panel{
-    --     classes = {"builder-base", "panel-base", "detail-overview-labels"},
-    --     gui.Label{
-    --         classes = {"builder-base", "label", "info", "overview"},
-    --         vpad = 6,
-    --         bold = false,
-    --         markdown = true,
-    --         text = CharacterBuilder.STRINGS.CULTURE.OVERVIEW,
-    --     },
-    -- }
-
     return gui.Panel{
         id = "complicationOverviewPanel",
         classes = {"complicationOverviewPanel", "builder-base", "panel-base", "detail-overview-panel", "border", "collapsed"},

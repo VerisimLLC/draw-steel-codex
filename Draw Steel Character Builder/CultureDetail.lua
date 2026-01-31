@@ -210,6 +210,14 @@ function CBCultureDetail.CreatePanel()
             else
                 currentCategory = INITIAL_CATEGORY
             end
+
+            -- Which category to show?
+            if not ALWAYS_AVAILABLE[currentCategory] then
+                if not element.data.features[currentCategory] then
+                    currentCategory = INITIAL_CATEGORY
+                end
+            end
+            state:Set{ key = categoryKey, value = currentCategory }
         end,
 
         navPanel,

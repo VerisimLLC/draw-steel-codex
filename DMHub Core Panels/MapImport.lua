@@ -60,10 +60,9 @@ mod.shared.ImportMapDialog = function(paths, options)
                 ProgressPanel()
             }
             importPanel:Confirm(function(progress, info)
+
                 if progress == nil then
-                    if gui.GetModal() == g_modalDialog then
-                        gui.CloseModal()
-                    end
+                    gui.CloseModal()
 
                     g_modalDialog = nil
 
@@ -72,7 +71,6 @@ mod.shared.ImportMapDialog = function(paths, options)
                     end
                     return
                 end
-
 
                 resultPanel:FireEventTree("progress", progress)
             end)
@@ -617,10 +615,11 @@ local function ImportMapWizard(options)
 			text = "-or-",
 		},
 
-		gui.FancyButton{
+		gui.Button{
 			text = "Choose Files",
 			width = 320,
 			height = 70,
+            fontSize = 36,
 			click = function(element)
 
 				dmhub.OpenFileDialog{

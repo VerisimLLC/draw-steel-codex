@@ -475,17 +475,20 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         element:SetClass("selectable", true)
                     end
                 end,
-                gui.Label{ text = tier, width = "16%", fontSize = 18, height = 20, valign = "center", },
+                gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = string.format("%d", i), width = "16%", fontSize = 34, height = 20, valign = "center", },
                 gui.Panel{
-                    vpad = 4,
-                    fontSize = 18,
-                    width = "66%",
+                    vpad = 2,
+                    width = "54%",
+                    halign = "left",
                     height = "auto",
                     valign = "center",
+                    hpad = 0,
                     gui.Label{
                         text = FormatTierText(tierText, m_fullyImplemented),
+                        fontSize = 15,
                         width = 500,
                         height = "auto",
+                        vpad = 0,
                         refreshMods = function(element)
                             local tierText = rollProperties.tiers[i]
                             if caster ~= nil then

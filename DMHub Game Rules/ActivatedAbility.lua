@@ -2478,15 +2478,17 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		for _, target in ipairs(castInfo.targets or {}) do
 			if target.token ~= nil then
 				local targetToken = target.token
-				local tier = castInfo.tier or 0
-				if castInfo:has_key("tokenToTier") and type(castInfo.tokenToTier) == "table" then
-					tier = castInfo.tokenToTier[targetToken.charid] or 0
-				end
-				targetToken.properties:TriggerEvent("attacked", {
-                    outcome = tier,
-                    roll = castInfo:try_get("total", 0),
-                    attacker = GenerateSymbols(casterToken.properties),
-                })
+                if targetToken ~= nil and targetToken.valid then
+                    local tier = castInfo.tier or 0
+                    if castInfo:has_key("tokenToTier") and type(castInfo.tokenToTier) == "table" then
+                        tier = castInfo.tokenToTier[targetToken.charid] or 0
+                    end
+                    targetToken.properties:TriggerEvent("attacked", {
+                        outcome = tier,
+                        roll = castInfo:try_get("total", 0),
+                        attacker = GenerateSymbols(casterToken.properties),
+                    })
+                end
 			end
 		end
 	end

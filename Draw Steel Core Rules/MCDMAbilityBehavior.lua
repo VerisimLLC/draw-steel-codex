@@ -268,6 +268,13 @@ local g_rulePatterns = {
                 end
             end
 
+            local ShowFailSpeech = function(abilityName)
+                local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
+                if abilityBase then
+                    InvokeAbility(ability, abilityBase, targetToken, targetToken, options)
+                end
+            end
+
             local targetImmune = targetToken.properties:CalculateNamedCustomAttribute("Cannot Be Force Moved")
             if targetImmune > 0 then
                 print("Target is immune to forced movement, not executing")
@@ -339,7 +346,7 @@ local g_rulePatterns = {
             if range <= 0 then
                 --don't execute forced movement of 0?
                 if stability > 0 then
-                    ShowFailMessage("Too Much Stability")
+                    ShowFailSpeech("Too Much Stability")
                 else
                     ShowFailMessage("Cannot Be Force Moved")
                 end

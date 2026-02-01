@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
-RegisterGameType("Persistence")
+Persistence = RegisterGameType("Persistence")
+Persistence.name = ""
 
 --- @class ActivatedAbilityPersistenceControlBehavior:ActivatedAbilityBehavior
 RegisterGameType("ActivatedAbilityPersistenceControlBehavior", "ActivatedAbilityBehavior")

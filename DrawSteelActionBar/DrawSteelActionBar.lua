@@ -1257,17 +1257,15 @@ local function AbilityHeading(args)
                 --do not show ability if ctrl is held.
                 return
             end
-            --local menu = element:FindParentWithClass("actionMenu")
-            --if menu ~= nil then
-            --    menu:FireEvent("showability", m_ability)
-            --else
+            local menu = element:FindParentWithClass("actionMenu")
+            if menu ~= nil then
+                menu:FireEvent("showability", m_ability)
+            else
                 m_showingAbility = CharacterPanel.DisplayAbility(g_token, m_ability)
-            --end
-            print("ABILITY:: SHOW", m_showingAbility, m_ability)
+            end
         end,
 
         dehover = function(element)
-            print("ABILITY:: HIDE", m_showingAbility, m_ability)
             if m_showingAbility then
                 CharacterPanel.HideAbility(m_ability)
             end

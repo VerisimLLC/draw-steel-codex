@@ -300,6 +300,8 @@ function TriggeredAbilityDisplay:Render(args)
     local symbols = args.symbols or {}
     args.symbols = nil
 
+    args.summary = nil
+
     --see if there is a reason this trigger cannot be used.
     local suppressPanel = nil
     if ability ~= nil and caster ~= nil then

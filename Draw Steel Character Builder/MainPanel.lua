@@ -43,32 +43,12 @@ function CharacterBuilder.CreatePanel()
             state = CharacterBuilderState.CreateNew(),
 
             detailPanels = {},
-
-            cachedCharSheetInstance = false,
-            charSheetInstance = nil,
-
-            _cacheToken = function(element)
-                -- Importantly, we might not be running in the context of a character sheet
-                -- so we can't just grab the singleton object. This code is designed to
-                -- help us retrieve the token from the context we're running under.
-                if element.data.charSheetInstance == nil and not element.data.cachedCharSheetInstance then
-                    element.data.charSheetInstance = CharacterBuilder._getCharacterSheet(element)
-                    element.data.cachedCharSheetInstance = true
-                end
-                if element.data.charSheetInstance and element.data.charSheetInstance.data and element.data.charSheetInstance.data.info then
-                    local newToken = element.data.charSheetInstance.data.info.token
-                    element.data.state:Set{ key = "token", value = newToken }
-                else
-                    -- TODO: Can we create a token without attaching it to the game immediately?
-                end
-                return _getToken(element.data.state)
-            end,
         },
 
         applyCurrentAncestry = function(element)
             local ancestryId = element.data.state:Get(SEL.ANCESTRY .. ".selectedId")
             if ancestryId then
-                local hero = _getHero(element.data.state)
+                local hero = _getHero()
                 if hero then
                     hero.raceid = ancestryId
                     element:FireEvent("tokenDataChanged")
@@ -79,7 +59,7 @@ function CharacterBuilder.CreatePanel()
         applyCurrentCareer = function(element)
             local careerId = element.data.state:Get(SEL.CAREER .. ".selectedId")
             if careerId then
-                local hero = _getHero(element.data.state)
+                local hero = _getHero()
                 if hero then
                     hero.backgroundid = careerId
                     element:FireEvent("tokenDataChanged")
@@ -237,7 +217,7 @@ function CharacterBuilder.CreatePanel()
         end,
 
         create = function(element)
-            if element.data._cacheToken(element) ~= nil then
+            if _getToken() ~= nil then
                 element:FireEvent("refreshToken")
             end
             element:FireEvent("ensureActiveState")
@@ -258,21 +238,13 @@ function CharacterBuilder.CreatePanel()
             -- print("THC:: MAIN:: REFRESHTOKEN::", os.date("%Y-%m-%d %H:%M:%S"))
             local state = element.data.state
 
-            local cachedToken = _getToken()
-            local cachedTokenId = cachedToken and cachedToken.id
-            local token
-            if info then
-                token = info.token
-                state:Set{key = "token", value = token}
-            else
-                token = element.data._cacheToken(element)
-            end
-
+            local cachedTokenId = state:Get("tokenId")
+            local token = info and info.token or _getToken()
             if token then
                 if cachedTokenId ~= token.id then
                     element.data.state = CharacterBuilderState.CreateNew()
                     state = element.data.state
-                    state:Set{ key = "token", value = token }
+                    state:Set{ key = "tokenId", value = token.id }
                 end
                 element:FireEvent("ensureActiveSelector")
 
@@ -280,12 +252,9 @@ function CharacterBuilder.CreatePanel()
                 if hero:IsHero() then
 
                     -- Validate the description info
-                    -- TODO: Ensure server storage if not in char sheet
-                    if element.data.charSheetInstance ~= nil then
-                        local desc = hero:Description()
-                        if desc == nil then
-                            hero[CharacterDescription.CHARACTER_KEY] = CharacterDescription.new{}
-                        end
+                    local desc = hero:Description()
+                    if desc == nil then
+                        hero[CharacterDescription.CHARACTER_KEY] = CharacterDescription.new{}
                     end
 
                     element:FireEvent("selectAncestry", hero:try_get("raceid"))
@@ -638,10 +607,11 @@ function CharacterBuilder.CreatePanel()
         end,
 
         tokenDataChanged = function(element)
-            if element.data.charSheetInstance then
+            local cs = CharacterBuilder._getCharacterSheet()
+            if cs then
                 -- The character sheet fires refreshToken which in turn
                 -- fires refreshBuilderState
-                element.data.charSheetInstance:FireEvent("refreshAll")
+                if cs then cs:FireEvent("refreshAll") end
             else
                 element:FireEventTree("refreshBuilderState", element.data.state)
             end

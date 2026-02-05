@@ -547,6 +547,57 @@ function CBCharPanel._explorationPanel(tabId)
         }
     }
 
+    local perksPane = gui.Panel{
+        classes = {"panel-base"},
+        width = "98%",
+        height = "auto",
+        halign = "center",
+        tmargin = 14,
+        flow = "vertical",
+        
+        gui.Panel{
+            classes = {"panel-base"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            flow = "horizontal",
+            bgimage = true,
+            borderColor = Styles.textColor,
+            border = {y1 = 1, y2 = 0, x1 = 0, x2 = 0},
+            gui.Label{
+                classes = {"builder-base", "label", "charpanel", "desc-item-label"},
+                text = "Perks",
+            }
+        },
+
+        gui.Label{
+            classes = {"builder-base", "label", "charpanel", "desc-item-detail"},
+            width = "98%",
+            valign = "top",
+            text = "calculating...",
+
+            refreshBuilderState = function(element, state)
+                local perks = state:Get("cachedPerks")
+                local perkString = "--"
+                if perks then
+                    local knownPerks = {}
+                    local perksTable = dmhub.GetTableVisible(CharacterFeat.tableName)
+                    for k,_ in pairs(perks) do
+                        local item = perksTable[k]
+                        if item then
+                            knownPerks[#knownPerks+1] = item.name
+                        end
+                    end
+                    if #knownPerks then
+                        table.sort(knownPerks)
+                        perkString = table.concat(knownPerks, ", ")
+                    end
+                end
+                element.text = perkString
+            end
+        }
+    }
+
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "tab-content"},
         data = {
@@ -560,6 +611,7 @@ function CBCharPanel._explorationPanel(tabId)
         end,
         skillsPane,
         languagesPane,
+        perksPane,
     }
 end
 
@@ -580,7 +632,7 @@ function CBCharPanel._tacticalPanel(tabId)
         end,
 
         refreshBuilderState = function(element, state)
-            local token = state:Get("token")
+            local token = _getToken()
             if token then
                 if #element.children == 0 then
                     -- element:AddChild(CharacterPanel.CreateCharacterDetailsPanel(token))
@@ -838,7 +890,7 @@ function CBCharPanel._headerPanel()
             end
         end,
         refreshBuilderState = function(element, state)
-            local token = state:Get("token")
+            local token = _getToken()
             element.data.text = (token and token.name and #token.name > 0) and token.name or "Unnamed Character"
             element.text = string.upper(element.data.text)
         end,

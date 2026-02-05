@@ -796,6 +796,13 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 	if refreshType == "global" then
 
         CharacterResource.SetGlobalResource(key, CharacterResource.GetGlobalResource(key) + quantity, note)
+
+		if resource ~= nil then
+			self:DispatchEvent("gainresource", {
+				resource = string.lower(resource.name),
+				quantity = quantity,
+			})
+		end
         return
 
 
@@ -858,6 +865,13 @@ function creature:RefreshResource(key, refreshType, quantity, note)
 				animQuantity = 1
 			end
 		end
+	end
+
+	if resource ~= nil then
+		self:DispatchEvent("gainresource", {
+			resource = string.lower(resource.name),
+			quantity = quantity,
+		})
 	end
 
 	if animQuantity > 0 then

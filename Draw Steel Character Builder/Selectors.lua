@@ -501,6 +501,7 @@ local TEST_DETAIL = [[
 
 * Feature selection entries now show when they have more info to display.
 * Fixed bug preventing complication additional information from displaying.
+* Added Perks display to right side Exploration tab.
 
 **Previous Releases**
 
@@ -526,7 +527,7 @@ local TEST_DETAIL = [[
 
 # Known Issues
 
-* Exploration tab should list Perks.
+* *None?*
 
 # Reporting Issues
 

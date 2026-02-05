@@ -67,21 +67,22 @@ function DTCharSheetTab.CreateDowntimePanel()
         end,
 
         adjustRolls = function(element, amount, roller)
-            local thisTokenId = CharacterSheet.instance.data.info.token.id
+            local token = CharacterSheet.instance.data.info.token
+            local tokenId = token.id
             local rollerTokenId = roller:GetTokenID()
-            if thisTokenId ~= rollerTokenId then
-                local t = dmhub.GetCharacterById(rollerTokenId)
-                if t then
-                    t:ModifyProperties{
-                        description = "Adjust available rolls",
-                        undoable = false,
-                        execute = function ()
-                            roller:AdjustRolls(amount)
+            local dtInfo = token.properties:GetDowntimeInfo()
+            if dtInfo then
+                token:ModifyProperties{
+                    description = "Downtime Roll",
+                    undoable = false,
+                    execute = function()
+                        if rollerTokenId == tokenId then
+                            dtInfo:GrantRolls(amount)
+                        else
+                            dtInfo:GrantFollowerRolls(rollerTokenId, amount)
                         end
-                    }
-                end
-            else
-                roller:AdjustRolls(amount)
+                    end
+                }
             end
             DTSettings.Touch()
             element:FireEventTree("refreshToken")

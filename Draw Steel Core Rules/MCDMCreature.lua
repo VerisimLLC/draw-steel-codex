@@ -961,6 +961,56 @@ creature.RegisterSymbol {
     },
 }
 
+creature.RegisterSymbol {
+    symbol = "numdeadlanguages",
+    lookup = function(c)
+        local langs = c:LanguagesKnown()
+        local result = 0
+		local languagesTable = GetTableCached("languages")
+        for k,_ in pairs(langs) do
+			local lang = languagesTable[k]
+			if lang ~= nil and lang.dead then
+				result = result + 1
+			end
+		end
+
+        return result
+    end,
+    help = {
+        name = "Number Dead Languages",
+        type = "number",
+        desc = "The number of dead languages known by this creature.",
+        seealso = {},
+    },
+}
+
+creature.RegisterSymbol {
+    symbol = "deadlanguages",
+    lookup = function(c)
+        local langs = c:LanguagesKnown()
+        local result = {}
+		local languagesTable = GetTableCached("languages")
+        for k,_ in pairs(langs) do
+			local lang = languagesTable[k]
+			if lang ~= nil and lang.dead then
+				result[#result+1] = lang.name
+			end
+		end
+
+        return StringSet.new{
+			strings = result,
+		}
+    end,
+    help = {
+        name = "Dead Languages",
+        type = "set",
+        desc = "A list of dead languages known by this creature.",
+        eexamples = {
+            'Dead Languages has "Old Variac"',
+        },
+    },
+}
+
 function creature:RecoveriesAvailableToSpend()
     local usage = self:GetResourceUsage(CharacterResource.recoveryResourceId, "long") or 0
     local max = self:GetResources()[CharacterResource.recoveryResourceId] or 0

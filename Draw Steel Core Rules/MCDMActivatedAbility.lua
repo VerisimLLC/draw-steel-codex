@@ -296,6 +296,32 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 })
 
 RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "main action",
+    type = "boolean",
+    desc = "Returns true if this ability is a main action.",
+    seealso = {"action"},
+    calculate = function(c)
+
+        return c:ActionResource() == "d19658a2-4d7b-4504-af9e-1a5410fb17fd" --id of action 
+
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "maneuver",
+    type = "boolean",
+    desc = "Returns true if this ability is a maneuver.",
+    seealso = {"action"},
+    calculate = function(c)
+
+        return c:ActionResource() == "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b" --id of maneuver 
+
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "Allegiance",
     type = "string",
     desc = "Alligance of Targets for Ability. Possible values are 'ally', 'enemy', 'dead', and 'all'.",

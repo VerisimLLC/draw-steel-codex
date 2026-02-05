@@ -1065,6 +1065,23 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "gainresource",
+    text = "Gain Resource",
+    symbols = {
+        resource = {
+            name = "Resource",
+            type = "string",
+            desc = "The resource used.",
+        },
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of resources used.",
+        }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "useability",
     text = "Use an Ability",
     symbols = g_abilitySymbols,
@@ -2471,6 +2488,23 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "useresource",
     text = "Use Resource",
+    symbols = {
+        resource = {
+            name = "Resource",
+            type = "string",
+            desc = "The resource used.",
+        },
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of resources used.",
+        }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
+    id = "gainresource",
+    text = "Gain Resource",
     symbols = {
         resource = {
             name = "Resource",

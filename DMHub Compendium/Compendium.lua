@@ -2666,67 +2666,87 @@ end
 local ShowLanguagesPanel = function(parentPanel)
 	local tableName = Language.tableName
 
-	local languagePanel = Language.CreateEditor()
+	local languagesPanel = Language.CreateEditor()
 
 	local itemsListPanel = nil
 
 	local languageItems = {}
+	local sectionHeadings = {}
+	local dataItems = {}
 
-	itemsListPanel = gui.Panel{
-		classes = {'list-panel'},
+	local itemListPanel = gui.Panel{
+		classes = {"list-panel"},
 		vscroll = true,
 		monitorAssets = true,
+		create = function(element)
+			element:FireEvent("refreshAssets")
+		end,
 		refreshAssets = function(element)
-
+			local languagesTable = dmhub.GetTable(Language.tableName) or {}
 			local children = {}
-			local languagesTable = dmhub.GetTable(tableName) or {}
-			local newLanguageItems = {}
+			local newDataItems = {}
+			local newHeadings = {}
 
-			for k,item in pairs(languagesTable) do
-				newLanguageItems[k] = languageItems[k] or CreateListItem{
-					select = element.aliveTime > 0.2,
-					tableName = tableName,
+			for k,language in unhidden_pairs(languagesTable) do
+				local group = language.group or "Custom"
+
+				if newHeadings[group] == nil then
+					newHeadings[group] = sectionHeadings[group] or gui.Label{
+						data = {
+							ord = group,
+						},
+						text = group,
+						fontSize = 20,
+						bold = true,
+						width = "auto",
+						height = "auto",
+						lmargin = 4,
+					}
+
+					children[#children+1] = newHeadings[group]
+				end
+
+				newDataItems[k] = dataItems[k] or Compendium.CreateListItem{
+					tableName = Language.tableName,
 					key = k,
+					select = element.aliveTime > 0.2,
 					click = function()
-						languagePanel.data.SetLanguage(tableName, k)
+						selectedLanguageId = k
+						languagesPanel.data.SetLanguage(Language.tableName, k)
 					end,
 				}
+			
+			newDataItems[k].data.ord = group .. "-" .. language.name
+			newDataItems[k].text = language.name
+			children[#children+1] = newDataItems[k]
+		end
 
-				newLanguageItems[k].text = item.name
+		table.sort(children, function(a, b)
+			return a.data.ord < b.data.ord
+		end)
 
-				children[#children+1] = newLanguageItems[k]
-			end
+		sectionHeadings = newHeadings
+		dataItems = newDataItems
+		element.children = children
+	end,
+}
 
-			table.sort(children, function(a,b) return a.text < b.text end)
+local leftPanel = gui.Panel{
+	selfStyle = {
+		flow = 'vertical',
+		height = '100%',
+		width = 'auto',
+	},
 
-			languageItems = newLanguageItems
-			itemsListPanel.children = children
+	itemListPanel,
+	Compendium.AddButton{
+		click = function()
+			dmhub.SetAndUploadTableItem(Language.tableName, Language.CreateNew{})
 		end,
 	}
+}
 
-	itemsListPanel:FireEvent('refreshAssets')
-
-	local leftPanel = gui.Panel{
-		selfStyle = {
-			flow = 'vertical',
-			height = '100%',
-			width = 'auto',
-		},
-
-		itemsListPanel,
-
-		AddButton{
-
-			click = function(element)
-				dmhub.Debug('ADD CHARACTER RESOURCE')
-				dmhub.SetAndUploadTableItem(tableName, Language.CreateNew{
-				})
-			end,
-		}
-
-	}
-
-	parentPanel.children = {leftPanel, languagePanel}
+parentPanel.children = {leftPanel, languagesPanel}
 end
 
 --vback

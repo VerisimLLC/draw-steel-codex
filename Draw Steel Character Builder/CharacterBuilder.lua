@@ -291,11 +291,7 @@ end
 --- Returns the character sheet instance if we're operating inside it
 --- @return Panel|nil
 function CharacterBuilder._getCharacterSheet()
-    local controller = CharacterBuilder._getController()
-    if controller then
-        return controller:FindParentWithClass(CharacterBuilder.ROOT_CHAR_SHEET_CLASS)
-    end
-    return nil
+    return CharacterSheet.instance
 end
 
 --- Returns the builder controller
@@ -325,8 +321,12 @@ end
 --- Returns the character token we are working with or nil if we can't get to it
 --- @return LuaCharacterToken|nil
 function CharacterBuilder._getToken()
-    local state = CharacterBuilder._getState()
-    if state then return state:Get("token") end
+    local cs = CharacterBuilder._getCharacterSheet()
+    if cs then
+        if cs.data and cs.data.info then
+            return cs.data.info.token
+        end
+    end
     return nil
 end
 

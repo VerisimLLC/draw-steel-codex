@@ -2652,13 +2652,22 @@ CharSheet.RegisterBuilderTab{
 	ord = 35,
 	create = CharSheet.BuilderCulturePanel,
 }
+setting{
+    id = "useoldbuilder",
+    description = "Include OLD Builder",
+    editor = "check",
+    default = false,
+    storage = "preference",
+    section = "game",
+}
 
 CharSheet.RegisterTab{
 	id = "Builder",
 	text = "Builder (OLD)",
 	visible = function(c)
 		--only visible for characters.
-		return c ~= nil and c.typeName == "character"
+		return c ~= nil and c.typeName == "character" and dmhub.GetSettingValue("useoldbuilder") == true
 	end,
 	panel = CharSheet.BuilderPanel,
 }
+dmhub.RefreshCharacterSheet()

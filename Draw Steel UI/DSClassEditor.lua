@@ -677,6 +677,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 				width = 540,
 				placeholderText = "Enter prompt text...",
 				text = feature.description,
+				characterLimit = 2000,
 
 				change = function(element)
 					feature.description = element.text

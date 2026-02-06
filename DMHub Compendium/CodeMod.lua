@@ -878,8 +878,21 @@ CreateEditor = function(panelArgs)
 		height = 24,
 		halign = "left",
 		text = dmhub.version,
-
 	}
+
+    local engineVersionPanel = gui.Panel{
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        gui.Label{
+            text = "Engine Version:",
+            fontSize = 14,
+            width = "auto",
+            height = "auto",
+            valign = "center",
+        },
+        engineVersionInput,
+    }
 
     cannotCheckinText = gui.Label{
         classes = {"collapsed"},
@@ -1140,7 +1153,7 @@ CreateEditor = function(panelArgs)
 		filesTable,
 		editModButton,
 		checkoutButton,
-		engineVersionInput,
+		engineVersionPanel,
 		changenotesInput,
 		checkinButton,
         cannotCheckinText,

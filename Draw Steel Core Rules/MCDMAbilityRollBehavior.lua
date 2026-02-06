@@ -213,7 +213,7 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
 
     rollResult = rollResult or rollMessage
 
-    if not rollMessage.properties:has_key("multitargets") then
+    if rollMessage == nil or (not rollMessage.properties:has_key("multitargets")) then
         return nil
     end
 

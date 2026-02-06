@@ -2247,7 +2247,7 @@ setting{
 setting{
 	id = "popoutavatars",
 	description = "Allow Popout Avatars",
-	default = false,
+	default = true,
 	storage = "game",
 }
 

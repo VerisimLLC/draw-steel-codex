@@ -62,6 +62,13 @@ function Loc:WithAltitude(alt)
 	-- dummy implementation for documentation purposes only
 end
 
+--- WithDifferentFloor
+--- @param differentFloor number
+--- @return any
+function Loc:WithDifferentFloor(differentFloor)
+	-- dummy implementation for documentation purposes only
+end
+
 --- FloorDifference
 --- @param loc any
 --- @return number

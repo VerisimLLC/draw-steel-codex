@@ -499,6 +499,7 @@ local TEST_DETAIL = [[
 
 **Latest Release**
 
+* Added level selector to right-side panel.
 * Feature selection entries now show when they have more info to display.
 * Fixed bug preventing complication additional information from displaying.
 * Added Perks display to right side Exploration tab.

@@ -114,7 +114,7 @@ function DTProjectEditor:_createProjectForm()
                 height = 32,
                 valign = "center",
                 classes = {"DTInput", "DTBase"},
-                placeholderText = "Enter project title...",
+                placeholderText = "Enter project title or press the button to the left to select an item to craft.",
                 editlag = 0.5,
                 data = {
                     getProject = function(element)

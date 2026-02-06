@@ -130,6 +130,42 @@ SpellRenderStyles = {
         classes = {"abilitySection", "highlight"},
         bgcolor = "red",
     },
+    
+    -- Implementation chip styles
+    gui.Style{
+        classes = {"implementationChip"},
+        height = "auto",
+        width = "auto",
+        pad = 5,
+        margin = 3,
+        fontSize = 14,
+        bgimage = "panels/square.png",
+        borderColor = Styles.textColor,
+        bold = true,
+        border = 1,
+        cornerRadius = 2,
+        color = "black",
+    },
+    gui.Style{
+        classes = {"implementationChip", "wontimplement"},
+        bgcolor = Styles.ImplementationStatusColors[0],
+    },
+    gui.Style{
+        classes = {"implementationChip", "unimplemented"},
+        bgcolor = Styles.ImplementationStatusColors[1],
+    },
+    gui.Style{
+        classes = {"implementationChip", "bronze"},
+        bgcolor = Styles.ImplementationStatusColors[2],
+    },
+    gui.Style{
+        classes = {"implementationChip", "silver"},
+        bgcolor = Styles.ImplementationStatusColors[3],
+    },
+    gui.Style{
+        classes = {"implementationChip", "gold"},
+        bgcolor = Styles.ImplementationStatusColors[4],
+    },
 }
 
 local g_damageTypeColors = {
@@ -502,7 +538,7 @@ function ActivatedAbility:Render(options, params)
 				},
 
 				gui.Label{
-					text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, entry, rulesNotes, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+					text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, entry, rulesNotes, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     markdown = true,
 					bold = true,
                     hpad = 4,
@@ -890,7 +926,7 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
@@ -933,7 +969,7 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
@@ -973,7 +1009,7 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
@@ -1135,19 +1171,25 @@ function ActivatedAbility:Render(options, params)
 
                         --Implementation chip
                         gui.Label{
-                            height = "auto",
-                            width = "auto",
-                            pad = 5,
-                            margin = 3,
-                            fontSize = 14,
-                            bgimage = "panels/square.png",
-                            borderColor = Styles.textColor,
-                            bold = true,
-                            border = 1,
-                            text = cond(self:try_get("implementation", 1) == 3, "Full", cond(self:try_get("implementation", 1) == 2, "Partial", "None")),
-                            cornerRadius = 2,
-                            bgcolor = cond(self:try_get("implementation", 1) == 3, "#81c07bff", cond(self:try_get("implementation", 1) == 2, "#ebe375ff", "#ca7272ff")),
-                            color = "black",
+                            classes = {"implementationChip"},
+                            text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                            create = function(element)
+                                local impl = self:try_get("implementation", 1)
+                                -- Set the appropriate class based on implementation status
+                                if impl == 0 then
+                                    element:SetClass("wontimplement", true)
+                                elseif impl == 1 then
+                                    element:SetClass("unimplemented", true)
+                                elseif impl == 2 then
+                                    element:SetClass("bronze", true)
+                                elseif impl == 3 then
+                                    element:SetClass("silver", true)
+                                elseif impl == 4 then
+                                    element:SetClass("gold", true)
+                                else
+                                    element:SetClass("unimplemented", true)
+                                end
+                            end,
                             hover = function(element)
                                 if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
                                     element.tooltip = gui.TooltipFrame(gui.Label{

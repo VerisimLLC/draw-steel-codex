@@ -662,3 +662,42 @@ function FindAbilityParentByGuid(guid)
     
     return nil, nil
 end
+
+Commands.updateimplementationvalues = function(str)
+    local function UpdateInObject(obj, visited)
+        if type(obj) ~= "table" then
+            return
+        end
+        
+        -- Avoid infinite loops
+        if visited[obj] then
+            return
+        end
+        visited[obj] = true
+        
+        -- Check if this object has implementation field with value 4
+        if rawget(obj, "implementation") == 4 then
+            print("Updating implementation for object:", json(obj))
+            obj.implementation = 0
+        end
+        
+        -- Recursively search in child objects
+        for k, v in pairs(obj) do
+            if type(v) == "table" and not string.starts_with(tostring(k), "_tmp") then
+                UpdateInObject(v, visited)
+            end
+        end
+    end
+    
+    -- Search through all tables in the system
+    local tables = dmhub.GetTableTypes()
+    for _, tableid in ipairs(tables) do
+        local t = dmhub.GetTable(tableid) or {}
+        for key, obj in unhidden_pairs(t) do
+            if type(obj) == "table" and not string.starts_with(tostring(key), "_tmp") then
+                local visited = {}
+                UpdateInObject(obj, visited)
+            end
+        end
+    end
+end

@@ -678,7 +678,7 @@ CharacterModifier.TypeInfo.power = {
                             tier = string.format("%s%s; %s %s", match.prefix, match.damage, extraDamage, match.suffix)
                         else
                             --just put damage at the front.
-                            tier = string.format("%d %s damage; %s", extraDamage, tier)
+                            tier = string.format("%s; %s", extraDamage, tier)
                         end
                     end
 

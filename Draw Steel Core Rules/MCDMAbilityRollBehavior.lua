@@ -990,7 +990,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     end
 
     for i,tier in ipairs(tiers) do
-        tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tiers[i], nil, ability:try_get("implementation", 1) >= gui.ImplementationStatus.Full)
+        tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tiers[i], nil, ability:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze)
     end
 
     local multitargetProperties = nil

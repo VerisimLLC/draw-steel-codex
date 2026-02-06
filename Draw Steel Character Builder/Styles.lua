@@ -8,11 +8,13 @@ local DEBUG_PANEL_BG = false
 
 CBStyles.COLORS = {
     BLACK = "#000000",
+    BLACK02 = "#10110F",
     BLACK03 = "#191A18",
     CREAM = "#BC9B7B",
     CREAM03 = "#DFCFC0",
     GOLD = "#966D4B",
     GOLD03 = "#F1D3A5",
+    GOLD04 = "#E9B86F",
     GRAY02 = "#666663",
     PANEL_BG = "#080B09",
     GRAY_TRANSPARENT = "#10110FF3",
@@ -29,7 +31,7 @@ CBStyles.COLORS = {
 CBStyles.SIZES = {
     -- Panels
     CHARACTER_PANEL_WIDTH = 447,
-    CHARACTER_PANEL_HEADER_HEIGHT = 270,
+    CHARACTER_PANEL_HEADER_HEIGHT = 310,
 
     DESCRIPTION_PANEL_WIDTH = 450,
 
@@ -670,7 +672,7 @@ local function _labelStyles()
             valign = "top",
             textAlignment = "center",
             fontSize = 24,
-            tmargin = 12,
+            tmargin = 6,
         },
 
         -- Dialog
@@ -962,25 +964,31 @@ local function _buttonStyles()
             selectors = {"selector"},
             valign = "top",
             halign = "center",
+            width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+            height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
             bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN,
             fontSize = 24,
-            bold = false,
-            cornerRadius = 5,
-            border = 1,
             borderWidth = 1,
-            borderColor = CBStyles.COLORS.GOLD03,
-            color = CBStyles.COLORS.GOLD03,
+            cornerRadius = 2,
+            borderColor = CBStyles.COLORS.GOLD,
+            color = CBStyles.COLORS.GOLD,
         },
         {
-            selectors = {"selector", "destructive"},
-            borderColor = CBStyles.COLORS.DESTRUCTIVE_BORDER,
-            bgcolor = CBStyles.COLORS.DESTRUCTIVE_BG,
-            color = CBStyles.COLORS.DESTRUCTIVE_TEXT,
+            selectors = {"selector", "hover"},
+            bgcolor = CBStyles.COLORS.GOLD04,
+            color = CBStyles.COLORS.BLACK02,
         },
+        -- {
+        --     selectors = {"selector", "destructive"},
+        --     borderColor = CBStyles.COLORS.DESTRUCTIVE_BORDER,
+        --     bgcolor = CBStyles.COLORS.DESTRUCTIVE_BG,
+        --     color = CBStyles.COLORS.DESTRUCTIVE_TEXT,
+        -- },
         {
             selectors = {"destructive", "hover"},
-            bgcolor = "#330000",
-            color = "#9F0000",
+            bgcolor = "#D5303188",
+            borderColor = "#D53031",
+            color = "white",
         }
     })
 end
@@ -1023,16 +1031,24 @@ local function _dropdownStyles()
             cornerRadius = 4,
             borderWidth = 2,
         },
-        -- {
-        --     selectors = {"dropdownLabel"},
-        --     textAlignment = "left",
-        --     halign = "left",
-        -- },
         {
             selectors = {"primary"},
             height = 48,
             fontSize = 20,
         },
+        {
+            selectors = {"charlevel"},
+            width = "240",
+            height = 32,
+            bgcolor = "#0a0c0b",
+            borderWidth = 1,
+            halign = "center",
+            tmargin = 4,
+        },
+        {
+            selectors = {"charlevel", "hover"},
+            color = Styles.textColor,
+        }
     })
 end
 

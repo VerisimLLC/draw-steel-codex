@@ -27,11 +27,10 @@ function CBAncestryDetail._navPanel()
         data = { category = "lore" },
     })
 
-    local changeButton = gui.PrettyButton{
+    local changeButton = gui.Button{
         classes = {"changeAncestry", "builder-base", "button", "selector", "destructive"},
-        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
-        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Change Ancestry",
+        bold = false,
         data = { category = "change" },
         press = function(element)
             _fireControllerEvent("removeAncestry")
@@ -46,11 +45,10 @@ function CBAncestryDetail._navPanel()
         end,
     }
 
-    local selectButton = gui.PrettyButton{
+    local selectButton = gui.Button{
         classes = {"changeAncestry", "builder-base", "button", "selector"},
-        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
-        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Select Ancestry",
+        bold = false,
         data = { category = "select" },
         press = function(element)
             _fireControllerEvent("applyCurrentAncestry")

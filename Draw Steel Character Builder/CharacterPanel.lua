@@ -896,18 +896,82 @@ function CBCharPanel._headerPanel()
         end,
     }
 
-    local levelClass = gui.Label {
+    local level = gui.Dropdown{
+        classes = {"panel-base", "dropdown", "charlevel"},
+        fontSize = 26,
+        options = {
+            { id = "first", text = "First Encounter",},
+            { id = "second", text = "Second Encounter",},
+            { id = "third", text = "Third Encounter",},
+            { id = "fourth", text = "Fourth Encounter",},
+            { id = 1, text = "Level 1",},
+            { id = 2, text = "Level 2",},
+            { id = 3, text = "Level 3",},
+            { id = 4, text = "Level 4",},
+            { id = 5, text = "Level 5",},
+            { id = 6, text = "Level 6",},
+            { id = 7, text = "Level 7",},
+            { id = 8, text = "Level 8",},
+            { id = 9, text = "Level 9",},
+            { id = 10, text = "Level 10",},
+        },
+
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            if hero then
+                local level = hero:CharacterLevel()
+                if level == 1 then
+                    local extra = hero:ExtraLevelInfo()
+                    if type(extra.encounter) == "number" then
+                        local mapping = {"first", "second", "third", "fourth"}
+                        element.idChosen = mapping[extra.encounter] or 1
+                    else
+                        element.idChosen = 1
+                    end
+                else
+                    element.idChosen = hero:CharacterLevel()
+                end
+            end
+        end,
+
+        change = function(element)
+            local hero = _getHero()
+            if hero then
+                local extra = hero:ExtraLevelInfo()
+                if type(element.idChosen) == "string" then
+                    hero.levelOverride = 1
+                    if element.idChosen == "first" then
+                        extra.encounter = 1
+                    elseif element.idChosen == "second" then
+                        extra.encounter = 2
+                    elseif element.idChosen == "third" then
+                        extra.encounter = 3
+                    else
+                        extra.encounter = 4
+                    end
+                else
+                    extra.encounter = nil
+                    hero.levelOverride = element.idChosen
+                end
+                hero.extraLevelInfo = extra
+
+                for _,classInfo in ipairs(hero:try_get("classes", {})) do
+                    classInfo.level = hero.levelOverride
+                end
+
+                _fireControllerEvent("tokenDataChanged")
+            end
+        end
+    }
+
+    local class = gui.Label {
         classes = {"builder-base", "label", "charname"},
-        text = "(class & level)",
-        tmargin = 4,
+        text = "Hero",
         refreshBuilderState = function(element, state)
             local hero = _getHero()
             if hero then
                 local class = hero:GetClass()
-                local level = hero:CharacterLevel()
-                if class or level then
-                    element.text = string.format("Level %d %s", level, class and class.name or ""):upper()
-                end
+                element.text = (class and class.name or "Hero"):upper()
             end
         end,
     }
@@ -921,7 +985,8 @@ function CBCharPanel._headerPanel()
         valign = "top",
         avatar,
         characterName,
-        levelClass,
+        level,
+        class,
     }
 end
 

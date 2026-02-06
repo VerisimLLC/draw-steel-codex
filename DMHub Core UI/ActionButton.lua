@@ -381,7 +381,7 @@ function gui.SelectorButton(options)
     local labelClasses = {"selector-button-label"}
     if opts.classes and #opts.classes > 0 then
         table.move(opts.classes, 1, #opts.classes, #classes + 1, classes)
-        -- table.move(opts.classes, 1, #opts.classes, #buttonClasses + 1, buttonClasses)
+        table.move(opts.classes, 1, #opts.classes, #buttonClasses + 1, buttonClasses)
         -- table.move(opts.classes, 1, #opts.classes, #labelClasses + 1, labelClasses)
     end
 

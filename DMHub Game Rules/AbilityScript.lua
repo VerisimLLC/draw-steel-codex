@@ -104,6 +104,7 @@ function ActivatedAbilityScriptBehavior:EditorItems(parentPanel)
             halign = "left",
             multiline = true,
             text = self.code,
+            characterLimit = 10000,
             textAlignment = "topleft",
             change = function(element)
                 self.code = element.text

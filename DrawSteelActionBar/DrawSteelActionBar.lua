@@ -1049,7 +1049,7 @@ local function CreateActionBar()
                 g_token = dmhub.selectedOrPrimaryTokens[1]
             end
 
-            if g_token == nil then
+            if g_token == nil or not g_token.valid then
                 g_abilities = {}
                 g_prevCharid = nil
                 element:SetClass("hidden", true)

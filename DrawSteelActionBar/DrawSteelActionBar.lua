@@ -4353,8 +4353,9 @@ end
 
 local g_potentialTargetTokens = {}
 
-local function CalculateSpellTargetFocusing(range)
+local function CalculateSpellTargetFocusing(symbols)
 
+    local range = symbols.range
 
     local potentialTargetTokens = {}
     assert(g_currentAbility ~= nil)
@@ -4390,7 +4391,7 @@ local function CalculateSpellTargetFocusing(range)
                     canTarget = false
                 end
 
-                if g_currentSymbols ~= nil and g_currentSymbols.forbiddentargets ~= nil and g_currentSymbols.forbiddentargets[targetToken.charid] then
+                if symbols ~= nil and symbols.forbiddentargets ~= nil and symbols.forbiddentargets[targetToken.charid] then
                     canTarget = false
                 end
 
@@ -4413,7 +4414,7 @@ local function CalculateSpellTargetFocusing(range)
                 local failReason = nil
 
                 if canTarget then
-                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, g_currentSymbols)
+                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
                     if failReason ~= nil then
                         canTarget = true
                     end
@@ -4591,10 +4592,11 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
             print("MovementRadius:: RANGE", range)
+            g_currentSymbols.numberoftargets = #targets
             g_currentSymbols.range = range
             g_range = range
 
-            g_potentialTargetTokens = CalculateSpellTargetFocusing(g_range)
+            g_potentialTargetTokens = CalculateSpellTargetFocusing(g_currentSymbols)
 
             --refresh the radius marker.
             if g_currentAbility.targetType == "line" then

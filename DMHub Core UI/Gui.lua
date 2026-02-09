@@ -2096,7 +2096,7 @@ function gui.TreeNode(args)
 	local editable = options.editable
 	options.editable = nil
 
-	local characterLimit = options.characterLimit or 16
+	local characterLimit = options.characterLimit or 32
 	options.characterLimit = nil
 
 	local dragTarget = options.dragTarget

@@ -955,6 +955,7 @@ function creature:FillCalculatedStatusIcons(result)
             icon = "ui-icons/eye.png",
             hoverText = "Concealed",
             statusIcon = true,
+            statusText = "Concealed",
         }
     end
 
@@ -974,6 +975,7 @@ function creature:FillCalculatedStatusIcons(result)
 				icon = conditionInfo.iconid,
 				style = conditionInfo.display,
 				hoverText = string.format("%s%s: %s\n\n<b>%s</b>", conditionInfo.name, quantityText, conditionInfo.description, explanation),
+                statusText = conditionInfo.name,
 				quantity = v,
 				statusIcon = true,
 			}
@@ -1004,6 +1006,7 @@ function creature:FillCalculatedStatusIcons(result)
                     icon = conditionInfo.iconid,
                     style = conditionInfo.display,
                     hoverText = hoverText,
+                    statusText = conditionInfo.name,
                     quantity = v.stacks,
                     statusIcon = true,
                     casterid = casterid,
@@ -1791,6 +1794,7 @@ end
 -- returns: { damageDealt = number }
 function creature.InflictDamageInstance(self, amount, damageType, keywords, sourceDescription, symbols)
 	amount = math.floor(amount)
+	local originalAmount = amount
 	local resistanceEntry = self:DamageResistance(damageType, keywords)
 	local resistance = resistanceEntry.resistance
 
@@ -1837,7 +1841,9 @@ function creature.InflictDamageInstance(self, amount, damageType, keywords, sour
     end
 
 	symbols = symbols or {}
+	symbols.rawdamage = originalAmount
 	symbols.damagetype = damageType
+	symbols.damageimmunity = resistanceEntry
     symbols.damagesound = symbols.damagesound
 	symbols.sourcedescription = sourceDescription
     symbols.keywords = StringSet.new{
@@ -3470,8 +3476,8 @@ end
 
 function creature:IsActivatedAbilityInnate(ability)
 	for i,a in ipairs(self.innateActivatedAbilities) do
-		if a == ability then
-			return true
+		if a == ability or a.guid == ability.guid then
+			return a
 		end
 	end
 
@@ -3481,7 +3487,7 @@ end
 function creature:RemoveInnateActivatedAbility(ability)
 	local abilities = {}
 	for i,a in ipairs(self.innateActivatedAbilities) do
-		if a ~= ability then
+		if a ~= ability and a.guid ~= ability.guid then
 			abilities[#abilities+1] = a
 		end
 	end
@@ -5659,11 +5665,11 @@ function creature:OnMove(path)
         }
     })
 
-    if path.shifting or path.forced then
+    if path.forced then
         return
     end
 
-    local immuneFromOpportunityAttacks = self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0
+    local immuneFromOpportunityAttacks = path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
 
 
     local allTokens = dmhub.allTokens
@@ -5802,6 +5808,11 @@ PathMoved.helpSymbols = {
         type = "boolean",
         desc = "Whether this path was a forced move.",
     },
+    verticalonly = {
+        name = "Vertical Only",
+        type = "boolean",
+        desc = "Whether this path only moved vertically (no horizontal movement).",
+    },
     distancetocreature = {
         name = "Distance to Creature",
         type = "function",
@@ -5832,6 +5843,16 @@ PathMoved.lookupSymbols = {
 
     forced = function(c)
         return c.path.forced
+    end,
+
+    verticalonly = function(c)
+        for i,step in ipairs(c.path.steps) do
+            if step.x ~= c.path.steps[1].x or step.y ~= c.path.steps[1].y then
+                return false
+            end
+        end
+
+        return true
     end,
 
     distancetocreature = function(c)
@@ -5987,6 +6008,8 @@ function creature:IsOurTurn()
 end
 
 function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, options)
+
+    print("Caster:: Info:", casterInfo, json(casterInfo))
 
 	--use this as an opportunity to clean up any ongoingEffects that are no longer active.
 	self.ongoingEffects = self:ActiveOngoingEffects(true)
@@ -6426,6 +6449,10 @@ function creature:MatchesString(viewingToken, token, str)
         return true
     end
 
+    if str == "minion" then
+        return self.minion
+    end
+
     local features = self:GetFeatures()
     local modifiers = self:GetActiveModifiers()
     if string.find(str, "*") then
@@ -6837,6 +6864,18 @@ creature.helpSymbols = {
 		type = "function",
 		desc = "Given the name of a condition or ongoing effect, will return the creature that cast that condition or ongoing effect on this creature.",
 	},
+
+    squadcaster = {
+        name = "SquadCaster",
+        type = "function",
+        desc = "Given the name of an ongoing effect, will return the squad that cast that ongoing effect on this creature.",
+    },
+
+    squadlivemembers = {
+        name = "SquadLiveMembers",
+        type = "function",
+        desc = "Given the name of a squad, will return the number of members who are alive.",
+    },
 
 	conditions = {
 		name = "Conditions",
@@ -7377,6 +7416,41 @@ creature.lookupSymbols = {
 
 		return nil
 	end,
+
+    squadcaster = function(c)
+        return function(condname)
+			condname = string.lower(condname)
+
+			local seqFound = -1
+			local result = nil
+
+			local ongoingEffectsTable = GetTableCached("characterOngoingEffects")
+			local ongoingEffects = c:ActiveOngoingEffects()
+			local conditionsTable = GetTableCached(CharacterCondition.tableName)
+			for i,effectInfo in ipairs(ongoingEffects) do
+				if effectInfo.seq > seqFound and effectInfo:try_get("casterInfo") ~= nil then
+					local ongoingEffectInfo = ongoingEffectsTable[effectInfo.ongoingEffectid]
+					local cond = conditionsTable[ongoingEffectInfo.condition]
+					if (cond ~= nil and string.lower(cond.name) == condname) or string.lower(ongoingEffectInfo.name) == condname then
+                        return effectInfo.casterInfo.minionSquad
+					end
+				end
+			end
+
+			return result
+        end
+    end,
+
+    squadlivemembers = function(c)
+        return function(squadid)
+            local entry = creature.GetMinionSquadInfoForNamedSquad(squadid)
+            if entry == nil then
+                return 0
+            end
+
+            return entry.liveMinions or 0
+        end
+    end,
 
 	conditioncaster = function(c)
 		return function(condname)
@@ -8169,8 +8243,6 @@ function creature:DispatchEvent(eventName, info, onCompleteCallback)
 		end
 	end
 
-    --print("DISPATCH:: HAVE TRIGGER:", hasTrigger)
-
 	if hasTrigger == false then
 		--still remove any ongoing effects.
 		self:RemoveOngoingEffectsOnTrigger(eventName, info)
@@ -8182,8 +8254,6 @@ function creature:DispatchEvent(eventName, info, onCompleteCallback)
 
 	local token = dmhub.LookupToken(self)
 	local activecontroller = token.activeControllerId
-
-    --print("DISPATCH:: token =", creature.GetTokenDescription(token), "active controller =", activecontroller, "from event", eventName, "vs", dmhub.userid)
 
 	--we are the best choice to handle this event.
 	if activecontroller == nil then
@@ -8412,6 +8482,7 @@ end
 
 --- @param triggerInfo ActiveTrigger
 function creature:DispatchAvailableTrigger(triggerInfo)
+    print("RECALCULATE:: DISPATCH TRIGGER:", triggerInfo)
     if triggerInfo.clearOnDismiss and (triggerInfo.dismissed or (self:get_or_add("_tmp_clearedTriggers", {})[triggerInfo.id] == true)) then
         self:ClearAvailableTrigger(triggerInfo)
         return
@@ -8446,6 +8517,7 @@ function creature:DispatchAvailableTrigger(triggerInfo)
 end
 
 function creature:ClearAvailableTrigger(triggerInfo)
+    print("RECALCULATE:: CLEAR TRIGGER:", triggerInfo)
     local clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
     clearedTriggers[triggerInfo.id] = true
 
@@ -9714,6 +9786,12 @@ function creature:IsValid()
 		end
 	end
 
+    for _,a in ipairs(self:try_get("persistentAbilities", {})) do
+        if a.ability ~= nil and (type(a.ability) ~= "table" or getmetatable(a.ability) == nil) then
+            return false
+        end
+    end
+
 	for k,resource in pairs(self:try_get("resources", {})) do
 		if type(resource) ~= "table" or getmetatable(resource) == nil then
 			return false
@@ -9850,6 +9928,19 @@ function creature:Repair(localOnly)
 	for _,ability in ipairs(deleteList) do
 		self:RemoveInnateActivatedAbility(ability)
 	end
+
+    deleteList = {}
+
+    for i,a in ipairs(self:try_get("persistentAbilities", {})) do
+        if a.ability ~= nil and (type(a.ability) ~= "table" or getmetatable(a.ability) == nil) then
+            deleteList[#deleteList+1] = i
+        end
+    end
+
+    for i=#deleteList,1,-1 do
+        printf("Creature validation: removing invalid persistent ability from character %s", charid)
+        table.remove(self.persistentAbilities, deleteList[i])
+    end
 
 	deleteList = {}
 

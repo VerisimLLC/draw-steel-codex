@@ -979,6 +979,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 			--gamehud:CreateChatPanel(),
 			gamehud:CreateFrozenLabel(),
 			gamehud:CreateDocks(),
+            gamehud:CreateAbilityDisplayPanel(),
 			gamehud:CreateDocumentsPanel(),
 			mainDialogPanel,
 			gamehud:ModalDialogPanel(),
@@ -1028,6 +1029,24 @@ GameHud.InvalidateGameHud()
 ---@param args {id: string, create: function, keeplocal: nil|boolean}
 function GameHud.RegisterPresentableDialog(args)
     g_presentableDialogs[args.id] = args
+end
+
+function GameHud:CreateAbilityDisplayPanel()
+    self.abilityDisplayPanel = gui.Panel{
+        height = "100%",
+        width = 360,
+        rmargin = 364,
+        halign = "right",
+        valign = "center",
+        interactable = false,
+    }
+
+    self:InitAbilityDisplayPanel(self.abilityDisplayPanel)
+
+    return self.abilityDisplayPanel
+end
+
+function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 end
 
 --return the presented dialog doc, if it exists and matches the given dialogid.

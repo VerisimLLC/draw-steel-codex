@@ -5,15 +5,15 @@
 --- @field south any 
 --- @field withCurrentFloor any 
 --- @field isValidFloor boolean 
---- @field x any 
---- @field y any 
---- @field floor any 
---- @field altitude any 
+--- @field x number 
+--- @field y number 
+--- @field floor number 
+--- @field altitude number 
 --- @field xyfloorOnly any 
 --- @field xyOnly any 
---- @field isOnMap any 
+--- @field isOnMap boolean 
 --- @field withGroundAltitude any 
---- @field valid any 
+--- @field valid boolean 
 --- @field point2 any 
 --- @field point3 any 
 --- @field str string 
@@ -59,6 +59,13 @@ end
 --- @param alt number
 --- @return any
 function Loc:WithAltitude(alt)
+	-- dummy implementation for documentation purposes only
+end
+
+--- WithDifferentFloor
+--- @param differentFloor number
+--- @return any
+function Loc:WithDifferentFloor(differentFloor)
 	-- dummy implementation for documentation purposes only
 end
 

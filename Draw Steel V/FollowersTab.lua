@@ -66,7 +66,12 @@ local Styles = {
     }
 }
 
-local retainerDropdownOptions, retainerLookup = buildRetainerList()
+local retainerDropdownOptions = {}
+local retainerLookup = {} 
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    retainerDropdownOptions, retainerLookup = buildRetainerList()
+end)
 
 FollowerTokenDropdownOptions = function(partyid, alliesOnly)
         local results = {
@@ -289,6 +294,7 @@ function CharSheet.FollowersInnerPanel()
                     idChosen = "none",
 
                     refreshAll = function(element)
+                        retainerDropdownOptions, retainerLookup = buildRetainerList()
                         element.idChosen = options.pregenid or "none"
                     end,
 

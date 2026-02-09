@@ -54,7 +54,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
 
     -- Build targetsContainer
     local targetsContainerDef = _mergeKeyedTables({
-        classes = {"builder-base", "panel-base", "container"},
+        classes = {"builder-base", "panel-base", "container", "feature-targets-drop"},
         flow = "vertical",
         data = {},
     }, overrides.targetsContainer)
@@ -62,7 +62,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
 
     -- Build optionsContainer
     local optionsContainerDef = _mergeKeyedTables({
-        classes = {"builder-base", "panel-base", "container"},
+        classes = {"builder-base", "panel-base", "container", "feature-options-drop"},
         data = {},
     }, overrides.optionsContainer)
     local optionsContainer = overrides.optionsContainer and gui.Panel(optionsContainerDef)
@@ -115,7 +115,7 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
     local scrollPanel = gui.Panel{
         classes = {"builder-base", "panel-base"},
         width = "100%",
-        height = "100%",
+        height = "100% available",
         halign = "left",
         valign = "top",
         flow = "vertical",
@@ -136,30 +136,15 @@ function CBFeatureSelector.BuildSelectorPanel(overrides)
         _functionOrValue(injections.afterOptions),
     }
 
-    local bottomDivider = gui.MCDMDivider{
-        classes = {"builder-divider"},
-        layout = "line",
-        width = "96%",
-        vpad = 4,
-        bgcolor = "white"
-    }
-
-    -- Build selectButton
-    local selectButtonDef = _mergeKeyedTables({
-        data = {},
-        bmargin = -40,
-    }, overrides.selectButton)
-    local selectButton = overrides.selectButton and CharacterBuilder._makeSelectButton(selectButtonDef)
-
     -- Build children array
-    local children = { headerPanel, targetsPanel, optionsPanel, bottomDivider, selectButton }
+    local children = { headerPanel, targetsPanel, optionsPanel }
     table.move(extraChildren, 1, #extraChildren, #children + 1, children)
 
     -- Build mainPanel - merge but protect children
     local mainPanelDef = _mergeKeyedTables({
         classes = {controllerClass, "builder-base", "panel-base"},
         width = "98%",
-        height = "100%-42",
+        height = "100%-4",
         halign = "left",
         flow = "vertical",
         data = {},
@@ -203,11 +188,29 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 itemIndex = itemIndex,
                 option = nil,
             },
+            doubleclick = function(element)
+                element:FireEvent("removeItem")
+            end,
             press = function(element)
                 if element.data.option == nil then return end
                 local controller = getFeatureSelController(element)
                 if controller then
                     controller:FireEvent("selectTarget", element.data.option:GetGuid())
+                end
+            end,
+            canDragOnto = function(element, target)
+                if target == nil then return false end
+                if not target:HasClass("feature-choice") then return false end
+                return element.data.option ~= nil
+            end,
+            drag = function(element, target)
+                if target == nil then return end
+                local option = element.data.option
+                if option == nil then return end
+
+                local controller = getFeatureSelController(element)
+                if controller then
+                    controller:FireEvent("removeItem", option)
                 end
             end,
             refreshBuilderState = function(element, state)
@@ -233,25 +236,62 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 element:FireEventTree("updateName", name)
                 element:FireEventTree("updateDesc", option and option:GetDescription() or "")
 
-                -- Workaround: Options never have panels but choices do.
                 local isSelected = false
+                local panelFn = nil
                 if option and cachedFeature then
+                    panelFn = option:Panel()
+                    if panelFn == nil then
+                        -- WORKAROUND: Check in the choice
+                        local choice = cachedFeature:GetChoice(option:GetGuid())
+                        if choice then panelFn = choice:Panel() end
+                    end
                     isSelected = cachedFeature:GetSelectedOptionId() == option:GetGuid()
-                    local choice = cachedFeature:GetChoice(option:GetGuid())
-                    element:FireEventTree("customPanel", choice and choice:Panel())
                 end
+                element:FireEventTree("customPanel", panelFn)
                 element:SetClass("filled", option ~= nil)
                 element:SetClass("selected", isSelected)
+
+                -- Enable dragging for filled target slots
+                local canDrag = option ~= nil
+                element.draggable = canDrag
+                element.dragTarget = true  -- Always a drag target (empty or filled)
+                element.hoverCursor = canDrag and "hand" or nil
             end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-target"},
-                text = "Empty Slot",
-                updateName = function(element, text)
-                    if element.text ~= text then element.text = text end
+            removeItem = function(element)
+                if element.data.option then
+                    local controller = getFeatureSelController(element)
+                    if controller then
+                        controller:FireEvent("removeItem", element.data.option)
+                    end
+                end
+            end,
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "container"},
+                flow = "horizontal",
+                height = "auto",
+                width = "98%",
+                halign = "center",
+                refreshBuilderState = function(element, state)
+                    element:SetClass("filled", element.parent:HasClass("filled"))
+                    element:SetClass("selected", element.parent:HasClass("selected"))
                 end,
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-toggle", "collapsed"},
+                    customPanel = function(element, panelFn)
+                        element:SetClass("collapsed", panelFn == nil)
+                    end,
+                },
+                gui.Label{
+                    classes = {"builder-base", "label", "feature-target"},
+                    text = "Empty Slot",
+                    updateName = function(element, text)
+                        if element.text ~= text then element.text = text end
+                    end,
+                },
             },
             gui.Label{
                 classes = {"builder-base", "label", "feature-target", "desc"},
+                markdown = true,
                 updateDesc = function(element, text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
@@ -279,6 +319,16 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
                     element:SetClass("collapsed-anim", not visible)
                 end,
+            },
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-selector", "remove"},
+                floating = true,
+                press = function(element)
+                    element.parent:FireEvent("removeItem")
+                end,
+                refreshBuilderState = function(element, state)
+                    element:SetClass("collapsed", not element.parent:HasClass("filled"))
+                end
             }
         }
     end
@@ -316,6 +366,54 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             assignItem = function(element, option)
                 element.data.option = option
             end,
+            canDragOnto = function(element, target)
+                if target == nil then return false end
+                if not target:HasClass("feature-target") then return false end
+
+                local state = _getState()
+                if state == nil then return false end
+
+                local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                if blockSel then return false end
+
+                local option = element.data.option
+                if option == nil then return false end
+
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature == nil then return false end
+
+                return cachedFeature:AllowSelection(option:GetGuid())
+            end,
+            drag = function(element, target)
+                if target == nil then return end
+                local option = element.data.option
+                if option == nil then return end
+
+                local controller = getFeatureSelController(element)
+                if controller then
+                    controller:FireEvent("applyItem", option)
+                end
+            end,
+            doubleclick = function(element)
+                element:FireEvent("selectItem")
+            end,
+            hover = function(element)
+                local state = _getState()
+                local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                if blockSel then
+                    local tip = string.format("Select your %s before chooing features.", CharacterBuilder._ucFirst(selector))
+                    gui.Tooltip{
+                        halign = "center",
+                        valign = "top",
+                        hmargin = 20,
+                        vmargin = 20,
+                        text = tip,
+                        fontSize = 16,
+                        bgimage = true,
+                        bgcolor = CBStyles.COLORS.GOLD,
+                    }(element)
+                end
+            end,
             press = function(element)
                 if element.data.option == nil then return end
                 local controller = getFeatureSelController(element)
@@ -340,18 +438,53 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 element:FireEventTree("updateName", name)
                 element:FireEventTree("updateDesc", option:GetDescription())
                 element:FireEventTree("customPanel", option:Panel())
+
+                -- Enable dragging if selection is allowed
+                local canDrag = false
+                if visible and cachedFeature and option then
+                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                    canDrag = not blockSel and cachedFeature:AllowSelection(option:GetGuid())
+                end
+                element.draggable = canDrag
+                element.dragTarget = true
+                element.hoverCursor = canDrag and "hand" or nil
             end,
-            gui.Label{
-                classes = {"builder-base", "label", "feature-choice"},
-                text = "",
-                updateName = function(element, text)
-                    if element.text ~= text then element.text = text end
+            selectItem = function(element)
+                if element.data.option then
+                    local controller = getFeatureSelController(element)
+                    if controller then
+                        controller:FireEvent("applyItem", element.data.option)
+                    end
+                end
+            end,
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "container"},
+                flow = "horizontal",
+                height = "auto",
+                width = "98%",
+                halign = "center",
+                refreshBuilderState = function(element, state)
+                    element:SetClass("selected", element.parent:HasClass("selected"))
                 end,
+                gui.Panel{
+                    classes = {"builder-base", "panel-base", "feature-toggle", "collapsed"},
+                    customPanel = function(element, panelFn)
+                        element:SetClass("collapsed", panelFn == nil)
+                    end,
+                },
+                gui.Label{
+                    classes = {"builder-base", "label", "feature-choice"},
+                    text = "",
+                    updateName = function(element, text)
+                        if element.text ~= text then element.text = text end
+                    end,
+                },
             },
             gui.Label{
                 classes = {"builder-base", "label", "feature-choice", "desc"},
                 textAlignment = "left",
                 text = "",
+                markdown = true,
                 updateDesc = function(element, text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)
@@ -379,6 +512,30 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                     local visible = element.data.panelFn ~= nil and element.parent:HasClass("selected")
                     element:SetClass("collapsed-anim", not visible)
                 end,
+            },
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "feature-selector", "select"},
+                floating = true,
+                rotate = -90,
+                hover = function(element)
+                    gui.Tooltip("Select")(element)
+                end,
+                press = function(element)
+                    element.parent:FireEvent("selectItem")
+                end,
+                refreshBuilderState = function(element, state)
+                    local visible = false
+                    local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                    if not blockSel then
+                        local cachedFeature = getCachedFeature(state, element.parent.data.featureId)
+                        local option = element.parent.data.option
+                        if cachedFeature and option then
+                            visible = cachedFeature:AllowSelection(element.parent.data.option:GetGuid())
+                        end
+                    end
+                    element:SetClass("collapsed", not visible)
+                    element.interactable = visible
+                end
             }
         }
     end
@@ -403,61 +560,32 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         end,
     }
 
-    local selectButton = {
-        data = {
-            featureId = feature:GetGuid(),
-            selectMode = SELECT_MODES.SELECT,
-        },
-        press = function(element)
-            local controller = getFeatureSelController(element)
-            if controller then
-                controller:FireEvent("applyCurrentItem", element.data.selectMode)
-            end
-        end,
-        refreshBuilderState = function(element, state)
-            local mode = element.data.selectMode
-            local visible = false
-            local enabled = false
-            local cachedFeature = getCachedFeature(state, element.data.featureId)
-            if cachedFeature then
-                visible = true
-                enabled = SELECT_MODES[mode] ~= nil and (SELECT_MODES[mode] == SELECT_MODES.REMOVE or cachedFeature:AllowCurrentSelection())
-            end
-            element.text = string.upper(SELECT_MODES[mode] or "unknown mode")
-            element:SetClass("collapsed", not visible)
-            element:SetClass("disabled", not enabled)
-            element.interactable = visible and enabled
-        end,
-        setSelectMode = function(element, mode)
-            element.data.selectMode = mode
-        end,
-    }
-
     local mainPanel = {
         data = {
             featureId = feature:GetGuid(),
         },
-        applyCurrentItem = function(element, mode)
-            if SELECT_MODES[mode] == nil then return end
+        applyItem = function(element, option)
             local state = _getState()
-            if state then
+            local hero = _getHero()
+            if state and hero then
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
-                    local selectedOption = cachedFeature:GetSelectedOption()
-                    if selectedOption then
-                        local hero = _getHero()
-                        if hero then
-                            local actionComplete = false
-                            if mode == SELECT_MODES.REMOVE then
-                                actionComplete = cachedFeature:RemoveSelection(hero, selectedOption)
-                            else
-                                actionComplete = cachedFeature:SaveSelection(hero, selectedOption)
-                            end
-                            if actionComplete then
-                                _fireControllerEvent("tokenDataChanged")
-                                return
-                            end
-                        end
+                    local actionComplete = cachedFeature:SaveSelection(hero, option)
+                    if actionComplete then
+                        _fireControllerEvent("tokenDataChanged")
+                    end
+                end
+            end
+        end,
+        removeItem = function(element, option)
+            local state = _getState()
+            local hero = _getHero()
+            if state and hero then
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature then
+                    local actionComplete = cachedFeature:RemoveSelection(hero, option)
+                    if actionComplete then
+                        _fireControllerEvent("tokenDataChanged")
                     end
                 end
             end
@@ -496,16 +624,25 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         local faces = CharacterBuilder._validateRollFaces(rollInfo.rollFaces)
         roller = gui.UserDice{
             floating = true,
-            halign = "left",
-            valign = "bottom",
-            hmargin = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
-            bmargin = -40,
             width = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
             height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
+            halign = "left",
+            valign = "top",
+            hmargin = 8,
+            tmargin = 6,
             faces = faces,
+            data= {
+                featureId = feature:GetGuid(),
+            },
             press = function(element)
+                local state = _getState()
+                if state == nil then return end
                 local hero = _getHero()
                 if hero == nil then return end
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature == nil then return end
+                local controller = getFeatureSelController(element)
+                if controller == nil then return end
                 element:SetClass("collapsed-anim", true)
                 dmhub.Roll{
                     roll = rollInfo.roll,
@@ -516,12 +653,16 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         if rowIndex == nil then return end
 
                         local row = rollTable.rows[rowIndex]
-                        element.parent:FireEvent("selectChoice", row.id)
-                        element.parent:FireEvent("applyCurrentItem", SELECT_MODES.SELECT)
+                        local option = cachedFeature:GetOption(row.id)
+                        controller:FireEvent("applyItem", option)
 
                         element:SetClass("collapsed-anim", false)
                     end,
                 }
+            end,
+            refreshBuilderState = function(element, state)
+                local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
+                element:SetClass("collapsed", not visible)
             end,
         }
     end
@@ -533,20 +674,22 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             if injectedBeforeOptions ~= nil then _functionOrValue(injectedBeforeOptions) end
             return gui.Input{
                 classes = {"builder-base", "input", "primary"},
-                width = "94%",
-                halign = "center",
-                placeholderText = "Start typing to filter...",
+                width = "95%",
+                halign = "left",
+                placeholderText = "Start typing to filter; Start with > for starts with...",
                 editlag = 0.5,
                 data = {
                     featureId = feature:GetGuid()
                 },
                 edit = function(element)
-                    element.parent:FireEventTreeVisible("applyFilter", element.text or "")
+                    element.parent:FireEventTree("applyFilter", element.text or "")
                 end,
                 refreshBuilderState = function(element, state)
                     local cachedFeature = getCachedFeature(state, element.data.featureId)
                     local numOptions = cachedFeature and feature:GetOptionsCount()
-                    element:SetClass("collapsed", numOptions < CharacterBuilder.FILTER_VISIBLE_COUNT)
+                    local visible = numOptions >= CharacterBuilder.FILTER_VISIBLE_COUNT
+                    element:SetClass("collapsed", not visible)
+                    if not visible then element.parent:FireEventTree("applyFilter", "") end
                 end,
             }
         end
@@ -557,7 +700,6 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
         header = header,
         targetsContainer = targetsContainer,
         optionsContainer = optionsContainer,
-        selectButton = selectButton,
         mainPanel = mainPanel,
         extraChildren = roller and { roller } or {},
         injections = injections,

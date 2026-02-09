@@ -5,6 +5,7 @@ ActivatedAbilityCreateObjectBehavior = RegisterGameType("ActivatedAbilityCreateO
 
 ActivatedAbilityCreateObjectBehavior.summary = 'Create Object'
 ActivatedAbilityCreateObjectBehavior.randomize = false
+ActivatedAbilityCreateObjectBehavior.targetFloor = 0
 
 ActivatedAbility.RegisterType
 {
@@ -19,15 +20,28 @@ ActivatedAbility.RegisterType
 
 function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets, options)
     local targetArea = options.targetArea
+    local locations = nil
     print("CAST:: AREA:", targetArea)
-    if targetArea == nil then
+    if targetArea ~= nil then
+        locations = targetArea.locations
+    else
+        locations = {}
+
+        for _,target in ipairs(targets or {}) do
+            if target.loc ~= nil then
+                locations[#locations+1] = target.loc
+            end
+        end
+    end
+
+    if locations == nil or #locations == 0 then
+        print("CAST:: NO LOCATIONS")
         return
     end
 
-    print("CAST:: LOCATIONS:", #targetArea.locations)
+    print("CAST:: LOCATIONS:", #locations)
 
     --make sure we do the top locations first so their zorder is behind.
-    local locations = targetArea.locations
     table.sort(locations, function(a, b) return a.y > b.y end)
     for _,loc in ipairs(locations) do
         local targetFloor = game.currentMap:GetFloorFromLoc(loc)
@@ -57,8 +71,6 @@ function ActivatedAbilityCreateObjectBehavior:Cast(ability, casterToken, targets
                                 playbackSpeed = 0.1,
                                 xflip = true,
                             }
-
-                            
                         end
                     end
 

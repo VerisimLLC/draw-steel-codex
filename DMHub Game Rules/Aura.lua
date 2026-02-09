@@ -403,6 +403,22 @@ function Aura:GenerateEditor(options)
                 },
             },
 
+            gui.Check{
+                halign = "left",
+                text = "Avoid Damage When Shifting",
+                value = self:try_get("shiftAvoidsDamage", false),
+                change = function(element)
+                    self.shiftAvoidsDamage = element.value
+                    resultPanel:FireEventTree("refreshAura")
+                end,
+                create = function(element)
+                    element:FireEvent("refreshAura")
+                end,
+                refreshAura = function(element)
+                    element:SetClass("collapsed", self:try_get("movedamage", "none") == "none")
+                end,
+            },
+
             gui.SetEditor {
                 halign = "left",
                 value = self:try_get("flags"),
@@ -808,10 +824,16 @@ function AuraInstance:GetDamageInfo()
         return nil
     end
 
-    return {
+    local result = {
         damage = self.aura:try_get("damage", 0),
         type = movedamage,
     }
+
+    if self.aura:try_get("shiftAvoidsDamage", false) then
+        result.shiftAvoidsDamage = true
+    end
+
+    return result
 end
 
 function AuraInstance:FillActivatedAbilities(creature, resultAbilities)

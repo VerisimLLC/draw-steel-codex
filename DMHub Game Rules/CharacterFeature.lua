@@ -186,6 +186,28 @@ function CharacterFeature:GetSummaryText()
 	return string.format("<b>%s.</b>  %s", self.name, self:GetRulesText())
 end
 
+function CharacterFeature:GetDetailedSummaryText()
+	local summary = self:GetSummaryText()
+	local options = self:try_get("options", {})
+	local traits = {}
+	for _,option in ipairs(options) do
+		local description = option.description or ""
+		description = description:trim()
+		if description and #description > 0 then
+			local pointValue = ""
+			if self:try_get("costsPoints", false) then
+				local pointCost = option.pointsCost or 1
+				pointValue = string.format(" (%d Point%s)", pointCost, pointCost ~= 1 and "s" or "")
+			end
+			traits[#traits+1] = string.format("* <b>%s%s:</b> %s", option.name, pointValue, description)
+		end
+	end
+	if #traits > 0 then
+		summary = string.format("%s\n\n%s", summary, table.concat(traits, "\n"))
+	end
+	return summary
+end
+
 CharacterFeature.ModifierStyles = {
 	gui.Style{
 		selectors = {'content-panel'},
@@ -624,6 +646,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 					text = self:GetDescription(),
 					multiline = true,
 					classes = {'input', 'form-input'},
+                    characterLimit = 8192,
 					selfStyle = {
 						textAlignment = "topleft",
 						height = 'auto',

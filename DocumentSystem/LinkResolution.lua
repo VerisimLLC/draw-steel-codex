@@ -398,7 +398,7 @@ function CustomDocumentRef:Render(options)
     options = options or {}
     options.summary = nil
 
-    local doc = dmhub.GetTable(CustomDocument.tableName or {})[self.docid]
+    local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[self.docid]
     local text = ""
     if doc == nil then
         text = "Invalid Document"

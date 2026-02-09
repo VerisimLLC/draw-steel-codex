@@ -1589,65 +1589,68 @@ local showShareModuleDialog = function(options)
 					localCoverArt:Upload()
 				end
 
+				local success = function()
+					local assetsIncludingDependencies = {}
+					for k,_ in pairs(includedAssets) do
+						assetsIncludingDependencies[k] = true
+					end
 
-
-				moduleInstance:ReserveAuthorID{
-					success = function()
-						local assetsIncludingDependencies = {}
-						for k,_ in pairs(includedAssets) do
+					if not dmhub.GetSettingValue("module:exportignoredependencies") then
+						for k,_ in pairs(m_dependencyAssets) do
 							assetsIncludingDependencies[k] = true
 						end
+					end
 
-						if not dmhub.GetSettingValue("module:exportignoredependencies") then
-							for k,_ in pairs(m_dependencyAssets) do
-								assetsIncludingDependencies[k] = true
-							end
-						end
+					local notes = nil
+					if versionNotesInput ~= nil then
+						notes = versionNotesInput.text
+					end
 
-						local notes = nil
-						if versionNotesInput ~= nil then
-							notes = versionNotesInput.text
-						end
+					local contentSummary = {}
+					dialogPanel:FireEventTree("collectManifest", contentSummary)
 
-						local contentSummary = {}
-						dialogPanel:FireEventTree("collectManifest", contentSummary)
+					moduleInstance.contentSummary = contentSummary
 
-						moduleInstance.contentSummary = contentSummary
+					moduleInstance:UploadModuleVersion{
+						includedAssets = assetsIncludingDependencies,
 
-						moduleInstance:UploadModuleVersion{
-							includedAssets = assetsIncludingDependencies,
+						notes = notes,
 
-							notes = notes,
+						success = function(guid)
+							dmhub.Debug(string.format("Module:: Uploaded to %s", guid))
+							moduleInstance.publishingProperties.includedAssets = includedAssets
+							moduleInstance:Upload{
+								success = function()
+									statusLabel.text = "Your module has been uploaded"
+									moduleCodePanel:FireEventTree("moduleUploaded")
 
-							success = function(guid)
-								dmhub.Debug(string.format("Module:: Uploaded to %s", guid))
-								moduleInstance.publishingProperties.includedAssets = includedAssets
-								moduleInstance:Upload{
-									success = function()
-										statusLabel.text = "Your module has been uploaded"
-										moduleCodePanel:FireEventTree("moduleUploaded")
+									moduleInstance:UploadModulePublishProperties{
+									}
+								end,
+								failure = function()
+									statusLabel.text = "Uploading the module failed"
+								end,
+							}
+						end,
 
-										moduleInstance:UploadModulePublishProperties{
-										}
-									end,
-									failure = function()
-										statusLabel.text = "Uploading the module failed"
-									end,
-								}
-							end,
+						failure = function(msg)
+							statusLabel.text = string.format("Uploading the module failed: %s", msg)
+							dmhub.Debug(string.format("Module:: Upload failed: %s", msg))
+						end,
+					}
+				end
 
-							failure = function(msg)
-								statusLabel.text = string.format("Uploading the module failed: %s", msg)
-								dmhub.Debug(string.format("Module:: Upload failed: %s", msg))
-							end,
-						}
-					end,
+                if dmhub.isAdminAccount then
+                    success()
+                else
+                    moduleInstance:ReserveAuthorID{
+                        success = success,
 
-					failure = function()
-						statusLabel.text = "The author ID you chose is no longer available."
-
-					end,
-				}
+                        failure = function()
+                            statusLabel.text = "The author ID you chose is no longer available."
+                        end,
+                    }
+                end
 
 				
 			--assets.ShareMap{
@@ -1957,11 +1960,34 @@ local showShareModuleDialog = function(options)
         end
     end
 
+    local officialModulePanel = nil
+
+    if dmhub.isAdminAccount then
+        officialModulePanel = gui.Panel{
+            flow = "vertical",
+            width = "auto",
+            gui.Check{
+                text = "Official Module",
+                value = moduleInstance.authorid == "codex",
+                change = function(element)
+                    if element.value then
+                        moduleInstance.authorid = "codex"
+                    else
+                        moduleInstance.authorid = module.savedAuthorid
+                    end
+                    dialogPanel:FireEventTree("refreshModule")
+                end,
+            }
+        }
+    end
+
 	local leftPublishingPanel = gui.Panel{
 		flow = "vertical",
 		width = "70%",
 		height = "auto",
 		valign = "top",
+
+        officialModulePanel,
 
 		gui.Panel{
 			classes = {'form-entry'},
@@ -1987,6 +2013,9 @@ local showShareModuleDialog = function(options)
 			gui.Label{
 				classes = {"formLabel", cond(isNewModule and module.savedAuthorid == nil, "collapsed")},
 				text = moduleInstance.authorid,
+                refreshModule = function(element)
+					element.text = moduleInstance.authorid
+                end,
 			},
 		},
 

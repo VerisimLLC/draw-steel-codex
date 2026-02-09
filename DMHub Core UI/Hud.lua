@@ -42,6 +42,8 @@ function Hud.CreateShapesLayer(self)
 	end
 end
 
+local g_screenArea = core.Vector4(0,0,0,0)
+
 --function called by dmhub to see what area of the screen is occupied by the hud.
 function Hud.GetScreenHudArea(self)
 	local left = 0
@@ -56,8 +58,12 @@ function Hud.GetScreenHudArea(self)
 		end
 	end
 
-	return core.Vector4(left,right,0.0,0.0)
+    g_screenArea.x = left
+    g_screenArea.y = right
+    return g_screenArea
 end
+
+local g_worldPanelArea = core.Vector4(0,0,0,0)
 
 --same as above but special version for World Panel
 function Hud.GetScreenHudAreaWorldPanel(self)
@@ -73,7 +79,9 @@ function Hud.GetScreenHudAreaWorldPanel(self)
 		end
 	end
 
-	return core.Vector4(left,right,0.0,0.0)
+    g_worldPanelArea.x = left
+    g_worldPanelArea.y = right
+    return g_worldPanelArea
 end
 
 --- Shows a modal dialog.
@@ -107,11 +115,11 @@ end
 --- Get the currently displayed modal dialog.
 --- @return nil|Panel
 function Hud.GetModal(self)
-	if self == nil or self.modalPanel == nil or (not self.modalPanel.valid) or self.modalPanel.children == nil then
+	if self == nil or self.modalPanel == nil or (not self.modalPanel.valid) then
 		return nil
 	end
 
-	return self.modalPanel.children[1]
+    return self.modalPanel:GetChild(1)
 end
 
 --- @class ModalMessageArgs

@@ -245,7 +245,11 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 				local panel = panelCache['mod'] or gui.Label{
 					classes = {'single-roll-panel','complete'},
 				}
-				panel.text = ModifierStr(mod)
+                if mod == 0 then
+                    panel.text = ""
+                else
+				    panel.text = ModifierStr(mod)
+                end
 				newPanelCache['mod'] = panel
 				children[#children+1] = panel
 			end
@@ -848,7 +852,7 @@ CreateChatPanel = function()
                                 child = result
                             else
 
-                                dmhub.CloudError("Error creating chat panel: ", result)
+                                dmhub.CloudError("Error creating chat panel in ActionLog: ", message.messageType, result)
                                 g_errorPanels[message.key] = true
                             end
                         end

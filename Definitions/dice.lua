@@ -33,3 +33,39 @@ end
 function dice.GetPreviewScene()
 	-- dummy implementation for documentation purposes only
 end
+
+--- MouseEnter
+--- @return nil
+function dice.MouseEnter()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MouseLeave
+--- @return nil
+function dice.MouseLeave()
+	-- dummy implementation for documentation purposes only
+end
+
+--- MouseHoverThink
+--- @return nil
+function dice.MouseHoverThink()
+	-- dummy implementation for documentation purposes only
+end
+
+--- Click
+--- @return nil
+function dice.Click()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DragThink
+--- @return nil
+function dice.DragThink()
+	-- dummy implementation for documentation purposes only
+end
+
+--- DragEnd
+--- @return nil
+function dice.DragEnd()
+	-- dummy implementation for documentation purposes only
+end

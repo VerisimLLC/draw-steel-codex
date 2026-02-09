@@ -2065,7 +2065,7 @@ local g_markdownSamples = {
 |The hero fails to disarm the trap, but doesn't trigger it.
 |The hero disarms the trap.]],
 
-    '<color="red">Red Text</color>',
+    '<color=red>Red Text</color>',
     "Interest: [[##--]]",
 
     "[[image]]",

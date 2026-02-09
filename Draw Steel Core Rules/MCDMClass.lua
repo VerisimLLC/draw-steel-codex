@@ -60,6 +60,11 @@ function character:GetHeroicResourceChecklist()
         end
     end
 
+    --Get modifier Checklist items
+    for i, modifier in ipairs(self:GetActiveModifiers()) do
+        modifier.mod:ModifyResourceChecklist(modifier, self, result)
+    end
+
     if #result == 1 then
         return result[1]
     end
@@ -85,6 +90,17 @@ function Class.GatherHeroicResourceCheckListItems()
                 result[#result+1] = {
                     id = item.guid,
                     text = string.format("%s: %s", class.name, item.name)
+                }
+            end
+        end
+    end
+
+    for _, entry in pairs(CharacterModifier.GlobalHeroicResourceChecklist) do
+        if entry.checklist ~= nil then
+            for _,item in ipairs(entry.checklist) do
+                result[#result+1] = {
+                    id = item.guid,
+                    text = string.format("%s: %s", entry.modifierName, item.name)
                 }
             end
         end

@@ -12,6 +12,7 @@ Language.speakers = ""
 Language.description = ""
 Language.typicalSpeakers = {}
 Language.script = "Common"
+Language.group = "Custom"
 
 Language.commonality = 5
 Language.dead = false
@@ -56,6 +57,23 @@ local SetLanguage = function(tableName, languagePanel, langid)
 			text = language.name,
 			change = function(element)
 				language.name = element.text
+				UploadLanguage()
+			end,
+		},
+	}
+
+	--the group of the language
+	children[#children+1] = gui.Panel{
+		classes = {'formPanel'},
+		gui.Label{
+			text = 'Group:',
+			valign = 'center',
+			minWidth = 240,
+		},
+		gui.Input{
+			text = language.group,
+			change = function(element)
+				language.group = element.text
 				UploadLanguage()
 			end,
 		},

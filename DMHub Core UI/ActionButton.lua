@@ -381,7 +381,7 @@ function gui.SelectorButton(options)
     local labelClasses = {"selector-button-label"}
     if opts.classes and #opts.classes > 0 then
         table.move(opts.classes, 1, #opts.classes, #classes + 1, classes)
-        -- table.move(opts.classes, 1, #opts.classes, #buttonClasses + 1, buttonClasses)
+        table.move(opts.classes, 1, #opts.classes, #buttonClasses + 1, buttonClasses)
         -- table.move(opts.classes, 1, #opts.classes, #labelClasses + 1, labelClasses)
     end
 
@@ -475,8 +475,9 @@ function gui.SelectorButton(options)
 
             gui.Label{
                 classes = labelClasses,
-                width = "98%",
+                width = "98%-40",
                 height = "98%",
+                hmargin = 20,
                 halign = labelAlign,
                 fontFace = fontFace,
                 fontSize = fontSize,

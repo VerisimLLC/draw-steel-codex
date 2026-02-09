@@ -150,6 +150,11 @@ ActivatedAbilityCast.helpSymbols = {
 		type = "number",
 		desc = "The roll made while using this ability.",
 	},
+    hastarget = {
+        name = "HasTarget",
+        type = "function",
+        desc = "A function which will return true if this ability has the given creature as a target.",
+    },
 	targetcount = {
 		name = "Target Count",
 		type = "number",
@@ -185,6 +190,11 @@ ActivatedAbilityCast.helpSymbols = {
         type = "boolean",
         desc = "True if this ability cast has inflicted conditions on creatures.",
     },
+	purgedconditions = {
+		name = "Purged Conditions",
+		type = "number",
+		desc = "The number of conditions purged by this ability cast.",
+	},
 }
 
 ActivatedAbilityCast.lookupSymbols = {
@@ -222,6 +232,27 @@ ActivatedAbilityCast.lookupSymbols = {
     end,
     creaturelistsize = function(c)
         return c.creaturelistsize
+    end,
+
+    hastarget = function(c)
+        return function(target)
+            if type(target) == "function" then
+                target = target("self")
+            end
+
+            if type(target) == "table" then
+                local tok = dmhub.LookupToken(target)
+                if tok ~= nil then
+                    for i,t in ipairs(c.targets) do
+                        if t.token ~= nil and t.token.charid == tok.charid then
+                            return true
+                        end
+                    end
+                end
+            end
+
+            return false
+        end
     end,
 
 	ability = function(c)
@@ -347,6 +378,10 @@ ActivatedAbilityCast.lookupSymbols = {
     inflictedconditions = function(c)
         return c:try_get("inflictedConditions") ~= nil
     end,
+
+	purgedconditions = function(c)
+		return c:try_get("purgedConditions") or 0
+	end,
 }
 
 --- @param tokenid string

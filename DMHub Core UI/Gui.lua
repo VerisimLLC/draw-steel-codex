@@ -3601,7 +3601,7 @@ function gui.CreateTokenImage(tokenArg, options)
 	local portraitPanel = gui.Panel{
 		idprefix = "token-portrait",
 		classes = 'token-image-portrait',
-		interactable = options.interactable or false,
+		interactable = false,
 
 		bgimage = bgimage,
 
@@ -3917,22 +3917,22 @@ function gui.FancyInput(options)
 end
 
 gui.ImplementationStatusValues = {
-	"Unimplemented",
-	"Partial",
-	"Full",
-	"Won't Implement",
-	"Revisit",
+	[0] = "Wont Implement",
+	[1] = "Unimplemented",
+	[2] = "Bronze",
+	[3] = "Silver",
+	[4] = "Gold",
 }
 
 gui.ImplementationStatus = {
-    Unimplemented = 1,
-    Partial = 2,
-    Full = 3,
-    WontImplement = 4,
-    Revisit = 5,
+    WontImplement = 0,
+	Unimplemented = 1,
+    Bronze = 2,
+    Silver = 3,
+    Gold = 4,
 }
 
---- A panel for editing implementation status of a feature. Set value to status: 1 = not implemented. 2 = part implemented. 3 = full implemented. 4 = won't implement.
+--- A panel for editing implementation status of a feature. Set value to status: 0 = won't implement, 1 = unimplemented, 2 = bronze, 3 = silver, 4 = gold.
 --- @param options PanelArgs
 --- @return Panel
 function gui.ImplementationStatusPanel(options)
@@ -3941,15 +3941,15 @@ function gui.ImplementationStatusPanel(options)
 	local ClampValue = function(num)
 		num = tonumber(num)
 		if num == nil then
-			num = 1
+			num = 0
 		end
 
-		if num < 1 then
+		if num < 0 then
 			num = 4
 		end
 
 		if num > 4 then
-			num = 1
+			num = 0
 		end
 		return num
 	end
@@ -4029,15 +4029,17 @@ function gui.ImplementationStatusPanel(options)
 end
 
 local statusIconImplementationEvent = function(element, implementation)
-	element:SetClass("partial", implementation == 2)
-	element:SetClass("full", implementation == 3)
-	element:SetClass("wontimplement", implementation == 4)
+	element:SetClass("wontimplement", implementation == 0)
+	element:SetClass("unimplemented", implementation == 1)
+	element:SetClass("bronze", implementation == 2)
+	element:SetClass("silver", implementation == 3)
+	element:SetClass("gold", implementation == 4)
 end
 
 --- @class ImplementationStatusIconArgs:PanelArgs
---- @field implementation 1|2|3|4
+--- @field implementation 0|1|2|3|4
 
---- An icon for showing implementation status of a feature. Set value to status: 1 = not implemented. 2 = part implemented. 3 = full implemented. 4 = won't implement.
+--- An icon for showing implementation status of a feature. Set value to status: 0 - won't implement, 1 - unimplemented, 2 - bronze, 3 - silver, 4 - gold.
 --- @param args ImplementationStatusIconArgs
 --- @return Panel
 function gui.ImplementationStatusIcon(args)

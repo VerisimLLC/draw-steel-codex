@@ -38,6 +38,14 @@ local barGradient = gui.Gradient{
 	},
 }
 
+local implementationStatusColors = {
+    [0] = "#f82fcd",  -- won't implement (pink)
+    [1] = "#ff0000",  -- unimplemented (red)
+    [2] = "#cd7f32",  -- bronze
+    [3] = "#c0c0c0",  -- silver
+    [4] = "#ffd700",  -- gold
+}
+
 Styles = {
 
     portraitWidthPercentOfHeight = 100*3/4,
@@ -48,6 +56,8 @@ Styles = {
     forbiddenColor = "#C73131",
 
     RichBlackGradient = barGradient,
+
+    ImplementationStatusColors = implementationStatusColors,
 
     RichBlack02 = "#10110F",
     RichBlack03 = "#191A18",
@@ -62,6 +72,9 @@ Styles = {
     Gold04 = "srgb:#E9B86F",
     Gold03 = "srgb:#F1D3A5",
     Gold02 = "srgb:#49362C",
+
+    ModifierBuffColor = "srgb:#2A4DFF",
+    ModifierDebuffColor = "red",
 
 
 	bullet = "\u{2022}",
@@ -1299,19 +1312,29 @@ Styles = {
 			hmargin = 4,
 		},
 		{
-			selectors = {"spellImplementationIcon", "partial"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = "yellow",
-		},
-		{
-			selectors = {"spellImplementationIcon", "full"},
-			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = "#77ff77",
-		},
-		{
 			selectors = {"spellImplementationIcon", "wontimplement"},
 			bgimage = "icons/icon_common/icon_common_29.png",
-			bgcolor = "#ff77ff",
+			bgcolor = implementationStatusColors[0],
+		},
+		{
+			selectors = {"spellImplementationIcon", "unimplemented"},
+			bgimage = "icons/icon_common/icon_common_29.png",
+			bgcolor = implementationStatusColors[1],
+		},
+		{
+			selectors = {"spellImplementationIcon", "bronze"},
+			bgimage = "icons/icon_common/icon_common_29.png",
+			bgcolor = implementationStatusColors[2],
+		},
+		{
+			selectors = {"spellImplementationIcon", "silver"},
+			bgimage = "icons/icon_common/icon_common_29.png",
+			bgcolor = implementationStatusColors[3],
+		},
+		{
+			selectors = {"spellImplementationIcon", "gold"},
+			bgimage = "icons/icon_common/icon_common_29.png",
+			bgcolor = implementationStatusColors[4],
 		},
 	},
 

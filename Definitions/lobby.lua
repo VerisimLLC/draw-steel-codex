@@ -1,8 +1,8 @@
 --- @class lobby 
---- @field maxGameDetailsLength any 
---- @field maxGameTitleLength any 
---- @field maxGamePasswordLength any 
---- @field gamesRevision any 
+--- @field maxGameDetailsLength number 
+--- @field maxGameTitleLength number 
+--- @field maxGamePasswordLength number 
+--- @field gamesRevision number 
 --- @field games any 
 --- @field createdGameId any 
 --- @field createdGameIdAge any 

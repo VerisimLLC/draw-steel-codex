@@ -22,7 +22,7 @@ function DTRoller.CreateNew(object, mentorId)
 
     local languages = DTBusinessRules.GetGlobalLanguages()
 
-    local token = dmhub.LookupToken(_object)
+    local token = DTHelpers.GetTokenFromCreature(_object)
     instance.name = (token.name and #token.name > 0 and token.name) or "(unnamed character)"
     instance.characteristics = DTRoller._charAttrsToList(_object)
     instance.languages = DTHelpers.MergeFlagLists(languages, _object:LanguagesKnown(), true)
@@ -38,7 +38,17 @@ function DTRoller.CreateNew(object, mentorId)
     elseif DTRoller._isFollowerType(_object) then
         instance.mentorId = foundMentorId
         instance._adjustRolls = function(self, amount)
-            self.object:GrantRolls(amount)
+            -- Token in character sheet context is always the mentor
+            local token = CharacterSheet.instance.data.info.token
+            if token and token.properties and token.properties:IsHero() then
+                local downtimeInfo = token.properties:GetDowntimeInfo()
+                if downtimeInfo then
+                    local followerId = self:GetFollowerID()
+                    if followerId then
+                        downtimeInfo:GrantFollowerRolls(followerId, amount)
+                    end
+                end
+            end
         end
     end
 
@@ -88,12 +98,8 @@ end
 --- @return string|nil id The token id of the rolling entity
 function DTRoller:GetTokenID()
     if self.object then
-        if DTRoller._isCharacterType(self.object) then
-            local token = dmhub.LookupToken(self.object)
-            if token then return token.id end
-        elseif DTRoller._isFollowerType(self.object) then
-            return self:try_get("mentorId")
-        end
+        local token = DTHelpers.GetTokenFromCreature(self.object)
+        if token then return token.id end
     end
     return nil
 end

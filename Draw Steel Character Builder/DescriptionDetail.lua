@@ -5,10 +5,11 @@ CBDescriptionDetail = RegisterGameType("CBDescriptionDetail")
 
 local mod = dmhub.GetModLoading()
 
-local SELECTOR = "character"
-
 local _getHero = CharacterBuilder._getHero
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
+local SEL = CharacterBuilder.SELECTOR
+
+local SELECTOR = SEL.CHARACTER
 
 --- Build the character description editor panel
 --- @return Panel
@@ -97,7 +98,7 @@ function CBDescriptionDetail._editPane()
             valign = "top",
             bgimage = mod.images.grayD10,
             bgcolor = "white",
-            press = function(element)
+            xpress = function(element)
                 -- TODO: Remove in production
                 if devmode() then
                     local hero = _getHero()
@@ -129,7 +130,7 @@ function CBDescriptionDetail._editPane()
             valign = "top",
             lmargin = 6,
             textAlignment = "left",
-            text = string.upper("Create Your Own Adventurer"),
+            text = string.upper("Create Your Own Hero"),
         }
     }
 

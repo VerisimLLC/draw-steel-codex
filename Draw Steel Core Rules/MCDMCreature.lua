@@ -569,6 +569,10 @@ function creature:GetMinionSquadInfo()
     return g_minionSquadTables[squadid]
 end
 
+function creature.GetMinionSquadInfoForNamedSquad(squadid)
+    return g_minionSquadTables[squadid]
+end
+
 -- When a minion dies, we see if we need to demote their captain.
 function creature:MinionDeath()
     if self:has_key("_tmp_minionSquad") == false then
@@ -954,6 +958,56 @@ creature.RegisterSymbol {
         type = "creature",
         desc = "The mentor of this Retainer. Only valid if Retainer is true.",
         seealso = {},
+    },
+}
+
+creature.RegisterSymbol {
+    symbol = "numdeadlanguages",
+    lookup = function(c)
+        local langs = c:LanguagesKnown()
+        local result = 0
+		local languagesTable = GetTableCached("languages")
+        for k,_ in pairs(langs) do
+			local lang = languagesTable[k]
+			if lang ~= nil and lang.dead then
+				result = result + 1
+			end
+		end
+
+        return result
+    end,
+    help = {
+        name = "Number Dead Languages",
+        type = "number",
+        desc = "The number of dead languages known by this creature.",
+        seealso = {},
+    },
+}
+
+creature.RegisterSymbol {
+    symbol = "deadlanguages",
+    lookup = function(c)
+        local langs = c:LanguagesKnown()
+        local result = {}
+		local languagesTable = GetTableCached("languages")
+        for k,_ in pairs(langs) do
+			local lang = languagesTable[k]
+			if lang ~= nil and lang.dead then
+				result[#result+1] = lang.name
+			end
+		end
+
+        return StringSet.new{
+			strings = result,
+		}
+    end,
+    help = {
+        name = "Dead Languages",
+        type = "set",
+        desc = "A list of dead languages known by this creature.",
+        eexamples = {
+            'Dead Languages has "Old Variac"',
+        },
     },
 }
 
@@ -1593,7 +1647,8 @@ end
 function monster:IsDying()
     if self:IsRetainer() then
         local hp = self:CurrentHitpoints()
-        return hp <= 0 and hp > -(self:MaxHitpoints() / 2)
+        local dyingAt = self:CalculateNamedCustomAttribute("Dying Stamina") or 0
+        return hp <= dyingAt and hp > -self:BloodiedThreshold()
     end
 
     return false
@@ -1797,7 +1852,7 @@ function creature:GrappleTN()
 end
 
 function creature:BloodiedThreshold()
-    return math.floor(self:MaxHitpoints() / 2)
+    return self:CalculateNamedCustomAttribute("dying value") or math.floor(self:MaxHitpoints() / 2)
 end
 
 CustomAttribute.RegisterAttribute { id = "recoveryvalue", text = "Recovery Value", attributeType = "number", category = "Basic Attributes" }
@@ -2362,7 +2417,7 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
-    symbol = "ConditionCount",
+    symbol = "conditioncount",
     lookup = function(c)
         local result = {}
         local conditions = {}
@@ -3115,6 +3170,8 @@ function creature.TakeDamage(self, amount, note, info)
             eventArg.attacker = nil
         end
         eventArg.damage = amount
+        eventArg.rawdamage = info.rawdamage
+        eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
         eventArg.damagetype = eventArg.damagetype or "none"
         eventArg.hasattacker = eventArg.attacker ~= nil
         eventArg.surges = info.surges or 0
@@ -3157,7 +3214,7 @@ function creature.TakeDamage(self, amount, note, info)
         return
     end
 
-    local isWindedAtStart = self:CurrentHitpoints() <= self:MaxHitpoints() / 2
+    local isWindedAtStart = self:IsWinded()
     local isBelowZeroAtStart = self:CurrentHitpoints() <= 0
     local isDeadAtStart = self:IsDead()
 
@@ -3193,6 +3250,8 @@ function creature.TakeDamage(self, amount, note, info)
         eventArg.attacker = nil
     end
     eventArg.damage = amount
+    eventArg.rawdamage = info.rawdamage
+    eventArg.damageimmunity = info.damageImmunity and info.damageImmunity.dr ~= nil
     eventArg.damagetype = eventArg.damagetype or "untyped"
     eventArg.hasattacker = eventArg.attacker ~= nil
     eventArg.surges = info.surges or 0
@@ -3208,7 +3267,7 @@ function creature.TakeDamage(self, amount, note, info)
     end
 
     --handle firing audio events.
-    local isWindedNow = self:CurrentHitpoints() <= self:MaxHitpoints() / 2
+    local isWindedNow = self:IsWinded()
     local isBelowZeroNow = self:CurrentHitpoints() <= 0
     local isDeadNow = self:IsDead()
 
@@ -3437,8 +3496,10 @@ function creature:DispatchEventAndWait(eventName, info)
     -- Check if there are any triggers for this event first
     local mods = self:GetActiveModifiers()
     local hasTrigger = false
+    local modName
     for i, mod in ipairs(mods) do
         if mod.mod:HasTriggeredEvent(self, eventName) then
+            modName = mod.mod.name
             hasTrigger = true
             break
         end
@@ -3459,7 +3520,21 @@ function creature:DispatchEventAndWait(eventName, info)
 
     self:DispatchEvent(eventName, info)
 
-    while not eventComplete do
+    --Briefly wait for available triggers to populate
+    coroutine.yield(0.5)
+    local triggerId
+    --track this trigger's id
+    for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
+        if triggerInfo.text == modName then
+            triggerId = triggerInfo.id
+            break
+        end
+    end
+
+    --wait for event or trigger to be dismissed
+    local clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
+    while not eventComplete and not clearedTriggers[triggerId] do
+        clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
         coroutine.yield(0.1)
     end
 end
@@ -3930,7 +4005,6 @@ function creature:StartOnDying()
 end
 
 function creature:EndCombat()
-    local token = dmhub.LookupToken(self)
 
     local persistentAbilities = self:try_get("persistentAbilities", {})
     for i = #persistentAbilities, 1, -1 do
@@ -3966,8 +4040,12 @@ function creature:EndCombat()
         end
     end
 
+    local token = dmhub.LookupToken(self)
+    if token == nil then
+        return
+    end
+
     if not self:has_key("temporary_hitpoints_effect") and self:TemporaryHitpoints() > 0 then
-        local token = dmhub.LookupToken(self)
         token:ModifyProperties {
             description = "Remove Temporary Hit Points",
             execute = function()

@@ -96,6 +96,11 @@ local function MonsterAIThread()
 
                     if centerOn ~= nil then
                         dmhub.CenterOnToken(centerOn.charid, {smooth = true})
+
+                        dmhub.SyncCamera{
+                            speed = 1,
+                        }
+
                         MonsterAI.Sleep(1)
                     end
                 end
@@ -121,6 +126,9 @@ local function MonsterAIThread()
 
                 if centerOn ~= nil then
                     dmhub.CenterOnToken(centerOn.charid, {smooth = true})
+                    dmhub.SyncCamera{
+                        speed = 1,
+                    }
                 end
             end
         end

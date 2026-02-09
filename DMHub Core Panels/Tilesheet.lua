@@ -1441,7 +1441,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					gui.Input{
 						bgimage = 'panels/square.png',
 						text = asset.description,
-						characterLimit = 24,
+						characterLimit = 40,
 						style = {
 							bgcolor = 'black',
 							margin = 4,

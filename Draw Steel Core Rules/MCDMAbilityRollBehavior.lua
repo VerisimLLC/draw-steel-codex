@@ -1,5 +1,14 @@
 local mod = dmhub.GetModLoading()
 
+local g_settingTimeline = setting{
+    id = "rolltimeline",
+    description = "Timeline Dialog",
+    default = false,
+    editor = "check",
+    --section = "General",
+    storage = "preference",
+}
+
 local g_animateTiers = setting{
     id = "animate_tiers",
     description = "Animate Power Table During Rolls",
@@ -67,8 +76,24 @@ function ActivatedAbilityPowerRollBehavior.GetRollModFromEdgesAndBanes(edges, ba
     return bonus
 end
 
+local g_tierTextCacheNoValidation = {}
+local g_tierTextCache = {}
+
+dmhub.RegisterEventHandler("refreshTables", function(keys)
+    g_tierTextCache = {}
+    g_tierTextCacheNoValidation = {}
+end)
 
 local function FormatTierText(text, skipValidation)
+    local cache = g_tierTextCache
+    if skipValidation then
+        cache = g_tierTextCacheNoValidation
+    end
+
+    if cache[text] ~= nil then
+        return cache[text]
+    end
+
     if not skipValidation then
         text = ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(text)
     end
@@ -78,6 +103,8 @@ local function FormatTierText(text, skipValidation)
     end
 
     text = MarkdownDocument.FormatRichText(text, {player = not dmhub.isDM})
+
+    cache[text] = text
 
     return text
 end
@@ -186,7 +213,7 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
 
     rollResult = rollResult or rollMessage
 
-    if not rollMessage.properties:has_key("multitargets") then
+    if rollMessage == nil or (not rollMessage.properties:has_key("multitargets")) then
         return nil
     end
 
@@ -438,7 +465,6 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
         for i=1,#g_TierNames do
             local tier = g_TierNames[i]
             local tierText = rollProperties.tiers[i]
-            print("TIER:: tierText =", tierText)
 
             if caster ~= nil then
                 tierText = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tierText, nil, m_fullyImplemented)
@@ -475,17 +501,20 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         element:SetClass("selectable", true)
                     end
                 end,
-                gui.Label{ text = tier, width = "16%", fontSize = 18, height = 20, valign = "center", },
+                gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = string.format("%d", i), width = "16%", fontSize = 34, height = 20, valign = "center", },
                 gui.Panel{
-                    vpad = 4,
-                    fontSize = 18,
-                    width = "66%",
+                    vpad = 2,
+                    width = "54%",
+                    halign = "left",
                     height = "auto",
                     valign = "center",
+                    hpad = 0,
                     gui.Label{
                         text = FormatTierText(tierText, m_fullyImplemented),
+                        fontSize = 15,
                         width = 500,
                         height = "auto",
+                        vpad = 0,
                         refreshMods = function(element)
                             local tierText = rollProperties.tiers[i]
                             if caster ~= nil then
@@ -502,7 +531,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                 },
 
                 gui.Panel{
-                    vpad = 4,
+                    vpad = 0,
                     width = "17%",
                     height = "auto",
                     halign = "right",
@@ -519,8 +548,8 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         for _,target in ipairs(multitargets or {}) do
                             if target.tier == i then
                                 children[#children+1] = gui.CreateTokenImage(target.token, {
-                                    width = 32,
-                                    height = 32,
+                                    width = 20,
+                                    height = 20,
                                     halign = "right",
                                     valign = "center",
                                     bgcolor = "white",
@@ -987,7 +1016,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     end
 
     for i,tier in ipairs(tiers) do
-        tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tiers[i], nil, ability:try_get("implementation", 1) >= gui.ImplementationStatus.Full)
+        tiers[i] = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, tiers[i], nil, ability:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze)
     end
 
     local multitargetProperties = nil
@@ -1012,8 +1041,21 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local m_rollInfo = nil
 
+    local dialog = GameHud.instance.rollDialog
+
+    print("Timeline::", g_settingTimeline:Get())
+    if g_settingTimeline:Get() then
+        dialog = CharacterPanel.EmbedDialogInAbility()
+
+        --give a few cycles for the dialog to init.
+        for i=1,4 do
+            coroutine.yield(0.01)
+        end
+    end
+
+
     local rollKey
-    rollKey = GameHud.instance.rollDialog.data.ShowDialog{
+    rollKey = dialog.data.ShowDialog{
         description = ability.name .. ": Power Roll",
         title = ability.name,
         type = "ability_power_roll",
@@ -1159,102 +1201,141 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     local highestTier = 0
     local casterCommand = nil
 
-    for numTarget,target in ipairs(targets or {}) do
+    local promptWhenResolving = self:try_get("promptWhenResolving", false)
 
-        local targetToken = target.token
-        local tier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
-        local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
-
-        if targetToken ~= nil then
-            if rollProperties:try_get("tierSuppressed") then
-                --this means that the caster is 'silenced' and results based on tier won't apply.
-                options.symbols.cast:SetTierResult(targetToken, -1)
-            else
-                options.symbols.cast:SetTierResult(targetToken, tier)
-            end
-        end
-
-        local targetRollProperties = rollProperties
-
-        if targetToken ~= nil then
-            if multitargetResults ~= nil then
-                for i,multitarget in ipairs(multitargetResults) do
-                    if multitarget.token.charid == targetToken.charid then
-                        tier = multitarget.tier
-                        if multitargets[i].rollProperties ~= nil then
-                            targetRollProperties = multitargets[i].rollProperties
-                        end
-                        break
-                    end
-                end
-            end
-
-            local command = targetRollProperties.tiers[tier]
-
-            if ability.keywords["Strike"] then
-                targetToken.properties:TriggerEvent("attacked", {
-                    outcome = tier,
-                    roll = m_result.total,
-                    attacker = GenerateSymbols(casterToken.properties),
-                })
-            end
-
-            local surges = 0
-            local potencyApplied = 0
-            if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
-                surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
-
-                --Check modifiers actually applied to roll for this target
-                for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
-                    potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
-                end
-
-                options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
-            end
-
-            options.surges = surges
-            triggerInfo.surges = triggerInfo.surges + surges
-            triggerInfo.tierone = triggerInfo.tierone or tier == 1
-            triggerInfo.tiertwo = triggerInfo.tiertwo or tier == 2
-            triggerInfo.tierthree = triggerInfo.tierthree or tier == 3
-
-
-            triggerInfo.keywords = StringSet.new{
-                strings = table.keys(ability.keywords)
-            }
-
-            local casterTokenForCommand = casterToken
-
-
-            options.powerRollPass = "target"
-
-            --if we have targetPairs that indicate a minion squad attack with a different caster,
-            --we substitute the casterToken.
-            if options.symbols.targetPairs ~= nil then
-                for i, pair in ipairs(options.symbols.targetPairs) do
-                    if pair.b == targetToken.charid then
-                        local attackerTok = dmhub.GetTokenById(pair.a)
-                        if attackerTok ~= nil then
-                            casterTokenForCommand = attackerTok
-                            options.powerRollPass = nil
-                        end
-                    end
-                end
-            end
-
-            ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, command))
-
-            self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
-
-            if tier > highestTier and options.powerRollPass == "target" then
-                highestTier = tier
-                casterCommand = function ()
-                    options.powerRollPass = "caster"
-                    self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
-                end
-            end
+    local targetChoices = {}
+    if promptWhenResolving then
+        for _,target in ipairs(targets or {}) do
+            local targetToken = target.token
+            targetChoices[#targetChoices+1] = targetToken
         end
     end
+
+    repeat
+
+        if promptWhenResolving then
+
+            targets = nil
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = casterToken,
+                targets = table.shallow_copy(targetChoices),
+                prompt = self:try_get("promptWhenResolvingText", "Choose Target"),
+                choose = function(targetToken)
+                    targets = {
+                        {
+                            token = targetToken,
+                        }
+                    }
+
+                    for i=1,#targetChoices do
+                        if targetChoices[i].charid == targetToken.charid then
+                            table.remove(targetChoices, i)
+                            break
+                        end
+                    end
+                end,
+                cancel = function()
+                    targets = {}
+                    targetChoices = {}
+                end,
+            })
+
+            while targets == nil do
+                coroutine.yield(0.1)
+            end
+        end
+
+        for numTarget,target in ipairs(targets or {}) do
+
+            local targetToken = target.token
+            local tier = rollProperties:try_get("overrideTier") or DiceResultToTier(m_result)
+            local modifiersUsed = rollProperties:try_get("modifiersUsed", {})
+
+            if targetToken ~= nil then
+                if rollProperties:try_get("tierSuppressed") then
+                    --this means that the caster is 'silenced' and results based on tier won't apply.
+                    options.symbols.cast:SetTierResult(targetToken, -1)
+                else
+                    options.symbols.cast:SetTierResult(targetToken, tier)
+                end
+            end
+
+            local targetRollProperties = rollProperties
+
+            options.symbols.cast.total = m_result.total
+
+            if targetToken ~= nil then
+                if multitargetResults ~= nil then
+                    for i,multitarget in ipairs(multitargetResults) do
+                        if multitarget.token.charid == targetToken.charid then
+                            tier = multitarget.tier
+                            if multitargets[i].rollProperties ~= nil then
+                                targetRollProperties = multitargets[i].rollProperties
+                            end
+                            break
+                        end
+                    end
+                end
+
+                local command = targetRollProperties.tiers[tier]
+
+                local surges = 0
+                local potencyApplied = 0
+                if m_rollInfo.properties ~= nil and m_rollInfo.properties:try_get("multitargets") ~= nil and m_rollInfo.properties.multitargets[numTarget] ~= nil then
+                    surges = m_rollInfo.properties.multitargets[numTarget].surges or 0
+
+                    --Check modifiers actually applied to roll for this target
+                    for _, mod in ipairs(m_rollInfo.properties.multitargets[numTarget].modifiersUsed or {}) do
+                        potencyApplied = potencyApplied + mod:try_get("potencymod", 0)
+                    end
+
+                    options.symbols.cast:SetPotencyApplied(targetToken, potencyApplied)
+                end
+
+                options.surges = surges
+                triggerInfo.surges = triggerInfo.surges + surges
+                triggerInfo.tierone = triggerInfo.tierone or tier == 1
+                triggerInfo.tiertwo = triggerInfo.tiertwo or tier == 2
+                triggerInfo.tierthree = triggerInfo.tierthree or tier == 3
+
+
+                triggerInfo.keywords = StringSet.new{
+                    strings = table.keys(ability.keywords)
+                }
+
+                local casterTokenForCommand = casterToken
+
+
+                options.powerRollPass = "target"
+
+                --if we have targetPairs that indicate a minion squad attack with a different caster,
+                --we substitute the casterToken.
+                if options.symbols.targetPairs ~= nil then
+                    for i, pair in ipairs(options.symbols.targetPairs) do
+                        if pair.b == targetToken.charid then
+                            local attackerTok = dmhub.GetTokenById(pair.a)
+                            if attackerTok ~= nil then
+                                casterTokenForCommand = attackerTok
+                                options.powerRollPass = nil
+                            end
+                        end
+                    end
+                end
+
+                ability.RecordTokenMessage(targetToken, options, string.format("Tier %d (%s)", tier, command))
+
+                self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
+
+                if tier > highestTier and options.powerRollPass == "target" then
+                    highestTier = tier
+                    casterCommand = function ()
+                        options.powerRollPass = "caster"
+                        self:ExecuteCommand(ability, casterTokenForCommand, targetToken, options, command)
+                    end
+                end
+            end
+        end
+    until promptWhenResolving == false or #targetChoices == 0
 
     --execute any per-caster tier commands.
     if casterCommand ~= nil then
@@ -1671,6 +1752,34 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             children = rows,
         }
     }
+
+    result[#result+1] = gui.Check{
+        text = "Prompt When Resolving",
+        value = self:try_get("promptWhenResolving", false),
+        change = function(element)
+            self.promptWhenResolving = element.value
+            parentPanel:FireEvent("refreshBehavior")
+        end,
+    }
+
+    if self:try_get("promptWhenResolving", false) then
+        result[#result+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Prompt:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                text = self:try_get("promptWhenResolvingText", ""),
+                placeholderText = "Choose Target",
+                characterLimit = 240,
+                change = function(element)
+                    self.promptWhenResolvingText = element.text
+                end
+            }
+        }
+    end
 
 
     return result
@@ -2423,11 +2532,21 @@ function RollPropertiesPowerTable:CustomPanel(message)
     local m_label = nil
     local m_showingInteraction = false
 
+    local m_complete = false
+
     m_resultPanel = gui.Panel{
         flow = "vertical",
         width = "100%",
         height = "auto",
+        data = {
+            complete = false,
+        },
 		refreshInfo = function(element, info, diceStyle, complete, rollInfo)
+            if m_complete then
+                return
+            end
+
+            m_complete = complete
 
             m_modifiersPanel:FireEvent("refreshInfo", info, diceStyle, complete, rollInfo)
 

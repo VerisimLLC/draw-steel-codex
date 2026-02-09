@@ -38,22 +38,24 @@ function CharacterLanguageChoice:_cache()
 
 	local languagesTable = dmhub.GetTable(Language.tableName)
 	for k,lang in unhidden_pairs(languagesTable) do
-        if not lang.dead then
-            local text = lang.name
-            if lang.speakers ~= "" then
-                text = string.format("%s (%s)", lang.name, lang.speakers)
-            end
-            tagCache[#tagCache+1] = {
-                id = k,
-                text = text,
-                unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
-            }
-            optCache[#optCache+1] = {
-                guid = k,
-                name = text,
-                unique = true,
-            }
+        local text = lang.name
+        if lang.speakers ~= "" then
+            text = string.format("%s (%s)", lang.name, lang.speakers)
         end
+        tagCache[#tagCache+1] = {
+            id = k,
+            text = text,
+            description = lang.description,
+            dead = lang.dead,
+            unique = true, --this means there will be checking in the builder so if we already have this id selected somewhere it won't be shown here.
+        }
+        optCache[#optCache+1] = {
+            guid = k,
+            name = text,
+            description = lang.description,
+            dead = lang.dead,
+            unique = true,
+        }
 	end
 
 	g_tagCache[self.categories] = tagCache

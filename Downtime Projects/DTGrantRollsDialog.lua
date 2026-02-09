@@ -86,32 +86,31 @@ function DTGrantRollsDialog:ShowDialog()
             local selector = element:Get("characterSelector")
             if selector and selector.value and next(selector.value) then
                 for tokenId,value in pairs(selector.value) do
-                    -- Grant to selected heroes
-                    if value.selected and heroRolls ~= 0 then
+                    local shouldGrantHero = value.selected and heroRolls ~= 0
+                    local shouldGrantFollowers = value.followers and next(value.followers) and followerRolls ~= 0
+
+                    if shouldGrantHero or shouldGrantFollowers then
                         local token = dmhub.GetCharacterById(tokenId)
-                        if token and token.properties then
+                        if token and token.properties and token.properties:IsHero() then
                             token:ModifyProperties{
                                 description = "Grant Downtime Rolls",
                                 execute = function ()
                                     local downtimeInfo = token.properties:GetDowntimeInfo()
-                                    if downtimeInfo then downtimeInfo:GrantRolls(heroRolls) end
+                                    if downtimeInfo then
+                                        -- Grant hero rolls
+                                        if shouldGrantHero then
+                                            downtimeInfo:GrantRolls(heroRolls)
+                                        end
+
+                                        -- Grant follower rolls (now stored on hero's downtimeInfo)
+                                        if shouldGrantFollowers then
+                                            for followerId,_ in pairs(value.followers) do
+                                                downtimeInfo:GrantFollowerRolls(followerId, followerRolls)
+                                            end
+                                        end
+                                    end
                                 end,
                             }
-                        end
-                    end
-
-                    -- Grant to followers
-                    if value.followers and next(value.followers) and followerRolls ~= 0 then
-                        for followerId,_ in pairs(value.followers) do
-                            local follower = dmhub.GetCharacterById(followerId)
-                            if follower and follower.properties then
-                                follower:ModifyProperties{
-                                    description = "Grant Downtime Rolls",
-                                    execute = function ()
-                                        follower.properties:GrantRolls(followerRolls)
-                                    end,
-                                }
-                            end
                         end
                     end
                 end
@@ -350,28 +349,29 @@ function DTGrantRollsDialog:_createCharacterSelector()
         initialSelectionIds[token.id] = {selected = true}
     end
 
-    local function displayName(token)
+    local function displayName(token, mentor)
         local rolls = 0
         if token and token.properties then
             if token.properties:IsHero() then
                 local dt = token.properties:GetDowntimeInfo()
                 if dt then rolls = dt:GetAvailableRolls() end
             elseif token.properties:IsFollower() then
-                rolls = token.properties:GetAvailableRolls()
+                local dt = mentor.properties:GetDowntimeInfo()
+                if dt then rolls = dt:GetFollowerRolls(token.id) end
             end
         end
         return string.format("<b>%s</b> (<i>%d %s</i>)", token.name, rolls, rolls == 1 and "Roll" or "Rolls")
     end
 
     local function displayFollowerText(follower)
-        local rolls = 0
-        if follower and follower.availableRolls then rolls = tonumber(follower.availableRolls) end
-        return string.format("<b>%s</b> (<i>%d %s</i>)", follower.name or "(unnamed follower)", rolls, rolls == 1 and "Roll" or "Rolls")
+        -- Roll count display deferred - not critical for grant dialog
+        -- Users select recipients regardless of current count
+        return string.format("<b>%s</b>", follower.name or "(unnamed follower)")
     end
 
     local function followerFilter(token)
         local follower = token.properties
-        if follower and follower.followerType and type(follower.followerType) == "string" then
+        if follower and follower:try_get("followerType") and type(follower.followerType) == "string" then
             local type = follower.followerType:lower()
             return type == "artisan" or type == "sage"
         end

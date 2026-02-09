@@ -432,6 +432,18 @@ CharacterModifier.TypeInfo.power = {
         return roll .. " " .. modType.mod
     end,
 
+    buffOrDebuff = function(self, context)
+        local modType = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[self.modtype]
+        local buffOrDebuff = modType.value
+        if tonumber(buffOrDebuff) then
+            if buffOrDebuff > 0 then
+                return "buff"
+            elseif buffOrDebuff < 0 then
+                return "debuff"
+            end
+        end
+    end,
+
     renderOnRoll = function(self, rollInfo, triggerInfo, targetPanel)
         if not targetPanel.data.init then
 
@@ -666,7 +678,7 @@ CharacterModifier.TypeInfo.power = {
                             tier = string.format("%s%s; %s %s", match.prefix, match.damage, extraDamage, match.suffix)
                         else
                             --just put damage at the front.
-                            tier = string.format("%d %s damage; %s", extraDamage, tier)
+                            tier = string.format("%s; %s", extraDamage, tier)
                         end
                     end
 
@@ -2126,5 +2138,13 @@ function CharacterModifier:RenderOnRoll(rollInfo, triggerInfo, targetPanel)
     local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
     if typeInfo.renderOnRoll ~= nil then
         typeInfo.renderOnRoll(self, rollInfo, triggerInfo, targetPanel)
+    end
+end
+
+--returns "buff", "debuff", or nil
+function CharacterModifier:BuffOrDebuff(context)
+    local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
+    if typeInfo.buffOrDebuff ~= nil then
+        return typeInfo.buffOrDebuff(self, context)
     end
 end

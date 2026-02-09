@@ -1,19 +1,19 @@
 --- @class Color 
 --- @field tostring any 
---- @field h any 
---- @field s any 
---- @field v any 
---- @field r any 
---- @field g any 
---- @field b any 
---- @field a any 
---- @field red any 
---- @field green any 
---- @field blue any 
---- @field alpha any 
---- @field hue any 
---- @field saturation any 
---- @field value any 
+--- @field h number 
+--- @field s number 
+--- @field v number 
+--- @field r number 
+--- @field g number 
+--- @field b number 
+--- @field a number 
+--- @field red number 
+--- @field green number 
+--- @field blue number 
+--- @field alpha number 
+--- @field hue number 
+--- @field saturation number 
+--- @field value number 
 Color = {}
 
 --- Deserialize

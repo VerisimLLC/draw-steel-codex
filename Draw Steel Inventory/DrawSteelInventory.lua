@@ -263,6 +263,7 @@ function CreateItemTooltip(item, options, token)
 
 	options = options or {}
 
+    options.noninteractive = true
 
 	local tooltipResult = gui.TooltipFrame(gui.Panel{
 		id = 'inventory-item-tooltip',

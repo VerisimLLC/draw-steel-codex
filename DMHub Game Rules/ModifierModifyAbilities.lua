@@ -135,6 +135,27 @@ CharacterModifier.RegisterAbilityModifier
 }
 
 CharacterModifier.RegisterAbilityModifier
+{
+	id = "reasonfilter",
+	text = "Reasoned Filter",
+	operations = { "reasonfilter" },
+	set = function(modifier, creature, ability, attributes)
+		local reasonedFilters = attributes.reasonedFilters or {}
+
+		local existingFilters = ability:get_or_add("reasonedFilters", {})
+
+		for _, filter in pairs(reasonedFilters) do
+			existingFilters[#existingFilters + 1] = filter
+		end
+
+		ability.reasonedFilters = existingFilters
+
+		return true
+	end,
+}
+
+
+CharacterModifier.RegisterAbilityModifier
 	{
 		id = "numtargets",
 		text = "Number of Targets",
@@ -158,6 +179,7 @@ CharacterModifier.RegisterAbilityModifier
 		operations = { "Add", "Multiply", "Set" },
 		set = function(modifier, creature, ability, operation, value)
 			local val = nil
+			value = dmhub.EvalGoblinScript(value, GenerateSymbols(creature, modifier:try_get("_tmp_symbols")), "Calculate Range Modifier")
 			if operation == "Set" then
 				val = tonumber(value)
 			elseif operation == "Multiply" then
@@ -175,6 +197,37 @@ CharacterModifier.RegisterAbilityModifier
 			end
 			return true
 		end,
+		documentation = {
+			help = string.format("This GoblinScript is appended to the range for abilities this modifier affects."),
+			output = "number",
+			examples = {
+				{
+					script = "1",
+					text = "1 is added to the range.",
+				},
+				{
+					script = "3 + 1 when level > 10",
+					text = "3 is added to the range, or 4 when the attacking creature is above level 10.",
+				},
+			},
+			subject = creature.helpSymbols,
+			subjectDescription = "The creature that is affected by this modifier",
+			symbols = {
+				target = {
+					name = "Target",
+					type = "creature",
+					desc = "The creature targeted with the ability.",
+					examples = {
+						"2 when Target.Type is undead",
+					},
+				},
+				ability = {
+					name = "Ability",
+					type = "ability",
+					desc = "The ability being modified",
+				},
+			},
+		},
 	}
 
 CharacterModifier.RegisterAbilityModifier
@@ -447,7 +500,7 @@ CharacterModifier.TypeInfo.modifyability = {
 		for i,attr in ipairs(modifier.attributes) do
 			local info = abilityModifierOptionsById[attr.id]
 			if info ~= nil then
-				if attr.id == "targettype" or attr.id == "modkeywords" then
+				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" then
 					info.set(modifier, creature, ability, attr)
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
@@ -745,6 +798,117 @@ CharacterModifier.TypeInfo.modifyability = {
 								},
 							}
 						-- This creates both a condition and value input, both goblin script values
+						elseif attr.operation == "reasonfilter" then
+							local reasonedFilters = attr.reasonedFilters or {}
+							if not attr.reasonedFilters then
+								attr.reasonedFilters = reasonedFilters
+							end
+							children[#children+1] = gui.Button{
+								text = "Add Reasoned Filter",
+								width = "auto",
+								height = "auto",
+								pad = 4,
+								press = function(element)
+									reasonedFilters[#reasonedFilters+1] = {
+										formula = "",
+										reason = "",
+									}
+									attr.reasonedFilters = reasonedFilters
+									Refresh()
+								end,
+							}
+
+							for filterIndex,filter in ipairs(reasonedFilters) do
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Label{
+										classes = "formLabel",
+										text = "Formula:",
+									},
+									gui.GoblinScriptInput{
+										classes = "formInput",
+										value = filter.formula,
+										change = function(element)
+											filter.formula = element.value
+											Refresh()
+										end,
+
+										documentation = {
+											domains = modifier:Domains(),
+											help = "This GoblinScript is used when you use an <color=#00FFFF><link=ability>ability</link></color>. It determines whether a creature included in the ability's area of effect should be affected by the ability. The script is evaluated once for each creature in the ability's area of effect. Creatures for whom the script produces a result of <b>true</b> are affected by the ability, while creatures for whom the script produces a result of <b>false</b> are not. If left empty, all creatures in the area of effect will be affected.",
+											output = "boolean",
+											examples = {
+												{
+													script = "enemy",
+													text = "Make the ability affect creatures that are enemies of the ability's caster.",
+												},
+												{
+													script = "not enemy and type is not undead",
+													text = "Make the ability affect creatures that are not enemies of the ability's caster. The ability won't affect undead creatures.",
+												},
+												{
+													script = "Target Number = 2",
+													text = "Make this behavior affect only the second target of the spell.",
+												},
+											},
+											subject = creature.helpSymbols,
+											subjectDescription = "A creature in the ability's area of effect ",
+											symbols = {
+												caster = {
+													name = "Caster",
+													type = "creature",
+													desc = "The caster of this spell.",
+												},
+												enemy = {
+													name = "Enemy",
+													type = "boolean",
+													desc = "True if the subject is an enemy of the creature casting the ability. Otherwise this is False.",
+												},
+												target = {
+													name = "Target",
+													type = "creature",
+													desc = "The target of this spell. This is the same as the subject of this GoblinScript.",
+												},
+												targetnumber = {
+													name = "Target Number",
+													type = "number",
+													desc = "1 for the first target, 2 for the second target, etc.",
+												},
+												numberoftargets = {
+													name = "Number of Targets",
+													type = "number",
+													desc = "The number of creatures this spell is targeting.",
+												},
+											},
+										},
+									},
+
+									gui.DeleteItemButton{
+										halign = "right",
+										width = 16,
+										height = 16,
+										click = function(element)
+											table.remove(reasonedFilters, filterIndex)
+											Refresh()
+										end
+									}
+								}
+
+								children[#children+1] = gui.Panel{
+									classes = {"formPanel"},
+									gui.Input{
+										classes = "formInput",
+										width = 360,
+										text = filter.reason,
+										lmargin = 60,
+										change = function(element)
+											filter.reason = element.text
+											Refresh()
+										end,
+										placeholderText = "Enter reason for this filter...",
+									}
+								}
+							end
 						elseif attr.operation == "Condition" then
 							children[#children+1] = gui.Panel{
 								classes = {"formPanel"},

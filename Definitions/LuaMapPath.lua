@@ -1,4 +1,4 @@
 --- @class LuaMapPath 
---- @field length any 
+--- @field length number 
 --- @field closed any 
 LuaMapPath = {}

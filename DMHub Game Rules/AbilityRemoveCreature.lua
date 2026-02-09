@@ -30,7 +30,9 @@ function ActivatedAbilityRemoveCreatureBehavior:DropLoot(token, newObj)
 
 	local inventory = DeepCopy(token.properties:try_get("inventory", {}))
 
+
 	--drop the held items as well.
+    --[[ --In Draw Steel held equipment is only e.g. torches so we don't drop.
 	local equip = token.properties:Equipment()
 	local sharesSeen = {}
 	for slotid,itemid in pairs(equip) do
@@ -56,6 +58,7 @@ function ActivatedAbilityRemoveCreatureBehavior:DropLoot(token, newObj)
 			entry.quantity = entry.quantity + 1
 		end
 	end
+    --]]
 
 	local haveItems = false
 	for _,itemid in pairs(inventory) do

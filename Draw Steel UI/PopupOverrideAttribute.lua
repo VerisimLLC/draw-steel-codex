@@ -27,6 +27,7 @@ function gui.PopupOverrideAttribute(args)
     local characterSheet = args.characterSheet
     local attributeName = args.attributeName
     local baseValue = args.baseValue or args.token.properties:BaseNamedCustomAttribute(attributeName)
+    local baseValueEdit = args.baseValueEdit
     local modifications = args.modifications or args.token.properties:DescribeModificationsToNamedCustomAttribute(attributeName)
     local namingTable = args.namingTable or {}
 
@@ -71,12 +72,44 @@ function gui.PopupOverrideAttribute(args)
 
     local panels = {}
     if baseValue ~= "hide" then
-        panels[#panels + 1] = gui.Label {
-            text = string.format("Base %s: %s", attributeName, namingTable[baseValue] or string.format("%d", baseValue)),
-            width = "auto",
-            height = "auto",
-            fontSize = 14,
-        }
+        if args.baseValueEdit ~= nil then
+            panels[#panels+1] = gui.Panel{
+                width = "auto",
+                height = "auto",
+                flow = "horizontal",
+                vmargin = 2,
+                gui.Label{
+                    text = string.format("Base %s:", attributeName),
+                    width = "auto",
+                    height = "auto",
+                    fontSize = 14,
+                    valign = "center",
+                },
+                gui.Input{
+                    text = namingTable[baseValue] or string.format("%d", baseValue),
+                    fontSize = 12,
+                    width = 80,
+                    height = 16,
+                    lmargin = 4,
+                    vpad = 2,
+                    hpad = 4,
+                    characterLimit = 8,
+                    change = function(element)
+                        element.text = args.baseValueEdit(tonumber(element.text) or baseValue) or element.text
+                    end,
+                }
+
+            }
+        else
+
+            panels[#panels + 1] = gui.Label {
+                text = string.format("Base %s: %s", attributeName, namingTable[baseValue] or string.format("%d", baseValue)),
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+            }
+        end
+
     end
     for _, modification in ipairs(modifications) do
         local featureIndex = nil

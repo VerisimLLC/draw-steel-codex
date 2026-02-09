@@ -1,10 +1,7 @@
 --[[
  Character Builder:  Building a character step by step.
- Functions standalone or as a tab in CharacterSheet.
-
- TODO::
- - Old builder attributes are in MCDMClassCarousel.lua start line 1481
- - Slow start rules aren't honored - still pulling full level 1 class features
+ Functions standalone (not yet; probably buggy) or as a 
+ tab in CharacterSheet.
 
  - Overall Design
  - Responding to Events
@@ -44,7 +41,7 @@
  Ancestry in the builder. It's important to note that these are not necessarily
  stored in a table structure. So, while "token" is a key, you cannot use
  state:Get("token.properties") to get the creature on the token. Instead you
- would use state:Get(token).properties.
+ would use state:Get("token").properties.
 
  Typically you will only need the state object when responding to refreshBuilderState
  and that event always provides it. There is a helper function to get state. See
@@ -59,22 +56,20 @@
  The helper functions used most frequently include:
 
  _fireControllerEvent(eventName, ...)
- Fires an event on the main window / controller. Pass the current UI element.
+ Fires an event on the main window / controller.
 
- _getHero(source)
- Returns the character in the token in the state object. Source can be any UI
- element or the state object. Ensures the object returned is a hero via :IsHero()
- or returns nil.
+ _getHero()
+ Returns the character in the token in the state object. Ensures the object
+ returned is a hero via :IsHero()  or returns nil.
 
- _getToken(source)
- Returns the token in the state object. Source can be any UI element or the
- state object.
+ _getToken()
+ Returns the token in the state object.
 
  OPTIMIZATION OPPORTUNITIES
 
  When responding to refreshBuilderState, if your element might not be visible,
  check that first. If it's not visible, then don't bother calculating anything
- else unless it needs to be used elsewhere.
+ else unless it needs to be used elsewhere, and halt event propagation.
  
  We might consider re-using the choice selection UI - panels built in
  FeatureSelector.lua.
@@ -89,9 +84,8 @@ CharacterBuilder.ROOT_CHAR_SHEET_CLASS = "characterSheetHarness"
 -- of available options is >= this number
 CharacterBuilder.FILTER_VISIBLE_COUNT = 20
 
---- Trim long text on overview pages to this length
-CharacterBuilder.OVERVIEW_MAX_LENGTH = 1200
-
+-- The selectors / column 1 primary buttons. Used as keys throughout
+-- the builder.
 CharacterBuilder.SELECTOR = {
     BACK        = "back",
     CHARACTER   = "character",
@@ -102,8 +96,10 @@ CharacterBuilder.SELECTOR = {
     KIT         = "kit",
     COMPLICATION = "complication",
 }
-CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.CHARACTER
+CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
+-- Static strings that we'll use in places like overviews when no
+-- item is selected.
 CharacterBuilder.STRINGS = {}
 
 CharacterBuilder.STRINGS.ANCESTRY = {}
@@ -113,6 +109,15 @@ CharacterBuilder.STRINGS.ANCESTRY.OVERVIEW = [[
 Ancestry describes how you were born. Culture (part of Chapter 4: Background) describes how you grew up. If you want to be a wode elf who was raised in a forest among other wode elves, you can do that! If you want to play a wode elf who was raised in an underground city of dwarves, humans, and orcs, you can do that too!
 
 Your hero is one of these folks! The fantastic ancestry you choose bestows benefits that come from your anatomy and physiology. This choice doesn't grant you cultural benefits, such as crafting or lore skills, though. While many game settings have cultures made of mostly one ancestry, other cultures and worlds have a cosmopolitan mix of peoples.]]
+
+CharacterBuilder.STRINGS.CULTURE = {}
+CharacterBuilder.STRINGS.CULTURE.INTRO = [[
+A hero's culture describes the beliefs, customs, values, and way of life held by the community in which they were raised. This community provides life experiences that give a character some of their game statistics. Even if a hero doesn't share their culture's values, those values shaped their early development and way of life. In fact, some people become heroes primarily from the rejection of the ways of their culture.]]
+CharacterBuilder.STRINGS.CULTURE.OVERVIEW = [[
+Select one from each culture aspect:
+- Environment
+- Organization
+- Upbringing]]
 
 CharacterBuilder.STRINGS.CAREER = {}
 CharacterBuilder.STRINGS.CAREER.INTRO = [[
@@ -132,6 +137,10 @@ The knight in shining armor. The warrior priest. The sniper. Censors, furies, sh
 CharacterBuilder.STRINGS.KIT.OVERVIEW = [[
 # Customizing Equipment Appearances
 You should absolutely feel free to describe your equipment in a way that makes sense for the story of your game and hero. For instance, if your hero uses a weapon in the whip category as part of their kit, they could use a leather whip, a spiked chain, or a dagger tied to a knotted rope. A hero who wears heavy armor might wear a suit of chain mail, plate armor, or heavy wooden planks tied together. Your choices for equipment aren't limited just to the examples in this book.]]
+
+CharacterBuilder.STRINGS.COMPLICATION = {}
+CharacterBuilder.STRINGS.COMPLICATION.INTRO = [[
+Beyond the abilities and features bestowed by ancestry and class, your hero might have something else that makes them ... unusual. Perhaps an earth elemental lives in your body. Maybe your eldritch blade devastates enemies but feeds on your own vitality. A complication is an optional feature you can select to enrich your hero's backstory, with any complication providing you both a positive benefit and a negative drawback.]]
 
 --[[
     Ability to register selectors - controls down the left side of the window
@@ -255,7 +264,6 @@ function CharacterBuilder._deriveAttributeBuild(hero, baseChars)
 end
 
 --- Fires an event on the main builder panel
---- @param element Panel The element calling this method
 --- @param eventName string
 --- @param ... any|nil
 function CharacterBuilder._fireControllerEvent(eventName, ...)
@@ -283,11 +291,7 @@ end
 --- Returns the character sheet instance if we're operating inside it
 --- @return Panel|nil
 function CharacterBuilder._getCharacterSheet()
-    local controller = CharacterBuilder._getController()
-    if controller then
-        return controller:FindParentWithClass(CharacterBuilder.ROOT_CHAR_SHEET_CLASS)
-    end
-    return nil
+    return CharacterSheet.instance
 end
 
 --- Returns the builder controller
@@ -317,8 +321,12 @@ end
 --- Returns the character token we are working with or nil if we can't get to it
 --- @return LuaCharacterToken|nil
 function CharacterBuilder._getToken()
-    local state = CharacterBuilder._getState()
-    if state then return state:Get("token") end
+    local cs = CharacterBuilder._getCharacterSheet()
+    if cs then
+        if cs.data and cs.data.info then
+            return cs.data.info.token
+        end
+    end
     return nil
 end
 
@@ -428,6 +436,22 @@ function CharacterBuilder._parseStartingCharacteristics(baseChars)
     return str
 end
 
+--- Gets a safe display name for a feature
+--- @param feature table The feature object
+--- @return string The feature name
+function CharacterBuilder._safeFeatureName(feature)
+    local name = feature:try_get("name")
+    if name then
+        return name
+    end
+
+    -- Extract type name without "Character" prefix
+    local typeName = feature.typeName:sub(10)  -- Remove "Character"
+
+    -- Add spaces before capitals (except first char)
+    return typeName:sub(1, 1) .. typeName:sub(2):gsub("(%u)", " %1")
+end
+
 --- Safely get a named property from an item, defaulting to nil
 --- Works with both class instances (with try_get) and plain tables
 --- @param item table The item to check
@@ -449,6 +473,7 @@ function CharacterBuilder._sortArrayByProperty(items, propertyName)
     return items
 end
 
+--- Removes "Signature Trait" from a string
 --- @return string
 function CharacterBuilder._stripSignatureTrait(str)
     local result = regex.MatchGroups(str, "(?i)^signature\\s+trait:?\\s*(?<name>.*)$")
@@ -467,32 +492,7 @@ function CharacterBuilder._toArray(t)
     return a
 end
 
---- Trims and truncates a string to a maximum length
---- @param str string The string to process
---- @param maxLength number The maximum length before truncation
---- @param stopAtNewline? boolean Whether to trim to the first newline
---- @return string The processed string
-function CharacterBuilder._trimToLength(str, maxLength, stopAtNewline)
-    stopAtNewline = stopAtNewline == nil and true or stopAtNewline
-
-    -- Trim leading whitespace
-    str = str:match("^%s*(.*)") or str
-
-    -- Cut at first newline if exists
-    local newlinePos = str:find("\n")
-    if newlinePos and stopAtNewline then
-        str = str:sub(1, newlinePos - 1)
-    end
-
-    -- Check if length is within acceptable range
-    if #str <= maxLength + 3 then
-        return str
-    end
-
-    -- Truncate and add ellipsis
-    return str:sub(1, maxLength) .. "..."
-end
-
+--- Uppercase the first character in a string
 --- @return string
 function CharacterBuilder._ucFirst(str)
     if str and #str > 0 then
@@ -508,7 +508,7 @@ function CharacterBuilder._validateRollFaces(rollFaces)
     local validFaces = {2, 3, 6, 8, 10, 12, 20, 100}
     for _, faces in ipairs(validFaces) do
         if faces >= rollFaces then
-            if faces == 10 then return 20 end
+            if faces == 10 then return 20 end -- Djordice, obvs
             return faces
         end
     end
@@ -518,6 +518,107 @@ end
 --[[
     Consistent UI
 ]]
+
+--- Display a confrmation dialog, calling callbacks as necessary
+--- @param opts table {title, message, confirmText, cancelText, onConfirm, onCancel}
+function CharacterBuilder._confirmDialog(opts)
+    local title = (opts.title and opts.title ~= "") and opts.title or "Confirm"
+    local message = (opts.message and opts.message ~= "") and opts.message or "Are you sure you want to take this action?"
+    local confirmText = (opts.confirmText and opts.confirmText ~= "") and opts.confirmText or "Confirm"
+    local cancelText = (opts.cancelText and opts.cancelText ~= "") and opts.cancelText or "Cancel"
+
+    local onCancel = function()
+        if opts.onCancel and type(opts.onCancel) == "function" then
+            opts.onCancel()
+        end
+    end
+
+    local onConfirm = function()
+        if opts.onConfirm and type(opts.onConfirm) == "function" then
+            opts.onConfirm()
+        end
+    end
+
+    local resultPanel = nil
+    resultPanel = gui.Panel {
+        styles = CBStyles.GetStyles(),
+        classes = {"confirmDialogController", "builder-base", "panel-base", "dialog"},
+        width = 500,
+        height = 300,
+        floating = true,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        captureEscape = true,
+        data = {
+            close = function()
+                resultPanel:DestroySelf()
+            end,
+        },
+
+        close = function(element)
+            element.data.close()
+        end,
+
+        escape = function(element)
+            onCancel()
+            element:FireEvent("close")
+        end,
+
+        children = {
+            -- Header
+            gui.Label{
+                classes = {"builder-base", "label", "dialog-header"},
+                text = title,
+            },
+            gui.MCDMDivider{
+                classes = {"builder-divider"},
+                layout = "dot",
+                width = "50%",
+                vpad = 4,
+                -- bgcolor = CBStyles.COLORS.GOLD,
+            },
+
+            -- Confirmation message
+            gui.Label{
+                classes = {"builder-base", "label", "dialog-message"},
+                text = message,
+            },
+
+            -- Button panel
+            gui.Panel{
+                classes = {"builder-base", "panel-base", "container"},
+                -- width = "100%",
+                height = 40,
+                halign = "center",
+                valign = "bottom",
+                flow = "horizontal",
+                gui.Button{
+                    classes = {"builder-base", "button", "dialog"},
+                    width = 120,
+                    text = cancelText,
+                    click = function(element)
+                        local controller = element:FindParentWithClass("confirmDialogController")
+                        if controller then
+                            controller:FireEvent("escape")
+                        end
+                    end
+                },
+                gui.Button{
+                    classes = {"builder-base", "button", "dialog"},
+                    width = 120,
+                    halign = "right",
+                    text = confirmText,
+                    click = function(element)
+                        onConfirm()
+                        local controller = element:FindParentWithClass("confirmDialogController")
+                        if controller then controller:FireEvent("close") end
+                    end
+                }
+            }
+        },
+    }
+
+    return resultPanel
+end
 
 --- Build a Category button, forcing consistent styling.
 --- Be sure to add behaviors for click and refreshBuilderState
@@ -579,7 +680,9 @@ end
 --- @field checkAvailable? function (state, selector, featureId)
 --- @field getSelected function(hero) Return the currently selected value - match to or replace selectedId
 
---- Create a registry entry for a feature - a button & an editor panel
+--- Create a registry entry for a feature - a button & an editor panel.
+--- This is the mechanism by which the various detail panels add buttons
+--- and feature selectors into columns 2 & 3.
 --- @param options CBFeatureRegistryOptions
 --- @param feature CBFeatureWrapper
 --- @return table|nil
@@ -593,12 +696,15 @@ function CharacterBuilder._makeFeatureRegistry(options)
 
     if featurePanel then
         return {
-            button = CharacterBuilder._makeCategoryButton{
-                text = CharacterBuilder._stripSignatureTrait(feature:GetName()),
+            button = gui.Panel{
+                classes = {"builder-base", "panel-base"},
+                valign= "top",
                 data = {
                     featureId = feature:GetGuid(),
                     selectedId = selectedId,
                     order = feature:GetOrder(),
+                    level = feature:GetLevel(),
+                    visible = true,
                 },
                 press = function(element)
                     CharacterBuilder._fireControllerEvent("updateState", {
@@ -606,15 +712,52 @@ function CharacterBuilder._makeFeatureRegistry(options)
                         value = element.data.featureId
                     })
                 end,
-                refreshBuilderState = function(element, state)
-                    local tokenSelected = getSelected(CharacterBuilder._getHero()) or "nil"
-                    local featureCache = state:Get(selector .. ".featureCache")
-                    local featureAvailable = featureCache and featureCache:GetFeature(element.data.featureId) ~= nil
-                    local visible = tokenSelected == element.data.selectedId and featureAvailable
-                    element:FireEvent("setAvailable", visible)
-                    element:FireEvent("setSelected", element.data.featureId == state:Get(selector .. ".category.selectedId"))
-                    element:SetClass("collapsed", not visible)
+                showLevel = function(element, level, expanded)
+                    if element.data.level == level then
+                        element.data.visible = expanded
+                    end
+                    element:SetClass("collapsed-anim", not element.data.visible)
                 end,
+                CharacterBuilder._makeCategoryButton{
+                    text = CharacterBuilder._stripSignatureTrait(feature:GetName()),
+                    press = function(element)
+                        CharacterBuilder._fireControllerEvent("updateState", {
+                            key = selector .. ".category.selectedId",
+                            value = element.parent.data.featureId
+                        })
+                    end,
+                    refreshBuilderState = function(element, state)
+                        local tokenSelected = getSelected(CharacterBuilder._getHero()) or "nil"
+                        local featureCache = state:Get(selector .. ".featureCache")
+                        feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
+                        local featureAvailable = feature ~= nil
+                        local visible = (tokenSelected == element.parent.data.selectedId) and featureAvailable
+                        element:FireEvent("setAvailable", visible)
+                        element:FireEvent("setSelected", element.parent.data.featureId == state:Get(selector .. ".category.selectedId"))
+                        element:SetClass("collapsed", not visible)
+                    end,
+                },
+                CharacterBuilder.ProgressPip(1, {
+                    rotate = 0,
+                    classes = {"builder-base", "panel-base", "progress-pip", "secondary"},
+                    halign = "right",
+                    valign = "top",
+                    hmargin = 3,
+                    vmargin = 3,
+                    width = 12,
+                    height = 12,
+                    refreshBuilderState = function(element, state)
+                        local visible = state:Get(selector .. ".blockFeatureSelection") ~= true
+                        if visible then
+                            local featureCache = state:Get(selector .. ".featureCache")
+                            local feature = featureCache and featureCache:GetFeature(element.parent.data.featureId)
+                            visible = visible and (feature and not feature:SuppressStatus())
+                            local filled = feature and feature:IsComplete()
+                            element:SetClass("filled", filled)
+                        end
+                        element:SetClass("collapsed", not visible)
+                    end,
+                }),
             },
             panel = CharacterBuilder._makeFeaturePanelContainer{
                 data = {
@@ -694,4 +837,79 @@ function CharacterBuilder._sortButtons(children)
     table.move(suffix, 1, #suffix, #result + 1, result)
 
     return result
+end
+
+--- A single progress pip. Can be made small to compose a status bar
+--- (see below) or larger to be standalone.
+--- @return Panel
+function CharacterBuilder.ProgressPip(index, opts)
+    local options = {
+        classes = {"builder-base", "panel-base", "progress-pip"},
+        rotate = 45,
+        data = {
+            index = index,
+        },
+        updateProgress = function(element, progress)
+            local visible = element.parent.data.visible
+            element:SetClass("collapsed", not visible)
+            if not visible then return end
+
+            local maxPips = math.min(progress.slots, 20)
+            local filled
+            if progress.slots > 20 then
+                local filledCount = math.floor((progress.done / progress.slots) * 20)
+                filled = element.data.index <= filledCount
+            else
+                filled = progress.done >= element.data.index
+            end
+            element:SetClass("filled", filled)
+            element:SetClass("collapsed", element.data.index > maxPips)
+        end
+    }
+
+    for k,v in pairs(opts or {}) do
+        options[k] = v
+    end
+
+    return gui.Panel(options)
+end
+
+--- A bar of progress pips. Used in the col1 buttons. Constrains the
+--- number of pips to 20, which is about how many will fit across those
+--- col 1 buttons. At 20, this effectively switches to a regular old
+--- progress bar with 5% increments.
+--- @return Panel
+function CharacterBuilder.ProgressBar(opts)
+
+    local minPips = opts.minPips or 2
+    opts.minPips = nil
+
+    local options = {
+        classes = {"builder-base", "panel-base", "progress-bar"},
+        floating = true,
+        valign = "bottom",
+        halign = "center",
+        vmargin = 4, --CBStyles.SIZES.PROGRESS_PIP_SIZE,
+        data = {
+            visible = false,
+        },
+        updateProgress = function(element, progress)
+            element.data.visible = progress.slots >= minPips
+            element:SetClass("collapsed", not element.data.visible)
+            if not element.data.visible then return end
+
+            local maxPips = math.min(progress.slots, 20)
+            for i = #element.children + 1, maxPips do
+                element:AddChild(CharacterBuilder.ProgressPip(i, {
+                    rotate = 0,
+                }))
+            end
+        end,
+    }
+
+    for k,v in pairs(opts) do
+        options[k] = v
+    end
+
+    return gui.Panel(options)
 end

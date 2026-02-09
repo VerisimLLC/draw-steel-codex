@@ -726,3 +726,100 @@ function DTProjectRollDialog._makeExtraAdjustmentCheckText(adjustType)
             }
         }
 end
+
+
+RollCheck.RegisterCustom{
+    id = "power_roll_project",
+    rollType = "custom",
+	Describe = function(check, isplayer)
+        return check.info.explanation
+    end,
+	GetRoll = function(check, creature)
+        return "2d10 + " .. creature:AttributeMod(check.info.attrid)
+    end,
+	GetModifiers = function(check, creature)
+        return creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {})
+    end,
+}
+
+-- @param casterToken - The token making the roll
+-- @param options - Table with:
+--   attrid: attribute ID (default "mgt")
+--   explanation: description of the roll
+--   title: title for the roll dialog
+--   callback: function(result, boons, banes) - called when roll completes
+--   silent: whether to skip showing dialog (default false)
+-- @return result table {result, boons, banes} or nil if canceled
+function creature:RequestProjectRoll(casterToken, options)
+    options = options or {}
+    
+    local attrid = options.attrid or "mgt"
+    local explanation = options.explanation or "Project Roll"
+    local title = options.title or explanation
+    
+    local check = RollCheck.new{
+        type = "custom",
+        id = "power_roll_project",
+        text = title,
+        explanation = explanation,
+        info = {
+            attrid = attrid,
+            explanation = explanation,
+        }
+    }
+    
+    local tokens = {}
+    tokens[casterToken.id] = {}
+    
+    -- Send the request and wait for response
+    local actionid = dmhub.SendActionRequest(RollRequest.new{
+        title = title,
+        checks = {check},
+        tokens = tokens,
+    })
+    
+    local resultTable = {}
+    
+    if options.silent then
+		AwaitRequestedActionCoroutine(actionid, resultTable)
+	else
+		gamehud:ShowRollSummaryDialog(actionid, resultTable)
+	end
+    
+    -- Wait for roll to complete
+    while resultTable.result == nil do
+		coroutine.yield(0.1)
+	end
+    
+    -- Check if canceled
+    if not resultTable.result or resultTable.action == nil then
+        return nil
+    end
+    
+    local action = resultTable.action
+    if action.info == nil or action.info.tokens == nil then
+        return nil
+    end
+    
+    -- Extract the roll data for this token
+    -- The structure is action.info.tokens[tokenId] = {result, boons, banes, status}
+    local tokenResult = action.info.tokens[casterToken.id]
+    if tokenResult == nil then
+        return nil
+    end
+    
+    local result = tokenResult.result or 0
+    local boons = tokenResult.boons or 0
+    local banes = tokenResult.banes or 0
+    
+    -- Call the callback if provided
+    if options.callback then
+        options.callback(result, boons, banes)
+    end
+    
+    return {
+        boons = boons,
+        banes = banes,
+        total = result,
+    }
+end

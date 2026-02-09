@@ -8,14 +8,16 @@ local DEBUG_PANEL_BG = false
 
 CBStyles.COLORS = {
     BLACK = "#000000",
+    BLACK02 = "#10110F",
     BLACK03 = "#191A18",
     CREAM = "#BC9B7B",
     CREAM03 = "#DFCFC0",
     GOLD = "#966D4B",
     GOLD03 = "#F1D3A5",
+    GOLD04 = "#E9B86F",
     GRAY02 = "#666663",
     PANEL_BG = "#080B09",
-    GRAY_TRANSPARENT = "#10110FF0",
+    GRAY_TRANSPARENT = "#10110FF3",
 
     -- For selections like skills etc.
     FILLED_ITEM_BG = "#E9B86F0F",
@@ -23,13 +25,13 @@ CBStyles.COLORS = {
 
     DESTRUCTIVE_BG = "#2A1414",
     DESTRUCTIVE_BORDER = "#B94A30",
-    DESTRUCTIVE_TEXT = "#D97166",
+    DESTRUCTIVE_TEXT = "#ffffffcc", --"#D97166",
 }
 
 CBStyles.SIZES = {
     -- Panels
     CHARACTER_PANEL_WIDTH = 447,
-    CHARACTER_PANEL_HEADER_HEIGHT = 270,
+    CHARACTER_PANEL_HEADER_HEIGHT = 310,
 
     DESCRIPTION_PANEL_WIDTH = 450,
 
@@ -52,8 +54,13 @@ CBStyles.SIZES = {
     SELECT_BUTTON_WIDTH = 200,
     SELECT_BUTTON_HEIGHT = 36,
 
-    BUTTON_SPACING = 12,
+    PROGRESS_PIP_SIZE = 6,
 
+    -- The little buttons top right on feature selector pane 3
+    FEATURE_SELECT_WIDTH = 24,
+    FEATURE_SELECT_HEIGHT = 24,
+
+    BUTTON_SPACING = 12,
 }
 CBStyles.SIZES.BUTTON_PANEL_WIDTH = CBStyles.SIZES.ACTION_BUTTON_WIDTH + 60
 CBStyles.SIZES.CENTER_PANEL_WIDTH = "100%-" .. (30 + CBStyles.SIZES.BUTTON_PANEL_WIDTH + CBStyles.SIZES.CHARACTER_PANEL_WIDTH)
@@ -139,6 +146,20 @@ local function _panelStyles()
             borderColor = CBStyles.COLORS.CREAM,
             border = 2,
             cornerRadius = 10,
+        },
+
+        --- Dialog
+        {
+            selectors = {"dialog"},
+            halign = "center",
+            valign = "center",
+            bgcolor = "#111111ff",
+            borderWidth = 2,
+            borderColor = Styles.textColor,
+            bgimage = "panels/square.png",
+            flow = "vertical",
+            hpad = 10,
+            vpad = 10,
         },
 
         -- Detail Panels
@@ -248,6 +269,68 @@ local function _panelStyles()
             selectors = {"feature-choice", "filtered"},
             collapsed = true,
         },
+        {
+            selectors = {"feature-toggle"},
+            width = 16,
+            height = 16,
+            valign = "center",
+            hmargin = 8,
+            bgimage = "ui-icons/AudioPlayButton.png",
+            bgcolor = "white",
+        },
+        {
+            selectors = {"feature-toggle", "parent:selected"},
+            bgimage = "panels/triangle.png",
+        },
+        -- Drop target glow for individual target slots (when dragging options over)
+        {
+            selectors = {"feature-target", "drag-target"},
+            brightness = 1.3,
+        },
+        {
+            selectors = {"feature-target", "drag-target-hover"},
+            brightness = 1.6,
+            borderColor = CBStyles.COLORS.CREAM03,
+        },
+        -- Drop target glow for individual choice panels (when dragging targets over)
+        {
+            selectors = {"feature-choice", "drag-target"},
+            brightness = 1.3,
+        },
+        {
+            selectors = {"feature-choice", "drag-target-hover"},
+            brightness = 1.6,
+            borderColor = CBStyles.COLORS.CREAM03,
+        },
+        {
+            selectors = {"feature-selector"},
+            width = CBStyles.SIZES.FEATURE_SELECT_WIDTH,
+            height = CBStyles.SIZES.FEATURE_SELECT_HEIGHT,
+            halign = "right",
+            valign = "top",
+            hmargin = 4,
+            vmargin = 0,
+            bgcolor = "white",
+        },
+        {
+            selectors = {"feature-selector", "remove"},
+            bgimage = "icons/icon_tool/icon_tool_43.png",
+            bgcolor = CBStyles.COLORS.GOLD03,
+        },
+        {
+            selectors = {"feature-selector", "remove", "hover"},
+            bgimage = "icons/icon_tool/icon_tool_44.png",
+            bgcolor = "#fc0000",
+        },
+        {
+            selectors = {"feature-selector", "select"},
+            bgimage = "ui-icons/Plus.png", --"ui-icons/Back.png",
+            bgcolor = "white",
+        },
+        {
+            selectors = {"feature-selector", "select", "hover"},
+            brightness = 1.5,
+        },
 
         -- Attribute editor
         {
@@ -274,6 +357,30 @@ local function _panelStyles()
         {
             selectors = {"attr-lock", "parent:locked"},
             bgcolor = CBStyles.COLORS.GRAY02,
+        },
+
+        -- Level Dividers in Class Panel
+        {
+            selectors = {"class-divider", "builder-header"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            halign = "left",
+            tmargin = 4,
+        },
+        {
+            selectors = {"class-divider", "builder-check"},
+            halign = "right",
+            valign = "center",
+            hmargin = 40,
+            width = 24,
+            height = 24,
+            bgimage = "icons/icon_common/icon_common_29.png",
+            bgcolor = "clear",
+        },
+        {
+            selectors = {"class-divider", "builder-check", "complete"},
+            bgcolor = CBStyles.COLORS.GOLD03,
         },
 
         -- Right-side character panel
@@ -324,6 +431,206 @@ local function _panelStyles()
             tmargin = 4,
         },
 
+        -- Progress Bar
+        {
+            selectors = {"progress-bar"},
+            valign = "top",
+            halign = "center",
+            flow = "horizontal",
+            width = "auto",
+            height = CBStyles.SIZES.PROGRESS_PIP_SIZE,
+        },
+        {
+            selectors = {"progress-pip"},
+            valign = "top",
+            halign = "center",
+            hmargin = 2,
+            width = CBStyles.SIZES.PROGRESS_PIP_SIZE,
+            height = CBStyles.SIZES.PROGRESS_PIP_SIZE,
+            bgimage = true,
+            bgcolor = CBStyles.COLORS.GRAY02,
+            border = 0,
+            borderColor = CBStyles.COLORS.GOLD,
+        },
+        {
+            selectors = {"progress-pip", "solo"},
+            bgcolor = CBStyles.COLORS.BLACK03,
+            border = 1,
+        },
+        {
+            selectors = {"progress-pip", "secondary"},
+            bgcolor = CBStyles.COLORS.GRAY02,
+            border = 0,
+        },
+        {
+            selectors = {"progress-pip", "filled"},
+            bgcolor = CBStyles.COLORS.GOLD03,
+        },
+
+        -- Gradient-based progress pip styles (fill from bottom to top)
+        -- For diamond shape (45° rotated), gradient goes from bottom corner to top corner
+        {
+            selectors = {"progress-pip", "progress-gradient-0"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-10"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.10, color = CBStyles.COLORS.GOLD},
+                    {position = 0.10, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-20"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.20, color = CBStyles.COLORS.GOLD},
+                    {position = 0.20, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-30"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.30, color = CBStyles.COLORS.GOLD},
+                    {position = 0.30, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-40"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.40, color = CBStyles.COLORS.GOLD},
+                    {position = 0.40, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-50"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.50, color = CBStyles.COLORS.GOLD},
+                    {position = 0.50, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-60"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.60, color = CBStyles.COLORS.GOLD},
+                    {position = 0.60, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-70"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.70, color = CBStyles.COLORS.GOLD},
+                    {position = 0.70, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-80"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.80, color = CBStyles.COLORS.GOLD},
+                    {position = 0.80, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-90"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.GOLD},
+                    {position = 0.90, color = CBStyles.COLORS.GOLD},
+                    {position = 0.90, color = CBStyles.COLORS.BLACK},
+                    {position = 1.0, color = CBStyles.COLORS.BLACK},
+                },
+            },
+        },
+        {
+            selectors = {"progress-pip", "progress-gradient-100"},
+            bgcolor = "white",
+            gradient = gui.Gradient{
+                type = "radial",
+                point_a = {x = 0.0, y = 0.0},
+                point_b = {x = 1.0, y = 1.0},
+                stops = {
+                    {position = 0.0, color = CBStyles.COLORS.CREAM03},
+                    {position = 1.0, color = CBStyles.COLORS.CREAM03},
+                },
+            },
+        },
+
         -- Contains all the tab content
         {
             selectors = {CharacterBuilder.CONTROLLER_CLASS},
@@ -365,7 +672,29 @@ local function _labelStyles()
             valign = "top",
             textAlignment = "center",
             fontSize = 24,
-            tmargin = 12,
+            tmargin = 6,
+        },
+
+        -- Dialog
+        {
+            selectors = {"dialog-header"},
+            width = "100%",
+            height = 30,
+            halign = "center",
+            valign = "top",
+            fontSize = 24,
+            textAlignment = "center",
+            bold = true,
+        },
+        {
+            selectors = {"dialog-message"},
+            width = "100%",
+            height = 80,
+            halign = "center",
+            valign = "center",
+            textAlignment = "center",
+            fontSize = 18,
+            textWrap = true,
         },
 
         -- Overview panel
@@ -424,7 +753,7 @@ local function _labelStyles()
         {
             selectors = {"feature-target", "parent:filled"},
             halign = "left",
-            hpad = 20,
+            hpad = 8,
             textAlignment = "left",
         },
         {
@@ -512,6 +841,21 @@ local function _labelStyles()
             borderColor = CBStyles.COLORS.CREAM03,
         },
 
+        -- Class panel level dividers
+        {
+            selectors = {"class-divider", "builder-header"},
+            halign = "left",
+            valign = "bottom",
+            width = "90%",
+            textAlignment = "left",
+            vpad = 4,
+            fontSize = 20,
+            color = CBStyles.COLORS.GOLD03,
+            bgimage = true,
+            border = {y1 = 2, y2 = 0, x1 = 0, x2 = 0},
+            borderColor = CBStyles.COLORS.GOLD03,
+        },
+
         -- For the right-side character panel / builder tab
         {
             selectors = {"charpanel", "desc-item-label"},
@@ -546,7 +890,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-category"},
-            width = "25%",
+            width = "30%",
             halign = "left",
             valign = "top",
             textAlignment = "topleft",
@@ -554,7 +898,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-status"},
-            width = "10%",
+            width = "13%",
             valign = "top",
             textAlignment = "topleft",
             hmargin = 2,
@@ -562,7 +906,7 @@ local function _labelStyles()
         },
         {
             selectors = {"charpanel", "builder-detail"},
-            width = "60%",
+            width = "54%",
             halign = "left",
             valign = "top",
             hmargin = 2,
@@ -582,6 +926,12 @@ local function _buttonStyles()
             borderWidth = 1,
         },
         {
+            selectors = {"dialog"},
+            width = 120,
+            height = 36,
+            cornerRadius = 5,
+        },
+        {
             selectors = {"category"},
             width = CBStyles.SIZES.ACTION_BUTTON_WIDTH,
             height = CBStyles.SIZES.ACTION_BUTTON_HEIGHT,
@@ -593,7 +943,7 @@ local function _buttonStyles()
             textAlignment = "left",
             bold = false,
         },
-        {
+        {  -- TODO: Rework into "selector", below when we don't need this button
             selectors = {"select"},
             width = CBStyles.SIZES.SELECT_BUTTON_WIDTH,
             height = CBStyles.SIZES.SELECT_BUTTON_HEIGHT,
@@ -610,6 +960,36 @@ local function _buttonStyles()
             borderColor = CBStyles.COLORS.GRAY02,
             color = CBStyles.COLORS.GRAY02,
         },
+        {
+            selectors = {"selector"},
+            valign = "top",
+            halign = "center",
+            width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+            height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
+            bmargin = CBStyles.SIZES.CATEGORY_BUTTON_MARGIN,
+            fontSize = 24,
+            borderWidth = 1,
+            cornerRadius = 2,
+            borderColor = CBStyles.COLORS.GOLD,
+            color = CBStyles.COLORS.GOLD,
+        },
+        {
+            selectors = {"selector", "hover"},
+            bgcolor = CBStyles.COLORS.GOLD04,
+            color = CBStyles.COLORS.BLACK02,
+        },
+        -- {
+        --     selectors = {"selector", "destructive"},
+        --     borderColor = CBStyles.COLORS.DESTRUCTIVE_BORDER,
+        --     bgcolor = CBStyles.COLORS.DESTRUCTIVE_BG,
+        --     color = CBStyles.COLORS.DESTRUCTIVE_TEXT,
+        -- },
+        {
+            selectors = {"destructive", "hover"},
+            bgcolor = "#D5303188",
+            borderColor = "#D53031",
+            color = "white",
+        }
     })
 end
 
@@ -628,10 +1008,10 @@ local function _inputStyles()
             height = 48,
             fontSize = 20,
         },
-        {
-            selectors = {"secondary"},
-            height = 36,
-        },
+        -- {
+        --     selectors = {"secondary"},
+        --     height = 36,
+        -- },
         {
             selectors = {"multiline"},
             height = 48*3,
@@ -652,15 +1032,23 @@ local function _dropdownStyles()
             borderWidth = 2,
         },
         {
-            selectors = {"dropdownLabel"},
-            textAlignment = "left",
-            halign = "left",
-        },
-        {
             selectors = {"primary"},
             height = 48,
             fontSize = 20,
         },
+        {
+            selectors = {"charlevel"},
+            width = "240",
+            height = 32,
+            bgcolor = "#0a0c0b",
+            borderWidth = 1,
+            halign = "center",
+            tmargin = 4,
+        },
+        {
+            selectors = {"charlevel", "hover"},
+            color = Styles.textColor,
+        }
     })
 end
 

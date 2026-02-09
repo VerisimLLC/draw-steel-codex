@@ -275,6 +275,8 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
         print("Purge:: Purging =", conditionsToPurge)
 
         if #conditionsToPurge > 0 then
+            options.symbols.cast.purgedConditions = #conditionsToPurge
+
             targetToken:ModifyProperties{
                 description = "Purge Conditions",
                 execute = function()

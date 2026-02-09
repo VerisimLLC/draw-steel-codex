@@ -93,6 +93,10 @@ function CharacterPanel.AddConditionMenu(args)
                     m_button.popup = nil
                 end,
 
+                linger = function(element)
+                    gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(element)
+                end,
+
                 children = children,
             }
         end
@@ -114,6 +118,9 @@ function CharacterPanel.AddConditionMenu(args)
                     else
                         element:SetClass("collapsed", true)
                     end
+                end,
+                linger = function(element)
+                    gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(element)
                 end,
                 press = function(element)
                     for _,tok in ipairs(m_tokens) do

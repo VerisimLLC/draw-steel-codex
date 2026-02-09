@@ -1,6 +1,33 @@
 local mod = dmhub.GetModLoading()
 
 MonsterAI:RegisterPrompt{
+    prompts = {"Shift"},
+    handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)
+        local range = abilityClone:GetRange(casterToken.properties)
+        local paths = casterToken:CalculatePathfindingArea(range*10, {"shift"})
+        local bestLoc = nil
+        local bestScore = nil
+        for _,info in pairs(paths) do
+            local score = math.random()
+            if bestScore == nil or score > bestScore then
+                bestScore = score
+                bestLoc = info.loc
+            end
+        end
+
+        if bestLoc ~= nil then
+            casterToken:MarkMovementArrow(bestLoc, {straightline = true, ignorecreatures = false})
+            MonsterAI.Sleep(1)
+            casterToken:ClearMovementArrow()
+
+            return {
+                targets = { {loc = bestLoc } }
+            }
+        end
+    end,
+}
+
+MonsterAI:RegisterPrompt{
     prompts = {"Push!", "Pull!", "Slide!"},
 
     handler = function(ai, invokerToken, casterToken, abilityClone, symbols, options)

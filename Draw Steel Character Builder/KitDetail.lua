@@ -1,7 +1,5 @@
 --[[
     Kit detail / selectors
-    mcdmkitbuilder.lua
-      Kit merge ~607
 ]]
 CBKitDetail = RegisterGameType("CBKitDetail")
 
@@ -14,7 +12,6 @@ local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 
 function CBKitDetail._navPanel()
-    -- TODO: Maybe put inside another panel to shrink vertically.
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "wide", "detail-nav-panel"},
         vscroll = true,
@@ -176,8 +173,8 @@ function CBKitDetail._overviewPanel()
         bmargin = 12,
         updateSelectedKit = function(element, kitItem, kitItem2)
             local visible = kitItem ~= nil 
-                and ((kitItem.description and #kitItem.description > 0)
-                or (kitItem2 and kitItem2.description and #kitItem2.description > 0))
+                and ((kitItem.equipmentDescription and #kitItem.equipmentDescription > 0)
+                or (kitItem2 and kitItem2.equipmentDescription and #kitItem2.equipmentDescription > 0))
             element:SetClass("collapsed", not visible)
             if not visible then 
                 element:HaltEventPropagation()
@@ -191,10 +188,10 @@ function CBKitDetail._overviewPanel()
         gui.Label{
             classes = {"builder-base", "label", "info", "overview"},
             updateSelectedKit = function(element, kitItem, kitItem2)
-                local text = kitItem and kitItem.description
-                if kitItem2 and #kitItem2.description > 0 then
+                local text = kitItem and kitItem.equipmentDescription
+                if kitItem2 and #kitItem2.equipmentDescription > 0 then
                     if #text > 0 then text = text .. "\n" end
-                    text = text .. kitItem2.description
+                    text = text .. kitItem2.equipmentDescription
                 end
                 element.text = #text > 0 and text or "No equipment description found."
             end,

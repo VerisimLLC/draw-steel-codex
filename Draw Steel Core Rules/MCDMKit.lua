@@ -354,6 +354,23 @@ function Kit.CombineKits(creature, a, b)
         modifierInfo = modifierInfo
 	}
 
+    result.weapons = {}
+    for k,v in pairs(a.weapons) do
+        result.weapons[k] = v
+    end
+
+    for k,v in pairs(b.weapons) do
+        result.weapons[k] = v
+    end
+
+    if a.armor == b.armor or a.armor == "None" then
+        result.armor = b.armor
+    elseif b.armor == "None" then
+        result.armor = a.armor
+    else
+        result.armor = string.format("%s/%s", a.armor, b.armor)
+    end
+
     for i=1,#abilities do
         abilities[i] = abilities[i]:MakeTemporaryClone()
         local modificationLog = {}
@@ -557,6 +574,20 @@ ApplyBonusesFromKit = function(kit, ability, modificationLog, additionFunction)
 	if ability.keywords["Melee"] and (ability.targetType == "cube" or not ability.keywords["Area"]) then
 		range = kit.reach
 		rangeDescription = "reach"
+
+        --if we have a range text override, we need to modify it to reflect reach increase
+        --this makes it so abilities such as Get In Get Out (Shadow ability which allows shifting before the attack) work correctly
+        local rangeTextOverride = ability:try_get("rangeTextOverride")
+        if rangeTextOverride ~= nil and kit.reach > 0 then
+            ability.rangeTextOverride = rangeTextOverride:gsub("^(Melee%s+)(%d+)(.*)$", function(prefix, numStr, suffix)
+                local num = tonumber(numStr)
+                if num ~= nil then
+                    return string.format("%s%d%s", prefix, additionFunction(num, kit.reach), suffix)
+                else
+                    return rangeTextOverride
+                end
+            end)
+        end
 	elseif ability.keywords["Ranged"] then
 		range = kit.range
 		rangeDescription = "range"
@@ -955,3 +986,122 @@ function creature:CanHaveKits()
 
     return not table.empty(result)
 end
+
+Kit.helpSymbols = {
+	__name = "Kit",
+	__sampleFields = {"speed"},
+
+	name = {
+		name = "Name",
+		type = "string",
+		desc = "The name of the kit.",
+	},
+	stamina = {
+        name = "Stamina",
+        type = "number",
+        desc = "Stamina bonus from the current kit.",
+    },
+	speed = {
+        name = "Speed",
+        type = "number",
+        desc = "Speed bonus from the current kit.",
+    },
+	distance = {
+        name = "Distance",
+        type = "number",
+        desc = "Distance bonus from the current kit.",
+    },
+	reach = {
+        name = "Reach",
+        type = "number",
+        desc = "Reach bonus from the current kit.",
+    },
+	area = {
+        name = "Area",
+        type = "number",
+        desc = "Area bonus from the current kit.",
+    },
+	disengage = {
+        name = "Disengage",
+        type = "number",
+        desc = "Disengage bonus from the current kit.",
+    },
+	stability = {
+        name = "Stability",
+        type = "number",
+        desc = "Stability bonus from the current kit.",
+    },
+	damagebonus = {
+		name = "Damage Bonus",
+		type = "function",
+		desc = "Damage bonus from the current kit. Returns the bonus to the specified tier result and damage type, melee, ranged, or supernatural. if no type is specified will return the highest damage of any type.",
+		example = {'kit.damage bonus(1, "melee")', 'kit.damage bonus(2)'},
+	},
+}
+
+Kit.lookupSymbols = {
+	datatype = function(c)
+		return "kit"
+	end,
+	name = function(c)
+		return c.name
+	end,
+	stamina = function(c)
+		return c.health
+	end,
+	speed = function(c)
+		return c.speed
+	end,
+	distance = function(c)
+		return c.range
+	end,
+	reach = function(c)
+		return c.reach
+	end,
+	area = function(c)
+		return c.area
+	end,
+	disengage = function(c)
+		return c.disengage
+	end,
+	stability = function(c)
+		return c.stability
+	end,
+	damagebonus = function(c)
+		return function(tier, id)
+            if tier == nil or type(tier) ~= "number" then
+				return 0
+			end
+			if id ~= nil then
+				local bonuses = c:DamageBonuses()[id]
+				if bonuses ~= nil then
+					return bonuses[tier]
+				end
+			else
+				local bestBonus = 0
+				for _,bonuses in pairs(c:DamageBonuses()) do
+					if bonuses[tier] ~= nil and bonuses[tier] > bestBonus then
+						bestBonus = bonuses[tier]
+					end
+				end
+				return bestBonus
+			end
+			return 0
+        end
+	end,
+}
+
+creature.RegisterSymbol {
+    symbol = "kit",
+    lookup = function(c)
+        return c:Kit()
+    end,
+    help = {
+        name = "Kit",
+        type = "kit",
+        desc = "The current kit of this creature, if any.",
+        example = "Kit.speed <= 5",
+    },
+}
+
+RegisterGoblinScriptTypeInfo("kit", Kit.helpSymbols)

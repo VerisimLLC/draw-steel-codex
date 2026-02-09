@@ -98,141 +98,192 @@ ActivatedAbilityInvokeAbilityBehavior.runOnController = false
 
 function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, targets, options)
 
-    print("INVOKE:: Casting on", #targets, ability.name, "coroutine:", coroutine.running())
-    --TODO: maybe only commit to paying with more generous criteria -- only if an ability
-    --is actually used?
-    ability:CommitToPaying(casterToken, options)
-    for i,target in ipairs(targets) do
-        if target.token ~= nil then
-            print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
+    local promptWhenResolving = self:try_get("promptWhenResolving", false)
+
+    local targetChoices = {}
+    if promptWhenResolving then
+        for _,target in ipairs(targets or {}) do
+            local targetToken = target.token
+            targetChoices[#targetChoices+1] = targetToken
+        end
+    end
+
+    repeat
+
+        if promptWhenResolving and #targetChoices > 0 then
+
+            print("ChooseTarget:: prompting...")
+            targets = nil
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = casterToken,
+                targets = table.shallow_copy(targetChoices),
+                prompt = self:try_get("promptWhenResolvingText", "Choose Target"),
+                choose = function(targetToken)
+                    print("ChooseTarget:: chosen")
+                    targets = {
+                        {
+                            token = targetToken,
+                        }
+                    }
+
+                    for i=1,#targetChoices do
+                        if targetChoices[i].charid == targetToken.charid then
+                            table.remove(targetChoices, i)
+                            break
+                        end
+                    end
+                end,
+                cancel = function()
+                    targets = {}
+                    targetChoices = {}
+                end,
+            })
+
+            while targets == nil do
+                coroutine.yield(0.1)
+            end
+        end
 
 
-            --be careful not to put anything in here we don't want to transmit to the database.
-			local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
+        print("INVOKE:: Casting on", #targets, ability.name, "coroutine:", coroutine.running())
+        --TODO: maybe only commit to paying with more generous criteria -- only if an ability
+        --is actually used?
+        ability:CommitToPaying(casterToken, options)
+        for i,target in ipairs(targets) do
+            if target.token ~= nil then
+                print("INVOKE:: CASTING ON TARGET", i, "/", #targets)
 
-			if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
 
-                --clean out the ability so we don't copy too much.
-                local cast = DeepCopy(options.symbols.cast)
-                cast.ability = nil
-                symbols.cast = cast
+                --be careful not to put anything in here we don't want to transmit to the database.
+                local symbols = { spellname = options.symbols.spellname or ability.name, charges = options.symbols.charges, cast = options.symbols.cast, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
 
-                local subjectid
-                if options.symbols.subject ~= nil then
-                    local s = options.symbols.subject
-                    if type(s) == "function" then
-                        s = s("self")
+                if self.runOnController and target.token.activeControllerId ~= nil and self.abilityType ~= "custom" then
+
+                    --clean out the ability so we don't copy too much.
+                    local cast = DeepCopy(options.symbols.cast)
+                    cast.ability = nil
+                    symbols.cast = cast
+
+                    local subjectid
+                    if options.symbols.subject ~= nil then
+                        local s = options.symbols.subject
+                        if type(s) == "function" then
+                            s = s("self")
+                        end
+
+                        subjectid = dmhub.LookupTokenId(s)
                     end
 
-                    subjectid = dmhub.LookupTokenId(s)
+
+                    --dispatch this to run on the controller.
+                    local invocation = AbilityInvocation.new{
+                        timestamp = ServerTimestamp(),
+                        userid = target.token.activeControllerId,
+                        abilityType = self.abilityType,
+                        namedAbility = self.namedAbility,
+                        standardAbility = self.standardAbility,
+                        standardAbilityParams = self:try_get("standardAbilityParams"),
+                        targeting = self.targeting,
+                        invokerid = casterToken.id,
+                        casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
+                        targetid = target.token.id,
+                        subjectid = subjectid,
+                        symbols = symbols,
+                        abilityAttr = {
+                            promptOverride = cond(self.promptText ~= "", StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})),
+                        }
+                    }
+
+                    target.token:ModifyProperties{
+                        description = "Invoke Ability",
+                        undoable = false,
+                        execute = function()
+                            local invokes = target.token.properties:get_or_add("remoteInvokes", {})
+                            invokes[#invokes+1] = DeepCopy(invocation)
+                        end,
+                    }
+
+                else
+
+                    local abilityTemplate = nil
+                    if self.abilityType == "named" then
+                        local abilities = target.token.properties:GetActivatedAbilities{allLoadouts = true, bindCaster = true}
+                        for _,ability in ipairs(abilities) do
+                            if string.lower(ability.name) == string.lower(self.namedAbility) then
+                                abilityTemplate = ability
+                                break
+                            end
+                        end
+                    elseif self.abilityType == "custom" then
+                        abilityTemplate = self.customAbility
+                    elseif self.abilityType == "standard" then
+                        local t = dmhub.GetTable("standardAbilities") or {}
+                        abilityTemplate = t[self.standardAbility]
+                    end
+
+                    if abilityTemplate ~= nil then
+                        local abilityClone = abilityTemplate:MakeTemporaryClone()
+
+                        if self.abilityType == "standard" or self.abilityType == "custom" then
+
+                            local allParameters = {}
+                            AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
+
+                            local symbols = table.union(options.symbols, {
+                                target = GenerateSymbols(target.token.properties),
+                                invoker = GenerateSymbols(casterToken.properties),
+                            })
+                            for k,v in pairs(self:try_get("standardAbilityParams", {})) do
+                                allParameters[k] = nil
+                                local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(symbols))
+                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
+                            end
+                            for k,_ in pairs(allParameters) do
+                                --clear out any parameters we didn't explicitly set.
+                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
+                            end
+                        end
+
+                        abilityClone.invoker = ability:try_get("invoker") or casterToken.properties
+
+                        if self.inheritRange then
+                            abilityClone.range = ability.range
+                            abilityClone.rangeUsesInvoker = true
+                        end
+
+                        if self:try_get("inheritKeywords", false) then
+                            abilityClone.keywords = ability.keywords
+                        end
+
+                        if self.promptText ~= "" then
+                            abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
+                        end
+
+                        local autoTarget = self:try_get("autoTarget", true)
+                        if autoTarget and not abilityClone:RequiresPromptWhenCast() then
+                            abilityClone.castImmediately = true
+                            print("INVOKE:: Auto-target enabled for", abilityClone.name)
+                        end
+
+                        if self.targeting == "formula" then
+                            options.targetingFormula = self:try_get("targetingFormula", "")
+                        end
+
+                        print("Invoke:: Execute...")
+                        local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
+                        self.ExecuteInvoke(casterToken, abilityClone, invokerToken, self.targeting, symbols, options)
+                    end
                 end
 
-
-				--dispatch this to run on the controller.
-				local invocation = AbilityInvocation.new{
-					timestamp = ServerTimestamp(),
-					userid = target.token.activeControllerId,
-					abilityType = self.abilityType,
-					namedAbility = self.namedAbility,
-					standardAbility = self.standardAbility,
-                    standardAbilityParams = self:try_get("standardAbilityParams"),
-					targeting = self.targeting,
-					invokerid = casterToken.id,
-					casterid = cond(self.invokeOnCaster, casterToken.id, target.token.id),
-                    targetid = target.token.id,
-                    subjectid = subjectid,
-					symbols = symbols,
-					abilityAttr = {
-						promptOverride = cond(self.promptText ~= "", StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})),
-					}
-				}
-
-				target.token:ModifyProperties{
-					description = "Invoke Ability",
-					undoable = false,
-					execute = function()
-						local invokes = target.token.properties:get_or_add("remoteInvokes", {})
-						invokes[#invokes+1] = DeepCopy(invocation)
-					end,
-				}
-
-			else
-
-				local abilityTemplate = nil
-				if self.abilityType == "named" then
-					local abilities = target.token.properties:GetActivatedAbilities{allLoadouts = true, bindCaster = true}
-					for _,ability in ipairs(abilities) do
-						if string.lower(ability.name) == string.lower(self.namedAbility) then
-							abilityTemplate = ability
-							break
-						end
-					end
-				elseif self.abilityType == "custom" then
-					abilityTemplate = self.customAbility
-				elseif self.abilityType == "standard" then
-					local t = dmhub.GetTable("standardAbilities") or {}
-					abilityTemplate = t[self.standardAbility]
-				end
-
-				if abilityTemplate ~= nil then
-					local abilityClone = abilityTemplate:MakeTemporaryClone()
-
-					if self.abilityType == "standard" or self.abilityType == "custom" then
-
-                        local allParameters = {}
-                        AbilityUtils.ExtractAbilityParameters(abilityClone, allParameters)
-
-                        local symbols = table.union(options.symbols, {
-                            target = GenerateSymbols(target.token.properties),
-                            invoker = GenerateSymbols(casterToken.properties),
-                        })
-						for k,v in pairs(self:try_get("standardAbilityParams", {})) do
-                            allParameters[k] = nil
-							local str = AbilityUtils.SubstituteAbilityParameters(v, casterToken.properties:LookupSymbol(symbols))
-							AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
-						end
-                        for k,_ in pairs(allParameters) do
-                            --clear out any parameters we didn't explicitly set.
-                            AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
-                        end
-					end
-
-					abilityClone.invoker = ability:try_get("invoker") or casterToken.properties
-
-					if self.inheritRange then
-						abilityClone.range = ability.range
-						abilityClone.rangeUsesInvoker = true
-					end
-
-					if self:try_get("inheritKeywords", false) then
-						abilityClone.keywords = ability.keywords
-					end
-
-					if self.promptText ~= "" then
-						abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
-					end
-
-                    local autoTarget = self:try_get("autoTarget", true)
-                    if autoTarget and not abilityClone:RequiresPromptWhenCast() then
-                        abilityClone.castImmediately = true
-                        print("INVOKE:: Auto-target enabled for", abilityClone.name)
-                    end
-
-                    if self.targeting == "formula" then
-                        options.targetingFormula = self:try_get("targetingFormula", "")
-                    end
-
-                    print("Invoke:: Execute...")
-                    local invokerToken = cond(self.invokeOnCaster, casterToken, target.token)
-					self.ExecuteInvoke(casterToken, abilityClone, invokerToken, self.targeting, symbols, options)
-				end
-			end
-
-		end
-	end
+            end
+        end
+    until promptWhenResolving == false or #targetChoices == 0
 end
 
 function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abilityClone, casterToken, targeting, symbols, options)
+    --record if we have to 'pay' for the invoke -- if work was done.
+    local haveToPay = false
+
     options = options or {}
 
     print("INVOKE:: STARTING:", abilityClone.name)
@@ -286,6 +337,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         if options.pay then
             --if the ability we invoked had to be paid for, we have to pay for the invoke.
             ability:CommitToPaying(casterToken, options)
+            haveToPay = true --we'll return that we 'did work' and have to pay.
         end
 	end
 
@@ -378,6 +430,7 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
 
     print("INVOKE:: FINISHED FOR", abilityClone.name, coroutine.running(), "CANCELED:", canceled)
 
+    return haveToPay
 end
 
 ActivatedAbilityInvokeAbilityBehavior.abilityType = "custom"
@@ -391,6 +444,34 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 	local result = {}
 	self:ApplyToEditor(parentPanel, result)
 	self:FilterEditor(parentPanel, result)
+
+    result[#result+1] = gui.Check{
+        text = "Choose Invocation Order",
+        value = self:try_get("promptWhenResolving", false),
+        change = function(element)
+            self.promptWhenResolving = element.value
+            parentPanel:FireEvent("refreshBehavior")
+        end,
+    }
+
+    if self:try_get("promptWhenResolving", false) then
+        result[#result+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Prompt Order:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                text = self:try_get("promptWhenResolvingText", ""),
+                placeholderText = "Choose Target",
+                characterLimit = 240,
+                change = function(element)
+                    self.promptWhenResolvingText = element.text
+                end
+            }
+        }
+    end
 
 	result[#result+1] = gui.Panel{
 		classes = {"formPanel"},

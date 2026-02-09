@@ -36,13 +36,29 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
         }
 
     else
+        if options.targetArea ~= nil then
+            print("TARGET::", options.targetArea, "->", #options.targetArea.perimeter)
+            game.currentFloor:ChangeElevation{
+                type = "polygon",
+                points = options.targetArea.perimeter,
+                opacity = 1,
+                height = height,
+                add = true,
+                recalculateTokenElevation = self.recalculateElevation,
+            }
+        else
+            local targetLocs = {}
+            for _,target in ipairs(targets) do
+                if target.loc ~= nil then
+                    targetLocs[#targetLocs + 1] = target.loc
+                end
+            end
 
-        for _,target in ipairs(targets) do
-            if target.loc ~= nil then
+            for _,loc in ipairs(targetLocs) do
                 if self.shape == "circle" then
                     game.currentFloor:ChangeElevation{
                         type = "ellipse",
-                        center = { x = target.loc.x, y = target.loc.y },
+                        center = { x = loc.x, y = loc.y },
                         radius = self.radius,
                         opacity = 1,
                         height = height,
@@ -52,8 +68,8 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
                 else
                     game.currentFloor:ChangeElevation{
                         type = "rectangle",
-                        p1 = { x = target.loc.x - self.radius/2, y = target.loc.y - self.radius/2 },
-                        p2 = { x = target.loc.x + self.radius/2, y = target.loc.y + self.radius/2 },
+                        p1 = { x = loc.x - self.radius/2, y = loc.y - self.radius/2 },
+                        p2 = { x = loc.x + self.radius/2, y = loc.y + self.radius/2 },
                         opacity = 1,
                         height = height,
                         add = true,

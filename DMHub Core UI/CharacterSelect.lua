@@ -94,7 +94,7 @@ local function _characterSelector(args)
 
     local function buildTokenPanel(token, mentor)
         local isSelected = initiallySelected[token.id] == true
-        local description = fnDisplayText and fnDisplayText(token) or (token.name or "Unknown")
+        local description = fnDisplayText and fnDisplayText(token, mentor) or (token.name or "Unknown")
         return gui.Panel{
             bgimage = "panels/square.png",
             classes = {"token-panel", isSelected and "selected" or nil},

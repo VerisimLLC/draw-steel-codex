@@ -214,6 +214,12 @@ function CharacterPanel.DisplayAbility(token, ability, symbols)
     return false
 end
 
+function CharacterPanel.HighlightAbilitySection(options)
+    if g_characterDetailsPanel ~= nil and g_characterDetailsPanel.valid then
+        g_characterDetailsPanel:FireEventTree("showAbilitySection", options)
+    end
+end
+
 function CharacterPanel.HideAbility(ability)
     local ctrl = dmhub.modKeys['ctrl'] or false
     if ctrl then
@@ -1858,6 +1864,19 @@ local CreateBestiaryFolder = function(nodeid)
 
                         newMonster:Upload()
 
+                        local token = newMonster:GetLocalGameBestiaryToken()
+                        if token == nil then
+                            dmhub.Coroutine(function()
+                                while token == nil do
+                                    coroutine.yield(0.1)
+                                    token = newMonster:GetLocalGameBestiaryToken()
+                                end
+                                token:ShowSheet()
+                            end)
+                        else
+                            token:ShowSheet()
+                        end
+
                         parentElement.popup = nil
                     end,
                 }
@@ -1870,6 +1889,19 @@ local CreateBestiaryFolder = function(nodeid)
                         newFollower.properties = follower.CreateNew()
 
                         newFollower:Upload()
+
+                        local token = newFollower:GetLocalGameBestiaryToken()
+                        if token == nil then
+                            dmhub.Coroutine(function()
+                                while token == nil do
+                                    coroutine.yield(0.1)
+                                    token = newFollower:GetLocalGameBestiaryToken()
+                                end
+                                token:ShowSheet()
+                            end)
+                        else
+                            token:ShowSheet()
+                        end
 
                         parentElement.popup = nil
                     end,

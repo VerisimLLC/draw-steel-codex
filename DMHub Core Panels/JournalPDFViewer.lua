@@ -2735,6 +2735,7 @@ RegisterGameType("PDFFragment")
 PDFFragment.tableName = "pdfReferences"
 PDFFragment.refid = "none" --the PDF document we refer to.
 PDFFragment.name = "PDF Fragment"
+PDFFragment.ord = 0
 PDFFragment.AddAlias("description", "name")
 PDFFragment.hidden = false
 PDFFragment.parentFolder = false

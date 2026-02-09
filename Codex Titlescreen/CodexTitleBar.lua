@@ -772,12 +772,13 @@ local function CreateTopBar()
             g_adventureDocumentsBar = nil
         end,
 
-        thinkTime = 0.1,
+        thinkTime = 0.2,
         think = function(element)
             if (dmhub.inGame and not dmhub.isLobbyGame) ~= m_inGame then
                 m_inGame = (dmhub.inGame and not dmhub.isLobbyGame)
                 element:SetClassTree("ingame", m_inGame)
             end
+            element:FireEventTree("calculateVisibility")
         end,
 
         CreateCodexMenuItem{
@@ -889,7 +890,13 @@ local function CreateTopBar()
 
         CreateCodexMenuItem{
             name = "Developer",
+            calculateVisibility = function(element)
+                element.selfStyle.collapsed = cond(devmode(), 0, 1)
+            end,
             menuItems = function()
+                if not devmode() then
+                    return {}
+                end
                 --pillage the "Development Tools" folders from our menu items.
                 local menuItems = {}
                 for i,items in ipairs({DockablePanel.GetMenuItems(), LaunchablePanel.GetMenuItems()}) do

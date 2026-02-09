@@ -18,6 +18,51 @@ TriggeredAbility.DespawnBehaviors = {
     },
 }
 
+setting{
+    id = "game:heroicresourcetriggers",
+    classes = {"dmonly"},
+    storage = "game",
+    section = "Game",
+    editor = "check",
+    description = "Automated Heroic Resource Gains",
+    default = true,
+}
+
+TriggeredAbility.mandatoryTriggerSettings = {
+    {
+        id = true,
+        text = "Occurs Automatically",
+    },
+    {
+        id = false,
+        text = "Prompt",
+    },
+    {
+        id = "game:heroicresourcetriggers",
+        text = "Automatic Heroic Resource Setting",
+    }
+}
+
+function TriggeredAbility:IsMandatory()
+    if self.mandatory == true then
+        return true
+    elseif self.mandatory == false then
+        return false
+    end
+
+    --mandatory/automatic.
+    local mandatory = dmhub.GetSettingValue(self.mandatory)
+    return mandatory
+end
+
+function TriggeredAbility:MayBePrompted()
+    if self.mandatory == true then
+        return false
+    end
+
+    return true
+end
+
 ActivatedAbility.OnTypeRegistered = function()
 	TriggeredAbility.Types = {}
 
@@ -65,6 +110,20 @@ TriggeredAbility.TargetTypes = {
 			return ability.trigger == "damage" or ability.trigger == "dealdamage" or ability.trigger == "movethrough" or ability.trigger == "pressureplate" or ability.silent
 		end,
 	},
+    {
+        id = 'pathmoved',
+        text = 'Path Moved Along',
+        condition = function(ability)
+            return ability.trigger == "finishmove"
+        end,
+    },
+    {
+        id = 'pathmovednodest',
+        text = 'Path Moved Along Excluding Destination',
+        condition = function(ability)
+            return ability.trigger == "finishmove"
+        end,
+    },
     {
         id = 'subject',
         text = 'Subject',
@@ -783,6 +842,23 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
         print("AURA:: FOUND", #targets)
         
+    elseif self.targetType == 'pathmoved' or self.targetType == 'pathmovednodest' then
+        local path = symbols.path
+        if path ~= nil and path.path ~= nil then
+            path = path.path
+            print("PATH::", path)
+            targets = {}
+            for i,step in ipairs(path.steps) do
+                targets[#targets+1] = {
+                    loc = step
+                }
+            end
+
+            if self.targetType == 'pathmovednodest' and #targets > 0 then
+                targets[#targets] = nil
+            end
+        end
+
 	elseif self.targetType == 'attacker' or self.targetType == 'target' then
 		if symbols[self.targetType] == nil then
 
@@ -838,7 +914,6 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
             success = true,
         }
 
-        print("DISPATCH:: HANDLE TRIGGER", self.name, "TOKEN", creature.GetTokenDescription(casterToken))
     end
 
 	local executeTrigger = function()
@@ -875,7 +950,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		g_triggerDepth = g_triggerDepth - 1
 	end
 
-	if self.mandatory or (self:try_get("mandatoryDifferentPlayer", false) and casterToken.activeControllerId == nil) then
+	if self:IsMandatory() or (self:try_get("mandatoryDifferentPlayer", false) and casterToken.activeControllerId == nil) then
 		executeTrigger()
 	else
 		dmhub.Coroutine(function()
@@ -953,6 +1028,8 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 
 			local sustain = true
 			local gameupdate = dmhub.ngameupdate
+
+            local expireAt = nil
             
 			while trigger ~= nil and (not trigger.triggered) and (not trigger.dismissed) and sustain do
 				coroutine.yield()
@@ -962,16 +1039,12 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                     break
                 end
 
-                if casterToken.properties:GetResourceRefreshId("turn") ~= turnid then
-                    local runtime = dmhub.Time() - starttime
-                    if runtime < 2 then
-                        --let it roll over to the next turn as our turn id since it changed
-                        --turn almost immediately.
-                        turnid = casterToken.properties:GetResourceRefreshId("turn")
-                    elseif runtime > 8 then
-                        --make sure we show the trigger for at least 8 seconds, then expire it.
+                if expireAt ~= nil then
+                    if dmhub.Time() >= expireAt then
                         sustain = false
                     end
+                elseif casterToken.properties:GetResourceRefreshId("turn") ~= turnid and (dmhub.initiativeQueue == nil or (not dmhub.initiativeQueue:ChoosingTurn())) then
+                    expireAt = dmhub.Time() + 6
                 end
 
                 local triggers = casterToken.properties:GetAvailableTriggers() or {}
@@ -1061,7 +1134,6 @@ end
 
 function TriggeredAbility:TriggerCo(targets, characterModifier, casterToken, creature, symbols, auraControllerToken, modContext, argOptions)
 
-    print("COROUTINE:: TriggerCo", self.name, "targets:", #targets, "symbols:", symbols, "auraControllerToken:", auraControllerToken and auraControllerToken.name or "nil", "modContext:", modContext)
     argOptions = argOptions or {}
 
 	if auraControllerToken == nil then

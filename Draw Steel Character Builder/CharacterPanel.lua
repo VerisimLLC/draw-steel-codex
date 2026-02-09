@@ -1,17 +1,17 @@
 --[[
     Character Panel
+    The right-side status panel
 ]]
 CBCharPanel = RegisterGameType("CBCharPanel")
 
 local _blankToDashes = CharacterBuilder._blankToDashes
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
-local _formatOrder = CharacterBuilder._formatOrder
 local _getHero = CharacterBuilder._getHero
 local _getState = CharacterBuilder._getState
 local _getToken = CharacterBuilder._getToken
 local _ucFirst = CharacterBuilder._ucFirst
 
-local INITIAL_TAB = "description"
+local INITIAL_TAB = "builder"
 local SEL = CharacterBuilder.SELECTOR
 
 --- Create a panel displaying feature information for a single feature type
@@ -52,13 +52,8 @@ end
 
 --- Create a panel to display an element of builder status
 --- @param selector string The primary selector for querying state
---- @param visible? boolean|function(hero) Whether the panel should be visible
---- @param suppressRow1? boolean Whether to suppress the first row of detail
 --- @return Panel
-function CBCharPanel._statusItem(selector, visible, suppressRow1)
-    if visible == nil then visible = true end
-    if suppressRow1 == nil then suppressRow1 = false end
-
+function CBCharPanel._statusItem(selector)
     local headingText = _ucFirst(selector)
 
     local headerPanel = gui.Panel{
@@ -126,50 +121,12 @@ function CBCharPanel._statusItem(selector, visible, suppressRow1)
         end,
 
         calculateStatus = function(element, state)
-            local hero = _getHero()
-            local featureCache = state:Get(selector .. ".featureCache")
-            local statusEntries = {}
-            if not suppressRow1 then
-                statusEntries[headingText] = {
-                    id = headingText,
-                    order = _formatOrder(0, headingText),
-                    available = 1,
-                    selected = 0,
-                    selectedDetail = {},
-                }
+            local selectionStatus = state:Get(selector .. ".selectionStatus")
+            if selectionStatus then
+                element.data.statusEntries = selectionStatus:CalculateStatus()
+            else
+                element.data.statusEntries = {}
             end
-
-            if hero and featureCache then
-                if not suppressRow1 then
-                    statusEntries[headingText].selected = 1
-                    statusEntries[headingText].selectedDetail = { featureCache:GetSelectedName() }
-                end
-
-                for _,item in ipairs(featureCache:GetSortedFeatures()) do
-                    local feature = featureCache:GetFeature(item.guid)
-                    local key = feature:GetCategoryOrder()
-                    if statusEntries[key] == nil then
-                        statusEntries[key] = {
-                            id = feature:GetCategory(),
-                            order = key,
-                            available = 0,
-                            selected = 0,
-                            selectedDetail = {},
-                        }
-                    end
-                    local statusEntry = statusEntries[key]
-                    statusEntry.available = statusEntry.available + feature:GetNumChoices()
-                    statusEntry.selected = statusEntry.selected + feature:GetSelectedValue()
-                    local selectedNames = feature:GetSelectedNames()
-                    table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
-                    table.sort(statusEntry.selectedDetail)
-                end
-            end
-
-            statusEntries = CharacterBuilder._toArray(statusEntries)
-            table.sort(statusEntries, function(a,b) return a.order < b.order end)
-
-            element.data.statusEntries = statusEntries
         end,
 
         reconcileChildren = function(element)
@@ -215,16 +172,10 @@ function CBCharPanel._statusItem(selector, visible, suppressRow1)
         flow = "vertical",
         data = {
             expanded = nil,
-            visible = visible,
         },
         refreshBuilderState = function(element, state)
-            local visible = element.data.visible
-            if type(visible) == "function" then
-                local hero = _getHero()
-                visible = visible(hero)
-            else
-                visible = element.data.visible == true
-            end
+            local selectionStatus = state:Get(selector .. ".selectionStatus")
+            local visible = selectionStatus and selectionStatus:IsVisible(_getHero()) or false
             element:SetClass("collapsed", not visible)
             if not visible then
                 element:HaltEventPropagation()
@@ -245,12 +196,12 @@ end
 
 function CBCharPanel._builderPanel(tabId)
 
-    local ancestryStatusItem = CBCharPanel._statusItem(SEL.ANCESTRY, true)
-    local careerStatusItem = CBCharPanel._statusItem(SEL.CAREER, true)
-    local classStatusItem = CBCharPanel._statusItem(SEL.CLASS, true)
-    local kitStatusItem = CBCharPanel._statusItem(SEL.KIT, function(hero)
-        return hero:CanHaveKits()
-    end, true)
+    local ancestryStatusItem = CBCharPanel._statusItem(SEL.ANCESTRY)
+    local cultureStatusItem = CBCharPanel._statusItem(SEL.CULTURE)
+    local careerStatusItem = CBCharPanel._statusItem(SEL.CAREER)
+    local classStatusItem = CBCharPanel._statusItem(SEL.CLASS)
+    local kitStatusItem = CBCharPanel._statusItem(SEL.KIT)
+    local complicationStatusItem = CBCharPanel._statusItem(SEL.COMPLICATION)
 
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "tab-content"},
@@ -269,9 +220,11 @@ function CBCharPanel._builderPanel(tabId)
         end,
 
         ancestryStatusItem,
+        cultureStatusItem,
         careerStatusItem,
         classStatusItem,
         kitStatusItem,
+        complicationStatusItem,
     }
 end
 
@@ -462,7 +415,7 @@ function CBCharPanel._descriptionPanel(tabId)
                     if desc then element.text = _blankToDashes(desc:GetPhysicalFeatures()) end
                 end
             end,
-        }
+        },
     }
 
     return gui.Panel {
@@ -594,6 +547,57 @@ function CBCharPanel._explorationPanel(tabId)
         }
     }
 
+    local perksPane = gui.Panel{
+        classes = {"panel-base"},
+        width = "98%",
+        height = "auto",
+        halign = "center",
+        tmargin = 14,
+        flow = "vertical",
+        
+        gui.Panel{
+            classes = {"panel-base"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            flow = "horizontal",
+            bgimage = true,
+            borderColor = Styles.textColor,
+            border = {y1 = 1, y2 = 0, x1 = 0, x2 = 0},
+            gui.Label{
+                classes = {"builder-base", "label", "charpanel", "desc-item-label"},
+                text = "Perks",
+            }
+        },
+
+        gui.Label{
+            classes = {"builder-base", "label", "charpanel", "desc-item-detail"},
+            width = "98%",
+            valign = "top",
+            text = "calculating...",
+
+            refreshBuilderState = function(element, state)
+                local perks = state:Get("cachedPerks")
+                local perkString = "--"
+                if perks then
+                    local knownPerks = {}
+                    local perksTable = dmhub.GetTableVisible(CharacterFeat.tableName)
+                    for k,_ in pairs(perks) do
+                        local item = perksTable[k]
+                        if item then
+                            knownPerks[#knownPerks+1] = item.name
+                        end
+                    end
+                    if #knownPerks then
+                        table.sort(knownPerks)
+                        perkString = table.concat(knownPerks, ", ")
+                    end
+                end
+                element.text = perkString
+            end
+        }
+    }
+
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "tab-content"},
         data = {
@@ -607,6 +611,7 @@ function CBCharPanel._explorationPanel(tabId)
         end,
         skillsPane,
         languagesPane,
+        perksPane,
     }
 end
 
@@ -627,7 +632,7 @@ function CBCharPanel._tacticalPanel(tabId)
         end,
 
         refreshBuilderState = function(element, state)
-            local token = state:Get("token")
+            local token = _getToken()
             if token then
                 if #element.children == 0 then
                     -- element:AddChild(CharacterPanel.CreateCharacterDetailsPanel(token))
@@ -673,13 +678,13 @@ function CBCharPanel._detailPanel()
             text = "Exploration",
             content = CBCharPanel._explorationPanel,
         },
-        tactical = {
-            icon = "panels/initiative/initiative-icon.png",
-            text = "Tactical",
-            content = CBCharPanel._tacticalPanel,
-        }
+        -- tactical = {
+        --     icon = "panels/initiative/initiative-icon.png",
+        --     text = "Tactical",
+        --     content = CBCharPanel._tacticalPanel,
+        -- }
     }
-    local tabOrder = {"description", "builder", "exploration", "tactical"}
+    local tabOrder = {"builder", "exploration", "description"} --, "tactical"}
 
     local tabButtons = {}
     for _,tabId in ipairs(tabOrder) do
@@ -885,24 +890,88 @@ function CBCharPanel._headerPanel()
             end
         end,
         refreshBuilderState = function(element, state)
-            local token = state:Get("token")
+            local token = _getToken()
             element.data.text = (token and token.name and #token.name > 0) and token.name or "Unnamed Character"
             element.text = string.upper(element.data.text)
         end,
     }
 
-    local levelClass = gui.Label {
+    local level = gui.Dropdown{
+        classes = {"panel-base", "dropdown", "charlevel"},
+        fontSize = 26,
+        options = {
+            { id = "first", text = "First Encounter",},
+            { id = "second", text = "Second Encounter",},
+            { id = "third", text = "Third Encounter",},
+            { id = "fourth", text = "Fourth Encounter",},
+            { id = 1, text = "Level 1",},
+            { id = 2, text = "Level 2",},
+            { id = 3, text = "Level 3",},
+            { id = 4, text = "Level 4",},
+            { id = 5, text = "Level 5",},
+            { id = 6, text = "Level 6",},
+            { id = 7, text = "Level 7",},
+            { id = 8, text = "Level 8",},
+            { id = 9, text = "Level 9",},
+            { id = 10, text = "Level 10",},
+        },
+
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            if hero then
+                local level = hero:CharacterLevel()
+                if level == 1 then
+                    local extra = hero:ExtraLevelInfo()
+                    if type(extra.encounter) == "number" then
+                        local mapping = {"first", "second", "third", "fourth"}
+                        element.idChosen = mapping[extra.encounter] or 1
+                    else
+                        element.idChosen = 1
+                    end
+                else
+                    element.idChosen = hero:CharacterLevel()
+                end
+            end
+        end,
+
+        change = function(element)
+            local hero = _getHero()
+            if hero then
+                local extra = hero:ExtraLevelInfo()
+                if type(element.idChosen) == "string" then
+                    hero.levelOverride = 1
+                    if element.idChosen == "first" then
+                        extra.encounter = 1
+                    elseif element.idChosen == "second" then
+                        extra.encounter = 2
+                    elseif element.idChosen == "third" then
+                        extra.encounter = 3
+                    else
+                        extra.encounter = 4
+                    end
+                else
+                    extra.encounter = nil
+                    hero.levelOverride = element.idChosen
+                end
+                hero.extraLevelInfo = extra
+
+                for _,classInfo in ipairs(hero:try_get("classes", {})) do
+                    classInfo.level = hero.levelOverride
+                end
+
+                _fireControllerEvent("tokenDataChanged")
+            end
+        end
+    }
+
+    local class = gui.Label {
         classes = {"builder-base", "label", "charname"},
-        text = "(class & level)",
-        tmargin = 4,
+        text = "Hero",
         refreshBuilderState = function(element, state)
             local hero = _getHero()
             if hero then
                 local class = hero:GetClass()
-                local level = hero:CharacterLevel()
-                if class or level then
-                    element.text = string.format("Level %d %s", level, class and class.name or ""):upper()
-                end
+                element.text = (class and class.name or "Hero"):upper()
             end
         end,
     }
@@ -916,7 +985,8 @@ function CBCharPanel._headerPanel()
         valign = "top",
         avatar,
         characterName,
-        levelClass,
+        level,
+        class,
     }
 end
 

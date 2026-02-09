@@ -5056,6 +5056,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 				end
 			end,
 
+
             chooseTarget = function(element, options)
 
                 ClearRadiusMarkers()
@@ -5642,6 +5643,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 		multimonitor = {"__previewdice", "hideactionbar"},
 		events = {
 			monitor = function(element)
+                print("PreviewDice::", dmhub.GetSettingValue("__previewdice"), dmhub.GetSettingValue("hideactionbar"))
 				element:SetClass("preview-dice", dmhub.GetSettingValue("__previewdice"))
 				element:SetClass("hidden", dmhub.GetSettingValue("hideactionbar"))
 			end,

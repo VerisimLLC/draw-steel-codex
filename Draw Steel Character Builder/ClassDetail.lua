@@ -10,17 +10,9 @@ local INITIAL_CATEGORY = "overview"
 local AVAILABLE_WITHOUT_CLASS = {overview = true}
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
+local _formatOrder = CharacterBuilder._formatOrder
 local _getHero = CharacterBuilder._getHero
 local _makeDetailNavButton = CharacterBuilder._makeDetailNavButton
-
---- Return the hero's currently selected class
---- @param hero character
---- @return string|nil classId
-function CBClassDetail._getSelectedClass(hero)
-    local class = hero:GetClass()
-    if class then return class.id end
-    return nil
-end
 
 --- Generate the navigation panel
 --- @return Panel
@@ -30,9 +22,10 @@ function CBClassDetail._navPanel()
         text = "Overview",
         data = { category = INITIAL_CATEGORY },
     })
-    local changeButton = _makeDetailNavButton(SELECTOR, {
-        styles = CBStyles.SelectorButtonOverrides(),
-        classes = {"changeClass", "destructive"},
+    local changeButton = gui.PrettyButton{
+        classes = {"changeClass", "builder-base", "button", "selector", "destructive"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Change Class",
         data = { category = "change" },
         press = function(element)
@@ -42,14 +35,38 @@ function CBClassDetail._navPanel()
             local hero = _getHero()
             if hero then
                 local classes = hero:try_get("classes", {})
-                element:FireEvent("setAvailable", #classes > 0)
+                local isAvailable = #classes > 0
+                element:SetClass("collapsed", not isAvailable)
+                element:FireEvent("setAvailable", isAvailable)
             end
         end,
-    })
+    }
+
+    local selectButton = gui.PrettyButton{
+        classes = {"changeClass", "builder-base", "button", "selector"},
+        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
+        height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
+        text = "Select Class",
+        data = { category = "select" },
+        press = function(element)
+            _fireControllerEvent("applyCurrentClass")
+        end,
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            local heroClass = hero and hero:GetClass()
+            local isAvailable = state:Get(SELECTOR .. ".selectedId") ~= nil and heroClass == nil
+            element:SetClass("collapsed", not isAvailable)
+            element:FireEvent("setAvailable", isAvailable)
+        end,
+    }
 
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
         vscroll = true,
+
+        data = {
+            levelPanels = {}
+        },
 
         create = function(element)
             _fireControllerEvent("updateState", {
@@ -58,10 +75,102 @@ function CBClassDetail._navPanel()
             })
         end,
 
+        refreshBuilderState = function(element, state)
+            local featureCache = state:Get(SELECTOR .. ".featureCache")
+            if featureCache then
+                local levelStatus = {}
+                local features = featureCache:GetKeyedFeatures()
+                for _,feature in pairs(features) do
+                    local level = feature:GetLevel()
+                    if level and level > 0 then
+                        if levelStatus[level] == nil then
+                            levelStatus[level] = {
+                                available = 0,
+                                selected = 0,
+                                complete = false,
+                            }
+                        end
+                        local item = levelStatus[level]
+                        local featureStatus = feature:GetStatus()
+                        item.available = item.available + featureStatus.numChoices
+                        item.selected = item.selected + featureStatus.selected
+                        item.complete = item.selected >= item.available
+                    end
+                end
+
+                element:FireEventTree("updateLevelStatus", levelStatus)
+            end
+        end,
+
         registerFeatureButton = function(element, button)
+            local level = button.data.level
+            if level and level > 0 then
+                if element.data.levelPanels[level] == nil then
+                    local labelText = string.format("Level %d", level)
+                    local levelPanel = gui.Panel{
+                        classes = {"builder-base", "panel-base", "class-divider", "builder-header"},
+                        width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH + 20,
+                        valign = "top",
+                        halign = "center",
+                        vmargin = 8,
+                        data = {
+                            level = level,
+                            order = _formatOrder(level or 99, _formatOrder(0, labelText)),
+                            expanded = true,
+                        },
+                        press = function(element)
+                            local data = element.data
+                            data.expanded = not data.expanded
+                            element.parent:FireEventTree("showLevel", data.level, data.expanded)
+                        end,
+                        gui.Label{
+                            classes = {"builder-base", "label", "class-divider", "builder-header"},
+                            text = labelText,
+                        },
+                        gui.Panel{
+                            classes = {"builder-base", "panel-base", "class-divider", "builder-check"},
+                            updateLevelStatus = function(element, levelStatus)
+                                local level = element.parent.data.level
+                                if level and level > 0 then
+                                    local info = levelStatus[level]
+                                    if info then
+                                        element:SetClass("complete", info.complete)
+                                    end
+                                end
+                            end,
+                        },
+                        gui.Label{
+                            classes = {"builder-base", "label", "class-divider", "builder-header"},
+                            width = "auto",
+                            halign = "right",
+                            hmargin = 40,
+                            updateLevelStatus = function(element, levelStatus)
+                                local level = element.parent.data.level
+                                if level and level > 0 then
+                                    local info = levelStatus[level]
+                                    if info then
+                                        element.text = string.format("%d/%d", info.selected, info.available)
+                                        element:SetClass("collapsed", info.complete)
+                                    end
+                                end
+                            end,
+                        },
+                        gui.CollapseArrow{
+                            halign = "right",
+                            valign = "center",
+                            bgcolor = CBStyles.COLORS.GOLD03,
+                            showLevel = function(element, level, expanded)
+                                if level == element.parent.data.level then
+                                    element:SetClass("collapseSet", not expanded)
+                                end
+                            end,
+                        }
+                    }
+                    element.data.levelPanels[level] = levelPanel
+                    element:AddChild(levelPanel)
+                end
+            end
             element:AddChild(button)
-            local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeClass") end)
-            if changeButton then changeButton:SetAsLastSibling() end
             element.children = CharacterBuilder._sortButtons(element.children)
         end,
 
@@ -74,8 +183,9 @@ function CBClassDetail._navPanel()
             end
         end,
 
-        overviewButton,
+        selectButton,
         changeButton,
+        overviewButton,
     }
 end
 
@@ -148,7 +258,7 @@ function CBClassDetail._overviewPanel()
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local featureDetails = featureCache:GetFlattenedFeatures()
                     for _,item in ipairs(featureDetails) do
-                        local s = item.feature:GetSummaryText()
+                        local s = item.feature:GetDetailedSummaryText()
                         if s ~= nil and #s > 0 then
                             textItems[#textItems+1] = s
                         end
@@ -159,6 +269,12 @@ function CBClassDetail._overviewPanel()
                 element.text = text
             end
         }
+    }
+
+    local spacerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        width = "50%",
+        height = "66%",
     }
 
     return gui.Panel{
@@ -195,29 +311,23 @@ function CBClassDetail._overviewPanel()
             bmargin = 32,
             valign = "bottom",
             vscroll = true,
+            data = {
+                lastSelected = nil,
+            },
+
+            refreshBuilderState = function(element, state)
+                local currentSelected = state:Get(SELECTOR .. ".selectedId")
+                if currentSelected ~= element.data.lastSelected then
+                    element.data.lastSelected = currentSelected
+                    element.vscrollPosition = 1
+                end
+            end,
+
+            spacerPanel,
             nameLabel,
             introLabel,
             detailLabel,
         }
-    }
-end
-
---- Build the Select button
---- @return PrettyButton|Panel
-function CBClassDetail._selectButton()
-    return CharacterBuilder._makeSelectButton{
-        classes = {"selectButton"},
-        press = function(element)
-            _fireControllerEvent("applyCurrentClass")
-        end,
-        refreshBuilderState = function(element, state)
-            local hero = _getHero()
-            if hero then
-                local heroClass = hero:GetClass()
-                local canSelect = heroClass == nil and state:Get(SELECTOR .. ".selectedId") ~= nil
-                element:SetClass("collapsed", not canSelect)
-            end
-        end,
     }
 end
 
@@ -228,8 +338,6 @@ function CBClassDetail.CreatePanel()
     local navPanel = CBClassDetail._navPanel()
 
     local overviewPanel = CBClassDetail._overviewPanel()
-
-    local selectButton = CBClassDetail._selectButton()
 
     local detailPanel = gui.Panel{
         id = "classDetailPanel",
@@ -251,7 +359,6 @@ function CBClassDetail.CreatePanel()
         end,
 
         overviewPanel,
-        selectButton,
     }
 
     return gui.Panel{
@@ -274,7 +381,7 @@ function CBClassDetail.CreatePanel()
             local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
             local hero = _getHero()
             if hero then
-                local heroClass = hero:GetClass()
+                local heroClass = state:Get(SELECTOR .. ".selectedId")
 
                 if heroClass ~= nil then
                     for id,_ in pairs(element.data.features) do
@@ -291,8 +398,10 @@ function CBClassDetail.CreatePanel()
                                 local featureRegistry = CharacterBuilder._makeFeatureRegistry{
                                     feature = feature,
                                     selector = SELECTOR,
-                                    selectedId = heroClass.id,
-                                    getSelected = CBClassDetail._getSelectedClass,
+                                    selectedId = heroClass,
+                                    getSelected = function(hero)
+                                        return heroClass
+                                    end,
                                 }
                                 if featureRegistry then
                                     element.data.features[featureId] = true

@@ -54,8 +54,12 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 
 			--make sure all the mods inherit the ongoingEffect's description and name.
 			for i,mod in ipairs(ongoingEffect.modifiers) do
-				mod.name = ongoingEffect.name
-				mod.description = ongoingEffect.description
+                if mod.name == nil or mod.name == "" then
+				    mod.name = ongoingEffect.name
+                end
+                if mod.description == nil or mod.description == "" then
+				    mod.description = ongoingEffect.description
+                end
 			end
 			dmhub.SetAndUploadTableItem(tableName, ongoingEffect)
 		end
@@ -119,6 +123,7 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 				height = 'auto',
 				minHeight = 60,
 				fontSize = 14,
+                characterLimit = 8192,
 				change = function(element)
 					ongoingEffect.description = element.text
 					UploadOngoingEffect()

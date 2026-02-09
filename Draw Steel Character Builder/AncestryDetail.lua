@@ -21,14 +21,16 @@ function CBAncestryDetail._navPanel()
         text = "Overview",
         data = { category = INITIAL_CATEGORY },
     })
+
     local loreButton = _makeDetailNavButton(SELECTOR, {
         text = "Lore",
         data = { category = "lore" },
     })
-    local changeButton = _makeDetailNavButton(SELECTOR, {
-        styles = CBStyles.SelectorButtonOverrides(),
-        classes = {"changeAncestry", "destructive"},
+
+    local changeButton = gui.Button{
+        classes = {"changeAncestry", "builder-base", "button", "selector", "destructive"},
         text = "Change Ancestry",
+        bold = false,
         data = { category = "change" },
         press = function(element)
             _fireControllerEvent("removeAncestry")
@@ -36,10 +38,28 @@ function CBAncestryDetail._navPanel()
         refreshBuilderState = function(element, state)
             local hero = _getHero()
             if hero then
-                element:FireEvent("setAvailable", hero:try_get("raceid") ~= nil)
+                local isAvailable = hero:try_get("raceid") ~= nil
+                element:SetClass("collapsed", not isAvailable)
+                element:FireEvent("setAvailable", isAvailable)
             end
         end,
-    })
+    }
+
+    local selectButton = gui.Button{
+        classes = {"changeAncestry", "builder-base", "button", "selector"},
+        text = "Select Ancestry",
+        bold = false,
+        data = { category = "select" },
+        press = function(element)
+            _fireControllerEvent("applyCurrentAncestry")
+        end,
+        refreshBuilderState = function(element, state)
+            local hero = _getHero()
+            local isAvailable = state:Get(SELECTOR .. ".selectedId") ~= nil and hero:try_get("raceid") == nil
+            element:SetClass("collapsed", not isAvailable)
+            element:FireEvent("setAvailable", isAvailable)
+        end,
+    }
 
     return gui.Panel{
         classes = {"categoryNavPanel", "builder-base", "panel-base", "detail-nav-panel"},
@@ -54,8 +74,6 @@ function CBAncestryDetail._navPanel()
 
         registerFeatureButton = function(element, button)
             element:AddChild(button)
-            local changeButton = element:FindChildRecursive(function(element) return element:HasClass("changeAncestry") end)
-            if changeButton then changeButton:SetAsLastSibling() end
             element.children = CharacterBuilder._sortButtons(element.children)
         end,
 
@@ -68,14 +86,14 @@ function CBAncestryDetail._navPanel()
             end
         end,
 
+        selectButton,
+        changeButton,
         overviewButton,
         loreButton,
-        changeButton,
     }
 end
 
 --- Build the Ancestry Overview panel
---- Used when no Ancestry is selected and to overview a selected ancestry
 --- @return Panel
 function CBAncestryDetail._overviewPanel()
 
@@ -129,6 +147,7 @@ function CBAncestryDetail._overviewPanel()
             classes = {"builder-base", "label", "info", "overview"},
             vpad = 6,
             bold = false,
+            markdown = true,
             text = CharacterBuilder.STRINGS.ANCESTRY.OVERVIEW,
 
             refreshBuilderState = function(element, state)
@@ -148,7 +167,7 @@ function CBAncestryDetail._overviewPanel()
                     local featureCache = state:Get(SELECTOR .. ".featureCache")
                     local featureDetails = featureCache:GetFlattenedFeatures()
                     for _,item in ipairs(featureDetails) do
-                        local s = item.feature:GetSummaryText()
+                        local s = item.feature:GetDetailedSummaryText()
                         if s ~= nil and #s > 0 then
                             textItems[#textItems+1] = s
                         end
@@ -159,6 +178,12 @@ function CBAncestryDetail._overviewPanel()
                 element.text = text
             end
         },
+    }
+
+    local spacerPanel = gui.Panel{
+        classes = {"builder-base", "panel-base", "container"},
+        width = "50%",
+        height = "66%",
     }
 
     return gui.Panel{
@@ -197,6 +222,19 @@ function CBAncestryDetail._overviewPanel()
             bmargin = 32,
             valign = "bottom",
             vscroll = true,
+            data = {
+                lastSelected = nil,
+            },
+
+            refreshBuilderState = function(element, state)
+                local currentSelected = state:Get(SELECTOR .. ".selectedId")
+                if currentSelected ~= element.data.lastSelected then
+                    element.data.lastSelected = currentSelected
+                    element.vscrollPosition = 1
+                end
+            end,
+
+            spacerPanel,
             nameLabel,
             introLabel,
             detailLabel,
@@ -226,47 +264,34 @@ function CBAncestryDetail._lorePanel()
             element:SetClass("collapsed", not visible)
         end,
 
-        gui.Label{
-            classes = {"builder-base", "label", "info", "overview"},
-            -- width = "96%",
-            -- height = "auto",
-            -- valign = "top",
-            halign = "center",
-            tmargin = 20,
-            text = "",
-            -- textAlignment = "left",
+        gui.Panel{
+            classes = {"builder-base", "panel-base", "container"},
+            width = "100%",
+            height = "auto",
+            valign = "top",
+            gui.Label{
+                classes = {"builder-base", "label", "info", "overview"},
+                halign = "center",
+                height = "auto",
+                tmargin = 20,
+                text = "",
+                wrap = true,
+                textAlignment = "topLeft",
 
-            refreshBuilderState = function(element, state)
-                local ancestryId = state:Get(SELECTOR .. ".selectedId")
-                if ancestryId then
-                    local race = state:Get(SELECTOR .. ".selectedItem")
-                    if not race then
-                        race = dmhub.GetTable(Race.tableName)[ancestryId]
+                refreshBuilderState = function(element, state)
+                    local ancestryId = state:Get(SELECTOR .. ".selectedId")
+                    if ancestryId then
+                        local race = state:Get(SELECTOR .. ".selectedItem")
+                        if not race then
+                            race = dmhub.GetTable(Race.tableName)[ancestryId]
+                        end
+                        element.text = (race and race.lore and #race.lore > 0)
+                            and race.lore
+                            or string.format("No lore found for %s.", race.name)
                     end
-                    element.text = (race and race.lore and #race.lore > 0)
-                        and race.lore
-                        or string.format("No lore found for %s.", race.name)
-                end
-            end,
-        }
-    }
-end
-
---- Build the Select button
---- @return PrettyButton|Panel
-function CBAncestryDetail._selectButton()
-    return CharacterBuilder._makeSelectButton{
-        classes = {"selectButton"},
-        press = function(element)
-            _fireControllerEvent("applyCurrentAncestry")
-        end,
-        refreshBuilderState = function(element, state)
-            local hero = _getHero()
-            if hero then
-                local canSelect = hero:try_get("raceid") == nil and state:Get(SELECTOR .. ".selectedId") ~= nil
-                element:SetClass("collapsed", not canSelect)
-            end
-        end,
+                end,
+            },
+        },
     }
 end
 
@@ -278,8 +303,6 @@ function CBAncestryDetail.CreatePanel()
 
     local overviewPanel = CBAncestryDetail._overviewPanel()
     local lorePanel = CBAncestryDetail._lorePanel()
-
-    local selectButton = CBAncestryDetail._selectButton()
 
     local detailPanel = gui.Panel{
         id = "ancestryDetailPanel",
@@ -302,7 +325,6 @@ function CBAncestryDetail.CreatePanel()
 
         overviewPanel,
         lorePanel,
-        selectButton,
     }
 
     return gui.Panel{
@@ -325,7 +347,7 @@ function CBAncestryDetail.CreatePanel()
             local currentCategory = state:Get(categoryKey) or INITIAL_CATEGORY
             local hero = _getHero()
             if hero then
-                local heroAncestry = hero:try_get("raceid")
+                local heroAncestry = state:Get(SELECTOR .. ".selectedId") --hero:try_get("raceid")
 
                 if heroAncestry ~= nil then
                     for id,_ in pairs(element.data.features) do
@@ -344,7 +366,7 @@ function CBAncestryDetail.CreatePanel()
                                     selector = SELECTOR,
                                     selectedId = heroAncestry,
                                     getSelected = function(hero)
-                                        return hero:try_get("raceid")
+                                        return heroAncestry --hero:try_get("raceid")
                                     end
                                 }
                                 if featureRegistry then

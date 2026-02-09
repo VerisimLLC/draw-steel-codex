@@ -736,7 +736,7 @@ end
 function character:IsDying()
     if self:IsHero() then
         local hp = self:CurrentHitpoints()
-        return hp <= 0 and hp > -(self:MaxHitpoints()/2)
+        return hp <= 0 and hp > -self:BloodiedThreshold()
     end
 
     return false
@@ -744,7 +744,7 @@ end
 
 function character:IsDead()
     if self:IsHero() then
-        return self:CurrentHitpoints() <= -(self:MaxHitpoints()/2)
+        return self:CurrentHitpoints() <= -self:BloodiedThreshold()
     end
 	return self:CurrentHitpoints() <= 0
 end

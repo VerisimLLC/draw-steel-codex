@@ -293,10 +293,15 @@ CharacterModifier.TypeInfo.triggerdisplay = {
 function TriggeredAbilityDisplay:Render(args)
     args = args or {}
     local token = args.token
+    args.token = nil
     local caster = token and token.properties
-    local width = args.width or 400
     local ability = args.ability
+    args.ability = nil
     local symbols = args.symbols or {}
+    args.symbols = nil
+
+    args.summary = nil
+    args.noninteractive = nil
 
     --see if there is a reason this trigger cannot be used.
     local suppressPanel = nil
@@ -316,9 +321,11 @@ function TriggeredAbilityDisplay:Render(args)
         end
     end
 
+    local width = args.width or 400
+
     local resultPanel
 
-    resultPanel = gui.Panel{
+    local panelOpts = {
         classes = {"formPanel"},
         width = width,
         height = "auto",
@@ -403,6 +410,12 @@ function TriggeredAbilityDisplay:Render(args)
 
         suppressPanel,
     }
+
+    for k,o in pairs(args) do
+        panelOpts[k] = o
+    end
+
+    resultPanel = gui.Panel(panelOpts)
 
     return resultPanel
 end

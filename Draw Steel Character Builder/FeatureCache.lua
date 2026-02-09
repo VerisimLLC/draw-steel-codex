@@ -8,6 +8,7 @@ CBOptionWrapper = RegisterGameType("CBOptionWrapper")
 
 local _formatOrder = CharacterBuilder._formatOrder
 local _hasFn = CharacterBuilder._hasFn
+local _safeFeatureName = CharacterBuilder._safeFeatureName
 local _safeGet = CharacterBuilder._safeGet
 
 --[[
@@ -37,6 +38,50 @@ function CBFeatureCache:AllFeaturesComplete()
     return self:try_get("allFeaturesComplete", false)
 end
 
+--- Calculate and return status
+--- @return table
+function CBFeatureCache:CalculateStatus()
+    local statusEntries = self:try_get("statusEntries", {})
+    if #statusEntries > 0 then return statusEntries end
+
+    local numSelected = 0
+    local numAvailable = 0
+
+    for _,item in ipairs(self:GetSortedFeatures()) do
+        local feature = self:GetFeature(item.guid)
+        if not feature:SuppressStatus() then
+            local key = feature:GetCategoryOrder()
+            if statusEntries[key] == nil then
+                statusEntries[key] = {
+                    id = feature:GetCategory(),
+                    order = key,
+                    available = 0,
+                    selected = 0,
+                    selectedDetail = {},
+                }
+            end
+            local statusEntry = statusEntries[key]
+            local featureStatus = feature:GetStatus()
+            statusEntry.available = statusEntry.available + featureStatus.numChoices
+            statusEntry.selected = statusEntry.selected + featureStatus.selected
+
+            numSelected = numSelected + featureStatus.selected
+            numAvailable = numAvailable + featureStatus.numChoices
+
+            local selectedNames = featureStatus.selectedNames
+            table.move(selectedNames, 1, #selectedNames, #statusEntry.selectedDetail + 1, statusEntry.selectedDetail)
+            table.sort(statusEntry.selectedDetail)
+        end
+    end
+
+    statusEntries = CharacterBuilder._toArray(statusEntries)
+
+    self.numSelected = numSelected
+    self.numAvailable = numAvailable
+    self.statusEntries = statusEntries
+    return statusEntries
+end
+
 --- @param guid string
 --- @return CBFeatureWrapper|nil
 function CBFeatureCache:GetFeature(guid)
@@ -46,6 +91,11 @@ end
 --- @return table
 function CBFeatureCache:GetFlattenedFeatures()
     return self.flattened
+end
+
+--- @return table
+function CBFeatureCache:GetKeyedFeatures()
+    return self.keyed
 end
 
 --- @return string key The key of the item selected on the hero
@@ -61,6 +111,13 @@ end
 --- @return table
 function CBFeatureCache:GetSortedFeatures()
     return self.sorted
+end
+
+--- @return integer numSelected
+--- @return integer numAvailable
+function CBFeatureCache:GetStatusSummary(hero)
+    self:CalculateStatus(hero)
+    return self:try_get("numSelected", 0), self:try_get("numAvailable", 0)
 end
 
 --- @param guid string
@@ -90,9 +147,9 @@ function CBFeatureCache._processFeatures(opts, hero, features)
         return true
     end
 
-    local function addFeature(feature)
+    local function addFeature(feature, level)
         if not passesPrereq(feature) then return end
-        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature)
+        local cacheFeature = CBFeatureWrapper.CreateNew(hero, feature, level)
         if cacheFeature then
             local guid = cacheFeature:GetGuid()
             keyed[guid] = cacheFeature
@@ -104,13 +161,20 @@ function CBFeatureCache._processFeatures(opts, hero, features)
     opts.allFeaturesComplete = true
 
     for _,item in ipairs(features) do
-        if item.features ~= nil then
-            for _,feature in ipairs(item.features) do
+        local itemFeatures = _safeGet(item, "features")
+        local itemFeature = _safeGet(item, "feature")
+        local levels = _safeGet(item, "levels")
+        local level = levels and levels[1] or 0
+        if itemFeatures ~= nil then
+            for _,feature in ipairs(itemFeatures) do
                 flattened[#flattened+1] = { feature = feature }
-                addFeature(feature)
+                addFeature(feature, level)
             end
-        elseif item.feature ~= nil then
-            addFeature(item.feature)
+        elseif itemFeature ~= nil then
+            addFeature(item.feature, level)
+        else
+            flattened[#flattened+1] = { feature = item }
+            addFeature(item, level)
         end
     end
 
@@ -128,12 +192,15 @@ end
 --- Create a new feature wrapper
 --- @param hero character
 --- @param feature CharacterChoice
+--- @param level integer
 --- @return CBFeatureWrapper|nil
-function CBFeatureWrapper.CreateNew(hero, feature)
+function CBFeatureWrapper.CreateNew(hero, feature, level)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
 
+    -- if feature.name == "Zeitgeist" then print("THC:: FEATURE::", json(feature)) end
+
     local category = CBFeatureWrapper._deriveCategory(feature)
-    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category)
+    local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category, level)
 
     local newObj = CBFeatureWrapper.new{
         feature = feature,
@@ -141,6 +208,7 @@ function CBFeatureWrapper.CreateNew(hero, feature)
         order = nameOrder,
         categoryOrder = categoryOrder,
         currentOptionId = nil,
+        level = level,
     }
 
     newObj:Update(hero)
@@ -152,15 +220,7 @@ end
 --- in the UI to be added to the hero.
 --- @return boolean
 function CBFeatureWrapper:AllowCurrentSelection()
-
-    local option = self:GetSelectedOption()
-    if option == nil then return false end
-
-    if self:AllowOverselect() then return true end
-
-    local curVal = self:GetSelectedValue()
-
-    return curVal + option:GetPointsCost() <= self:GetNumChoices()
+    return self:AllowSelection(self:GetSelectedOptionId())
 end
 
 --- Determine whether we'll let the user select items into
@@ -168,6 +228,17 @@ end
 --- @return boolean
 function CBFeatureWrapper:AllowOverselect()
     return self:GetNumChoices() == 1
+end
+
+--- Determine whether to allow selection of a specific item
+--- @id string
+--- @return boolean
+function CBFeatureWrapper:AllowSelection(id)
+    local option = self:GetOption(id)
+    if option == nil then return false end
+    if self:AllowOverselect() then return true end
+    local curVal = self:GetSelectedValue()
+    return curVal + option:GetPointsCost() <= self:GetNumChoices()
 end
 
 --- @return boolean
@@ -209,6 +280,14 @@ function CBFeatureWrapper:GetDescription()
     return self.feature:GetDescription()
 end
 
+--- @return string
+function CBFeatureWrapper:GetDetailedSummaryText()
+    if self:_hasFn("GetDetailedSummaryText") then
+        return self.feature:GetDetailedSummaryText()
+    end
+    return self.feature:GetSummaryText()
+end
+
 --- Get the underlying feature
 --- @return CharacterChoice
 function CBFeatureWrapper:GetFeature()
@@ -220,6 +299,11 @@ function CBFeatureWrapper:GetGuid()
     return self.feature.guid
 end
 
+--- @return integer|nil
+function CBFeatureWrapper:GetLevel()
+    return self:try_get("level")
+end
+
 --- Get the maximum number of target panels that should be visible
 --- @return number
 function CBFeatureWrapper:GetMaxVisibleTargets()
@@ -228,7 +312,7 @@ end
 
 --- @return string|nil
 function CBFeatureWrapper:GetName()
-    return self.feature:try_get("name", "Unnamed Feature")
+    return _safeFeatureName(self.feature) --self.feature:try_get("name", "Unnamed Feature")
 end
 
 --- @return number
@@ -248,7 +332,7 @@ function CBFeatureWrapper:GetOptionDisplayName(option)
     local name = option:GetName()
     if self:CostsPoints() then
         if not name:lower():find(" points)") then
-            local pointCost = string.format(" (%d Points)", option:GetPointsCost())
+            local pointCost = string.format(" (%d %s)", option:GetPointsCost(), self:GetPointsName())
             name = string.format("%s%s", name, pointCost)
         end
     end
@@ -273,6 +357,11 @@ end
 --- @return string
 function CBFeatureWrapper:GetOrder()
     return self:try_get("order", _formatOrder(999, "zzz"))
+end
+
+--- @return string
+function CBFeatureWrapper:GetPointsName()
+    return _safeGet(self.feature, "pointsName", "Points")
 end
 
 --- @return RollTableReference
@@ -318,6 +407,24 @@ function CBFeatureWrapper:GetSelectedValue()
     return self:try_get("selectedValue", 0)
 end
 
+--- Return a status table with status details
+--- @return table
+function CBFeatureWrapper:GetStatus()
+    local status = {
+        numChoices = self:GetNumChoices(),
+        selected = self:GetSelectedValue(),
+        selectedNames = self:GetSelectedNames(),
+    }
+    local fn = self:_hasFn("GetStatus")
+    if fn then
+        local innerStatus = self.feature:GetStatus()
+        for k,v in pairs(innerStatus) do
+            status[k] = v
+        end
+    end
+    return status
+end
+
 --- @return boolean
 function CBFeatureWrapper:HasRoll()
     return self:try_get("hasRoll", false)
@@ -325,7 +432,8 @@ end
 
 --- @return boolean
 function CBFeatureWrapper:IsComplete()
-    return self:GetSelectedValue() >= self:GetNumChoices()
+    local status = self:GetStatus()
+    return status.selected >= status.numChoices
 end
 
 --- Callback to support custom unsetting
@@ -368,9 +476,23 @@ function CBFeatureWrapper:SetSelectedOption(optionId)
     return false
 end
 
-function CBFeatureWrapper:UIChoicesFilter()
-    local fn = self:_hasFn("OfferFilter")
+--- @return boolean
+function CBFeatureWrapper:SuppressStatus()
+    local fn = self:_hasFn("SuppressStatus")
     return fn and fn() or false
+end
+
+--- @return boolean
+function CBFeatureWrapper:UIChoicesFilter()
+    local filterDefaults = {
+        CharacterFeatChoice = true,
+        CharacterLanguageChoice = true,
+        CharacterSkillChoice = true,
+    }
+    local fn = self:_hasFn("OfferFilter")
+    if fn then return fn() end
+
+    return filterDefaults[self.feature.typeName] or false
 end
 
 --- Return a structure of UI injections or nil
@@ -444,11 +566,15 @@ end
 --- Derive sort order from feature type
 --- @param feature CharacterChoice
 --- @param category string
+--- @param level integer
 --- @return string nameOrder
 --- @return string categoryOrder
-function CBFeatureWrapper._deriveOrder(feature, category)
-    local typeOrder = {
+function CBFeatureWrapper._deriveOrder(feature, category, level)
+    local typeOrderTable = {
         -- Low numbers are reserved - stay between 100 & 998
+        CharacterCultureAggregateChoice     = 102,
+        CharacterAspectChoice               = 103,
+        CharacterComplicationChoice         = 105,
         CharacterAncestryInheritanceChoice  = 110,
         CharacterCharacteristicChoice       = 120,
         CharacterDeityChoice                = 130,
@@ -461,11 +587,50 @@ function CBFeatureWrapper._deriveOrder(feature, category)
         CharacterIncidentChoice             = 200,
     }
 
-    local orderNum = typeOrder[feature.typeName] or 999
-    local nameOrder = _formatOrder(orderNum, feature:try_get("name", "Unnamed Feature"))
-    local catOrder = _formatOrder(orderNum, category)
+    local typeOrder = typeOrderTable[feature.typeName] or 999
+    local levelOrder = level or 99
+    local nameOrder = _formatOrder(levelOrder, _formatOrder(typeOrder, _safeFeatureName(feature)))
+    local catOrder = _formatOrder(typeOrder, category)
 
     return nameOrder, catOrder
+end
+
+--- Determine whether to exclude the choice based on hero state
+--- @param hero character
+--- @param choice CBOptionWrapper
+--- @return boolean
+function CBFeatureWrapper:_excludeChoice(hero, choice)
+    if choice:GetUnique() == false then return false end
+
+    local validators = {
+        CharacterLanguageChoice = function(hero, choice)
+            local langsKnown = hero:LanguagesKnown() or {}
+            return langsKnown[choice:GetGuid()] or false
+        end,
+        CharacterSkillChoice = function(hero, choice)
+            local skillItem = dmhub.GetTableVisible(Skill.tableName)[choice:GetGuid()]
+            if skillItem then return hero:ProficientInSkill(skillItem) end
+            return false
+        end,
+    }
+
+    local fn = validators[self.feature.typeName]
+    if fn then return fn(hero, choice) end
+
+    -- Look for it in level choices
+    local choiceId = choice:GetGuid()
+    local levelChoices = hero:GetLevelChoices() or {}
+    for _,featureChoices in pairs(levelChoices) do
+        for _,id in ipairs(featureChoices) do
+            if id == choiceId then return true end
+        end
+    end
+    -- local featureChoices = levelChoices[self:GetGuid()] or {}
+    -- for _,id in ipairs(featureChoices) do
+    --     if id == choiceId then return true end
+    -- end
+
+    return false
 end
 
 --- Get the selected value, attempting to call the underlying feature to get it
@@ -534,8 +699,10 @@ function CBFeatureWrapper:Update(hero)
     for _,choice in ipairs(featureChoices) do
         if _safeGet(choice, "hidden", false) == false then
             local wrappedChoice = CBOptionWrapper.CreateNew(choice)
-            choices[#choices+1] = wrappedChoice
-            choicesKeyed[wrappedChoice:GetGuid()] = wrappedChoice
+            if not self:_excludeChoice(hero, wrappedChoice) then
+                choices[#choices+1] = wrappedChoice
+                choicesKeyed[wrappedChoice:GetGuid()] = wrappedChoice
+            end
         end
     end
     table.sort(choices, function(a,b) return a:GetOrder() < b:GetOrder() end)
@@ -627,15 +794,68 @@ function CBOptionWrapper:GetUnique()
     return _safeGet(self.option, "unique", true)
 end
 
---- @return boolean
-function CBOptionWrapper:HasCustomPanel()
-    return _safeGet(self.option, "hasCustomPanel", false)
-        and _safeGet(self.option, "panel", nil) ~= nil
-end
-
 --- @return function|nil
 function CBOptionWrapper:Panel()
-    return _safeGet(self.option, "panel", nil)
+    -- if self:GetName() == "Harsh Critic" then print("THC:: PANEL::", json(self.option)) end
+
+    local function evaluateModifier(modifier)
+        -- if self:GetName() == "Harsh Critic" then print("THC:: EVALMOD::", modifier.behavior or "nil", json(modifier)) end
+        if modifier.behavior == "activated" or modifier.behavior == "triggerdisplay" or modifier.behavior == "routine" then
+            local ability = rawget(modifier, cond(modifier.behavior == "activated", "activatedAbility", "ability"))
+            -- if self:GetName() == "Harsh Critic" then print("THC:: EVALMOD::", ability ~= nil, json(ability)) end
+            if ability ~= nil then
+                -- if self:GetName() == "Harsh Critic" then print("THC:: RETURNPANEL::") end
+                return function()
+                    return ability:Render({
+                        width = "96%",
+                        halign = "center",
+                        bgimage = true,
+                        bgcolor = CBStyles.COLORS.BLACK03}, {})
+                end
+            end
+        end
+    end
+
+    -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_1::") end
+    -- See if we can calculate a panel from modifiers
+    local modifiers = _safeGet(self.option, "modifiers", {})
+    for _,modifier in ipairs(modifiers) do
+        local fn = evaluateModifier(modifier)
+        if fn then return fn end
+    end
+
+    -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_2::") end
+    -- See if we can calculate a panel from modifierInfo
+    local modifierInfo = _safeGet(self.option, "modifierInfo")
+    if modifierInfo then
+        for _,feature in ipairs(modifierInfo:try_get("features", {})) do
+            for _,modifier in ipairs(feature:try_get("modifiers", {})) do
+                local fn = evaluateModifier(modifier)
+                if fn then return fn end
+            end
+        end
+    end
+
+    -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_3::") end
+    -- Check if raw option has CreateDropdownPanel method (from GetOptions())
+    local option = self.option
+    if type(_safeGet(option, "CreateDropdownPanel")) == "function" then
+        return function()
+            return option:CreateDropdownPanel(self:GetName())
+        end
+    end
+
+    if type(_safeGet(option, "render")) == "function" then
+        return option.render
+    end
+
+    -- It has a panel built in (from Choices())
+    -- local fn = _safeGet(self.option, "panel", nil)
+    -- if fn ~= nil then return fn end
+
+    -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_4::") end
+    -- No panel
+    return nil
 end
 
 --- Set whether this option is selected on the hero.

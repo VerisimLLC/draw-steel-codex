@@ -90,7 +90,7 @@ ActivatedAbilityRelocateCreatureBehavior.vicinityFilter = ""
 ActivatedAbilityRelocateCreatureBehavior.movementType = "teleport"
 
 function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, targets, options)
-    print("TRIGGERCOLLIDE:: Cast relocate")
+    print("Relocate:: Cast relocate", #targets)
 
     casterToken.properties._tmp_freeMovement = true
 
@@ -164,6 +164,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					local loc = targets[1].loc
 
 					local path = movementInfo.path
+                print("RELOCATE:: to", loc.x, loc.y, loc.altitude, "->", path.destination.x, path.destination.y, path.destination.altitude)
 					local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 					local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
 					local pathDist = path.destination:DistanceInTiles(path.origin)
@@ -223,6 +224,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType })
+            print("Relocate:: Move token:", path)
 
 			if path ~= nil then
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps

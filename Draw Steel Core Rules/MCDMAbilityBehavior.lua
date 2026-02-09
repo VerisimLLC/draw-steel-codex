@@ -21,14 +21,59 @@ end
 
 
 function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, targets, options)
-    --ability:CommitToPaying(casterToken, options)
-    for _,target in ipairs(targets) do
-        if target.token ~= nil then
-            local rule = StringInterpolateGoblinScript(self.rule, casterToken.properties)
-            --print("INTERPOLATE::", self.rule, "->", rule)
-            self:ExecuteCommand(ability, casterToken, target.token, options, rule)
+    local promptWhenResolving = self:try_get("promptWhenResolving", false)
+
+    local targetChoices = {}
+    if promptWhenResolving then
+        for _,target in ipairs(targets or {}) do
+            local targetToken = target.token
+            targetChoices[#targetChoices+1] = targetToken
         end
     end
+
+    --ability:CommitToPaying(casterToken, options)
+
+    repeat
+        if promptWhenResolving and #targets > 0 then
+
+            targets = nil
+            GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
+                sourceToken = casterToken,
+                targets = table.shallow_copy(targetChoices),
+                prompt = self:try_get("promptWhenResolvingText", "Choose Target"),
+                choose = function(targetToken)
+                    targets = {
+                        {
+                            token = targetToken,
+                        }
+                    }
+
+                    for i=1,#targetChoices do
+                        if targetChoices[i].charid == targetToken.charid then
+                            table.remove(targetChoices, i)
+                            break
+                        end
+                    end
+                end,
+                cancel = function()
+                    targets = {}
+                    targetChoices = {}
+                end,
+            })
+
+            while targets == nil do
+                coroutine.yield(0.1)
+            end
+        end
+
+        for _,target in ipairs(targets) do
+            if target.token ~= nil then
+                local rule = StringInterpolateGoblinScript(self.rule, casterToken.properties)
+                --print("INTERPOLATE::", self.rule, "->", rule)
+                self:ExecuteCommand(ability, casterToken, target.token, options, rule)
+            end
+        end
+    until promptWhenResolving == false or targetChoices == nil or #targetChoices == 0
 end
 
 local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken, abilityAttr, options)
@@ -65,14 +110,24 @@ local function InvokeAbility(ability, abilityClone, targetToken, casterToken, op
     local casting = false
 
     local symbols = { invoker = GenerateSymbols(casterToken.properties), upcast = options.symbols.upcast, charges = options.symbols.charges, cast = options.symbols.cast, spellname = options.symbols.spellname, forcedMovementOrigin = options.symbols.forcedMovementOrigin }
-    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, targetToken, "prompt", symbols, options)
+    local haveToPay = ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, targetToken, "prompt", symbols, options)
+    if haveToPay then
+        ability:CommitToPaying(casterToken, options)
+    end
 end
 
 local function ExecuteDamage(behavior, ability, casterToken, targetToken, options, match)
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
     
-    print("ExecuteDamage::", damage, damageType)
+    -- Count how many times (half) appears in the modifiers
+    local halfCount = 0
+    if match.mods then
+        local _, count = string.gsub(match.mods, "half", "")
+        halfCount = count
+    end
+    
+    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount)
 
     if damage == nil then
         local complete = false
@@ -132,15 +187,22 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             damage = damage + bonus
         end
 
-        if match.mult == "half" then
-            damage = math.floor(damage/2)
+        if halfCount > 0 then
+            for i = 1, halfCount do
+                damage = math.floor(damage/2)
+            end
         end
 
         local selfName = creature.GetTokenDescription(casterToken)
 
         local result
 
-        ability.RecordTokenMessage(targetToken, options, string.format("%d %s damage", damage, damageType))
+        local damageMessage = string.format("%d %s damage", damage, damageType)
+        if halfCount > 0 then
+            local halfText = string.rep("(half) ", halfCount)
+            damageMessage = damageMessage .. " " .. string.trim(halfText)
+        end
+        ability.RecordTokenMessage(targetToken, options, damageMessage)
         targetToken:ModifyProperties{
             description = "Inflict Damage",
             undoable = false,
@@ -230,9 +292,9 @@ local g_rulePatterns = {
     },
     --]]
     {
-        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(\\s*\\((?<mult>half)\\))?",
-            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(\\s*\\((?<mult>half)\\))?",
-            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(\\s*\\((?<mult>half)\\))?",
+        pattern = {"^(?<damage>[0-9 d+-]+)\\s*(?<type>[a-z]+)?\\s?damage(?<mods>(\\s*\\(half\\))*)",
+            "^(?<damage>[0-9]+)\\s+(?<type>[a-z]+)\\s+damage(?<mods>(\\s*\\(half\\))*)",
+            "^(?<damage>[0-9]+)\\s*\\+\\s*(?<bonus>[a-z, ]+ or [a-z]+ )(?<type>[a-z]+)\\s*damage(?<mods>(\\s*\\(half\\))*)",
         },
         execute = ExecuteDamage,
         isdamage = true,
@@ -250,6 +312,14 @@ local g_rulePatterns = {
                     local abilityClone = DeepCopy(abilityBase)
                     MCDMUtils.DeepReplace(abilityClone, "<<text>>", text)
                     InvokeAbility(ability, abilityClone, targetToken, targetToken, options)
+                    ability:CommitToPaying(casterToken, options)
+                end
+            end
+
+            local ShowFailSpeech = function(abilityName)
+                local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
+                if abilityBase then
+                    InvokeAbility(ability, abilityBase, targetToken, targetToken, options)
                     ability:CommitToPaying(casterToken, options)
                 end
             end
@@ -325,7 +395,7 @@ local g_rulePatterns = {
             if range <= 0 then
                 --don't execute forced movement of 0?
                 if stability > 0 then
-                    ShowFailMessage("Too Much Stability")
+                    ShowFailSpeech("Too Much Stability")
                 else
                     ShowFailMessage("Cannot Be Force Moved")
                 end
@@ -580,6 +650,8 @@ local g_rulePatterns = {
             casterToken:ModifyProperties{
                 description = "Gain " .. match.resource,
                 execute = function()
+                    --Allow Attribute Modification of HR amount
+                    quantity = quantity + casterToken.properties:CalculateNamedCustomAttribute("Heroic Resource Gain Modification")
                     local num = casterToken.properties:RefreshResource(CharacterResource.heroicResourceId, resourceInfo.usageLimit, quantity, ability.name)
                     if options.symbols and options.symbols.cast then
                         options.symbols.cast.heroicresourcesgained = options.symbols.cast.heroicresourcesgained + num
@@ -920,6 +992,7 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
                             targetToken.properties:InflictCondition(k, {
                                 duration = duration,
                                 sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
+                                riders = riders,
                                 casterInfo = {
                                     tokenid = casterToken.charid,
                                 },
@@ -1314,18 +1387,20 @@ end
 function ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(caster, rule, notes, fullyImplemented)
     local starting = rule
     if caster ~= nil then
-        local potency = caster:CalculatePotencyValue("Strong")
+        local potencyStrong = caster:CalculatePotencyValue("Strong")
+        local potencyAverage = caster:CalculatePotencyValue("Average")
+        local potencyWeak = caster:CalculatePotencyValue("Weak")
         local startingRule = rule
 
         --old way. Deprecate later?
-        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[weak\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potency-2))
-        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[average\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potency-1))
-        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[strong\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potency))
+        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[weak\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potencyWeak))
+        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[average\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potencyAverage))
+        rule = regex.ReplaceAll(rule, "(?<attr>[MARIP]) \\[strong\\]", string.format("<color=#ff4444><uppercase>${attr}</uppercase>%d</color>", potencyStrong))
 
         --new way.
-        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?weak\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potency-2))
-        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?average\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potency-1))
-        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?strong\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potency))
+        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?weak\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potencyWeak))
+        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?average\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potencyAverage))
+        rule = regex.ReplaceAll(rule, "(if the target has )?(?<attr>[MARIP]) < \\[?strong\\]?", string.format("<color=#ff4444><uppercase>${attr}</uppercase> < %d</color>", potencyStrong))
 
         --Add potency bonus when numeric gate is used
         local potencyBonus = caster:CalculateNamedCustomAttribute("Potency Bonus")
@@ -1337,7 +1412,7 @@ function ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(cas
         end
 
         if rule ~= startingRule and notes ~= nil then
-            notes[#notes+1] = string.format("<color=#ff4444>Caster has a Potency of %d</color>", potency)
+            notes[#notes+1] = string.format("<color=#ff4444>Caster has a Potency of %d/%d/%d</color>", potencyWeak, potencyAverage, potencyStrong)
         end
 
         rule = ActivatedAbilityDrawSteelCommandBehavior.NormalizeRuleTextForCreature(caster, rule, notes)
@@ -1415,6 +1490,34 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
 
         },
     }
+
+    result[#result+1] = gui.Check{
+        text = "Prompt When Resolving",
+        value = self:try_get("promptWhenResolving", false),
+        change = function(element)
+            self.promptWhenResolving = element.value
+            parentPanel:FireEvent("refreshBehavior")
+        end,
+    }
+
+    if self:try_get("promptWhenResolving", false) then
+        result[#result+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Prompt:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                text = self:try_get("promptWhenResolvingText", ""),
+                placeholderText = "Choose Target",
+                characterLimit = 240,
+                change = function(element)
+                    self.promptWhenResolvingText = element.text
+                end
+            }
+        }
+    end
 
 	return result
 end

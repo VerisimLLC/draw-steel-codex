@@ -359,6 +359,7 @@ end
 CharacterChoice.name = "Choice"
 CharacterChoice.rulesText = ""
 CharacterChoice.description = "Choose a feature"
+CharacterChoice.inheritChoice = false
 
 function CharacterChoice:CreateDropdownPanel()
     return nil
@@ -374,6 +375,54 @@ function CharacterChoice:GetSummaryText()
 		return nil
 	end
 	return string.format("<b>%s</b>.  %s", self.name, self.description)
+end
+
+function CharacterChoice:GetDetailedSummaryText()
+	return self:GetSummaryText()
+end
+
+function CharacterFeatureChoice:GetDetailedSummaryText()
+	local summary = self:GetSummaryText()
+	local options = self:try_get("options", {})
+	local traits = {}
+	for _,option in ipairs(options) do
+		local descr = option.description or ""
+		descr = descr:trim()
+		if #descr > 0 then
+			local pointValue = ""
+			if self:try_get("costsPoints", false) then
+				local pointCost = option.pointsCost or 1
+				pointValue = string.format(" (%d Point%s)", pointCost, pointCost ~= 1 and "s" or "")
+			end
+			traits[#traits+1] = string.format("* <b>%s%s:</b> %s", option.name, pointValue, option.description or "")
+		end
+	end
+	if #traits > 0 then
+		summary = string.format("%s\n\n%s", summary, table.concat(traits, "\n"))
+	end
+	return summary
+end
+
+function CharacterFeatureList:GetDetailedSummaryText()
+	local summary = self:GetSummaryText()
+	local options = self:try_get("options", {})
+	local traits = {}
+	for _,option in ipairs(options) do
+		local descr = option.description or ""
+		descr = descr:trim()
+		if #descr > 0 then
+			local pointValue = ""
+			if self:try_get("costsPoints", false) then
+				local pointCost = option.pointsCost or 1
+				pointValue = string.format(" (%d Point%s)", pointCost, pointCost ~= 1 and "s" or "")
+			end
+			traits[#traits+1] = string.format("* <b>%s%s:</b> %s", option.name, pointValue, option.description or "")
+		end
+	end
+	if #traits > 0 then
+		summary = string.format("%s\n\n%s", summary, table.concat(traits, "\n"))
+	end
+	return summary
 end
 
 function CharacterChoice:CharacterUniqueID()
@@ -426,6 +475,7 @@ end
 function CharacterSubclassChoice:Describe()
 	return "Subclass"
 end
+
 
 CharacterFeatureChoice.costsPoints = false
 CharacterFeatureChoice.pointsName = "Points"
@@ -491,8 +541,33 @@ function CharacterFeatureChoice:GetOptions(choices)
                 return inheritedOptions
             end 
         end
-        
     end
+
+    if self.inheritChoice and #self.inheritChoice > 0 then
+        local options = rawget(self, "_tmp_options")
+        if options ~= nil then
+            return options
+        end
+
+        options = {}
+        self._tmp_options = options
+        for _,choiceRef in ipairs(self.inheritChoice) do
+            local choice = choiceRef:Resolve()
+            if choice ~= nil then
+                local choiceOptions = choice:GetOptions(choices)
+                for _,option in ipairs(choiceOptions) do
+                    options[#options+1] = option
+                end
+            end
+        end
+        
+        for _,option in ipairs(self.options) do
+            options[#options+1] = option
+        end
+
+        return options
+    end
+
     return self.options
 end
 
@@ -565,15 +640,17 @@ function CharacterFeatureChoice:Choices(numOption, existingChoices, creature)
 			end
 
 			local text = feature.name
-			if usePoints then
-				local cost = feature:try_get("pointsCost", 1)
-				text = string.format("%s (%d %s)", text, cost, self.pointsName)
-			end
+			-- if usePoints then
+			-- 	local cost = feature:try_get("pointsCost", 1)
+			-- 	text = string.format("%s (%d %s)", text, cost, self.pointsName)
+			-- end
 			result[#result+1] = {
 				id = feature.guid,
 				text = text,
 				description = feature.description,
 				classes = classes,
+				pointsCost = feature:try_get("pointsCost", 1),
+				modifiers = feature:try_get("modifiers"),
                 hasCustomPanel = feature:HasCustomDropdownPanel(),
                 panel = function()
                     return feature:CreateDropdownPanel(text)
@@ -810,6 +887,27 @@ function CharacterSubclassChoice.CreateNew(args)
 	return CharacterSubclassChoice.new(params)
 end
 
+--- @return Panel|nil
+local function renderSubclass(item)
+	local fd = {}
+	item:FillFeatureDetailsForLevel({}, 1, nil, "nonprmiary", fd)
+	if #fd == 0 then return nil end
+	local textItems = {}
+	for _,item in ipairs(fd) do
+		local s = item.feature:GetDetailedSummaryText()
+		if s ~= nil and #s > 0 then
+			textItems[#textItems+1] = s
+		end
+	end
+	local text = table.concat(textItems, "\n")
+	return gui.Label{
+		height = "auto",
+		width = "96%",
+		textAlignment = "topleft",
+		text = text,
+	}
+end
+
 function CharacterSubclassChoice:Choices(numOption, existingChoices, creature)
 	local result = {}
 
@@ -820,6 +918,8 @@ function CharacterSubclassChoice:Choices(numOption, existingChoices, creature)
 				result[#result+1] = {
 					id = k,
 					text = subclass.name,
+					description = subclass.details,
+					-- TODO: If building out descriptions gets prioritized render = function() return renderSubclass(subclass) end,
 				}
 			end
 		end
@@ -835,7 +935,9 @@ function CharacterSubclassChoice:GetOptions(choices, creature)
 		options[#options+1] = {
 			guid = item.id,
 			name = item.text,
+			description = item.description,
 			unique = true,
+			render = item.render,
 		}
 	end
 	return options

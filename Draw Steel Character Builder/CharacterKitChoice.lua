@@ -117,7 +117,7 @@ end
 --- @param option table
 --- @return boolean haltSavePropagation
 function CharacterKitChoice:SaveSelection(hero, option)
-    local optionId = option.guid
+    local optionId = option.id
     local numChoices = self:NumChoices(hero)
     if numChoices == 1 then
         hero.kitid = optionId

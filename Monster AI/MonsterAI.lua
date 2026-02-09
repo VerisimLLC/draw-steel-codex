@@ -100,7 +100,7 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                 end
             end
 
-            if token.valid and not alreadyProcessed then
+            if token.valid and (not alreadyProcessed) and (not token.properties:IsDead()) then
                 self.token = token
                 self.squad = squadMembers
 
@@ -653,6 +653,12 @@ function MonsterAI:DistanceFromNearestEnemy(token)
 end
 
 function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
+
+    if not ability:CanAfford(casterToken) then
+        print("AI:: Cannot afford ability:", ability.name)
+        return
+    end
+
     options = options or {}
     local symbols = options.symbols or {}
     symbols.mode = symbols.mode or 1

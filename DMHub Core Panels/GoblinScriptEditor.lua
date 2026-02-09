@@ -141,6 +141,7 @@ function gui.GoblinScriptInput(options)
 				fontSize = 14,
 				multiline = multiline,
 				placeholderText = placeholderText,
+                characterLimit = 1024,
 
 				data = {
 					changePending = false,
@@ -149,7 +150,6 @@ function gui.GoblinScriptInput(options)
 
 				tab = function(element)
 
-				printf("GOBLINSCRIPT:: TAB = (%s)", element.text)
 					if element.popup ~= nil then
 						element.popup:FireEventTree("tab")
 					end
@@ -585,6 +585,13 @@ function gui.GoblinScriptInput(options)
 		end
 	end
 
+    local changeEvent = options.change
+    if changeEvent == nil and options.events then
+        changeEvent = options.events.change
+        options.events.change = nil
+    end
+    options.change = nil
+
 	local args
 	args = {
 		width = 360,
@@ -592,7 +599,15 @@ function gui.GoblinScriptInput(options)
 
 		textAlignment = "topleft",
 
-		flow = "horizontal",
+        change = function(element, value)
+            if changeEvent ~= nil then
+                changeEvent(element, value)
+            end
+
+            element:FireEventTree("checkerror", value)
+        end,
+
+		flow = "vertical",
 		GetValue = function(element)
 			return m_value
 		end,
@@ -610,167 +625,209 @@ function gui.GoblinScriptInput(options)
 				inputTable:FireEvent("setValue", val)
 			end
 		end,
-		container,
 
 		data = {
 			inputText = inputText,
 		},
 
-		gui.Panel{
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
 
-			classes = {"goblinScriptLogo"},
-			width = 24,
-			height = 24,
-			halign = "right",
-			valign = "center",
-			bgcolor = "white",
-			bgimage = "ui-icons/DMHubLogo.png",
-			click = function(element)
+            container,
 
-				local menuItems = {}
+            gui.Panel{
 
-				local standardDisplayTypes = {
-					{
-						id = "text",
-						text = "Text Formula",
-						value = "",
-					},
+                classes = {"goblinScriptLogo"},
+                width = 24,
+                height = 24,
+                halign = "right",
+                valign = "center",
+                bgcolor = "white",
+                bgimage = "ui-icons/DMHubLogo.png",
+                click = function(element)
 
-					{
-						id = "table",
-						text = "Custom Table",
-						value = GoblinScriptTable.new{
-							id = "table",
-							field = "Level",
-							editableField = true,
-							entries = {
-								{
-									threshold = 1,
-									script = "",
-								}
-							}
-						}
-					},
-				}
+                    local menuItems = {}
 
-				if displayTypes ~= nil then
-					if displayTypes == "none" then
-						standardDisplayTypes = nil
-					else
-						for i,displayType in ipairs(displayTypes) do
-							standardDisplayTypes[#standardDisplayTypes+1] = displayType
-						end
-					end
-				end
+                    local standardDisplayTypes = {
+                        {
+                            id = "text",
+                            text = "Text Formula",
+                            value = "",
+                        },
 
-				local displayTypes = standardDisplayTypes
+                        {
+                            id = "table",
+                            text = "Custom Table",
+                            value = GoblinScriptTable.new{
+                                id = "table",
+                                field = "Level",
+                                editableField = true,
+                                entries = {
+                                    {
+                                        threshold = 1,
+                                        script = "",
+                                    }
+                                }
+                            }
+                        },
+                    }
 
-				if displayTypes ~= nil then
-					for i,displayType in ipairs(displayTypes) do
-						local check = false
-						if type(displayType.value) == "string" and type(resultPanel.value) == "string" then
-							check = true
-						end
+                    if displayTypes ~= nil then
+                        if displayTypes == "none" then
+                            standardDisplayTypes = nil
+                        else
+                            for i,displayType in ipairs(displayTypes) do
+                                standardDisplayTypes[#standardDisplayTypes+1] = displayType
+                            end
+                        end
+                    end
 
-						if type(displayType.value) == "table" and type(resultPanel.value) == "table" and displayType.value.id == resultPanel.value.id then
-							check = true
-						end
-						menuItems[#menuItems+1] = {
-							group = "displayType",
-							text = displayType.text,
-							check = check,
-							click = function()
-								local currentValue = resultPanel.value
-								if type(currentValue) == "table" then
-									currentValue = currentValue:ToText()
-								end
+                    local displayTypes = standardDisplayTypes
 
-								local val = DeepCopy(displayType.value)
-								if type(currentValue) == "number" or type(currentValue) == "string" then
-									if type(val) == "table" then
-										val:FromText(currentValue)
-									elseif val == "" then
-										val = currentValue
-									end
-								end
+                    if displayTypes ~= nil then
+                        for i,displayType in ipairs(displayTypes) do
+                            local check = false
+                            if type(displayType.value) == "string" and type(resultPanel.value) == "string" then
+                                check = true
+                            end
 
-								resultPanel.value = val
-								resultPanel:FireEvent("change", resultPanel.value)
-								element.popup = nil
-							end
-						}
-					end
-				end
+                            if type(displayType.value) == "table" and type(resultPanel.value) == "table" and displayType.value.id == resultPanel.value.id then
+                                check = true
+                            end
+                            menuItems[#menuItems+1] = {
+                                group = "displayType",
+                                text = displayType.text,
+                                check = check,
+                                click = function()
+                                    local currentValue = resultPanel.value
+                                    if type(currentValue) == "table" then
+                                        currentValue = currentValue:ToText()
+                                    end
 
-				menuItems[#menuItems+1] = {
-					text = "Copy",
-					group = "clipboard",
-					click = function()
-						element.popup = nil
-						dmhub.CopyToInternalClipboard(resultPanel.value)
-					end,
-				}
+                                    local val = DeepCopy(displayType.value)
+                                    if type(currentValue) == "number" or type(currentValue) == "string" then
+                                        if type(val) == "table" then
+                                            val:FromText(currentValue)
+                                        elseif val == "" then
+                                            val = currentValue
+                                        end
+                                    end
 
-				local clipboardItem = dmhub.GetInternalClipboard()
-				if type(clipboardItem) == "string" or (type(clipboardItem) == "table" and clipboardItem.typeName == "GoblinScriptTable") then
-					menuItems[#menuItems+1] = {
-						text = "Paste",
-						group = "clipboard",
-						click = function()
-							element.popup = nil
-							resultPanel.value = DeepCopy(clipboardItem)
-							resultPanel:FireEvent("change", resultPanel.value)
-						end,
-					}
-				end
+                                    resultPanel.value = val
+                                    resultPanel:FireEvent("change", resultPanel.value)
+                                    element.popup = nil
+                                end
+                            }
+                        end
+                    end
 
-
-				menuItems[#menuItems+1] = {
-					text = "Formula Documentation",
-					group = "docs",
-					click = function()
-						element.popup = nil
-						element.root:AddChild(gui.GoblinScriptEditorDialog{
-							documentation = documentation,
-							text = m_value,
-							change = function(element, text)
-								m_value = text
-								resultPanel.value = m_value
-								resultPanel:FireEvent("change", m_value)
-							end,
-						})
-					end,
-				}
-
-                if devmode() then
                     menuItems[#menuItems+1] = {
-                        text = "Show Lua (Debug)",
+                        text = "Copy",
+                        group = "clipboard",
+                        click = function()
+                            element.popup = nil
+                            dmhub.CopyToInternalClipboard(resultPanel.value)
+                        end,
+                    }
+
+                    local clipboardItem = dmhub.GetInternalClipboard()
+                    if type(clipboardItem) == "string" or (type(clipboardItem) == "table" and clipboardItem.typeName == "GoblinScriptTable") then
+                        menuItems[#menuItems+1] = {
+                            text = "Paste",
+                            group = "clipboard",
+                            click = function()
+                                element.popup = nil
+                                resultPanel.value = DeepCopy(clipboardItem)
+                                resultPanel:FireEvent("change", resultPanel.value)
+                            end,
+                        }
+                    end
+
+
+                    menuItems[#menuItems+1] = {
+                        text = "Formula Documentation",
                         group = "docs",
                         click = function()
                             element.popup = nil
-                            element.root:AddChild(gui.GoblinScriptLuaDialog{
-                                formula = m_value,
+                            element.root:AddChild(gui.GoblinScriptEditorDialog{
+                                documentation = documentation,
+                                text = m_value,
+                                change = function(element, text)
+                                    m_value = text
+                                    resultPanel.value = m_value
+                                    resultPanel:FireEvent("change", m_value)
+                                end,
                             })
                         end,
                     }
+
+                    if devmode() then
+                        menuItems[#menuItems+1] = {
+                            text = "Show Lua (Debug)",
+                            group = "docs",
+                            click = function()
+                                element.popup = nil
+                                element.root:AddChild(gui.GoblinScriptLuaDialog{
+                                    formula = m_value,
+                                })
+                            end,
+                        }
+                    end
+
+                    element.popupPositioning = 'mouse'
+                    element.popup = gui.ContextMenu{
+                        entries = menuItems,
+                    }
+                end,
+                styles = {
+                    {
+                        selectors = {"hover"},
+                        brightness = 1.5,
+                    },
+                    {
+                        selectors = {"press"},
+                        brightness = 0.8,
+                    },
+                }
+            },
+        },
+
+        gui.Label{
+            classes = {"collapsed"},
+            bgimage = true,
+            bgcolor = "red",
+            width = "100%",
+            height = "auto",
+            text = "Error message",
+            fontSize = 14,
+
+            checkerror = function(element, value)
+                if type(value) ~= "string" then
+                    element:SetClass("collapsed", true)
+                    return
                 end
 
-				element.popupPositioning = 'mouse'
-				element.popup = gui.ContextMenu{
-					entries = menuItems,
-				}
-			end,
-			styles = {
-				{
-					selectors = {"hover"},
-					brightness = 1.5,
-				},
-				{
-					selectors = {"press"},
-					brightness = 0.8,
-				},
-			}
-		},
+                if string.find(value, "<<") ~= nil or string.find(value, ">>") ~= nil or string.find(value, "%f[%w]d%f[%W]") ~= nil or string.find(value, "%dd%d") ~= nil or string.find(value, "%f[%w]d%d") ~= nil or string.find(value, "%dd%f[%W]") ~= nil then
+                    --this is not a normal deterministic goblin script.
+                    element:SetClass("collapsed", true)
+                    return
+                end
+
+                local out = {}
+                local fn = dmhub.CompileGoblinScriptDeterministic(value, out)
+                if out.error ~= nil then
+                    element.text = "Error: " .. out.error
+                    element:SetClass("collapsed", false)
+                else
+                    element:SetClass("collapsed", true)
+                end
+            end,
+            create = function(element)
+                element:FireEvent("checkerror", input_value)
+            end,
+        },
 	}
 
 	for k,option in pairs(options) do
@@ -896,8 +953,10 @@ local GetFriendlyTypeName = function(name)
 	return GoblinScriptFriendlyTypeNames[name] or name
 end
 
+local g_registeredTypeInfo = {}
+
 local GetTypeInfoMap = function()
-    return {
+    local result = {
         creature = creature.helpSymbols,
         attack = Attack.helpSymbols,
         weapon = weapon.helpSymbols,
@@ -909,9 +968,21 @@ local GetTypeInfoMap = function()
 		resources = CharacterResourceCollection.helpSymbols,
         path = PathMoved.helpSymbols,
     }
+	
+	-- Add registered types
+	for typeName, helpSymbols in pairs(g_registeredTypeInfo) do
+		result[typeName] = helpSymbols
+	end
+	
+	return result
 end
 
 dmhub.GetSymbolTypesDocumentation = GetTypeInfoMap
+
+RegisterGoblinScriptTypeInfo = function(typeName, helpSymbols)
+	local normalizedTypeName = string.gsub(string.lower(typeName), " ", "")
+	g_registeredTypeInfo[normalizedTypeName] = helpSymbols
+end
 
 local FieldsPanel = function(fields, options)
     local typeInfoMap = GetTypeInfoMap()
@@ -1202,6 +1273,8 @@ function gui.GoblinScriptLuaDialog(options)
             halign = "center",
             valign = "center",
             text = lua,
+            editable = true,
+            characterLimit = 8192,
             clear = function(element)
                 element.text = lua
             end,
@@ -1329,6 +1402,10 @@ function gui.GoblinScriptLuaDialog(options)
 	end
 
 	resultPanel = gui.Panel(args)
+
+    if out.error then
+        resultPanel:FireEventTree("showmessage", "Compilation Error: " .. out.error)
+    end
 
 	return resultPanel
 

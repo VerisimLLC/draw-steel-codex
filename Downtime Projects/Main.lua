@@ -74,3 +74,46 @@ CharSheet.RegisterTab {
     panel = DTCharSheetTab.CreateDowntimePanel
 }
 dmhub.RefreshCharacterSheet()
+
+-- Migration
+local function _migrateFollowerRollsToHero()
+    local allTokens = table.values(game.GetGameGlobalCharacters())
+    for _,token in ipairs(allTokens) do
+        if token.properties and token.properties:IsHero() then
+            local hero = token.properties
+            local dt = hero:GetDowntimeInfo()
+            if dt then
+                if not dt:IsMigrated() then
+                    chat.Send(string.format("Migrating downtime follower rolls for %s.", token.name or "Unnamed Token"))
+                    local migratedRolls = {}
+                    local followers = hero:try_get(DTConstants.FOLLOWERS_STORAGE_KEY)
+                    if followers and type(followers) == "table" then
+                        for id,_ in pairs(followers) do
+                            local follower = dmhub.GetCharacterById(id)
+                            if follower and follower.properties and follower.properties:IsFollower() then
+                                local followerType = follower.typeName ~= nil and follower.try_get("followerType") or follower.followerType
+                                if followerType == "artisan" or followerType == "sage" then
+                                    local legacyRolls = follower.properties:try_get(DTConstants.FOLLOWER_AVAILROLL_KEY, 0)
+                                    migratedRolls[id] = legacyRolls
+                                end
+                            end
+                        end
+                    end
+                    token:ModifyProperties{
+                        description = "Migrate follower rolls to mentor",
+                        undoable = false,
+                        execute = function()
+                            dt[DTConstants.FOLLOWER_ROLLS_KEY] = migratedRolls
+                        end,
+                    }
+                end
+            end
+        end
+    end
+end
+
+if dmhub.isDM then
+Commands.dtmigratefollowerrolls = function()
+    _migrateFollowerRollsToHero()
+end
+end

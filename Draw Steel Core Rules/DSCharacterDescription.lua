@@ -104,5 +104,5 @@ function CharacterDescription:GetPhysicalFeatures()
 end
 
 character.Description = function(self)
-    return self.characterDescription
+    return self:try_get(CharacterDescription.CHARACTER_KEY)
 end

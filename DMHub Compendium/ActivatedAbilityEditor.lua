@@ -14,10 +14,8 @@ function CreateCompendiumItemTooltip(spell, options)
 		return nil
 	end
 
-	--some heuristics to grow the width if we are rendering a very long spell
-	local width = options.width or (400 + math.floor(#spell.description/1000)*100)
 
-	local result = spell:Render({
+    local args = {
 		pad = 0,
 		cornerRadius = 0,
 		bgimage = 'panels/square.png',
@@ -25,9 +23,18 @@ function CreateCompendiumItemTooltip(spell, options)
 		borderWidth = 0,
 		borderFade = false,
         blurBackground = true,
-		width = width,
         opacity = 1,
-	}, options)
+    }
+
+    for k,v in pairs(args) do
+        args[k] = options[k] or args[k]
+    end
+
+	--some heuristics to grow the width if we are rendering a very long spell
+	local width = options.width or (400 + math.floor(#spell.description/1000)*100)
+    args.width = width
+
+	local result = spell:Render(args, options)
 
 	if result == nil then
 		return result
@@ -497,6 +504,15 @@ function ActivatedAbility:GenerateEditor()
 				flow = "vertical",
 				valign = "top",
 			},
+			{
+				classes = {"effectInput"},
+				width = "80%",
+				height = "auto",
+				halign = "center",
+				margin = 8,
+				minHeight = 20,
+				textAlignment = "topleft",
+			},
 
 		},
 
@@ -879,15 +895,10 @@ function ActivatedAbility:GenerateEditor()
 			gui.Panel{
 				classes = {"formPanel"},
 				gui.Input{
-					classes = "formInput",
-					placeholderText = "Enter Effect Details...",
+					classes = {"effectInput","formInput"},
 					multiline = true,
-					width = "80%",
-					height = "auto",
-					halign = "center",
-					margin = 8,
-					minHeight = 20,
-					textAlignment = "topleft",
+					characterLimit = 2000,
+					placeholderText = "Enter Effect Details...",
 					text = self:try_get("preDescription", ""),
 					change = function(element)
 						self.preDescription = element.text
@@ -906,15 +917,10 @@ function ActivatedAbility:GenerateEditor()
 			gui.Panel{
 				classes = {"formPanel"},
 				gui.Input{
-					classes = "formInput",
-					placeholderText = "Enter Effect Details...",
+					classes = {"effectInput","formInput"},
 					multiline = true,
-					width = "80%",
-					height = "auto",
-					halign = "center",
-					margin = 8,
-					minHeight = 100,
-					textAlignment = "topleft",
+					characterLimit = 2000,
+					placeholderText = "Enter Effect Details...",
 					text = self.description,
 					change = function(element)
 						self.description = element.text
@@ -957,6 +963,7 @@ function ActivatedAbility:GenerateEditor()
 					halign = "center",
 					margin = 8,
 					minHeight = 60,
+                    characterLimit = 2048,
 					textAlignment = "topleft",
 					text =self:try_get("implementationDetails"),
 					change = function(element)
@@ -1087,6 +1094,7 @@ function ActivatedAbility:IconEditorPanel()
 		width = 64,
 		height = 64,
 		halign = "left",
+        gradientMapping = true,
 		value = self.iconid,
 		change = function(element)
 			self.iconid = element.value
@@ -1095,6 +1103,7 @@ function ActivatedAbility:IconEditorPanel()
 			element.selfStyle.hueshift = self.display['hueshift']
 			element.selfStyle.saturation = self.display['saturation']
 			element.selfStyle.brightness = self.display['brightness']
+            element.selfStyle.gradient = DisplayGradients.GetGradient(self:try_get("iconGradient") or "none")
 		end,
 	}
 
@@ -1177,6 +1186,22 @@ function ActivatedAbility:IconEditorPanel()
 		height = "auto",
 		flow = "vertical",
 		iconPanel,
+        gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Gradient:",
+            },
+            gui.Dropdown{
+                classes = {"formDropdown"},
+                options = DisplayGradients.GetOptions(),
+                idChosen = self:try_get("iconGradient", "none"),
+                change = function(element)
+                    self.iconGradient = element.idChosen
+					iconEditor:FireEvent('create')
+                end,
+            }
+        },
 		CreateDisplaySlider{ label = "Hue:", attr = 'hueshift', minValue = 0, maxValue = 1, },
 		CreateDisplaySlider{ label = "Saturation:", attr = 'saturation', minValue = 0, maxValue = 2, },
 		CreateDisplaySlider{ label = "Brightness:", attr = 'brightness', minValue = 0, maxValue = 2, },
@@ -2779,6 +2804,10 @@ function ActivatedAbilityBehavior:ApplyToEditor(parentPanel, list)
 		{
 			id = "caster_riders",
 			text = "Caster's Riders",
+		},
+		{
+			id = "caster_including_squad",
+			text = "Caster (including Squad)",
 		},
 		{
 			id = "caster_minions",

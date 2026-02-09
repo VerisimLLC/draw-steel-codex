@@ -9,7 +9,7 @@
 --- @field dm any 
 --- @field players any 
 --- @field deleted any 
---- @field timePlayed any 
+--- @field timePlayed number 
 --- @field playerSummary any 
 --- @field characterAppearance any 
 LuaGameInfo = {}

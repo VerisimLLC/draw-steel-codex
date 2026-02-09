@@ -121,6 +121,51 @@ SpellRenderStyles = {
 		color = 'white',
 		width = '96%',
 	},
+    gui.Style{
+        classes = {"abilitySection"},
+        bgimage = true,
+        bgcolor = "clear",
+    },
+    gui.Style{
+        classes = {"abilitySection", "highlight"},
+        bgcolor = "red",
+    },
+    
+    -- Implementation chip styles
+    gui.Style{
+        classes = {"implementationChip"},
+        height = "auto",
+        width = "auto",
+        pad = 5,
+        margin = 3,
+        fontSize = 14,
+        bgimage = "panels/square.png",
+        borderColor = Styles.textColor,
+        bold = true,
+        border = 1,
+        cornerRadius = 2,
+        color = "black",
+    },
+    gui.Style{
+        classes = {"implementationChip", "wontimplement"},
+        bgcolor = Styles.ImplementationStatusColors[0],
+    },
+    gui.Style{
+        classes = {"implementationChip", "unimplemented"},
+        bgcolor = Styles.ImplementationStatusColors[1],
+    },
+    gui.Style{
+        classes = {"implementationChip", "bronze"},
+        bgcolor = Styles.ImplementationStatusColors[2],
+    },
+    gui.Style{
+        classes = {"implementationChip", "silver"},
+        bgcolor = Styles.ImplementationStatusColors[3],
+    },
+    gui.Style{
+        classes = {"implementationChip", "gold"},
+        bgcolor = Styles.ImplementationStatusColors[4],
+    },
 }
 
 local g_damageTypeColors = {
@@ -287,6 +332,32 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
 })
 
 RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "main action",
+    type = "boolean",
+    desc = "Returns true if this ability is a main action.",
+    seealso = {"action"},
+    calculate = function(c)
+
+        return c:ActionResource() == "d19658a2-4d7b-4504-af9e-1a5410fb17fd" --id of action 
+
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "maneuver",
+    type = "boolean",
+    desc = "Returns true if this ability is a maneuver.",
+    seealso = {"action"},
+    calculate = function(c)
+
+        return c:ActionResource() == "a513b9a6-f311-4b0f-88b8-4e9c7bf92d0b" --id of maneuver 
+
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
     name = "Allegiance",
     type = "string",
     desc = "Alligance of Targets for Ability. Possible values are 'ally', 'enemy', 'dead', and 'all'.",
@@ -350,10 +421,16 @@ function ActivatedAbility:AbilityTypeDescription()
     return resourceInfo.name
 end
 
+function ActivatedAbility.TabBGImage()
+    return mod.images.tabbg
+end
+
 function ActivatedAbility:Render(options, params)
 
 	params = params or {}
 	options = options or {}
+
+    options.noninteractive = nil
 
     params.symbols = params.symbols or {}
     params.symbols.mode = params.symbols.mode or 1
@@ -465,7 +542,7 @@ function ActivatedAbility:Render(options, params)
 				},
 
 				gui.Label{
-					text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, entry, rulesNotes, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+					text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, entry, rulesNotes, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                     markdown = true,
 					bold = true,
                     hpad = 4,
@@ -617,6 +694,10 @@ function ActivatedAbility:Render(options, params)
 
 		if #tokenDependentChildren > 0 then
 			tokenDependentInfoPanel = gui.Panel{
+                embedRollDialog = function(element, dialog)
+                    print("HIDE:: DO HIDE")
+                    element:SetClass("collapsed", true)
+                end,
 				width = "100%",
 				height = "auto",
 				flow = "vertical",
@@ -659,7 +740,7 @@ function ActivatedAbility:Render(options, params)
 
     local resourceTable = dmhub.GetTable(CharacterResource.tableName)
 
-	if self:has_key("resourceCost") and self:has_key("resourceNumber") then
+	if self:has_key("resourceCost") then
 		local resourceInfo = resourceTable[self.resourceCost]
 		if resourceInfo ~= nil then
 			local name = resourceInfo.name
@@ -668,11 +749,12 @@ function ActivatedAbility:Render(options, params)
             end
             
 			local symbols = table.shallow_copy(params.symbols)
+            local resourceNumberValue = rawget(self, "resourceNumber") or "1"
             local resourceNumber = 0
-            if tonumber(self.resourceNumber) ~= nil then
-                resourceNumber = tonumber(self.resourceNumber)
+            if tonumber(resourceNumberValue) ~= nil then
+                resourceNumber = tonumber(resourceNumberValue)
             elseif creatureProperties ~= nil then
-                resourceNumber = ExecuteGoblinScript(self.resourceNumber, creatureProperties:LookupSymbol(symbols), 0, "Determine resource number for " .. self.name)
+                resourceNumber = ExecuteGoblinScript(resourceNumberValue, creatureProperties:LookupSymbol(symbols), 0, "Determine resource number for " .. self.name)
 			end
             if resourceNumber == 0 then
 				costText = ""
@@ -839,9 +921,10 @@ function ActivatedAbility:Render(options, params)
                             bgcolor = "clear",
                             width = "auto",
                             height = "auto",
+                            maxHeight = 22,
                             text = "1",
                             fontFace = "DrawSteelGlyphs",
-                            fontSize = 40,
+                            fontSize = 34,
                             halign = "left",
                             valign = "center",
 
@@ -851,11 +934,11 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[1], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
-                            lmargin = 10,
+                            lmargin = 6,
                             textAlignment = "left",
                             markdown = true,
 
@@ -881,9 +964,10 @@ function ActivatedAbility:Render(options, params)
                             bgcolor = "clear",
                             width = "auto",
                             height = "auto",
+                            maxHeight = 22,
                             text = "2",
                             fontFace = "DrawSteelGlyphs",
-                            fontSize = 40,
+                            fontSize = 34,
                             halign = "left",
                             valign = "center",
 
@@ -893,11 +977,11 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[2], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
-                            lmargin = 10,
+                            lmargin = 6,
                             textAlignment = "left",
                             markdown = true,
 
@@ -920,9 +1004,10 @@ function ActivatedAbility:Render(options, params)
                             bgcolor = "clear",
                             width = "auto",
                             height = "auto",
+                            maxHeight = 22,
                             text = "3",
                             fontFace = "DrawSteelGlyphs",
-                            fontSize = 40,
+                            fontSize = 34,
                             halign = "left",
                             valign = "center",
 
@@ -932,11 +1017,11 @@ function ActivatedAbility:Render(options, params)
 
                             width = "80%",
                             height = "auto",
-                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Full),
+                            text = ActivatedAbilityDrawSteelCommandBehavior.DisplayRuleTextForCreature(creatureProperties, powerTableBehavior.tiers[3], {}, self:try_get("implementation", 1) >= gui.ImplementationStatus.Bronze),
                             fontSize = 16,
                             halign = "left",
                             valign = "center",
-                            lmargin = 10,
+                            lmargin = 6,
                             textAlignment = "left",
                             markdown = true,
 
@@ -1094,19 +1179,25 @@ function ActivatedAbility:Render(options, params)
 
                         --Implementation chip
                         gui.Label{
-                            height = "auto",
-                            width = "auto",
-                            pad = 5,
-                            margin = 3,
-                            fontSize = 14,
-                            bgimage = "panels/square.png",
-                            borderColor = Styles.textColor,
-                            bold = true,
-                            border = 1,
-                            text = cond(self:try_get("implementation", 1) == 3, "Full", cond(self:try_get("implementation", 1) == 2, "Partial", "None")),
-                            cornerRadius = 2,
-                            bgcolor = cond(self:try_get("implementation", 1) == 3, "#81c07bff", cond(self:try_get("implementation", 1) == 2, "#ebe375ff", "#ca7272ff")),
-                            color = "black",
+                            classes = {"implementationChip"},
+                            text = gui.ImplementationStatusValues[self:try_get("implementation", 1)] or "Unimplemented",
+                            create = function(element)
+                                local impl = self:try_get("implementation", 1)
+                                -- Set the appropriate class based on implementation status
+                                if impl == 0 then
+                                    element:SetClass("wontimplement", true)
+                                elseif impl == 1 then
+                                    element:SetClass("unimplemented", true)
+                                elseif impl == 2 then
+                                    element:SetClass("bronze", true)
+                                elseif impl == 3 then
+                                    element:SetClass("silver", true)
+                                elseif impl == 4 then
+                                    element:SetClass("gold", true)
+                                else
+                                    element:SetClass("unimplemented", true)
+                                end
+                            end,
                             hover = function(element)
                                 if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
                                     element.tooltip = gui.TooltipFrame(gui.Label{
@@ -1231,15 +1322,63 @@ function ActivatedAbility:Render(options, params)
 
             --king panel for ranged and target
             gui.Panel{
+                classes = {"abilitySection"},
 
-                bgimage = true,
-                bgcolor = "clear",
                 width = "100%",
                 height = "auto",
                 tmargin = 2,
                 flow = "vertical",
-                bgcolor = "clear",
-                wrap = true,
+
+                showAbilitySection = function(element, options)
+                    if options.ability.name ~= self.name then
+                        element:SetClass("highlight", false)
+                        return
+                    end
+
+                    if options.section == "target" then
+                        element:SetClass("highlight", true)
+                    else
+                        element:SetClass("highlight", false)
+                    end
+                end,
+
+                --tab panel
+                gui.Panel{
+                    styles = {
+                        {
+                            selectors = {"tab"},
+                            collapsed = 1,
+                        },
+                        {
+                            selectors = {"tab", "parent:highlight"},
+                            collapsed = 0,
+                        }
+                    },
+
+                    classes = {"tab"},
+                    x = -46,
+                    floating = true,
+                    valign = "top",
+                    halign = "left",
+                    height = 136*0.8,
+                    width = 33*0.8,
+                    bgimage = mod.images.tabbg,
+                    bgcolor = 'white',
+
+                    gui.Label{
+                        color = "black",
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 22,
+                        bold = true,
+                        text = "Target",
+                        y = -18,
+                        rotate = 90,
+                        halign = "center",
+                        valign = "center",
+                    },
+                },
+
 
                 gui.Panel{
                     width = "auto",
@@ -1251,14 +1390,15 @@ function ActivatedAbility:Render(options, params)
                         fontFace = "DrawSteelGlyphs",
                         fontSize = 20,
                         width = "auto",
-                        rmargin = 5,
-
+                        halign = "right",
+                        valign = "center",
+                        lmargin = 5,
                     },
 
                     
                     gui.Label{
 
-                        text = string.format("<b>%s</b> <i>%s</i>", cond(self:HasKeyword("Melee"), "Melee", cond(self:HasKeyword("Ranged"), "Ranged", "")), self:DescribeRange(creatureProperties)),
+                        text = self:DescribeRange(creatureProperties),
                         fontSize = 18,
                         fontFace = "Newzald",
                         fontWeight = "Light",
@@ -1316,17 +1456,40 @@ function ActivatedAbility:Render(options, params)
                 markdown = true,
             },
 
-            --main Power Roll name + rolls king panel
             gui.Panel{
-
-                classes = {cond(self:GetPowerRollDisplay() == "", "collapsed", nil)},
-                bgimage = true,
-                bgcolor = "clear",
                 width = "100%",
                 height = "auto",
-                tmargin = 20,
+                vmargin = 2,
+                embedRollDialog = function(element, dialog)
+                    element.children = {dialog}
+                end,
+            },
+
+            --main Power Roll name + rolls king panel
+            gui.Panel{
+                embedRollDialog = function(element, dialog)
+                    element:SetClass("collapsed", true)
+                end,
+
+                classes = {"abilitySection", cond(self:GetPowerRollDisplay() == "", "collapsed", nil)},
+                width = "100%",
+                height = "auto",
+                tmargin = 2,
                 flow = "vertical",
-                bmargin = 15,
+                bmargin = 2,
+
+                showAbilitySection = function(element, options)
+                    if options.ability.name ~= self.name then
+                        element:SetClass("highlight", false)
+                        return
+                    end
+
+                    if options.section == "main" then
+                        element:SetClass("highlight", true)
+                    else
+                        element:SetClass("highlight", false)
+                    end
+                end,
 
                 gui.Label{
 
@@ -1352,13 +1515,32 @@ function ActivatedAbility:Render(options, params)
                 powerRollQueenPanel,
             },
 
-            gui.DocumentDisplay{
-                text = descriptionString,
-                noninteractive = true,
+            gui.Panel{
+                classes = {"abilitySection"},
                 width = "100%",
                 height = "auto",
-                halign = "left",
-                bmargin = 20,
+
+                showAbilitySection = function(element, options)
+                    if options.ability.name ~= self.name then
+                        element:SetClass("highlight", false)
+                        return
+                    end
+
+                    if options.section == "effects" then
+                        element:SetClass("highlight", true)
+                    else
+                        element:SetClass("highlight", false)
+                    end
+                end,
+
+                gui.DocumentDisplay{
+                    text = descriptionString,
+                    noninteractive = true,
+                    width = "100%",
+                    height = "auto",
+                    halign = "left",
+                    bmargin = 4,
+                },
             },
 
 			tokenDependentInfoPanel,
@@ -1469,7 +1651,9 @@ function ActivatedAbility:Render(options, params)
 			width = 33*0.8,
 			bgimage = mod.images.tabbg,
 			bgcolor = 'white',
-
+            showAbilitySection = function(element, options)
+                element:SetClass("collapsed", true)
+            end,
 		},
 
         suppressPanel,
@@ -1530,7 +1714,12 @@ function ActivatedAbility:DescribeRange(castingCreature)
 
     local result = MeasurementSystem.NativeToDisplayString(range)
 
-    if self:IsMelee() then
+    if self:HasKeyword("Melee") and self:HasKeyword("Ranged") then
+        local melee = self:try_get("meleeRange", 1)
+        result = string.format("Melee %d or ranged %s", tonumber(melee) or 1, result)
+    elseif self:HasKeyword("Ranged") then
+        result = string.format("Ranged %s", result)
+    elseif self:HasKeyword("Melee") then
         result = string.format("Melee %s", result)
     end
 

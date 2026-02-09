@@ -18,6 +18,8 @@ function RichParty.CreateDisplay(self)
     local resultPanel
     print("PARTY:: CREATE")
 
+    local m_token = {}
+
     local nameLabel = gui.Label {
         text = "Party Members",
         textAlignment = "center",
@@ -40,6 +42,7 @@ function RichParty.CreateDisplay(self)
             width = 16,
             height = 16,
             refreshTag = function(element, richTag, patternMatch, token)
+                token = token or m_token
                 element:SetClass("collapsed", token.player)
             end,
             press = function(element)
@@ -100,6 +103,7 @@ function RichParty.CreateDisplay(self)
 
     local m_tokenPanels = {}
 
+
     local m_tokenContainer
 
     m_tokenContainer = gui.Panel {
@@ -109,7 +113,8 @@ function RichParty.CreateDisplay(self)
         halign = "center",
         valign = "top",
 
-        refreshTag = function(element, tag, match)
+        refreshTag = function(element, tag, match, token)
+            m_token = token or m_token
             local ordering = self:try_get("ord", {})
 
             local firstTime = element.aliveTime < 0.5
@@ -171,6 +176,7 @@ function RichParty.CreateDisplay(self)
                     end,
                     draggable = dmhub.isDM,
                     refreshTag = function(element, richTag, patternMatch, token)
+                        token = token or m_token
                         element:SetClass("playerview", token.player)
                         element.draggable = not token.player
                     end,
@@ -239,6 +245,7 @@ function RichParty.CreateDisplay(self)
                                 },
                             },
                             refreshTag = function(element, richTag, patternMatch, token)
+                                token = token or m_token
                                 element:SetClass("collapsed", token.player)
                             end,
                             escapeActivates = false,

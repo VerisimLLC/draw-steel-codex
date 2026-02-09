@@ -10,6 +10,7 @@ DTConstants.DEVUI = false
 DTConstants.CHARACTER_STORAGE_KEY = "downtimeInfo"
 DTConstants.FOLLOWERS_STORAGE_KEY = "followers"
 DTConstants.FOLLOWER_AVAILROLL_KEY = "availableRolls"
+DTConstants.FOLLOWER_ROLLS_KEY = "followerRolls"
 
 --- The natural roll at and above which is considered a crit or breakthrough
 DTConstants.BREAKTHROUGH_MIN = 19

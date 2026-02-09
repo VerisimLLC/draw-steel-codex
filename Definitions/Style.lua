@@ -64,6 +64,7 @@
 --- @field textOutlineWidth number The width of the outline around text. @see textOutlineColor
 --- @field imageRect nil|Vector4Arg (default=nil) when nil, the entire bgimage is drawn. When set to a vector, it specifies the normalized vector (going from (0,0) to (1,1)) within the image that will be drawn.
 --- @field rotate nil|number The rotation to apply to this panel, in degrees. Panels will be rotated around their @see pivot.
+--- @field rotateNumber number rotation, always as a number.
 --- @field edgeFade nil|number The number of pixels at the edge of the panel that the panel fades out.
 --- @field x nil|number The amount to translate the panel on the x axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
 --- @field y nil|number The amount to translate the panel on the y axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
@@ -159,6 +160,7 @@ Style = {}
 --- @field textOutlineWidth nil|number The width of the outline around text. @see textOutlineColor
 --- @field imageRect nil|Vector4Arg (default=nil) when nil, the entire bgimage is drawn. When set to a vector, it specifies the normalized vector (going from (0,0) to (1,1)) within the image that will be drawn.
 --- @field rotate nil|number The rotation to apply to this panel, in degrees. Panels will be rotated around their @see pivot.
+--- @field rotateNumber nil|number rotation, always as a number.
 --- @field edgeFade nil|number The number of pixels at the edge of the panel that the panel fades out.
 --- @field x nil|number The amount to translate the panel on the x axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.
 --- @field y nil|number The amount to translate the panel on the y axis. This happens after calculating the panel's normal placement and does not alter the placement calculation of other panels.

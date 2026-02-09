@@ -1905,6 +1905,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             --Item description text area.
             gui.Input {
                 selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                characterLimit = 8192,
                 placeholderText = "Enter Description...",
                 multiline = true,
                 text = document.description,
@@ -1933,6 +1934,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 --Item description text area.
                 gui.Input {
                     selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
+                    characterLimit = 8192,
                     placeholderText = "Enter Level 5 effect...",
                     multiline = true,
                     text = document:try_get("level5", ""),
@@ -1955,6 +1957,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 gui.Input {
                     selfStyle = { width = 400, height = 140, vmargin = 4, halign = 'center', textAlignment = "topleft" },
                     placeholderText = "Enter Level 9 effect...",
+                    characterLimit = 8192,
                     multiline = true,
                     text = document:try_get("level9", ""),
                     events = {

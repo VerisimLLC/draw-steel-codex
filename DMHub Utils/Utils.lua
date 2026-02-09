@@ -548,3 +548,156 @@ function safe_toint(val)
 
     return num
 end
+
+function FindObjectPathByGuid(guid, obj, path)
+    path = path or {}
+    
+    -- Check if current object has matching guid
+    if type(obj) == "table" and (rawget(obj, "guid") == guid or rawget(obj, "id") == guid) then
+        return true
+    end
+    
+    -- Recursively search nested tables
+    if type(obj) == "table" and #path < 16 then
+        for k, v in pairs(obj) do
+            if k ~= "_luaTable" and type(v) == "table" then
+                path[#path+1] = k
+                local found = FindObjectPathByGuid(guid, v, path)
+                if found then
+                    return true
+                end
+                path[#path] = nil
+            end
+        end
+    end
+    
+    return false
+end
+
+function GetObjectAtPath(obj, path)
+    local current = obj
+    for i = 1, #path do
+        if current == nil or type(current) ~= "table" then
+            return nil
+        end
+        current = rawget(current, path[i])
+    end
+    return current
+end
+
+function SetObjectAtPath(obj, path, value)
+    if #path == 0 then
+        return false
+    end
+    
+    local current = obj
+    for i = 1, #path - 1 do
+        if current == nil or type(current) ~= "table" then
+            return false
+        end
+        current = rawget(current, path[i])
+    end
+    
+    if current == nil or type(current) ~= "table" then
+        return false
+    end
+    
+    current[path[#path]] = value
+    return true
+end
+
+function FindAbilityParentByGuid(guid)
+    local function FindInObject(obj, targetGuid, visited, parent)
+
+        if type(obj) ~= "table" then
+            return nil
+        end
+        
+        --Avoid infinite loops
+        if visited[obj] then
+            return nil
+        end
+        visited[obj] = true
+        
+        --Check if this object has the guid we're looking for (check both guid and id fields)
+        if rawget(obj, "guid") == targetGuid or rawget(obj, "id") == targetGuid then
+            --Return the parent instead of the object itself
+            return parent
+        end
+        
+        --Recursively search in child objects
+        for k, v in pairs(obj) do
+            if type(v) == "table" and not string.starts_with(tostring(k), "_tmp") then
+                local result = FindInObject(v, targetGuid, visited, obj)
+                if result then
+                    return result
+                end
+            end
+        end
+        
+        return nil
+    end
+    
+    --Search through all tables in the system
+    local tables = dmhub.GetTableTypes()
+    for _, tableid in ipairs(tables) do
+        local t = dmhub.GetTable(tableid) or {}
+        for key, obj in unhidden_pairs(t) do
+            --Check if the key itself matches the guid
+            --If found at top level, return the object itself as it has no parent
+            if key == guid then
+                return obj, tableid
+            end
+            
+            --recursively search within the object
+            if type(obj) == "table" and not string.starts_with(tostring(key), "_tmp") then
+                local visited = {}
+                local result = FindInObject(obj, guid, visited, obj)
+                if result then
+                    return result, tableid
+                end
+            end
+        end
+    end
+    
+    return nil, nil
+end
+
+Commands.updateimplementationvalues = function(str)
+    local function UpdateInObject(obj, visited)
+        if type(obj) ~= "table" then
+            return
+        end
+        
+        -- Avoid infinite loops
+        if visited[obj] then
+            return
+        end
+        visited[obj] = true
+        
+        -- Check if this object has implementation field with value 4
+        if rawget(obj, "implementation") == 4 then
+            print("Updating implementation for object:", json(obj))
+            obj.implementation = 0
+        end
+        
+        -- Recursively search in child objects
+        for k, v in pairs(obj) do
+            if type(v) == "table" and not string.starts_with(tostring(k), "_tmp") then
+                UpdateInObject(v, visited)
+            end
+        end
+    end
+    
+    -- Search through all tables in the system
+    local tables = dmhub.GetTableTypes()
+    for _, tableid in ipairs(tables) do
+        local t = dmhub.GetTable(tableid) or {}
+        for key, obj in unhidden_pairs(t) do
+            if type(obj) == "table" and not string.starts_with(tostring(key), "_tmp") then
+                local visited = {}
+                UpdateInObject(obj, visited)
+            end
+        end
+    end
+end

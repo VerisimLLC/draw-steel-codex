@@ -1047,10 +1047,9 @@ local function CreateActionBar()
         refresh = function(element)
             if #g_casterTokenStack == 0 then
                 g_token = dmhub.selectedOrPrimaryTokens[1]
-    print("ActionBar:: refresh g_token =", g_token)
             end
 
-            if g_token == nil then
+            if g_token == nil or not g_token.valid then
                 g_abilities = {}
                 g_prevCharid = nil
                 element:SetClass("hidden", true)
@@ -1179,6 +1178,75 @@ local function AbilityHeading(args)
                 end,
             }
 
+            if m_ability:has_key("sourceReference") then
+                if m_ability.sourceReference:url() ~= nil then
+                    entries[#entries + 1] = {
+                        text = 'View Source',
+                        click = function()
+                            element.popup = nil
+                            dmhub.OpenDocument(m_ability.sourceReference:url())
+                        end,
+                    }
+                end
+            end
+
+            if dmhub.isDM then
+                for domain, _ in pairs(m_ability.domains or {}) do
+                            if domain ~= "_luaTable" then
+                                --parse domain information
+                                local tableType, guid = string.match(domain, "^([^:]+):(.+)$")
+                                if tableType and guid then
+                                    -- Find the parent object (class/feat/etc) that contains this ability
+                                    local obj, tableid = FindAbilityParentByGuid(guid)
+                                    if obj and tableid then
+                                        local path = {}
+                                        --Find the path to the ability within the parent object
+                                        local found = FindObjectPathByGuid(m_ability.guid, obj, path)
+                                        --if a path is found create an edit option
+                                        if found then
+                                            entries[#entries + 1] = {
+                                                text = 'Edit Ability',
+                                                click = function()
+                                                    element.popup = nil
+
+                                                    element.root:AddChild(m_ability:ShowEditActivatedAbilityDialog{
+                                                        close = function()
+                                                            --Use found path to locate ability in parent object
+                                                            SetObjectAtPath(obj, path, m_ability)
+                        
+                                                            -- Upload the parent object
+                                                            dmhub.SetAndUploadTableItem(tableid, obj)
+                                                        end
+                                                    })
+                                                end,
+                                            }
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        
+                        --[[ element.root:AddChild(m_ability:ShowEditActivatedAbilityDialog{
+                            close = function()
+                                print("Ability Info::", g_token.properties:IsActivatedAbilityInnate(m_ability))
+                                for _, ability in ipairs(g_token.properties.innateActivatedAbilities or {}) do
+                                    
+                                end
+                                g_token:ModifyProperties {
+                                    description = "Update Ability",
+                                    execute = function()
+                                        -- This is a bit hacky, but we need to trigger a properties update so that any changes to the ability are reflected in the UI.
+                                        local props = g_token.properties
+                                        g_token.properties = nil
+                                        g_token.properties = props
+                                    end,
+                                }
+                            end
+                        })
+                    end
+                } ]]
+            end
+
             element.popup = gui.ContextMenu {
                 entries = entries,
             }
@@ -1223,6 +1291,11 @@ local function AbilityHeading(args)
                 m_ability.castImmediately = true
             end
 
+            CharacterPanel.HighlightAbilitySection{
+                ability = m_ability,
+                section = "target",
+            }
+
             g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, fromui = true })
         end,
 
@@ -1236,15 +1309,17 @@ local function AbilityHeading(args)
                     element.bgimage = "panels/square.png"
                     element.selfStyle.gradient = cond(ability.actionResourceId == CharacterResource.triggerResourceId,
                         mod.shared.triggerGradient, mod.shared.freeTriggerGradient)
+                    element.selfStyle.gradientMapping = false
                     element.selfStyle.bgcolor = "white"
                     element.selfStyle.hueshift = 0
                     element.selfStyle.saturation = 1
                     element.selfStyle.brightness = 1
                 else
                     element.text = ""
-                    element.selfStyle.gradient = nil
                     element.bgimage = ability.iconid
                     element.selfStyle = ability.display
+                    element.selfStyle.gradient = DisplayGradients.GetGradient(rawget(ability, "iconGradient"))
+                    element.selfStyle.gradientMapping = true
                 end
             end,
         },
@@ -1997,7 +2072,6 @@ end
 local g_radiusMarkers = {}
 
 local AddCustomAreaMarker = function(locs, color)
-    print("MARK:: MARK LOCS")
     g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
         locs = locs,
         color = color,
@@ -2041,8 +2115,6 @@ local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
         locs = newLocs
     end
 
-
-    print("MovementRadius:: MarkLocs", locs and #locs, "radius =", radius, "from token", tokenCasting.charid, "override =", locOverride)
     g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs {
         locs = locs,
         color = color,
@@ -2050,7 +2122,6 @@ local AddRadiusMarker = function(locOverride, radius, color, filterFunction)
 end
 
 local function ClearRadiusMarkers()
-    print("MovementRadius:: CLEAR")
     for i, marker in ipairs(g_radiusMarkers) do
         marker:Destroy()
     end
@@ -2067,6 +2138,7 @@ local function RemoveTokenTargeting()
     if g_targetInfo == nil then
         return
     end
+
     for _, token in ipairs(dmhub.allTokensIncludingObjects) do
         if token.valid and token.sheet ~= nil and token.sheet.data.targetInfo == g_targetInfo then
             token.sheet:FireEvent("untarget")
@@ -2084,6 +2156,7 @@ local g_castButton
 local g_skipButton
 local g_castMessage
 local g_castMessageContainer
+local g_tokenSelectionContainer
 
 local g_castModesPanel
 local g_forcedMovementTypePanel
@@ -2500,6 +2573,91 @@ local SetTargetsInRadius = function(tokens)
     g_pointForceTargets = tokens
 end
 
+local function CreateTokenSelectionContainer()
+    local resultPanel
+    
+    resultPanel = gui.Panel {
+        styles = {
+            {
+                selectors = {"selectable"},
+                opacity = 0,
+            },
+            {
+                selectors = {"selectable", "hover"},
+                opacity = 1,
+            }
+        },
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "bottom",
+        flow = "horizontal",
+        bgimage = true,
+		cornerRadius = 10,
+		bgcolor = "#000000fa",
+		borderColor = "#000000fa",
+		borderWidth = 10,
+		borderFade = true,
+        pad = 10,
+
+        maxWidth = 800,
+        wrap = true,
+        disable = function(element)
+            element.mapfocus = false
+        end,
+        settokens = function(element, tokens)
+            if tokens == nil then
+                element.mapfocus = false
+                element.children = {}
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local children = {}
+
+            for _,token in ipairs(tokens) do
+                local image = gui.CreateTokenImage(token, {
+                    width = 64,
+                    height = 64,
+                    halign = "center",
+                    valign = "center",
+                })
+
+                local tok = token
+
+
+                local child = gui.Panel{
+                    classes = {"selectable"},
+                    width = "auto",
+                    height = "auto",
+                    bgimage = true,
+                    bgcolor = "#ffffff22",
+                    borderWidth = 1,
+                    borderColor = "white",
+                    image,
+                    press = function(element)
+                        if tok.valid then
+                            dmhub.CenterOnToken(tok.charid)
+                        end
+                    end,
+                    linger = function(element)
+                        gui.Tooltip(creature.GetTokenDescription(tok))(element)
+                    end,
+                }
+
+
+                children[#children + 1] = child
+            end
+
+            element.children = children
+            element:SetClass("collapsed", #children == 0)
+            element.mapfocus = #children > 0
+        end,
+    }
+
+    return resultPanel
+end
+
 CreateAbilityController = function()
     local resultPanel
 
@@ -2538,7 +2696,6 @@ CreateAbilityController = function()
         height = "auto",
         bold = true,
         fontSize = 16,
-        classes = { 'collapsed' },
         refresh = function(element)
             if element.data.promptText == nil or element.data.promptText == "" then
                 g_castMessageContainer:SetClass("collapsed", true)
@@ -2546,10 +2703,11 @@ CreateAbilityController = function()
             end
 
             element.text = element.data.promptText
-
-            g_castMessageContainer:SetClass("collapsed", element.text == "")
+            g_castMessageContainer:SetClass("collapsed", false)
         end,
     }
+
+    g_tokenSelectionContainer = CreateTokenSelectionContainer()
 
     g_castMessageContainer = gui.TooltipFrame(g_castMessage, {
     })
@@ -2614,7 +2772,7 @@ CreateAbilityController = function()
                                 g_abilityController.mapfocus = false
                             end
 
-                            if g_currentAbility ~= nil and g_currentAbility.targetType == "emptyspace" then
+                            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                                 local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                                 local shifting = (movementType == "shift")
                                 if shifting then
@@ -2941,6 +3099,7 @@ CreateAbilityController = function()
         g_triggerReactionPanel,
 
         g_castMessageContainer,
+        g_tokenSelectionContainer,
 
 
         g_forcedMovementTypePanel,
@@ -3094,6 +3253,7 @@ CreateAbilityController = function()
             g_targetInfo = CreateTargetInfo(g_currentAbility)
 
             g_castMessageContainer:SetClass("collapsed", true)
+            g_tokenSelectionContainer:SetClass("collapsed", true)
             g_castButton:SetClass("collapsed", true)
 
             if ability.targetType ~= 'self' and ability.targetType ~= 'target' and ability.targetType ~= 'all' and ability.targetType ~= 'areatemplate' then
@@ -3125,7 +3285,7 @@ CreateAbilityController = function()
             end
 
 
-            if g_currentAbility ~= nil and g_currentAbility.targetType == "emptyspace" then
+            if g_currentAbility ~= nil and (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") then
                 local movementType = g_currentAbility:GetMovementType(g_token, g_currentSymbols)
                 local shifting = (movementType == "shift")
                 if shifting then
@@ -3283,11 +3443,15 @@ CreateAbilityController = function()
             element:SetClass("collapsed", true)
         end,
 
+        chooseTargetToken = function(element, options)
+            element:FireEvent("chooseTarget", options)
+        end,
+
         chooseTarget = function(element, options)
             assert(g_actionBar ~= nil)
             ClearRadiusMarkers()
 
-            if options.sourceToken ~= nil then
+            if options.sourceToken ~= nil and options.radius ~= nil then
                 print("MovementRadius:: MARK", options.radius)
                 AddRadiusMarker(options.sourceToken.locsOccupying, options.radius)
             end
@@ -3302,9 +3466,12 @@ CreateAbilityController = function()
 
             g_actionBar:SetClassTree("choosingTarget", true)
 
-            g_castMessage:SetClass('collapsed', false)
+            g_tokenSelectionContainer:FireEvent("settokens", targets)
+
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
+            g_abilityController:SetClass("collapsed", false)
+            g_castButton:SetClass("collapsed", true)
 
             local targetChooser = gui.Panel {
                 width = 1,
@@ -3319,7 +3486,9 @@ CreateAbilityController = function()
                     element:DestroySelf()
                 end,
                 destroy = function()
-                    g_castMessage:SetClass('collapsed', true)
+                    g_castMessage.data.promptText = ''
+                    g_castMessage:FireEvent("refresh")
+                    g_abilityController:SetClass("collapsed", true)
                     ClearRadiusMarkers()
                     cancel()
                     for _, tok in ipairs(targets) do
@@ -3333,8 +3502,6 @@ CreateAbilityController = function()
                 end,
             }
 
-            g_actionBar:AddChild(targetChooser)
-            gui.SetFocus(targetChooser)
 
             local targetInfo = {
                 type = "ActivatedAbility",
@@ -3356,6 +3523,9 @@ CreateAbilityController = function()
                     tok.sheet:FireEvent("target", {})
                 end
             end
+
+            g_actionBar:AddChild(targetChooser)
+            gui.SetFocus(targetChooser)
         end,
 
         --- @param invokerInfo nil|{oncast=nil|function, oncancel=nil|function}
@@ -3766,6 +3936,7 @@ CreateAbilityController = function()
                     token = g_token,
                     range = range,
                     radius = radius,
+                    checklos = true,
                     locOverride = locOverride or g_currentAbility:try_get("casterLocOverride"),
                     requireEmpty = requireEmpty,
                     emptyMayIncludeSelf = requireEmpty and (targetingType == "pathfind" or targetingType == "vacated" or targetingType == "straightline" or targetingType == "straightpath" or targetingType == "straightpathignorecreatures"),
@@ -3788,6 +3959,8 @@ CreateAbilityController = function()
                 g_pointTargeting.shapeRequiresConfirm = false
                 g_pointTargeting.shape = nil
             end
+
+            g_currentSymbols.targetArea = g_pointTargeting.shape
 
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
@@ -4055,6 +4228,7 @@ CreateAbilityController = function()
                         end
 
 
+                        print("MARK:: MARK LOCS")
                         g_radiusMarkers[#g_radiusMarkers + 1] = dmhub.MarkLocs{
                             locs = locs,
                             color = "#444444",
@@ -4062,7 +4236,6 @@ CreateAbilityController = function()
                     end
 
                     local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols)
-                    g_castMessage:SetClass('collapsed', false)
                     g_castMessage.data.promptText = promptText
                     g_castMessage:FireEvent("refresh")
                     return
@@ -4097,6 +4270,7 @@ CreateAbilityController = function()
                             { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate})
 
                         if radiusMarker ~= nil then
+                        print("MARK:: MARK LOCS")
                             g_radiusMarkers[#g_radiusMarkers + 1] = radiusMarker
                             return
                         end
@@ -4129,6 +4303,11 @@ CreateAbilityController = function()
                     m_markLineOfSightToken = nil
                     m_markLineOfSightSourceToken = nil
                 end
+
+                CharacterPanel.HighlightAbilitySection{
+                    ability = g_currentAbility,
+                    section = "main",
+                }
 
                 local clearAbility = g_currentAbility
                 g_currentAbility:Cast(g_token, targets, {
@@ -4174,8 +4353,9 @@ end
 
 local g_potentialTargetTokens = {}
 
-local function CalculateSpellTargetFocusing(range)
+local function CalculateSpellTargetFocusing(symbols)
 
+    local range = symbols.range
 
     local potentialTargetTokens = {}
     assert(g_currentAbility ~= nil)
@@ -4211,7 +4391,7 @@ local function CalculateSpellTargetFocusing(range)
                     canTarget = false
                 end
 
-                if g_currentSymbols ~= nil and g_currentSymbols.forbiddentargets ~= nil and g_currentSymbols.forbiddentargets[targetToken.charid] then
+                if symbols ~= nil and symbols.forbiddentargets ~= nil and symbols.forbiddentargets[targetToken.charid] then
                     canTarget = false
                 end
 
@@ -4234,7 +4414,7 @@ local function CalculateSpellTargetFocusing(range)
                 local failReason = nil
 
                 if canTarget then
-                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, g_currentSymbols)
+                    canTarget, failReason = spell:TargetPassesFilter(g_token, targetToken, symbols)
                     if failReason ~= nil then
                         canTarget = true
                     end
@@ -4242,6 +4422,10 @@ local function CalculateSpellTargetFocusing(range)
 
                 if canTarget and targetToken.properties:HasNamedCondition("Hidden") and g_currentAbility:HasKeyword("Strike") then
                     failReason = "Cannot target a hidden creature with a strike"
+                end
+
+                if targetToken.properties:CalculateNamedCustomAttribute("Untargetable") > 0 then
+                    failReason = "Target is untargetable"
                 end
 
                 local casterLocOverride = g_currentAbility:try_get("casterLocOverride")
@@ -4359,6 +4543,11 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
             end
 
+            CharacterPanel.HighlightAbilitySection{
+                ability = g_currentAbility,
+                section = "main",
+            }
+
             local clearAbility = g_currentAbility
             g_currentAbility:Cast(g_token, targets, {
                 attachedTriggers = attachedTriggers,
@@ -4395,7 +4584,6 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
 
             local promptText = g_currentAbility:PromptText(g_token, targets, g_currentSymbols, synthesizedSpells)
-            g_castMessage:SetClass('collapsed', false)
             g_castMessage.data.promptText = promptText
             g_castMessage:FireEvent("refresh")
 
@@ -4404,10 +4592,11 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             local range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols)
             print("MovementRadius:: RANGE", range)
+            g_currentSymbols.numberoftargets = #targets
             g_currentSymbols.range = range
             g_range = range
 
-            g_potentialTargetTokens = CalculateSpellTargetFocusing(g_range)
+            g_potentialTargetTokens = CalculateSpellTargetFocusing(g_currentSymbols)
 
             --refresh the radius marker.
             if g_currentAbility.targetType == "line" then
@@ -4441,7 +4630,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
                 local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token, g_currentSymbols)
 
-                print("MovementRadius:: MARK", range)
+                print("MARK:: MovementRadius:: MARK", range)
                 g_radiusMarkers[#g_radiusMarkers + 1] = g_token:MarkMovementRadius(range,
                     { moveFlags = moveFlags, waypoints = waypoints, mask = mask, filter = filterTargetPredicate })
             elseif (g_currentAbility.targetType ~= 'line' or g_currentAbility.canChooseLowerRange) and g_currentAbility.targetType ~= 'cone' and g_currentAbility.targetType ~= 'self' and g_currentAbility.targetType ~= 'all' and g_currentAbility.targetType ~= 'map' and g_currentAbility.targetType ~= 'areatemplate' then

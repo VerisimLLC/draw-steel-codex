@@ -351,11 +351,20 @@ CreateChatPanel = function()
                         
                         if child == nil and (not g_errorPanels[message.key]) then
                             --safely try to create the message panel. If it fails, we just skip it.
-                            local ok, result = pcall(CreateSingleChatPanel, message)
+                            local ok, result
+
+                            if devmode() then
+                                --call unsafely as a dev. We want to get errors.
+                                result = CreateSingleChatPanel(message)
+                                ok = true
+                            else
+                                ok, result = pcall(CreateSingleChatPanel, message)
+                            end
+
                             if ok then
                                 child = result
                             else
-                                dmhub.CloudError("Error creating chat panel: ", result)
+                                dmhub.CloudError("Error creating chat panel in ChatPanel: ", message.messageType, result)
                                 g_errorPanels[message.key] = true
                             end
                         end

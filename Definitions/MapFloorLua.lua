@@ -15,20 +15,20 @@
 --- @field opacityNoUpload any 
 --- @field floorOpacity any 
 --- @field floorOpacityNoUpload any 
---- @field floorHeightInTiles any 
+--- @field floorHeightInTiles number 
 --- @field shadowCasting any 
 --- @field renderOrder any 
 --- @field shareLighting any 
 --- @field shareVision any 
 --- @field roof any 
 --- @field roofShowWhenInside any 
---- @field visionMultiplierNoUpload any 
---- @field visionMultiplier any 
---- @field roofVisionExclusion any 
+--- @field visionMultiplierNoUpload number 
+--- @field visionMultiplier number 
+--- @field roofVisionExclusion number 
 --- @field roofVisionExclusionNoUpload any 
---- @field roofMinimumOpacity any 
+--- @field roofMinimumOpacity number 
 --- @field roofMinimumOpacityNoUpload any 
---- @field roofVisionExclusionFade any 
+--- @field roofVisionExclusionFade number 
 --- @field roofVisionExclusionFadeNoUpload any 
 --- @field charactersOnFloor any 
 --- @field playerCharactersOnFloor any 
@@ -80,7 +80,7 @@ end
 
 --- GetNumberOfProjectiles
 --- @param tokenid string
---- @return any
+--- @return number
 function MapFloorLua:GetNumberOfProjectiles(tokenid)
 	-- dummy implementation for documentation purposes only
 end

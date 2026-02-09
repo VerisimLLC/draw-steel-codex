@@ -613,7 +613,7 @@ local function CreateDrawSteelBubble()
 
                 local angle = math.atan(deltay, deltax)
                 local angleDegrees = math.deg(angle)
-                element.selfStyle.rotate = angleDegrees - 90
+                element.selfStyle.rotateNumber = angleDegrees - 90
 
                 element.thinkTime = 0.01
             end,
@@ -1176,13 +1176,18 @@ function GameHud.CreateInitiativeBar(self, info)
 
 			{
 				selectors = {"initiativeEntryBorder", "parent:turn"},
-				brightness = 1.5,
+				brightness = 2.0,
 				transitionTime = 0,
 			},
 
 			{
 				selectors = {"initiativeEntryBorder", "parent:hadTurn"},
 				brightness = 0.3,
+				transitionTime = 0,
+			},
+			{
+				selectors = {"initiativeEntryBorder", "parent:selected"},
+                borderColor = "yellow",
 				transitionTime = 0,
 			},
 
@@ -1668,7 +1673,14 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 
 			playerContainer.data.wonInitiativeIndicator:SetClass("won", initiativeQueue.playersGoFirst)
 			monsterContainer.data.wonInitiativeIndicator:SetClass("won", not initiativeQueue.playersGoFirst)
-			
+
+            local initiativeids = {}
+            local tokens = dmhub.selectedTokens
+            for _,token in ipairs(tokens) do
+                local initiativeid = InitiativeQueue.GetInitiativeId(token)
+                initiativeids[initiativeid] = true
+            end
+
 			local playerChildren = {playerContainer.data.label.parent}
 			local monsterChildren = {monsterContainer.data.label.parent}
 			local newEntries = {}
@@ -1719,6 +1731,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 				panel:SetClass("unmoved", unmoved)
 				panel:SetClass("hadTurn", not unmoved)
 				panel:SetClass("unselectable", (not unmoved) or (isPlayersTurn ~= isplayer))
+                panel:SetClass("selected", initiativeids[k])
 
 				if isplayer then
 					playerChildren[#playerChildren+1] = panel.parent

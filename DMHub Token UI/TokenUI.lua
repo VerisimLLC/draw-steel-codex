@@ -222,10 +222,14 @@ local CalculateStatusIcons = function(token)
 			else
 				local casterid = nil
 				local hoverText = "test"
+                local statusText = nil
 				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
 				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or dmhub.isDM) then
 					local casterInfo = cond:try_get("casterInfo")
 					local condInfo = conditionsTable[ongoingEffectInfo.condition]
+                    if condInfo ~= nil then
+                        statusText = condInfo.name
+                    end
 
 					if condInfo ~= nil and casterInfo ~= nil and casterInfo.tokenid ~= nil then
 						local casterToken = dmhub.GetTokenById(casterInfo.tokenid)
@@ -262,6 +266,7 @@ local CalculateStatusIcons = function(token)
 						id = cond.ongoingEffectid,
 						icon = ongoingEffectInfo.iconid,
 						style = ongoingEffectInfo.display,
+                        statusText = statusText,
 						hoverText = hoverText,
 						statusIcon = true,
 						casterid = casterid,
@@ -614,6 +619,7 @@ TokenHud.RegisterPanel{
 
 										local percent = barInfo.value/max
 										element.data.value = percent
+                                        element.data.rawValue = barInfo.value/barInfo.max
 										element.data.prevTime = dmhub.Time()
 										local seek = barInfo.seek or barInfo.base.seek
 										if seek == nil then
@@ -666,7 +672,7 @@ TokenHud.RegisterPanel{
 
 										if element.data.colorTable ~= nil then
 											for i,entry in ipairs(element.data.colorTable) do
-												if entry.value == nil or element.data.prevValue >= entry.value then
+												if entry.value == nil or element.data.rawValue >= entry.value then
 													element.selfStyle.bgcolor = entry.color
 
 													if entry.gradient ~= nil then
@@ -932,6 +938,15 @@ TokenHud.RegisterPanel{
                             iconPanel:FireEvent("initialize")
                         end
 
+                        iconPanel.data.icon = icon
+
+                        if iconPanelNew and icon.statusText and not firstTime then
+                            token.properties:PlayAnimation(token, {
+                                animType = "statusCreate",
+                                info = icon,
+                            })
+                        end
+
 						if icon.hasAltitude then
 							iconPanel:FireEventTree("refreshAltitude")
 						end
@@ -1074,6 +1089,17 @@ TokenHud.RegisterPanel{
 					else
 						deadIcon = nil
 					end
+
+                    for k,v in pairs(statusIcons) do
+                        if newStatusIcons[k] == nil and statusIcons[k].data.icon ~= nil and statusIcons[k].data.icon.statusText then
+                            --this icon is gone now.
+                            token.properties:PlayAnimation(token, {
+                                animType = "statusDestroy",
+                                info = v.data.icon,
+                            })
+                            v:DestroySelf()
+                        end
+                    end
 
 					element.children = children
 					statusIcons = newStatusIcons
@@ -1387,11 +1413,16 @@ function CreateTokenHud(token)
 		styles = g_animationStyles,
 
 		animation = function(element, token, anim)
-			if anim.animType == "floatlabel" then
-				if token.sheet == nil then
-					return
-				end
-
+			if token.sheet == nil then
+				return
+			end
+            if anim.animType == "statusCreate" then
+                print("STATUS::", anim)
+                token.sheet:FireEvent("floatstatus", anim.info)
+            elseif anim.animType == "statusDestroy" then
+                anim.info.clear = true
+                token.sheet:FireEvent("floatstatus", anim.info)
+			elseif anim.animType == "floatlabel" then
 				token.sheet:FireEvent("floatlabel", anim.text, anim.color)
 			elseif anim.animType == "giveItem" then
 				local children = element.children
@@ -1592,6 +1623,150 @@ function CreateTokenHud(token)
 
 			playEffect = function(element, id, looping, options)
 				element.data.PlayEffect(id, looping, options)
+			end,
+
+            floatstatus = function(element, icon, force)
+                if not force then
+                    local nextLabelTime = element.data.nextLabelTime
+                    local t = dmhub.Time()
+                    element.data.nextLabelTime = max(t, nextLabelTime) + 1
+                    if nextLabelTime > t then
+                        element:ScheduleEvent("floatstatus", nextLabelTime - t, icon, true)
+                        return
+                    end
+                end
+
+                local strikeThrough = nil
+                if icon.clear then
+                    strikeThrough = gui.Panel{
+                        styles = {
+                            {
+                                bgcolor = "white",
+                            },
+                            {
+                                selectors = {"strike"},
+                                transitionTime = 1,
+                                bgcolor = "#888888ff",
+                            },
+                        },
+                        height = 4,
+                        bgimage = true,
+                        valign = "center",
+                        halign = "left",
+                        width = 0,
+                        hpad = 0,
+                        hmargin = 0,
+                        floating = true,
+                        thinkTime = 0.01,
+                        think = function(element)
+                            local t = element.aliveTime
+                            if t > 1 then
+                                element.selfStyle.width = element.parent.renderedWidth
+                                element.thinkTime = nil
+                            else
+                                element.selfStyle.width = element.parent.renderedWidth*t
+                            end
+                        end,
+                    }
+                end
+
+                local iconStyle = {
+                    bgcolor = "white",
+                }
+                icon.style = icon.style or {}
+                local brightness = icon.style.brightness or 1
+                local saturation = icon.style.saturation or 1
+                icon.style.brightness = nil
+                icon.style.saturation = nil
+                for k,v in pairs(icon.style) do
+                    iconStyle[k] = v
+                end
+
+				local children = element.children
+				children[#children+1] = gui.Panel{
+                    flow = "horizontal",
+                    width = "auto",
+                    height = "auto",
+                    bgimage = true,
+                    bgcolor = "#00000088",
+                    borderColor = "#00000088",
+                    borderWidth = 4,
+                    pad = 4,
+                    borderFade = true,
+					floating = true,
+                    styles = {
+						{
+							selectors = {"float"},
+							transitionTime = 5,
+							y = -200,
+						},
+						{
+							selectors = {"fade"},
+							transitionTime = 1,
+							opacity = 0,
+                            color = "#ffffff00",
+						},
+					},
+
+                    gui.Panel{
+                        width = 32,
+                        height = 32,
+                        bgimage = icon.icon,
+                        selfStyle = iconStyle,
+                        styles = {
+                            {
+                                saturation = saturation,
+                                brightness = brightness,
+                            },
+                            {
+                                classes = {"strike"},
+                                transitionTime = 1,
+                                saturation = 0,
+                                brightness = brightness * 0.5,
+                            },
+                        }
+                    },
+                    gui.Label{
+                        styles = {
+                            {
+                                color = "white",
+                            },
+                            {
+                                classes = {"strike"},
+                                transitionTime = 1,
+                                color = "#888888",
+                            },
+                        },
+                        flow = "none",
+                        fontSize = 24,
+                        width = "auto",
+                        height = "auto",
+                        text = icon.statusText,
+                        strikeThrough,
+                    },
+
+					events = {
+						create = function(element)
+							dmhub.Schedule(4, function()
+								if element.valid then
+									element:SetClassTree('fade', true)
+								end
+							end)
+							dmhub.Schedule(5, function()
+								if element.valid then
+									element:DestroySelf()
+								end
+							end)
+							element:SetClass('float', true)
+						end,
+					},
+				}
+
+                if strikeThrough ~= nil then
+                    children[#children]:SetClassTree("strike", true)
+                end
+
+				element.children = children
 			end,
 
 			floatlabel = function(element, text, color, force)
@@ -2020,6 +2195,7 @@ function CreateTokenHud(token)
 			end,
 
 			untarget = function(element)
+                print("ChooseTarget:: untarget token")
                 element.data.targetReason = nil
 				if targetEffect ~= nil then
                     print("TARGET:: UNTARGET")

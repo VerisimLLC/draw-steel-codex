@@ -193,6 +193,13 @@ function Panel:FindChildRecursive(predicate)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetChild: Gets the nth child of the panel
+--- @param n number
+--- @return Panel|nil
+function Panel:GetChild(n)
+	-- dummy implementation for documentation purposes only
+end
+
 --- IsDescendantOf: Returns true if this panel is a child, direct or indirect, of the 'other' panel.
 --- @param other Panel
 --- @return boolean
@@ -338,6 +345,12 @@ end
 --- HaltEventPropagation: This will stop any active events to propagate to parents. It is useful inside an event such as 'press' to prevent the parent from getting the event as well.
 --- @return nil
 function Panel:HaltEventPropagation()
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetAsDicePreviewPanel
+--- @return nil
+function Panel:SetAsDicePreviewPanel()
 	-- dummy implementation for documentation purposes only
 end
 

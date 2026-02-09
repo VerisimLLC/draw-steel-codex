@@ -1065,6 +1065,23 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "gainresource",
+    text = "Gain Resource",
+    symbols = {
+        resource = {
+            name = "Resource",
+            type = "string",
+            desc = "The resource used.",
+        },
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of resources used.",
+        }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "useability",
     text = "Use an Ability",
     symbols = g_abilitySymbols,
@@ -1110,48 +1127,48 @@ GameSystem.RegisterCreatureSizes{
 	{
 		name = "1T",
 		tiles = 1,
-		radius = 0.25,
+		radius = 0.2,
 	},
 	{
 		name = "1S",
 		tiles = 1,
-		radius = 0.4,
+		radius = 0.32,
 	},
 	{
 		name = "1M",
 		tiles = 1,
-		radius = 0.5,
+		radius = 0.4,
 		defaultSize = true,
 	},
 	{
 		name = "1L",
 		tiles = 1,
-		radius = 0.6,
+		radius = 0.5,
 	},
 	{
 		name = "2",
 		tiles = 2,
-		radius = 0.95,
+		radius = 0.85,
 	},
 	{
 		name = "3",
 		tiles = 3,
-		radius = 1.45,
+		radius = 1.35,
 	},
 	{
 		name = "4",
 		tiles = 4,
-		radius = 2.0,
+		radius = 1.7,
 	},
 	{
 		name = "5",
 		tiles = 5,
-		radius = 2.5,
+		radius = 2.2,
 	},
     {
 		name = "6",
 		tiles = 6,
-		radius = 3,
+		radius = 2.7,
 	},
 }
 
@@ -1232,10 +1249,20 @@ TriggeredAbility.RegisterTrigger{
             type = "number",
             desc = "The amount of damage taken when triggering this event.",
         },
+        rawdamage = {
+            name = "Raw Damage",
+            type = "number", 
+            desc = "The amount of damage taken before any immunities or damage reduction.",
+        },
         damagetype = {
             name = "Damage Type",
             type = "text",
             desc = "The type of damage taken when triggering this event.",
+        },
+        damageimmunity = {
+            name = "Damage Immunity",
+            type = "boolean",
+            desc = "True if the damage was reduced or increased due to a damage immunity or weakness.",
         },
         keywords = {
             name = "Keywords",
@@ -2476,6 +2503,23 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "gainresource",
+    text = "Gain Resource",
+    symbols = {
+        resource = {
+            name = "Resource",
+            type = "string",
+            desc = "The resource used.",
+        },
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of resources used.",
+        }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "useability",
     text = "Use an Ability",
     symbols = g_abilitySymbols,
@@ -2650,10 +2694,20 @@ TriggeredAbility.RegisterTrigger{
             type = "number",
             desc = "The amount of damage taken when triggering this event.",
         },
+        rawdamage = {
+            name = "Raw Damage",
+            type = "number", 
+            desc = "The amount of damage taken before any immunities or damage reduction.",
+        },
         damagetype = {
             name = "Damage Type",
             type = "text",
             desc = "The type of damage taken when triggering this event.",
+        },
+        damageimmunity = {
+            name = "Damage Immunity",
+            type = "boolean",
+            desc = "True if the damage was reduced or increased due to a damage immunity or weakness.",
         },
         keywords = {
             name = "Keywords",

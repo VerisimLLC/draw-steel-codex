@@ -142,6 +142,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 			halign = "right",
 			valign = "center",
 			hideButton = true,
+            allowNone = true,
 			value = fieldInfo.fieldList[1]:GetValue(valueIndex),
 
 			change = function(element)

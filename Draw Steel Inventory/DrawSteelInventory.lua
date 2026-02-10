@@ -1189,7 +1189,8 @@ local CreateInventorySlot = function(dmhud, options)
 								end
 							end
 							local submenu = {}
-							if item:try_get("imbuePrereq") == nil then
+							local prereq = item:try_get("imbuePrereq")
+							if prereq == nil or prereq == "none" then
 								submenu[#submenu+1] = {
 									text = 'Mundane ' .. targetType,
 									click = function()

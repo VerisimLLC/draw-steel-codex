@@ -156,6 +156,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                 end
             end
 
+            local forcemoveEvent = nil
 			local collisionInfo = nil
 			if (ability.targeting == "straightline" or ability.targetType == "line") and casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
 				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line")})
@@ -200,7 +201,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                                 end
                             end
                         end
-                        casterToken.properties:DispatchEvent("forcemove", args)
+                        forcemoveEvent = args
                     end
 
                     options.symbols.cast:RecordForcedMovementPath(path)
@@ -225,6 +226,11 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
 			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType })
             print("Relocate:: Move token:", path)
+
+            --make forced movement happen after the movement so they are in the new location.
+            if forcemoveEvent ~= nil then
+                casterToken.properties:DispatchEvent("forcemove", forcemoveEvent)
+            end
 
 			if path ~= nil then
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps

@@ -16,30 +16,45 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
 
             local panel
 
+            local needParent = true
+
                 print("ABILITY:: RENDER TRIGGER START", ability.typeName)
             if ability.typeName == "ActiveTrigger" then
                 local triggerInfo = token.properties:GetTriggeredActionInfo(ability:GetText())
                 print("ABILITY:: RENDER TRIGGER", ability:GetText(), json(triggerInfo))
                 if triggerInfo ~= nil then
-                    panel = triggerInfo:Render { width = 340 }
+                    panel = triggerInfo:Render { width = 340, valign = "center" }
                     panel:SetClass("hidden", false)
                     panel:SetClass("collapsed", false)
                 end
             elseif ability.typeName == "TriggeredAbilityDisplay" then
-                panel = ability:Render { width = 340 }
+                panel = ability:Render { width = 340, valign = "center" }
             else
 
                 if ability.categorization == "Trigger" then
                     local triggerInfo = token.properties:GetTriggeredActionInfo(ability.name)
                     if triggerInfo ~= nil then
-                        panel = triggerInfo:Render { width = 340, token = token, ability = ability, symbols = symbols }
+                        panel = triggerInfo:Render { width = 340, valign = "center", token = token, ability = ability, symbols = symbols }
                     end
                 end
 
                 if panel == nil then
+                    needParent = false
                     panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
                         { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
                 end
+            end
+
+            if needParent then
+                panel = gui.Panel{
+                    width = "auto",
+                    height = "auto",
+                    valign = "center",
+                    bgcolor = "#222222e9",
+                    bgimage = true,
+                    blurBackground = true,
+                    panel,
+                }
             end
 
             element.children = {panel}
@@ -74,8 +89,9 @@ function CharacterPanel.EmbedDialogInAbility()
 end
 
 function CharacterPanel.DisplayAbility(token, ability, symbols)
-    print("ABILITY:: DISPLAY", ability)
+    print("MENU:: DISPLAY ABILITY", ability)
     if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
+        print("MENU:: DISPLAY ABILITY FAILED")
         return false
     end
 
@@ -85,10 +101,12 @@ function CharacterPanel.DisplayAbility(token, ability, symbols)
         return p:HasClass("embeddedRollDialog")
     end)
     if embeddedRoll ~= nil then
+        print("MENU:: ALREADY HAVE AN ABILITY")
         --could not displace existing ability.
         return false
     end
 
+        print("MENU:: DISPLAY ABILITY SHOWING")
 
     panel:FireEventTree("showAbility", token, ability, symbols)
 

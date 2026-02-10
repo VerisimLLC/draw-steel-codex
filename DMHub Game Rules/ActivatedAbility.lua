@@ -3249,6 +3249,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 
     targets = filteredTargets
 
+    print("Heal::", #targets)
 
 	if #targets == 0 then
 		return
@@ -3266,10 +3267,11 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 		symbols.target = targets[1].token.properties:LookupSymbol()
 	end
 
+	local roll = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(symbols), string.format("Healing roll for %s", ability.name))
 	gamehud.rollDialog.data.ShowDialog{
 		title = 'Roll for Healing',
 		description = string.format("%s Healing", ability.name),
-		roll = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(symbols), string.format("Healing roll for %s", ability.name)),
+		roll = roll,
 
 		creature = casterToken.properties,
 		skipDeterministic = true,

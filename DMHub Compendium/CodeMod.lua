@@ -370,7 +370,7 @@ CreateEditor = function(panelArgs)
 
 						gui.Label{
 							classes = {"fileName"},
-							characterLimit = 24,
+							characterLimit = 32,
 							editable = true,
 							width = 220,
 							halign = "left",

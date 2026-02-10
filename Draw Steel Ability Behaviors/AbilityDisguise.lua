@@ -24,7 +24,7 @@ function ActivatedAbilityDisguiseBehavior:Cast(ability, casterToken, targets, op
             if tok ~= nil and tok.valid then
                 local monster = assets.monsters[self.monsterType]
                 if monster ~= nil then
-                    tok:DisguiseAs(monster.info)
+                    tok:DisguiseAs(monster.info, self:try_get("appearanceName", nil))
                 end
             end
         end
@@ -32,7 +32,7 @@ function ActivatedAbilityDisguiseBehavior:Cast(ability, casterToken, targets, op
         for _,target in ipairs(targets) do
             local tok = target.token
             if tok ~= nil and tok.valid then
-                casterToken:DisguiseAs(tok)
+                casterToken:DisguiseAs(tok, self:try_get("appearanceName", nil))
                 break
             end
         end
@@ -100,6 +100,22 @@ function ActivatedAbilityDisguiseBehavior:EditorItems(parentPanel)
                 }
             }
         end
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Appearance Name:",
+                hover = gui.Tooltip("The appearance name used for this. If given, and the creature has an Alternative Appearance Modifier it will allow the user to customize the appearance on their character sheet."),
+            },
+            gui.Input{
+                classes = {"formInput"},
+                text = self:try_get("appearanceName", ""),
+                change = function(element)
+                    self.appearanceName = element.text
+                end,
+            }
+        }
 
         panel.children = children
     end

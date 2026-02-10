@@ -1398,7 +1398,7 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 			valign = 'top',
 			flow = 'vertical',
 			width = '48%',
-			height = '80%',
+			height = '98%',
 			vmargin = 2,
 		},
 		selfStyle = {

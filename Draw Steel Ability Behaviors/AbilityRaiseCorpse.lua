@@ -77,6 +77,7 @@ function ActivatedAbilityRaiseCorpseBehavior:Cast(ability, casterToken, targets,
             local token = dmhub.GetTokenById(charid)
             if token ~= nil then
                 target.token = token
+                print("Corpse:: found token", charid)
             else
                 print("Corpse:: Could not find token with charid", charid)
             end

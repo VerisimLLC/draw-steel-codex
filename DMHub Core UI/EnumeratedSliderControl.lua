@@ -94,7 +94,15 @@ function gui.EnumeratedSliderControl(args)
 	end
 
     for k,v in pairs(args) do
-        params[k] = v
+        if k == "styles" then
+            params.styles = table.shallow_copy(params.styles)
+            for _,style in ipairs(v) do
+                params.styles[#params.styles+1] = style
+            end
+        else
+            params[k] = v
+        end
+
     end
 
     m_resultPanel = gui.Panel(params)

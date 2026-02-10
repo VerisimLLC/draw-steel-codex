@@ -629,10 +629,12 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
         local effectOptions = {}
 		local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
         for k,v in pairs(ongoingEffectsTable) do
-            effectOptions[#effectOptions+1] = {
-                id = k,
-                text = v.name,
-            }
+            if not rawget(v, "hidden") then
+                effectOptions[#effectOptions+1] = {
+                    id = k,
+                    text = v.name,
+                }
+            end
         end
 
         table.sort(effectOptions, function(a,b) return a.text < b.text end)

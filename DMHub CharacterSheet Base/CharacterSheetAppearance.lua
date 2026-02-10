@@ -1520,9 +1520,9 @@ function CharSheet.AppearancePanel()
             info.token:SwitchAppearanceVariation(info.token.numAppearanceVariations)
             CharacterSheet.instance:FireEvent("refreshAll")
         end,
-
-
     }
+
+    local m_alternateAppearancePanels = {}
 
     local avatarPanel = gui.Panel {
         width = "100%",
@@ -1556,7 +1556,7 @@ function CharSheet.AppearancePanel()
 
                 gui.Panel {
                     width = "auto",
-                    height = 380,
+                    height = 480,
                     flow = "vertical",
                     halign = "center",
                     wrap = true,
@@ -1649,7 +1649,7 @@ function CharSheet.AppearancePanel()
                                 }
                             end
                             m_tokenPanels[i]:FireEventTree("token", info.token:GetVariationInfo(i - 1))
-                            m_tokenPanels[i]:SetClass("selected", info.token.appearanceVariationIndex + 1 == i)
+                            m_tokenPanels[i]:SetClass("selected", info.token.alternateAppearanceOverride == nil and info.token.appearanceVariationIndex + 1 == i)
                         end
 
                         for index, panel in ipairs(m_tokenPanels) do
@@ -1662,6 +1662,97 @@ function CharSheet.AppearancePanel()
                         end
 
                         children[#children + 1] = addVariationButton
+
+                        local alternateAppearances = info.token.properties:GetAlternateAppearances()
+
+                        local newAlternateAppearancePanels = {}
+                        if alternateAppearances ~= nil then
+
+                            local keys = table.keys(alternateAppearances)
+                            table.sort(keys)
+                            for _,key in ipairs(keys) do
+                                local appearanceInfo = alternateAppearances[key]
+                                local panel = m_alternateAppearancePanels[key] or gui.Panel{
+                                    flow = "vertical",
+                                    width = "auto",
+                                    height = "auto",
+                                    disable = function(element)
+                                        if element:HasClass("selected") then
+                                            local info = CharacterSheet.instance.data.info
+                                            if info ~= nil and info.token ~= nil and info.token.valid then
+                                                info.token:SwitchAppearanceVariation(0)
+                                            end
+                                        end
+                                    end,
+                                    press = function(element)
+                                        local defaultToken = nil
+                                        local monster = assets.monsters[appearanceInfo.monsterDefault]
+                                        if monster ~= nil then
+                                            defaultToken = monster.info
+                                        end 
+                                        local info = CharacterSheet.instance.data.info
+                                        info.token:OverrideAlternateAppearance(key, defaultToken)
+                                        CharacterSheet.instance:FireEvent("refreshAll")
+                                    end,
+                                    rightClick = function(element)
+                                        element.popup = gui.ContextMenu {
+                                            entries = {
+                                                {
+                                                    text = "Revert",
+                                                    click = function()
+                                                        CharacterSheet.instance.data.info.token
+                                                            :ClearAlternateAppearance(key)
+                                                        element.popup = nil
+                                                        CharacterSheet.instance:FireEvent("refreshAll")
+                                                    end,
+                                                }
+                                            }
+                                        }
+                                    end,
+
+                                    gui.Panel{
+                                        classes = { "variation" },
+                                        gui.CreateTokenImage(info.token, {
+                                            halign = "center",
+                                            valign = "center",
+                                            width = 94,
+                                            height = 94,
+                                        }),
+
+                                        gui.Panel { classes = { "variationBorder" } },
+                                    },
+
+                                    gui.Label{
+                                        textAlignment = "center",
+                                        halign = "center",
+                                        fontSize = 14,
+                                        width = 84,
+                                        height = "auto",
+                                        text = key,
+                                    },
+                                }
+
+                                local appearance = info.token:GetAlternateAppearanceInfo(key)
+                                if appearance ~= nil then
+                                    panel:FireEventTree("token", appearance)
+                                elseif appearanceInfo.monsterDefault ~= "none" then
+                                    local monster = assets.monsters[appearanceInfo.monsterDefault]
+                                    if monster ~= nil then
+                                        panel:FireEventTree("token", monster.info)
+                                    else
+                                        panel:FireEventTree("token", info.token)
+                                    end
+                                end
+
+                                panel:SetClassTree("selected", info.token.alternateAppearanceOverride == key)
+                                print("ALT::", key, info.token.alternateAppearanceOverride)
+
+                                newAlternateAppearancePanels[key] = panel
+                                children[#children+1] = panel
+                            end
+                        end
+
+                        m_alternateAppearancePanels = newAlternateAppearancePanels
 
                         addVariationButton:SetClass("collapsed", nvariations >= 8)
 

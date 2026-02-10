@@ -17,7 +17,7 @@ setting{
 		},
 		{
 			value = "dm",
-			text = cond(dmhub.isDM, "Visible to GM only", "Visible to you and GM"),
+			text = cond(dmhub.isDM, "Visible to Director only", "Visible to you and Director"),
 		}
 	}
 }
@@ -37,7 +37,7 @@ local g_rollOptionsDM = {
 	},
 	{
 		id = "dm",
-		text = "Visible to GM only",
+		text = "Visible to Director only",
 	},
 }
 
@@ -48,7 +48,7 @@ local g_rollOptionsPlayer = {
 	},
 	{
 		id = "dm",
-		text = "Visible to you and GM",
+		text = "Visible to you and Director",
 	},
 }
 

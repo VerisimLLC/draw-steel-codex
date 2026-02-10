@@ -1259,14 +1259,17 @@ local function AbilityHeading(args)
             end
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
+                print("MENU:: SHOW ABILITY")
                 menu:FireEvent("showability", m_ability)
             else
+                print("MENU:: DIRECT ABILITY")
                 m_showingAbility = CharacterPanel.DisplayAbility(g_token, m_ability)
             end
         end,
 
         dehover = function(element)
             if m_showingAbility then
+                print("MENU:: DEHOVER")
                 CharacterPanel.HideAbility(m_ability)
             end
         end,
@@ -1277,12 +1280,15 @@ local function AbilityHeading(args)
             assert(g_abilityController ~= nil)
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
+                print("MENU:: ONCAST")
                 menu:FireEvent("oncast")
             elseif m_showingAbility then
+                print("MENU:: CALL DEHOVER")
                 element:FireEvent("dehover")
             end
 
             if m_ability == nil then
+                print("MENU:: NO ABILITY")
                 return
             end
 
@@ -1291,6 +1297,13 @@ local function AbilityHeading(args)
                 m_ability.castImmediately = true
             end
 
+            if menu == nil then
+                print("MENU:: DISPLAY ABILITY NEW")
+                CharacterPanel.DisplayAbility(g_token, m_ability, { targets = args.targets, cast = args.cast })
+                m_showingAbility = false
+            end
+
+                print("MENU:: HIGHLIGHT")
             CharacterPanel.HighlightAbilitySection{
                 ability = m_ability,
                 section = "target",
@@ -3124,8 +3137,21 @@ CreateAbilityController = function()
             g_skipButton,
         },
 
+        multimonitor = {"targetobjects"},
 
+        monitor = function(element)
+            if g_currentAbility ~= nil then
+                for _, targetToken in ipairs(dmhub.allTokensIncludingObjects) do
+                    if targetToken.valid and targetToken.sheet ~= nil then
+                        if targetToken.sheet.data.targetInfo ~= nil then
+                            targetToken.sheet:FireEvent("untarget")
+                        end
+                    end
+                end
 
+                CalculateSpellTargeting()
+            end
+        end,
 
         create = function(element)
             element.data.oldIsCasting = gamehud.actionBarPanel.data.IsCastingSpell
@@ -4375,7 +4401,25 @@ local function CalculateSpellTargetFocusing(range)
             end
         end
 
-        for _, targetToken in ipairs(dmhub.allTokensIncludingObjects) do
+        local allTokens = nil
+        local targeting = dmhub.GetSettingValue("targetobjects")
+        if g_currentAbility.targetAllegiance == "dead" then
+            allTokens = dmhub.allTokensIncludingObjects
+        elseif g_currentAbility.objectTarget == false then
+            allTokens = dmhub.allTokens
+        elseif g_currentAbility.targetAllegiance == "none" then
+            allTokens = dmhub.allObjectTokens
+        else
+            if targeting == "all" then
+                allTokens = dmhub.allTokensIncludingObjects
+            elseif targeting == false then
+                allTokens = dmhub.allTokens
+            else
+                allTokens = dmhub.allObjectTokens
+            end
+        end
+
+        for _, targetToken in ipairs(allTokens) do
             if targetToken.valid and targetToken.sheet ~= nil then
                 if targetToken.sheet.data.targetInfo ~= nil then
                     targetToken.sheet:FireEvent("untarget")

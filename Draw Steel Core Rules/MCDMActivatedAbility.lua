@@ -3,6 +3,12 @@ local mod = dmhub.GetModLoading()
 --if the effect has been implemented by the importer.
 ActivatedAbility.effectImplemented = true
 
+local g_settingTargetObjects = setting{
+    id = "targetobjects",
+    default = false,
+    storage = "preference",
+}
+
 local g_hoverableGradient = gui.Gradient{
     point_a = {x=0,y=0},
     point_b = {x=1,y=1},
@@ -1440,8 +1446,45 @@ function ActivatedAbility:Render(options, params)
                         markdown = true,
                         height = "auto",
                     },
+
                 },
             },
+
+            gui.Panel{
+                width = "auto",
+                height = "auto",
+                showAbilitySection = function(element, options)
+                    if self.objectTarget and self.targetAllegiance ~= "none" and options.ability.name == self.name and options.section == "target" then
+                        element.children = {
+                            gui.EnumeratedSliderControl{
+                                options = {
+                                    {id = false, text = "Creatures"},
+                                    {id = true, text = "Objects"},
+                                    {id = "all", text = "Creatures or Objects"},
+                                },
+                                value = g_settingTargetObjects:Get(),
+                                change = function(element)
+                                    g_settingTargetObjects:Set(element.value)
+                                end,
+                                styles = {
+                                    {
+                                        selectors = {"enumSlider"},
+                                        height = 18,
+                                    },
+                                    {
+                                        selectors = {"enumSliderOption"},
+                                        fontSize = 10,
+                                    },
+                                }
+                            },
+                        }
+                    else
+                        element.children = {}
+                    end
+                end,
+
+            },
+
 
             gui.Label{
                 classes = {cond(preDescriptionString == "", "collapsed", nil)},

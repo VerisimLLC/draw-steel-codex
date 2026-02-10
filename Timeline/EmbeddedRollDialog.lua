@@ -3016,12 +3016,12 @@ function GameHud.CreateEmbeddedRollDialog()
 
         events = {
             create = function(element)
-                element.data.hideactionbar = dmhub.GetSettingValue("hideactionbar")
-                dmhub.SetSettingValue("hideactionbar", true)
+                --element.data.hideactionbar = dmhub.GetSettingValue("hideactionbar")
+                --dmhub.SetSettingValue("hideactionbar", true)
                 print("PreviewDice:: hide action bar")
             end,
             destroy = function(element)
-                dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
+                --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
             end,
             submit = function(element)
                 if not rollInput:HasClass("manualEdit") then

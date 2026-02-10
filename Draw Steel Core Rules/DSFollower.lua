@@ -368,7 +368,7 @@ function buildRetainerList()
     local retainerLookup = {}
 
     local function processNode(node)
-        if node then
+        if node and not node.hidden then
             if node.monster then
                 local m = node.monster
                 if m.info and m.info.properties and m.info.properties:IsRetainer() then

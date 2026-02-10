@@ -1647,7 +1647,8 @@ end
 function monster:IsDying()
     if self:IsRetainer() then
         local hp = self:CurrentHitpoints()
-        return hp <= 0 and hp > -(self:MaxHitpoints() / 2)
+        local dyingAt = self:CalculateNamedCustomAttribute("Dying Stamina") or 0
+        return hp <= dyingAt and hp > -self:BloodiedThreshold()
     end
 
     return false
@@ -1851,7 +1852,7 @@ function creature:GrappleTN()
 end
 
 function creature:BloodiedThreshold()
-    return self:CalculateNamedCustomAttribute("dying value")
+    return self:CalculateNamedCustomAttribute("dying value") or math.floor(self:MaxHitpoints() / 2)
 end
 
 CustomAttribute.RegisterAttribute { id = "recoveryvalue", text = "Recovery Value", attributeType = "number", category = "Basic Attributes" }

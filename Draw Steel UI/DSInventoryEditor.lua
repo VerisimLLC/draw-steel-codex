@@ -642,7 +642,7 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             FormPanel {
                 text = 'Echelon:',
                 collapse = function()
-                    return (not EquipmentCategory.IsTreasure(document)) or EquipmentCategory.IsLeveledTreasure(document)
+                    return (not EquipmentCategory.IsTreasure(document)) or EquipmentCategory.IsLeveledTreasure(document) or EquipmentCategory.IsImbuement(document)
                 end,
                 child = gui.Dropdown {
 
@@ -671,6 +671,52 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                         end,
                         change = function(element)
                             document.echelon = element.idChosen
+                            Refresh()
+                        end,
+                    }
+                },
+            },
+
+            FormPanel {
+                text = "Target Item Type:",
+                collapse = function()
+                    return not EquipmentCategory.IsImbuement(document)
+                end,
+                child = gui.Dropdown {
+                    options = {
+                        { id = "armor", text = "Armor" },
+                        { id = "implement", text = "Implement" },
+                        { id = "weapon", text = "Weapon" },
+                    },
+                    events = {
+                        refresh = function(element)
+                            element.idChosen = document:try_get("imbueTargetType", "armor")
+                        end,
+                        change = function(element)
+                            document.imbueTargetType = element.idChosen
+                            Refresh()
+                        end,
+                    }
+                },
+            },
+
+            FormPanel {
+                text = "Level:",
+                collapse = function()
+                    return not EquipmentCategory.IsImbuement(document)
+                end,
+                child = gui.Dropdown {
+                    options = {
+                        { id = 1, text = "Level 1" },
+                        { id = 5, text = "Level 5" },
+                        { id = 9, text = "Level 9" },
+                    },
+                    events = {
+                        refresh = function(element)
+                            element.idChosen = document:try_get("imbueLevel", 1)
+                        end,
+                        change = function(element)
+                            document.imbueLevel = element.idChosen
                             Refresh()
                         end,
                     }
@@ -754,6 +800,53 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
                 },
             },
 
+
+            FormPanel {
+                text = "Imbue Prerequisite:",
+                collapse = function()
+                    return not EquipmentCategory.IsImbuement(document)
+                end,
+
+                child = gui.Dropdown {
+                    options = {},
+                    idChosen = document:try_get("imbuePrereq", "none"),
+                    hasSearch = true,
+                    width = 180,
+                    height = 26,
+                    fontSize = 18,
+
+                    refresh = function(element)
+                        if not EquipmentCategory.IsImbuement(document) then
+                            return
+                        end
+
+                        local itemOptions = {
+                            { id = "none", text = "(None)" },
+                        }
+
+                        local inventoryTable = dmhub.GetTable("tbl_Gear")
+                        for k, item in pairs(inventoryTable) do
+                            if (not item:try_get("hidden", false))
+                               and k ~= document.id
+                               and EquipmentCategory.IsImbuement(item) then
+                                itemOptions[#itemOptions + 1] = {
+                                    id = k,
+                                    text = item.name,
+                                }
+                            end
+                        end
+
+                        table.sort(itemOptions, function(a, b) return a.text < b.text end)
+                        element.options = itemOptions
+                        element.idChosen = document:try_get("imbuePrereq", "none")
+                    end,
+
+                    change = function(element)
+                        document.imbuePrereq = element.idChosen
+                        Refresh()
+                    end,
+                },
+            },
 
             FormPanel {
                 text = '',

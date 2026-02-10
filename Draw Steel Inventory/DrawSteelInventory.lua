@@ -21,6 +21,25 @@ local function GetTradeInventoryDialog(element)
 end
 
 
+local function _duplicateItem(sourceItem)
+    local itemCopy = dmhub.DeepCopy(sourceItem)
+    itemCopy.id = dmhub.GenerateGuid()
+
+    if itemCopy:has_key("itemObjectId") then
+        local asset = assets:GetObjectNode(itemCopy.itemObjectId)
+        if asset ~= nil then
+            itemCopy.itemObjectId = asset:Duplicate()
+        end
+    end
+
+    if itemCopy:has_key("consumable") and itemCopy.consumable:has_key("consumables") then
+        itemCopy.consumable.consumables[sourceItem.id] = nil
+        itemCopy.consumable.consumables[itemCopy.id] = 1
+    end
+
+    return itemCopy
+end
+
 local SlotDim = 72
 
 local g_SlotHighlightStyles = {
@@ -949,33 +968,14 @@ local CreateInventorySlot = function(dmhud, options)
 									click = function()
 										element.popup = nil
 
-										local itemCopy = dmhub.DeepCopy(item)
+										local itemCopy = _duplicateItem(item)
 										if not string.starts_with(item.name, "Unique") then
 											itemCopy.name = string.format("Unique %s", item.name)
 										end
-
-										itemCopy.id = dmhub.GenerateGuid()
 										itemCopy.baseid = item.id
-
-										if itemCopy:has_key("itemObjectId") then
-											--the item has an object that represents it when it appears on the character.
-											--we need to create a duplicate of this item.
-											local asset = assets:GetObjectNode(itemCopy.itemObjectId)
-											if asset ~= nil then
-												itemCopy.itemObjectId = asset:Duplicate()
-											end
-										end
-
-										if itemCopy:has_key("consumable") and itemCopy.consumable:has_key("consumables") then
-											--remap any consumable this item has to consume the new type, not the old type.
-											itemCopy.consumable.consumables[item.id] = nil
-											itemCopy.consumable.consumables[itemCopy.id] = 1
-										end
-
 										if not itemCopy:IsAmmoForWeapon() then
 											itemCopy.unique = true
 										end
-
 										itemCopy.hidden = true
 										dmhub.SetAndUploadTableItem('tbl_Gear', itemCopy)
 
@@ -1155,6 +1155,82 @@ local CreateInventorySlot = function(dmhud, options)
 
 							end,
 						}
+
+					if EquipmentCategory.IsImbuement(item) then
+						local targetType = item:try_get("imbueTargetType")
+						if targetType then
+							local function attemptImbueMundane(imbueItem, targetItem)
+								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
+
+								if imbueTarget then
+									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
+									token:BeginChanges()
+									token.properties:GiveItem(imbueTarget.id, 1)
+									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token:CompleteChanges("Imbue mundane item")
+								end
+								return message
+							end
+							local function attemptImbueItem(imbueItem, targetItem)
+								if targetItem:try_get("unique", false) ~= true then
+									targetItem = _duplicateItem(targetItem)
+									dmhub.SetAndUploadTableItem('tbl_Gear', targetItem)
+									token:BeginChanges()
+									token.properties:SetItemQuantity(targetItem.id, 1, parentDialog.data.GetFirstFreeSlotAfter(slotPanel.data.inventoryIndex))
+									token:CompleteChanges('Imbue Item')
+								end
+
+								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
+								if imbueTarget then
+									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
+									token:BeginChanges()
+									token.properties:SetItemQuantity(imbueItem.id, 0, slotPanel.data.inventoryIndex)
+									token:CompleteChanges('Imbue Item')
+								end
+							end
+							local submenu = {}
+							if item:try_get("imbuePrereq") == nil then
+								submenu[#submenu+1] = {
+									text = 'Mundane ' .. targetType,
+									click = function()
+										element.popup = nil
+										local imbueTarget = DSImbuement.CreateMundaneItem(targetType)
+										attemptImbueMundane(item, imbueTarget)
+									end,
+								}
+							end
+							local itemTable = dmhub.GetTable(equipment.tableName)
+							local creature = token.properties
+							local imbueTargets = {}
+							for id,_ in pairs(creature:try_get("inventory")) do
+								local invItem = itemTable[id]
+								if DSImbuement.CanImbue(item, invItem) then
+									imbueTargets[#imbueTargets+1] = invItem
+								end
+							end 
+							for _,id in pairs(creature:try_get("equipment", {})) do
+								local invItem = itemTable[id]
+								if DSImbuement.CanImbue(item, invItem) then
+									imbueTargets[#imbueTargets+1] = invItem
+								end
+							end
+							for _,invItem in ipairs(imbueTargets) do
+								submenu[#submenu+1] = {
+									text = invItem.name,
+									click = function()
+										element.popup = nil
+										attemptImbueItem(item, invItem)
+									end
+								}								
+							end
+							if #submenu > 0 then
+								contextMenuItems[#contextMenuItems+1] = {
+									text = 'Apply Imbuement',
+									submenu = submenu,
+								}
+							end
+						end
+					end
 
 					element.popup = gui.ContextMenu {
 						entries = contextMenuItems,

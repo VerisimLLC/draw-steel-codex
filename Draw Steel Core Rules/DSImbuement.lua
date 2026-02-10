@@ -41,19 +41,15 @@ end
 --- @param targetItem equipment
 --- @return boolean
 function DSImbuement.CanImbue(imbueItem, targetItem)
-    print("THC:: CANIMBUE::", targetItem.name)
     if imbueItem == nil or targetItem == nil then
-        print("THC:: NIL::")
         return false
     end
     if targetItem:try_get("imbueTarget", "absent-target") ~= imbueItem:try_get("imbueTargetType", "absent-imbue") then
-        print("THC:: MISMATCH::")
         return false
     end
     local prereq = imbueItem:try_get("imbuePrereq")
     if prereq == nil then return true end
     local imbuements = targetItem:get_or_add("imbuements", {})
-    print("THC:: PREREQ??", json(imbuements), imbuements[prereq])
     return imbuements[prereq] == true
 end
 

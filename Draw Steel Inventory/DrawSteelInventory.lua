@@ -1161,7 +1161,6 @@ local CreateInventorySlot = function(dmhud, options)
 						if targetType then
 							local function attemptImbueMundane(imbueItem, targetItem)
 								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
-								print("THC:: IMBUEMUNDANE::", message, json(imbueTarget))
 
 								if imbueTarget then
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
@@ -1182,7 +1181,6 @@ local CreateInventorySlot = function(dmhud, options)
 								end
 
 								local imbueTarget, message = DSImbuement.ImbueItem(imbueItem, targetItem)
-								print("THC:: IMBUEITEM::", message, json(imbueTarget))
 								if imbueTarget then
 									dmhub.SetAndUploadTableItem(equipment.tableName, imbueTarget)
 									token:BeginChanges()

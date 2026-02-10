@@ -1272,13 +1272,31 @@ local TestGoblinScript = function(symbols)
     return g
 end
 
+Commands.moveobject = function(str)
+    local args = string.split(str, " ")
+    if #args ~= 3 then
+        return
+    end
+
+
+    local search = args[1]
+    local x = tonumber(args[2])
+    local y = tonumber(args[3])
+    local objects = game.currentFloor.objects
+
+    for key, obj in pairs(objects) do
+        if obj.keywords and obj.keywords[search] then
+            obj.SetAndUploadPos(obj, x, y)
+        end
+    end
+end
+
+
 
 --for testing
 Commands.print = function(str)
 
-	local sw = dmhub.Stopwatch()
-
-    print("TIME::", sw.milliseconds, sum)
+    print("aaa")
 end
 
 Commands.languagesknown = function(str)

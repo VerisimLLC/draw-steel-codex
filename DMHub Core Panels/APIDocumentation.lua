@@ -9,10 +9,35 @@ dmhub.RegisterEventHandler("link", function(url)
         return
     end
 
-    local docs = dmhub.GetTypeDocumentation(string.sub(url, 5))
+    local rawtypename = string.sub(url, 5)
+    local docs = dmhub.GetTypeDocumentation(rawtypename)
     if docs == nil then
         return
     end
+
+    for i=1,10 do
+        if rawtypename == nil then
+            break
+        end
+        local ok, result = pcall(function()
+            local typeInfo = rawget(_G, rawtypename)
+            rawtypename = typeInfo.mt.baseTypeName
+            if rawtypename ~= nil then
+                local baseDocs = dmhub.GetTypeDocumentation(rawtypename)
+
+                --merge into the main docs.
+                for _,field in ipairs(baseDocs.fields) do
+                    for i=1,#docs.fields do
+                        if docs.fields[i].name > field.name then
+                            table.insert(docs.fields, i, field)
+                            break
+                        end
+                    end
+                end
+            end
+        end)
+    end
+
 
     local dialog
 

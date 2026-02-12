@@ -1291,12 +1291,39 @@ Commands.moveobject = function(str)
     end
 end
 
+--award hero tokens to any heroes on the map.
+Commands.awardherotokens = function(str)
+    if str == "help" then
+        dmhub.Log("Usage: /awarherotoken <number>\n Awards hero tokens to any heroes on the map (given number or 1).")
+        return
+    end
+
+    if not dmhub.isDM then
+        return
+    end
+
+    local points = tonumber(str) or 1
+    for _, token in ipairs(dmhub.allTokens) do
+        if token.properties:IsHero() then
+            token:ModifyProperties {
+                description = "Award Hero Token",
+                execute = function()
+                    token.properties:SetHeroTokens(token.properties:GetHeroTokens() + points)
+                end,
+
+
+            }
+
+            break
+        end
+    end
+end
 
 
 --for testing
 Commands.print = function(str)
 
-    print("aaa")
+    print("v", token.properties)
 end
 
 Commands.languagesknown = function(str)

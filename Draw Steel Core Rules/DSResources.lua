@@ -23,7 +23,7 @@ function creature:GetHeroicOrMaliceResourcesAvailableToSpend()
 end
 
 function character:GetHeroicOrMaliceResourcesAvailableToSpend()
-    return self:GetHeroicOrMaliceResourcesAvailable() + self:CalculateNamedCustomAttribute("Negative Heroic Resource")
+    return self:GetHeroicOrMaliceResourcesAvailable() + self:CalculateNamedCustomAttribute("Negative Heroic Resource") + self:ExtraHeroicResource()
 end
 
 function creature:GetHeroicOrMaliceResourcesAvailable()

@@ -115,6 +115,10 @@ function creature:AllowNegativeResources()
     return self:CalculateNamedCustomAttribute("Negative Heroic Resource")
 end
 
+function creature:ExtraHeroicResource()
+    return self:CalculateNamedCustomAttribute("Extra Heroic Resource Available")
+end
+
 --@param attrid string
 --@return number|nil
 function creature:AttributeForPotencyResistance(attrid)

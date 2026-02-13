@@ -4,6 +4,21 @@
 --- @field _instance DTCharSheetTab The singleton instance of this class
 DTCharSheetTab = RegisterGameType("DTCharSheetTab")
 
+local playersEditProjectRols = setting{
+	id = "permission:playersprojectrolls",
+	description = "Players Edit Project Rolls",
+	editor = "check",
+	default = false,
+
+	storage = "game",
+	section = "game",
+	classes = {"dmonly"},
+}
+
+local CanEditProjectRolls = function()
+	return dmhub.isDM or playersEditProjectRols:Get()
+end
+
 --- Creates the main downtime panel for the character sheet
 --- @return table|nil panel The GUI panel containing downtime content
 function DTCharSheetTab.CreateDowntimePanel()
@@ -128,6 +143,7 @@ function DTCharSheetTab._createHeaderPanel()
                 fontSize = 20,
                 halign = "left",
                 valign = "center",
+                interactable = CanEditProjectRolls(),
                 create = function(element)
                     dmhub.Schedule(0.2, function()
                         element.monitorGame = DTSettings.GetDocumentPath()
@@ -135,6 +151,15 @@ function DTCharSheetTab._createHeaderPanel()
                 end,
                 refreshGame = function(element)
                     element:FireEvent("refreshToken")
+                end,
+                press = function(element)
+                    local status
+                    local settings = DTSettings.CreateNew()
+                    if settings then
+                        status = settings:GetPauseRolls()
+                        settings:SetPauseRolls(not status)
+                    end
+                    element:FireEventTree("refreshToken")
                 end,
                 refreshToken = function(element)
                     local status = "UNKNOWN"
@@ -265,6 +290,7 @@ function DTCharSheetTab._createHeaderPanel()
                 height = "100%",
                 halign = "left",
                 valign = "center",
+                editable = CanEditProjectRolls(),
                 hmargin = 2,
                 fontSize = 20,
                 refreshToken = function(element)
@@ -272,6 +298,24 @@ function DTCharSheetTab._createHeaderPanel()
                     element.text = element.parent.data.message
                     element:SetClass("DTStatusAvailable", availableRolls > 0)
                     element:SetClass("DTStatusPaused", availableRolls <= 0)
+                end,
+                change = function(element)
+                    if CharacterSheet.instance.data.info then
+                        local token = CharacterSheet.instance.data.info.token
+                        if token and token.properties and token.properties:IsHero() then
+                            local downtimeInfo = token.properties:GetDowntimeInfo()
+                            token:ModifyProperties{
+                                description = "Grant Downtime Rolls",
+                                execute = function ()
+                                    if tonumber(element.text) then
+                                        downtimeInfo.availableRolls = tonumber(element.text)
+                                    end
+                                end,
+                            }
+
+                            element:FireEventTree("refreshToken")
+                        end
+                    end
                 end,
             },
             gui.Label {

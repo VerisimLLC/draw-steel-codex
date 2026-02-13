@@ -316,7 +316,7 @@ function ActivatedAbilityRecoverySelectionBehavior:Cast(ability, casterToken, ta
                 classes = "recovery-label",
                 refreshCost = function(element)
                     element.text = string.format("%s Cost: %s", casterToken.properties:GetHeroicResourceName(), calcCost())
-                    element:SetClass('cannot-afford', calcCost() > casterToken.properties:GetHeroicOrMaliceResources())
+                    element:SetClass('cannot-afford', calcCost() > casterToken.properties:GetHeroicOrMaliceResourcesAvailableToSpend())
                 end,
 
                 create = function(element)

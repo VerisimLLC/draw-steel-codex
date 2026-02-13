@@ -768,7 +768,31 @@ local function CreateObjectEntry(nodeid, parentElement, options)
 
 			hover = function(element)
 				ShowObjectTooltip(element)
-			end
+                local nhighlights = 0
+
+                local objects = game.currentFloor.objects
+                for _,obj in pairs(objects) do
+                    local assetid = obj.assetid
+                    if assetid == nodeid then
+                        obj.editorFocus = true
+                        nhighlights = nhighlights + 1
+                    end
+                end
+
+                element.data.nhighlights = nhighlights
+			end,
+
+			dehover = function(element)
+                if (element.data.nhighlights or 0) > 0 then
+                    local objects = game.currentFloor.objects
+                    for _,obj in pairs(objects) do
+                        local assetid = obj.assetid
+                        if assetid == nodeid then
+                            obj.editorFocus = false
+                        end
+                    end
+                end
+			end,
 		},
 
 		data = {

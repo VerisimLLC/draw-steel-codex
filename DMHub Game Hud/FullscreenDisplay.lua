@@ -8,7 +8,7 @@ function FullscreenDisplay.Create(options)
     local belowui = options.belowui or false
 	local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
     local displayPanel = gui.Panel{
-        classes = {"hidden"},
+        classes = {"hidden", cond(belowui, "belowui", "aboveui")},
         width = "100%",
         height = "100%",
         bgimage = doc.data.coverart,
@@ -24,7 +24,15 @@ function FullscreenDisplay.Create(options)
             }
         },
 
+        screenResized = function(element)
+            element:ScheduleEvent("imageLoaded", 0.5)
+        end,
+
         imageLoaded = function(element)
+            if element.bgsprite == nil then
+                return
+            end
+
             local w = element.parent.renderedWidth
             local h = element.parent.renderedHeight
             local aspect = h / w
@@ -60,7 +68,12 @@ function FullscreenDisplay.Create(options)
         refreshGame = function(element)
 	        local doc = mod:GetDocumentSnapshot(FullscreenDisplay.docid)
             displayPanel.bgimage = doc.data and doc.data.coverart
-            displayPanel:SetClass("hidden", doc.data == nil or (doc.data.belowui or false) ~= belowui or (not doc.data.show) or (doc.data.show ~= "all" and dmhub.isDM))
+            local hide = doc.data == nil or (doc.data.belowui or false) ~= belowui or (not doc.data.show) or (doc.data.show ~= "all" and dmhub.isDM)
+            displayPanel:SetClass("hidden", hide)
+
+            if not hide then
+                displayPanel:FireEvent("imageLoaded")
+            end
 
             if doc.data == nil or (not doc.data.show) or not dmhub.isDM then
                 if element.data.presentationInfo ~= nil then

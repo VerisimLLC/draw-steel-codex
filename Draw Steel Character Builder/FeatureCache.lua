@@ -753,10 +753,6 @@ function CBFeatureWrapper:Update(hero)
     self.selectedNames = selectedNames
 
     self.hasRoll = self.feature:try_get("characteristic") ~= nil
-
-    if self:GetName() == "1st-Level Domain Feature" then
-        print("THC:: FEATURE::", json(self))
-    end
 end
 
 --[[

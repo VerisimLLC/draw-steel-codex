@@ -504,6 +504,12 @@ function CharacterFeatureChoice:VisitRecursive(fn)
 	end
 end
 
+function CharacterFeatureChoice:GetEntries(creature)
+	local levelChoices = creature:GetLevelChoices() or {}
+	local options = self:GetOptions(levelChoices)
+	return options
+end
+
 function CharacterFeatureChoice:GetOptions(choices)
     if self.allowFormerLifeChoices then
         --try to fish out our former life ancestry and include any options from there.

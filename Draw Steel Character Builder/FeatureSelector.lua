@@ -354,6 +354,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             data = {
                 featureId = featureId,
                 option = nil,
+                panelFn = nil,
             },
             applyFilter = function(element, filterText)
                 if element.data.option == nil then return end
@@ -384,6 +385,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
 
                 return cachedFeature:AllowSelection(option:GetGuid())
             end,
+            customPanel = function(element, panelFn)
+                if panelFn ~= element.data.panelFn then
+                    element.data.panelFn = panelFn
+                end
+            end,
             drag = function(element, target)
                 if target == nil then return end
                 local option = element.data.option
@@ -412,6 +418,14 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         bgimage = true,
                         bgcolor = CBStyles.COLORS.GOLD,
                     }(element)
+                elseif element.data.panelFn then
+                    -- element.tooltip = gui.TooltipFrame(element.data.panelFn(), {
+                    --     width = 600,
+                    --     height = "auto",
+                    --     scale = 0.80,
+                    --     bgcolor = "clear",
+                    --     border = 0,
+                    -- })
                 end
             end,
             press = function(element)

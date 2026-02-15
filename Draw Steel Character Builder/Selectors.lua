@@ -499,12 +499,15 @@ local TEST_DETAIL = [[
 
 **Latest Release**
 
+* Builder is a little more informative for domain features, showing more information about what you get when you select them.
+* Builder is a little more informative for skill selections, showing explicitly which groups and / or individual skills have been configured into the selection.
+
+**Previous Releases**
+
 * Added level selector to right-side panel.
 * Feature selection entries now show when they have more info to display.
 * Fixed bug preventing complication additional information from displaying.
 * Added Perks display to right side Exploration tab.
-
-**Previous Releases**
 
 * Resolved issue with (sometimes?) not displaying ability cards in selected features.
 * Added filter to Complications, Languages, Perks, and Skills selectors when they have >~20 entries.
@@ -512,19 +515,10 @@ local TEST_DETAIL = [[
 * Resolved ability cards painting outside the "lines".
 * Removed redundant extra information when expanding a feature choice.
 * Reordered right side tabs.
-
 * Swapped order of Ancestry & Character buttons.
 * Removed the debug data randomizer on character description.
 * Resolved issue w/ status indicators displaying inaccurately on Ancestry, Career, and Class when switching between characters.
 * We should not see any more "Unnamed Feature" buttons. If you do, please let us know how you got to it.
-* Resolved issue with trimming off the top of some Ancestry Lore entries.
-* Added hover tooltip to remind you to choose your main feature before choosing sub-features.
-* Aggregate cultures that have langages now set their cultural language.
-* Everyone is opted in. Happy testing. Let us know what we broke.
-* Added double-click as a way to select & deselect features (column 3).
-* Added drag & drop as a way to select & deselect features (column 3).
-* Changed the select feature icon / button to a + (column 3) & added hover tooltip.
-* Added the ability to select aggregate cultures as starting points, then you can still change individual aspects.
 
 # Known Issues
 

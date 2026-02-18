@@ -632,17 +632,22 @@ function DTCharSheetTab._refreshProjectsList(element)
     end
 
     -- Add panels for shared projects
+    if false then
     for _, entry in ipairs(sharedProjects) do
-        local foundPanel = false
-        for _, panel in ipairs(panels) do
-            if panel.id == entry.project:GetID() and panel:HasClass("sharedProject") then
-                foundPanel = true
-                break
+        if entry.project then
+            print("THC:: project", json(entry.project))
+            local foundPanel = false
+            for _, panel in ipairs(panels) do
+                if panel.id == entry.project:GetID() and panel:HasClass("sharedProject") then
+                    foundPanel = true
+                    break
+                end
+            end
+            if not foundPanel then
+                panels[#panels + 1] = DTProjectEditor.new{project = entry.project}:CreateSharedProjectPanel(entry.ownerName, entry.ownerId, entry.ownerColor)
             end
         end
-        if not foundPanel then
-            panels[#panels + 1] = DTProjectEditor.new{project = entry.project}:CreateSharedProjectPanel(entry.ownerName, entry.ownerId, entry.ownerColor)
-        end
+    end
     end
 
     -- Step 3: Sort panels - owned projects first (by sort order), then shared projects (by sort order)

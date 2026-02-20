@@ -47,6 +47,7 @@ function CBClassDetail._navPanel()
         width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH,
         height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT,
         text = "Select Class",
+        bold = false,
         data = { category = "select" },
         press = function(element)
             _fireControllerEvent("applyCurrentClass")

@@ -603,6 +603,15 @@ function CBFeatureWrapper:_excludeChoice(hero, choice)
     if choice:GetUnique() == false then return false end
 
     local validators = {
+        CharacterDeityChoice = function(hero, choice)
+            local levelChoices = hero:GetLevelChoices() or {}
+            local featureId = self:GetGuid()
+            local featureChoices = levelChoices[featureId] or {}
+            local choiceId = choice:GetGuid()
+            for _,id in ipairs(featureChoices) do
+                if id == choiceId then return true end
+            end
+        end,
         CharacterLanguageChoice = function(hero, choice)
             local langsKnown = hero:LanguagesKnown() or {}
             return langsKnown[choice:GetGuid()] or false
@@ -617,7 +626,7 @@ function CBFeatureWrapper:_excludeChoice(hero, choice)
     local fn = validators[self.feature.typeName]
     if fn then return fn(hero, choice) end
 
-    -- Look for it in level choices
+    -- Look for it in any level choice
     local choiceId = choice:GetGuid()
     local levelChoices = hero:GetLevelChoices() or {}
     for _,featureChoices in pairs(levelChoices) do
@@ -812,6 +821,8 @@ function CBOptionWrapper:GetUnique()
     return _safeGet(self.option, "unique", true)
 end
 
+--- Calculate a custom panel for the option. Typically used when
+--- the option has an ability or other key descriptive text.
 --- @return function|nil
 function CBOptionWrapper:Panel()
     -- if self:GetName() == "Harsh Critic" then print("THC:: PANEL::", json(self.option)) end
@@ -836,11 +847,15 @@ function CBOptionWrapper:Panel()
 
     -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_1::") end
     -- See if we can calculate a panel from modifiers
-    local modifiers = _safeGet(self.option, "modifiers", {})
-    for _,modifier in ipairs(modifiers) do
-        local fn = evaluateModifier(modifier)
-        if fn then return fn end
+    local function processModifiers(modifiers)
+        for _,modifier in ipairs(modifiers) do
+            local fn = evaluateModifier(modifier)
+            if fn then return fn end
+        end
     end
+    local modifiers = _safeGet(self.option, "modifiers", {})
+    local fn = processModifiers(modifiers)
+    if fn then return fn end
 
     -- if self:GetName() == "Harsh Critic" then print("THC:: STEP_2::") end
     -- See if we can calculate a panel from modifierInfo
@@ -850,6 +865,52 @@ function CBOptionWrapper:Panel()
             for _,modifier in ipairs(feature:try_get("modifiers", {})) do
                 local fn = evaluateModifier(modifier)
                 if fn then return fn end
+            end
+        end
+    end
+
+    -- Check if we can calculate a panel from features
+    local features = _safeGet(self.option, "features")
+    if features then
+        local panelFn = {}
+        local text = {}
+        for _,feature in ipairs(features) do
+            local modifiers = _safeGet(feature, "modifiers", {})
+            local fn = processModifiers(modifiers)
+            if fn then
+                panelFn[#panelFn+1] = fn
+            elseif _hasFn(feature, "GetDescription") then
+                local t = feature:GetDescription()
+                if t and #t > 0 then text[#text+1] = t end
+            end
+        end
+        if #panelFn == 1 and #text == 0 then return panelFn[1] end
+        if #panelFn > 0 or #text > 0 then
+            local t = table.concat(text, "\n")
+            return function()
+                local children = {}
+                if #t > 0 then
+                    children[#children+1] = gui.Label{
+                        classes = {"builder-base", "label", "info"},
+                        width = "98%",
+                        height = "auto",
+                        halign = "left",
+                        vmargin = 12,
+                        textAlignment = "topleft",
+                        text = t,
+                    }
+                end
+                for _,fn in ipairs(panelFn) do
+                    children[#children+1] = fn()
+                end
+                return gui.Panel{
+                    classes = {"builder-base", "panel-base", "container"},
+                    width = "90%",
+                    height = "auto",
+                    halign = "center",
+                    valign = "top",
+                    children = children,
+                }
             end
         end
     end

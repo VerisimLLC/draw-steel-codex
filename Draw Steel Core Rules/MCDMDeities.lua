@@ -525,6 +525,31 @@ function CharacterDomainChoice:Choices(numOption, existingChoices, creature)
     return result
 end
 
+function CharacterDomainChoice:GetEntries(creature)
+
+    local entries = {}
+    local domainsTable = dmhub.GetTableVisible(DeityDomain.tableName)
+
+    if self:try_get("deityId") then
+        local deity = dmhub.GetTableVisible(Deity.tableName)[self.deityId]
+        if deity then
+            for _,id in ipairs(deity:GetDomains()) do
+                entries[#entries+1] = dmhub.DeepCopy(domainsTable[id])
+            end
+        end
+    end
+
+    if #entries == 0 then
+        for _,item in pairs(domainsTable) do
+            entries[#entries+1] = dmhub.DeepCopy(item)
+        end
+    end
+
+    table.sort(entries, function(a,b) return a.name < b.name end)
+
+    return entries
+end
+
 function CharacterDomainChoice:GetOptions()
     local items = self:Choices()
     local options = {}

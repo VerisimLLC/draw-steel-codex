@@ -108,6 +108,33 @@ CharacterModifier.RegisterAbilityModifier
 
 CharacterModifier.RegisterAbilityModifier
 {
+	id = "modproperties",
+	text = "Modify Special Properties",
+	operations = { "Add", "Set", "Remove" },
+	set = function(modifier, creature, ability, attr)
+		if attr.operation == "Set" then
+			ability.properties = attr.properties
+			return true
+		elseif attr.operation == "Remove" then
+			local properties = attr.properties or {}
+			local abilityProperties = ability:get_or_add("properties", {})
+			for property, _ in pairs(properties) do
+				abilityProperties[property] = nil
+			end
+			return true
+		else
+			local properties = attr.properties or {}
+			local abilityProperties = ability:get_or_add("properties", {})
+			for property, _ in pairs(properties) do
+				abilityProperties[property] = true
+			end
+			return true
+		end
+	end,
+}
+
+CharacterModifier.RegisterAbilityModifier
+{
 	id = "targettype",
 	text = "Target Type",
 	operations = { "targeting" },
@@ -500,7 +527,7 @@ CharacterModifier.TypeInfo.modifyability = {
 		for i,attr in ipairs(modifier.attributes) do
 			local info = abilityModifierOptionsById[attr.id]
 			if info ~= nil then
-				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" then
+				if attr.id == "targettype" or attr.id == "modkeywords" or attr.id == "reasonfilter" or attr.id == "modproperties" then
 					info.set(modifier, creature, ability, attr)
 				else
 					info.set(modifier, creature, ability, attr.operation, attr.value, attr.condition)
@@ -973,12 +1000,32 @@ CharacterModifier.TypeInfo.modifyability = {
 						elseif attr.id == "modkeywords" then
 							local keywords = attr and attr.keywords or {}
 
-							children[#children+1] = gui.KeywordSelector{
-								keywords = keywords,
-								change = function()
-									attr.keywords = keywords
-									Refresh()
-								end,
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.KeywordSelector{
+									keywords = keywords,
+									change = function()
+										attr.keywords = keywords
+										Refresh()
+									end,
+								},
+							}
+						elseif attr.id == "modproperties" then
+							local properties = attr and attr.properties or {}
+
+							children[#children+1] = gui.Panel{
+								classes = {"formPanel"},
+								height = "auto",
+								gui.SetEditor{
+									value = properties,
+									addItemText = "Add Special Property...",
+									options = ActivatedAbility.registeredProperties,
+									change = function(element, value)
+										attr.properties = value
+										Refresh()
+									end,
+								},
 							}
 						else
 							children[#children+1] = gui.Panel{

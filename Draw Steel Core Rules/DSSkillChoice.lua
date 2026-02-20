@@ -85,7 +85,49 @@ function CharacterSkillChoice:GetOptions(choices)
 end
 
 function CharacterSkillChoice:GetDescription()
-	return self.description
+    local function formatProperList(items)
+        local count = #items
+
+        if count == 0 then
+            return ""
+        elseif count == 1 then
+            return items[1]
+        elseif count == 2 then
+            return items[1] .. " or " .. items[2]
+        else
+            -- 3 or more - use Oxford comma
+            local allButLast = {}
+            for i = 1, count - 1 do
+                allButLast[i] = items[i]
+            end
+            return table.concat(allButLast, ", ") .. ", or " .. items[count]
+        end
+    end
+
+    local numChoices = self.numChoices or 1
+    local cats = {}
+    for k,_ in pairs(self:try_get("categories", {})) do
+        cats[#cats+1] = k:sub(1,1):upper() .. k:sub(2)
+    end
+    local skillsTable = dmhub.GetTableVisible(Skill.tableName)
+    local ind = {}
+    for k,_ in pairs(self:try_get("individualSkills", {})) do
+        local s = skillsTable[k]
+        if s then
+            ind[#ind+1] = s.name
+        end
+    end
+
+    local desc = string.format("Choose %d skill%s", numChoices, numChoices > 1 and "s" or "")
+    if #cats > 0 then
+        desc = string.format("%s from the %s skill group%s", desc, formatProperList(cats), #cats > 1 and "s" or "")
+    end
+    if #ind > 0 then
+        if #cats > 0 then desc = desc .. " or" end
+        desc = string.format("%s the skill%s %s", desc, #ind > 1 and "s" or "", formatProperList(ind))
+    end
+
+	return desc .. "." --self.description
 end
 
 function CharacterSkillChoice:NumChoices(creature)

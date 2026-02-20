@@ -729,8 +729,8 @@ end
 
 
 RollCheck.RegisterCustom{
-    id = "power_roll_project",
-    rollType = "custom",
+    id = "project_power_roll",
+    rollType = "power_roll_custom",
 	Describe = function(check, isplayer)
         return check.info.explanation
     end,
@@ -738,7 +738,70 @@ RollCheck.RegisterCustom{
         return "2d10 + " .. creature:AttributeMod(check.info.attrid)
     end,
 	GetModifiers = function(check, creature)
-        return creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {})
+        --Modifiers included from the Roll
+		local rollModifiers = check:try_get("modifiers", {})
+        local result = creature:GetModifiersForPowerRoll(check:GetRoll(creature), "project_roll", {attribute = check.info.attrid, skills = check.skills})
+
+        local skillsTable = GetTableCached("Skills")
+        for _, skillid in ipairs(check.skills or {}) do
+            local skill = skillsTable[skillid]
+            if creature:ProficientInSkill(skill) then
+                for _,mod in ipairs(result) do
+                    if mod.modifier.name == "Skilled" then
+                        mod.hint.result = true
+                    end
+                end
+            end
+        end
+
+        local langs = creature:LanguagesKnown()
+		local languagesTable = GetTableCached("languages")
+        local relatedLanguages = GetTableCached("languageRelations")
+
+        local languageKnown = false
+        local languageRelated = false
+
+        for _, lang in ipairs(check.languages or {}) do
+            if langs[lang] then
+                languageKnown = true
+                break
+            elseif relatedLanguages[lang] then
+                for related, _ in pairs(relatedLanguages[lang].related) do
+                    if langs[related] then
+                        languageRelated = true
+                        break
+                    end
+                end
+            end
+        end
+
+        for _, mod in pairs(result) do
+            if not languageKnown and not languageRelated then
+                if mod.modifier.name == "Unknown Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the language(s) of the project source.</color>"}
+                end
+            elseif not languageKnown and languageRelated then
+                if mod.modifier.name == "Related Language" then
+                    mod.hint.result = true
+                    mod.hint.justification = {"<color=#FF0000>You do not know the project source language(s), but you know a related language.</color>"}
+                end
+            end
+        end
+
+        --Add roll modifiers to the result
+		for _, mod in pairs(rollModifiers ) do
+			result[#result+1] = mod
+		end
+
+        return result
+    end,
+    ShowDialog = function(check, dialogOptions)
+        dialogOptions.rollProperties = RollProperties.new{
+            type = "project_power_roll",
+        }
+        --dialogOptions.PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(dialogOptions.rollProperties, dialogOptions.creature)
+        return GameHud.instance.rollDialog.data.ShowDialog(dialogOptions)
     end,
 }
 
@@ -749,19 +812,26 @@ RollCheck.RegisterCustom{
 --   title: title for the roll dialog
 --   callback: function(result, boons, banes) - called when roll completes
 --   silent: whether to skip showing dialog (default false)
+--   skills: array of skill IDs to check for proficiency
+--   languages: array of language IDs to check for language penalties
+--   modifiers: optional modifiers that should be included in this roll
 -- @return result table {result, boons, banes} or nil if canceled
 function creature:RequestProjectRoll(casterToken, options)
     options = options or {}
     
     local attrid = options.attrid or "mgt"
     local explanation = options.explanation or "Project Roll"
+    explanation = explanation..string.format(" (%s)", attrid)
     local title = options.title or explanation
-    
+
     local check = RollCheck.new{
-        type = "custom",
-        id = "power_roll_project",
+        type = "project_power_roll",
+        id = "project_power_roll",
         text = title,
         explanation = explanation,
+        skills = options.skills or {},
+        languages = options.languages or {},
+        modifiers = options.modifiers or {},
         info = {
             attrid = attrid,
             explanation = explanation,

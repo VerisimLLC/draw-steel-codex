@@ -254,36 +254,39 @@ local CreateRollCategoryPanel = function(cat, catInfo)
 				children[#children+1] = panel
 			end
 
-			if boons >= 2 and banes == 0 then
-				children[#children+1] = panelCache['doubleboon'] or gui.Panel{
-					width = 16,
-					height = 16,
-                    halign = "left",
-					valign = "center",
-					bgimage = "panels/triangle.png",
-					rotate = 180,
-					bgcolor = "green",
-					linger = function(element)
-						gui.Tooltip("Double Edge -- +Tier")(element)
-					end,
-				}
+			local rollType = rollInfo.properties and rollInfo.properties:try_get("type")
+			if rollType ~= "project_power_roll" then 
+				if boons >= 2 and banes == 0 then
+					children[#children+1] = panelCache['doubleboon'] or gui.Panel{
+						width = 16,
+						height = 16,
+						halign = "left",
+						valign = "center",
+						bgimage = "panels/triangle.png",
+						rotate = 180,
+						bgcolor = "green",
+						linger = function(element)
+							gui.Tooltip("Double Edge -- +Tier")(element)
+						end,
+					}
 
-				newPanelCache['doubleboon'] = children[#children]
-			end
+					newPanelCache['doubleboon'] = children[#children]
+				end
 
-			if banes >= 2 and boons == 0 then
-				children[#children+1] = panelCache['doublebane'] or gui.Panel{
-					width = 16,
-					height = 16,
-					valign = "center",
-					bgimage = "panels/triangle.png",
-					bgcolor = "red",
-					linger = function(element)
-						gui.Tooltip("Double Bane -- -Tier")(element)
-					end,
-				}
+				if banes >= 2 and boons == 0 then
+					children[#children+1] = panelCache['doublebane'] or gui.Panel{
+						width = 16,
+						height = 16,
+						valign = "center",
+						bgimage = "panels/triangle.png",
+						bgcolor = "red",
+						linger = function(element)
+							gui.Tooltip("Double Bane -- -Tier")(element)
+						end,
+					}
 
-				newPanelCache['doublebane'] = children[#children]
+					newPanelCache['doublebane'] = children[#children]
+				end
 			end
 
 			rollsPanel.children = children

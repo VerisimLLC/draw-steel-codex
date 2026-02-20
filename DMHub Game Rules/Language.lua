@@ -45,6 +45,22 @@ local SetLanguage = function(tableName, languagePanel, langid)
 
 	local children = {}
 
+	if devmode() then
+        --the id of the language.
+        children[#children+1] = gui.Panel{
+            classes = {'formPanel'},
+            gui.Label{
+                text = 'ID:',
+                valign = 'center',
+                minWidth = 240,
+            },
+            gui.Input{
+                text = language.id,
+                editable = false,
+            },
+        }
+    end
+
 	--the name of the language.
 	children[#children+1] = gui.Panel{
 		classes = {'formPanel'},

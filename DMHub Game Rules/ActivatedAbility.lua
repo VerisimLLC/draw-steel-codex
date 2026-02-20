@@ -2761,12 +2761,12 @@ function ActivatedAbilityBehavior:IsFiltered(ability, casterToken, options)
         end
     end
 
---[[     if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then
+	if options and options.symbols and options.symbols.cast and options.symbols.cast.tier ~= 0 and #self:try_get("tiersSelected", {}) > 0 then
         --see if the tier filter filters it out.
         if not table.contains(self.tiersSelected, options.symbols.cast.tier) then
             return true
         end
-    end ]]
+    end
 
     return false
 end
@@ -4479,6 +4479,37 @@ local g_lookupSymbols = {
 
 		return nil
 	end,
+
+	inflicts = function(c)
+		return function(condition)
+			--confirm this is a valid condition
+			if CharacterCondition.conditionsByName[condition] == nil then
+				return false
+			end
+
+			local conditionPattern = string.format("\\b%s\\b", string.lower(condition))
+			for _,behavior in ipairs(c.behaviors) do
+				if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+					if behavior.tiers ~= nil then
+						for _, tier in ipairs(behavior.tiers) do
+							local tierText = string.lower(tier)
+							if regex.MatchGroups(tierText, conditionPattern) ~= nil then
+								return true
+							end
+						end
+					end
+				elseif behavior.typeName == "ActivatedAbilityDrawSteelCommandBehavior" then
+					if behavior.rule ~= nil then
+						local ruleText = string.lower(behavior.rule)
+						if regex.MatchGroups(ruleText, conditionPattern) ~= nil then
+							return true
+						end
+					end
+				end
+			end
+			return false
+		end
+	end,
 }
 
 local g_helpCasting = {
@@ -4610,6 +4641,13 @@ local g_helpSymbols = {
 		desc = "The set of damage types this ability can inflict. Is empty for abilities that inflict no damage.",
 		examples = {'Ability.Damage Types Has "Fire"'},
 	},
+
+	inflicts = {
+		name = "Inflicts",
+		type = "function",
+		desc = "Returns whether this ability inflicts the provided condition",
+		examples = {'Ability.Inflicts("Frightened")'},
+	}
 }
 
 ActivatedAbility.lookupSymbols = g_lookupSymbols

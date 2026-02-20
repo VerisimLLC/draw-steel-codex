@@ -10,6 +10,7 @@ CBStyles.COLORS = {
     BLACK = "#000000",
     BLACK02 = "#10110F",
     BLACK03 = "#191A18",
+    BLACK04 = "#040807",
     CREAM = "#BC9B7B",
     CREAM03 = "#DFCFC0",
     GOLD = "#966D4B",
@@ -256,7 +257,7 @@ local function _panelStyles()
             tmargin = 10,
             vpad = 8,
             bgimage = true,
-            bgcolor = "clear",
+            bgcolor = CBStyles.COLORS.BLACK04, --"clear",
             cornerRadius = 5,
             borderWidth = 1,
             borderColor = CBStyles.COLORS.GOLD,
@@ -264,6 +265,10 @@ local function _panelStyles()
         {
             selectors = {"feature-choice", "selected"},
             borderColor = CBStyles.COLORS.GOLD03,
+        },
+        {
+            selectors = {"feature-choice", "hover"},
+            bgcolor = CBStyles.COLORS.GOLD04,
         },
         {
             selectors = {"feature-choice", "filtered"},
@@ -277,6 +282,10 @@ local function _panelStyles()
             hmargin = 8,
             bgimage = "ui-icons/AudioPlayButton.png",
             bgcolor = "white",
+        },
+        {
+            selectors = {"feature-toggle", "parent:hovering"},
+            bgcolor = CBStyles.COLORS.BLACK04,
         },
         {
             selectors = {"feature-toggle", "parent:selected"},
@@ -784,6 +793,14 @@ local function _labelStyles()
             fontSize = 14,
             bold = false,
             italics = true,
+        },
+        -- {
+        --     selectors = {"feature-choice", "hover"},
+        --     color = CBStyles.COLORS.BLACK04,
+        -- },
+        {
+            selectors = {"feature-choice", "parent:hovering"},
+            color = CBStyles.COLORS.BLACK04,
         },
 
         -- Attribute editor

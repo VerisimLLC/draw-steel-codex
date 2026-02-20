@@ -853,6 +853,7 @@ local function AurasAffectingPanel(m_token)
 
                     hover = function(element)
 						local tooltip = CreateAuraTooltip(auraInstance)
+                        tooltip:MakeNonInteractiveRecursive()
                         element.tooltip = gui.TooltipFrame(tooltip)
 
 						local area = auraInstance:GetArea()

@@ -268,7 +268,7 @@ local ShowSkillsPanel = function(parentPanel)
 		local children = {}
 
 		--the ID of the skill.
-		if dmhub.GetSettingValue("dev") then
+		if devmode() then
 			children[#children+1] = gui.Panel{
 				classes = {'formPanel'},
 				gui.Label{
@@ -276,11 +276,13 @@ local ShowSkillsPanel = function(parentPanel)
 					valign = 'center',
 					minWidth = 100,
 				},
-				gui.Label{
+				gui.Input{
 					text = skill.id,
+					editable = false,
+					width = "auto",
 				},
 			}
-		end
+   		end
 
 		--the name of the skill.
 

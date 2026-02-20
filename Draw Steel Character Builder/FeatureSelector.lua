@@ -354,6 +354,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
             data = {
                 featureId = featureId,
                 option = nil,
+                panelFn = nil,
             },
             applyFilter = function(element, filterText)
                 if element.data.option == nil then return end
@@ -384,6 +385,11 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
 
                 return cachedFeature:AllowSelection(option:GetGuid())
             end,
+            customPanel = function(element, panelFn)
+                if panelFn ~= element.data.panelFn then
+                    element.data.panelFn = panelFn
+                end
+            end,
             drag = function(element, target)
                 if target == nil then return end
                 local option = element.data.option
@@ -412,7 +418,21 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                         bgimage = true,
                         bgcolor = CBStyles.COLORS.GOLD,
                     }(element)
+                elseif element.data.panelFn then
+                    -- element.tooltip = gui.TooltipFrame(element.data.panelFn(), {
+                    --     width = 600,
+                    --     height = "auto",
+                    --     scale = 0.80,
+                    --     bgcolor = "clear",
+                    --     border = 0,
+                    -- })
                 end
+                element:SetClass("hovering", true)
+                element:FireEventTree("hovering", true)
+            end,
+            dehover = function(element)
+                element:SetClass("hovering", false)
+                element:FireEventTree("hovering", false)
             end,
             press = function(element)
                 if element.data.option == nil then return end
@@ -463,6 +483,10 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 height = "auto",
                 width = "98%",
                 halign = "center",
+                interactable = false,
+                hovering = function(element, inHover)
+                    element:SetClass("hovering", inHover)
+                end,
                 refreshBuilderState = function(element, state)
                     element:SetClass("selected", element.parent:HasClass("selected"))
                 end,
@@ -485,6 +509,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 textAlignment = "left",
                 text = "",
                 markdown = true,
+                interactable = false,
                 updateDesc = function(element, text)
                     if element.text ~= text then element.text = text end
                     element:SetClass("collapsed", #element.text == 0)

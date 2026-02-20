@@ -279,6 +279,29 @@ function CharacterBuilder._formatOrder(n, s)
     return string.format("%03d-%s", n or 999, (s and #s > 0) and s or "zzzunknown-item")
 end
 
+--- Formats an array into a grammatically correct list with Oxford comma
+--- @param items string[] Array of items to format
+--- @param conjunction string The word to use before the last item ("or", "and", etc.)
+--- @return string The formatted list
+function CharacterBuilder._formatProperList(items, conjunction)
+    local count = #items
+
+    if count == 0 then
+        return ""
+    elseif count == 1 then
+        return items[1]
+    elseif count == 2 then
+        return items[1] .. " " .. conjunction .. " " .. items[2]
+    else
+        -- 3 or more - use Oxford comma
+        local allButLast = {}
+        for i = 1, count - 1 do
+            allButLast[i] = items[i]
+        end
+        return table.concat(allButLast, ", ") .. ", " .. conjunction .. " " .. items[count]
+    end
+end
+
 --- If the parameter is a function, return its return value else return the item
 --- @param item any
 --- @return any

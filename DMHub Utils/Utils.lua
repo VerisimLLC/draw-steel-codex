@@ -729,5 +729,5 @@ function DeepCopy(t)
     local _ = g_profileDeepCopy.Begin
     local result = DeepCopyInternal(t)
     local _ = g_profileDeepCopy.End
-    return t
+    return result
 end

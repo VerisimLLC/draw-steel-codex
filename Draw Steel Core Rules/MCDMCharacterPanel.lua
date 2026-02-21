@@ -1328,7 +1328,7 @@ local function InflictedConditionsPanel(m_token)
                         halign = "left",
                         press = function(element)
                             local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
-                            ability.behaviors[1].condid = key
+                            ability.behaviors[1].condid = element.parent.data.condid
                             ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(m_token, ability, m_token, "prompt", {}, {})
                         end,
                         refresh = function(element)
@@ -1337,7 +1337,7 @@ local function InflictedConditionsPanel(m_token)
                             end
 
                             local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
-                            local ongoingEffectInfo = conditionsTable[key]
+                            local ongoingEffectInfo = conditionsTable[element.parent.data.condid]
 
                             if ongoingEffectInfo == nil or not ongoingEffectInfo.trackCaster then
                                 element:SetClass("collapsed", true)
@@ -1345,7 +1345,7 @@ local function InflictedConditionsPanel(m_token)
                             end
 
                             local conditions = m_token.properties:try_get("inflictedConditions", {})
-                            local cond = conditions[key]
+                            local cond = conditions[element.parent.data.condid]
                             if cond == nil or cond.casterInfo ~= nil then
                                 element:SetClass("collapsed", true)
                             else

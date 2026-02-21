@@ -1263,6 +1263,10 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                                         token.properties.groupid = nil
                                                     else
                                                         token.properties.groupid = element.idChosen
+                                                        local group = MonsterGroup.Get(token.properties.groupid)
+                                                        if group ~= nil then
+                                                            token.properties.monster_category = group.name
+                                                        end
                                                     end
                                                 end,
                                             },

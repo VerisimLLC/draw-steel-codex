@@ -1611,6 +1611,7 @@ function DTProjectEditor:_createRollButton(options)
                         skills = {},
                         languages = {},
                         modifiers = {},
+                        silent = true,
                         callback = function(result, boons, banes)
                             print("THC:: RESULT::", result, boons, banes)
                         end,

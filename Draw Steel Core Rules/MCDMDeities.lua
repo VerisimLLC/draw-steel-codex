@@ -301,7 +301,7 @@ function CharacterDeityChoice:GetEntries(creature)
             table.sort(domains)
             description = string.format("**Domains:** %s", table.concat(domains, ", "))
         end
-        local option = dmhub.DeepCopy(item)
+        local option = DeepCopy(item)
         option.lore = option:try_get("description")
         option.description = description
         option.unique = true

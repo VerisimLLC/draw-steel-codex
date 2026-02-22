@@ -20,7 +20,7 @@ function creature:CalculateLoopingEmotes()
 	if loopemotes == nil then
 		loopemotes = {}
 	else
-		loopemotes = dmhub.DeepCopy(loopemotes)
+		loopemotes = DeepCopy(loopemotes)
 	end
 
 	local deletes = {}

@@ -22,7 +22,7 @@ end
 
 
 local function _duplicateItem(sourceItem)
-    local itemCopy = dmhub.DeepCopy(sourceItem)
+    local itemCopy = DeepCopy(sourceItem)
     itemCopy.id = dmhub.GenerateGuid()
 
     if itemCopy:has_key("itemObjectId") then
@@ -1010,7 +1010,7 @@ local CreateInventorySlot = function(dmhud, options)
 								text = 'Duplicate Item',
 								click = function()
 									element.popup = nil
-									local itemCopy = dmhub.DeepCopy(item)
+									local itemCopy = DeepCopy(item)
 									itemCopy.id = dmhub.GenerateGuid()
 
 									if itemCopy:has_key("itemObjectId") then
@@ -1691,7 +1691,7 @@ function GameHud.CreateInventoryDialog(self, options)
 		local currencyChanges = options.currencyChanges
 		if token ~= nil then
 			if item:MustBeUniqueInInventory() then
-				local itemCopy = dmhub.DeepCopy(item)
+				local itemCopy = DeepCopy(item)
 				itemCopy.id = dmhub.GenerateGuid()
 				itemCopy.baseid = item.id
 				itemCopy.hidden = true
@@ -1757,7 +1757,7 @@ function GameHud.CreateInventoryDialog(self, options)
 
 					--divide into unarranged inventory and the inventory that has been manually arranged.
 					--iterate over the unarranged inventory and extract out arranged parts.
-					unarrangedInventory = dmhub.DeepCopy(inventory)
+					unarrangedInventory = DeepCopy(inventory)
 					for k,entry in pairs(inventory) do
 						if entry.slots ~= nil then
 							local mutableEntry = unarrangedInventory[k]

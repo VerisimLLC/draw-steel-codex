@@ -152,7 +152,7 @@ function CharacterFeature.FindDescriptionFromDomainMap(domains)
 end
 
 function CharacterFeature:ForceDomains(domains)
-	self.domains = dmhub.DeepCopy(domains)
+	self.domains = DeepCopy(domains)
 	for _,mod in ipairs(self.modifiers) do
 		mod:ForceDomains(domains)
 	end
@@ -400,7 +400,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 				}
 			end
 
-			local options = dmhub.DeepCopy(CharacterModifier.Types)
+			local options = DeepCopy(CharacterModifier.Types)
 			options[1].text = 'Add Modifier...'
 			table.sort(options, function(a, b)
 				if a.id == "none" then
@@ -473,7 +473,7 @@ function CharacterFeature:EditorPanel(editorPanelOptions)
 					elseif element.idChosen ~= 'none' then
 						local domains = nil
 						if self:has_key("domains") then
-							domains = dmhub.DeepCopy(self.domains)
+							domains = DeepCopy(self.domains)
 						end
 						local modifier = CharacterModifier.new{
 							guid = dmhub.GenerateGuid(),
@@ -694,7 +694,7 @@ end
 
 function CharacterFeature:PopupEditor()
 
-	local backup = dmhub.DeepCopy(self)
+	local backup = DeepCopy(self)
 
 	local resultPanel
 

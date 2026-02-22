@@ -249,7 +249,7 @@ AttributeGenerator.Register{
             fieldName = "Point Cost",
             events = {
                 change = function(element)
-                    self.pointBuyTable = dmhub.DeepCopy(element.value)
+                    self.pointBuyTable = DeepCopy(element.value)
                     parentPanel:FireEvent("change")
                 end,
             },

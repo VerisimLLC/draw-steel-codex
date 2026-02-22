@@ -611,7 +611,7 @@ function CharSheet.FramePreviewPanel()
                                     local diffs = 0
 
                                     if newToken then
-                                        g_previewToken.properties = dmhub.DeepCopy(info.token.properties)
+                                        g_previewToken.properties = DeepCopy(info.token.properties)
                                         diffs = 1
                                     elseif dmhub.Patch(g_previewToken.properties, info.token.properties) then
                                         diffs = 1

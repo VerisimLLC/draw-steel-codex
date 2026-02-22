@@ -89,13 +89,13 @@ function CharacterLanguageChoice:GetLanguageFeatures()
         return self._tmp_languageFeatures
     end
 
-    self._tmp_languageFeaturesKey = dmhub.DeepCopy(self.categories)
+    self._tmp_languageFeaturesKey = DeepCopy(self.categories)
 
     self._tmp_languageFeatures = {}
 
     local languagesTable = dmhub.GetTable(Language.tableName)
     for k,lang in pairs(languagesTable) do
-        local feature = dmhub.DeepCopy(MCDMImporter.GetStandardFeature("Language"))
+        local feature = DeepCopy(MCDMImporter.GetStandardFeature("Language"))
         if feature ~= nil then
             feature.id = k
             feature.guid = k

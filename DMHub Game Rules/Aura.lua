@@ -691,7 +691,7 @@ AuraInstance.helpSymbols = {
 
 --get symbols for a triggered event. Includes this aura as the 'aura' key.
 function AuraInstance:GetSymbolsForTrigger(targetCreature)
-    local result = dmhub.DeepCopy(self.symbols or {})
+    local result = DeepCopy(self.symbols or {})
     result.aura = GenerateSymbols(self)
 
     if targetCreature ~= nil then
@@ -1032,7 +1032,7 @@ function ActivatedAbilityAuraBehavior:CastOnArea(ability, casterToken, targets, 
             duration = self:try_get("duration", "none"),
             symbols = symbols,
             aliveafterdeath = self:try_get("aliveafterdeath"),
-            aura = dmhub.DeepCopy(self.aura),
+            aura = DeepCopy(self.aura),
         }
 
         if auraInstance.duration == "endnextturn" then

@@ -288,7 +288,7 @@ function CharacterCultureAggregateChoice:SaveSelection(hero, option)
         culture = Culture.CreateNew()
         hero.culture = culture
     end
-    culture.aspects = dmhub.DeepCopy(option.aspects)
+    culture.aspects = DeepCopy(option.aspects)
     culture.aggregate = option.id
     if option.languageId and #option.languageId > 0 then
         local levelChoices = hero:GetLevelChoices()

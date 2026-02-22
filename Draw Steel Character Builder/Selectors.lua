@@ -120,7 +120,7 @@ end
 
 --- @return Panel Culture category selector panel
 function CBSelectors._cultureItems()
-    local cultureCats = dmhub.DeepCopy(CultureAspect.categories)
+    local cultureCats = DeepCopy(CultureAspect.categories)
     for _,item in ipairs(cultureCats) do
         item.name = item.text
     end
@@ -185,7 +185,7 @@ function CBSelectors._makeButton(options)
         end
     end
 
-    local button = dmhub.DeepCopy(options.button)
+    local button = DeepCopy(options.button)
     options.button = nil
 
     options.children = {

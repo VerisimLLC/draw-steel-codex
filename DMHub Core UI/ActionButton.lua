@@ -118,7 +118,7 @@ local actionButtonStyles = {
 --- element:FireEvent("setSelected", isSelected)
 --- @return Panel
 function gui.ActionButton(options)
-    local opts = dmhub.DeepCopy(options or {})
+    local opts = DeepCopy(options or {})
 
     local mainPanel
 
@@ -180,7 +180,7 @@ function gui.ActionButton(options)
     end
 
     opts.GetValue = function(element)
-        local values = dmhub.DeepCopy(element.data)
+        local values = DeepCopy(element.data)
         values.selected = values._selected
         values.available = values._available
         values._available = nil
@@ -329,7 +329,7 @@ local selectorButtonStyles = {
 --- element:FireEvent("setSelected", isSelected)
 --- @return Panel
 function gui.SelectorButton(options)
-    local opts = dmhub.DeepCopy(options or {})
+    local opts = DeepCopy(options or {})
 
     local mainPanel
 
@@ -394,7 +394,7 @@ function gui.SelectorButton(options)
     end
 
     opts.GetValue = function(element)
-        local values = dmhub.DeepCopy(element.data)
+        local values = DeepCopy(element.data)
         values.selected = values._selected
         values.available = values._available
         values._selected = nil

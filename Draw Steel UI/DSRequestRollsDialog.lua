@@ -1516,6 +1516,12 @@ function GameHud:ShowRollSummaryDialog(actionid, resultTable)
 				dmhub.CancelActionRequest(actionid)
 				CloseRequireRollDialog()
 			end,
+            destroy = function(element)
+                --if this was exited some way that didn't have a result, then set it to no result / cancel.
+                if resultTable.result == nil then
+                    resultTable.result = false
+                end
+            end,
 		}
 
 	local action = dmhub.GetPlayerActionRequest(actionid)

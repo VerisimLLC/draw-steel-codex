@@ -1737,7 +1737,7 @@ function CharSheet.ClassChoicePanel(options, classIndex)
 
                                             if not dmhub.DeepEqual(class.baseCharacteristics.arrays[i], element.data.arrayValue) then
                                                 element.children = {}
-                                                element.data.arrayValue = dmhub.DeepCopy(class.baseCharacteristics.arrays[i])
+                                                element.data.arrayValue = DeepCopy(class.baseCharacteristics.arrays[i])
                                             end
 
                                             local children = element.children

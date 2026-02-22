@@ -282,7 +282,7 @@ local SetRace = function(tableName, racePanel, raceid)
 			gui.Input{
 				text = tostring(race.moveSpeeds.walk),
 				change = function(element)
-					race.moveSpeeds = dmhub.DeepCopy(race.moveSpeeds) --in case this isn't init yet.
+					race.moveSpeeds = DeepCopy(race.moveSpeeds) --in case this isn't init yet.
 					race.moveSpeeds.walk = tonumber(element.text) or race.moveSpeeds.walk
 					element.text = tostring(race.moveSpeeds.walk)
 					UploadRace()

@@ -2819,7 +2819,7 @@ local function DSCharSheet()
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
                                             local strong = creature:CalcuatePotencyValue("Strong")
-                                            element.text = strong
+                                            element.text = string.format("%d", strong)
                                         end
 
                                     },
@@ -2866,7 +2866,7 @@ local function DSCharSheet()
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
                                             local average = creature:CalcuatePotencyValue("Average")
-                                            element.text = average
+                                            element.text = string.format("%d", average)
                                         end
 
                                     },
@@ -2914,7 +2914,7 @@ local function DSCharSheet()
                                         refreshToken = function(element, info)
                                             local creature = CharacterSheet.instance.data.info.token.properties
                                             local weak = creature:CalcuatePotencyValue("Weak")
-                                            element.text = weak
+                                            element.text = string.format("%d", weak)
                                         end
 
                                     },

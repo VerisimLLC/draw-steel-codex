@@ -291,7 +291,7 @@ CharacterOngoingEffectInstance.stacks = 1
 CharacterOngoingEffectInstance.seq = 1
 
 function CharacterOngoingEffectInstance.Create(options)
-	options = dmhub.DeepCopy(options or {})
+	options = DeepCopy(options or {})
 
 	options.id = dmhub.GenerateGuid()
 	options.time = TimePoint.Create()

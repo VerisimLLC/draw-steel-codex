@@ -260,7 +260,7 @@ function CharacterResource:CreateStyles()
 	for _,k in ipairs(self.displayIndexes) do
 		local display = self.display[k]
 		
-		local style = dmhub.DeepCopy(display)
+		local style = DeepCopy(display)
 		if style.bgcolor == nil then
 			style.bgcolor = 'white'
 		end

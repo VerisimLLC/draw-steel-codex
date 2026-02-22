@@ -1157,12 +1157,12 @@ function ActivatedAbility:IconEditorPanel()
 
 				events = {
 					change = function(element)
-						self.display = dmhub.DeepCopy(self.display)
+						self.display = DeepCopy(self.display)
 						self.display[options.attr] = element.value
 						iconEditor:FireEvent('create')
 					end,
 					confirm = function(element)
-						self.display = dmhub.DeepCopy(self.display)
+						self.display = DeepCopy(self.display)
 						self.display[options.attr] = element.value
 						iconEditor:FireEvent('create')
 					end,
@@ -3064,7 +3064,7 @@ ActivatedAbilityHealBehavior.rollHelp = "the healing for this ability"
 
 function ActivatedAbilityBehavior:FilterEditor(parentPanel, list)
 
-	local helpCasting = dmhub.DeepCopy(ActivatedAbility.helpCasting)
+	local helpCasting = DeepCopy(ActivatedAbility.helpCasting)
 	helpCasting.target = {
 		name = "Target",
 		type = "creature",
@@ -3187,7 +3187,7 @@ function ActivatedAbilityBehavior:ModifiersEditor(parentPanel, list)
 	list[#list+1] = contentPanel
 
 
-	local options = dmhub.DeepCopy(CharacterModifier.Types)
+	local options = DeepCopy(CharacterModifier.Types)
 	options[1].text = 'Add Modifier...'
 	list[#list+1] = gui.Dropdown{
 		selfStyle = {
@@ -3206,7 +3206,7 @@ function ActivatedAbilityBehavior:ModifiersEditor(parentPanel, list)
 			if element.idChosen ~= 'none' then
 				local domains = nil
 				--if self:has_key("domains") then
-				--	domains = dmhub.DeepCopy(self.domains)
+				--	domains = DeepCopy(self.domains)
 				--end
 				local modifier = CharacterModifier.new{
 					guid = dmhub.GenerateGuid(),
@@ -3236,7 +3236,7 @@ end
 
 function ActivatedAbilityBehavior:RollEditor(parentPanel, list)
 
-	local helpCasting = dmhub.DeepCopy(ActivatedAbility.helpCasting)
+	local helpCasting = DeepCopy(ActivatedAbility.helpCasting)
 	if self.summary == "Damage" then
 		helpCasting.target = {
 			name = "Target",
@@ -3526,7 +3526,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 						ongoingEffect.name = "Transformation"
 						ongoingEffect.transformation = true
 						ongoingEffect.modifiers = {
-							dmhub.DeepCopy(CharacterModifier.StandardModifiers.TransformIntoBeast)
+							DeepCopy(CharacterModifier.StandardModifiers.TransformIntoBeast)
 						}
 						ongoingEffect.modifiers[1].deletable = false
 					end
@@ -3571,7 +3571,7 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
     local ongoingEffect = dmhub.GetTable("characterOngoingEffects")[self:try_get("ongoingEffect", "none")]
 
     if ongoingEffect ~= nil and ongoingEffect.casterTracking == "set" then
-	    local helpCasting = dmhub.DeepCopy(ActivatedAbility.helpCasting)
+	    local helpCasting = DeepCopy(ActivatedAbility.helpCasting)
         list[#list+1] = gui.Panel{
             classes = "formPanel",
             gui.Label{
@@ -3822,7 +3822,7 @@ function ActivatedAbilityBehavior:MomentaryEffectEditor(parentPanel, list)
 end
 
 function ActivatedAbilityBehavior:ForcedMovementEditor(parentPanel, list)
-	local helpCasting = dmhub.DeepCopy(ActivatedAbility.helpCasting)
+	local helpCasting = DeepCopy(ActivatedAbility.helpCasting)
 	helpCasting.target = {
 		name = "Target",
 		type = "creature",
@@ -4203,8 +4203,8 @@ function ActivatedAbilityBehavior:CreateEditor(parentAbility, options)
                 return
             end
 
-            element.data.modesSelected = dmhub.DeepCopy(self:try_get("modesSelected", {}))
-            element.data.modeList = dmhub.DeepCopy(parentAbility:try_get("modeList", {}))
+            element.data.modesSelected = DeepCopy(self:try_get("modesSelected", {}))
+            element.data.modeList = DeepCopy(parentAbility:try_get("modeList", {}))
 
             local children = {}
 
@@ -4288,7 +4288,7 @@ function ActivatedAbilityBehavior:CreateEditor(parentAbility, options)
                 return
             end
 
-            m_tierCache = dmhub.DeepCopy(tierInfo)
+            m_tierCache = DeepCopy(tierInfo)
 
             local children = {}
 
@@ -4368,7 +4368,7 @@ function ActivatedAbilityBehavior:CreateEditor(parentAbility, options)
                 return
             end
 
-            m_strainCache = dmhub.DeepCopy(strainInfo)
+            m_strainCache = DeepCopy(strainInfo)
 
             local children = {}
 

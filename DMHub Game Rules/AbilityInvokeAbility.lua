@@ -18,7 +18,7 @@ AbilityUtils = {
 				local s = v
 
 				for count=1,8 do
-					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)>>(?<tail>.*)$")
+					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+(?<defaultValue>=[0-9 a-zA-Z]*)?)>>(?<tail>.*)$")
 					if match == nil then
 						break
 					end
@@ -38,6 +38,11 @@ AbilityUtils = {
 			return
 		end
 
+        if string.starts_with(from, "<<") and string.ends_with(from, ">>") then
+            --add in a regex match for the default value, =.* as an optional part of the parameter name, before the >>.
+            from = string.sub(from, 1, -3) .."(=[0-9 a-zA-Z]*)?"..string.sub(from, -2)
+        end
+
 		for k,v in pairs(node) do
 			if v == from then
 				node[k] = to
@@ -48,6 +53,30 @@ AbilityUtils = {
 			end
 		end
 	end,
+
+    SetDefaultParameters = function(node)
+		if type(node) ~= "table" then
+			return
+		end
+		for k,v in pairs(node) do
+            if type(v) == "string" then
+                local s = v
+                for count=1,8 do
+                    local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)=(?<defaultValue>[0-9 a-zA-Z]*)>>(?<tail>.*)$")
+                    if match == nil then
+                        break
+                    end
+
+                    node[k] = regex.ReplaceAll(node[k], "<<"..match.name.."=[0-9 a-zA-Z]*>>", match.defaultValue)
+                    s = match.tail
+                end
+
+                node[k] = s
+            else
+                AbilityUtils.SetDefaultParameters(v)
+            end
+        end
+    end,
 
 	--utility to scan for an <<expression>> in a string and evaluate it as goblin script.
 	--Useful to evaluate in the context of the caster.
@@ -806,12 +835,14 @@ function AbilityInvocation:Invoke()
 		for k,v in pairs(self:try_get("standardAbilityParams", {})) do
             allParameters[k] = nil
 			local str = AbilityUtils.SubstituteAbilityParameters(v, lookupSymbols)
+            print("PARAM:: SUB", v, "-->", str)
 			AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
 		end
 
         for k,_ in pairs(allParameters) do
             --clear out any parameters we didn't explicitly set.
             AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
+            print("PARAM:: CLEAR", k)
         end
 	end
 

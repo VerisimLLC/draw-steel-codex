@@ -1136,7 +1136,7 @@ dmhub.RegisterRemoteEvent("tokenEffect", function(info)
 			local m_lastUpdated = dmhub.Time()
 
 			sheet:SetClassTree("remote", true)
-			local m_classes = dmhub.DeepCopy(info.classes)
+			local m_classes = DeepCopy(info.classes)
 			local userInfo = dmhub.GetSessionInfo(info.userid)
 			if userInfo ~= nil then
 				sheet.selfStyle.hueshift = userInfo.displayColor.h
@@ -1183,7 +1183,7 @@ dmhub.RegisterRemoteEvent("tokenEffect", function(info)
 						end
 					end
 
-					m_classes = dmhub.DeepCopy(info.classes)
+					m_classes = DeepCopy(info.classes)
 				end
 			end
 
@@ -1285,7 +1285,7 @@ function CreateTokenHud(token)
 					local classes = element.classes
 					if m_classesSent == nil or (not dmhub.DeepEqual(m_classesSent, classes)) or dmhub.Time() > m_lastSend + 1 then
 						m_lastSend = dmhub.Time()
-						m_classesSent = dmhub.DeepCopy(classes)
+						m_classesSent = DeepCopy(classes)
 						dmhub.BroadcastRemoteEvent("tokenEffect", remoteSessionid, {
 							userid = dmhub.userid,
 							tokenid = tokenid,
@@ -2181,7 +2181,6 @@ function CreateTokenHud(token)
 			end,
 
 			target = function(element, options)
-                print("TARGET:: TARGETING", token.isObject)
                 if token.isObject then
                     token.sheet:SetClassTree("targeting", true)
                 end
@@ -2189,7 +2188,6 @@ function CreateTokenHud(token)
                 element.data.targetReason = options.reason
 
 				if targetEffect == nil then
-                    print("TARGET:: SPAWN TARGET")
 					targetEffect = {}
 					options.remote = options.valid
 					for i,effect in ipairs(element.data.PlayEffect('targetglow', true, options)) do

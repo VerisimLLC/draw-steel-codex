@@ -395,7 +395,6 @@ local g_rulePatterns = {
             if range <= 0 then
                 --don't execute forced movement of 0?
                 if stability > 0 then
-                    print("STABILITY:: XXX")
                     ShowFailSpeech("Too Much Stability")
                 else
                     ShowFailMessage("Cannot Be Force Moved")
@@ -430,6 +429,7 @@ local g_rulePatterns = {
                 InvokeAbilityRemote(abilityName, targetToken, casterToken, abilityAttr, options)
             else
                 local abilityClone = DeepCopy(MCDMUtils.GetStandardAbility(abilityName))
+                MCDMUtils.DeepReplace(abilityClone, "<<range>>", string.format("%d", range))
                 for k,v in pairs(abilityAttr) do
                     abilityClone[k] = v
                 end
@@ -699,10 +699,29 @@ local g_rulePatterns = {
                 return
             end
 
+            local movementSpeed = casterToken.properties:CurrentMovementSpeed()
+            local distance = match.distance
+            if movementSpeed < tonumber(distance) then
+                distance = string.format("%d", movementSpeed)
+                if movementSpeed <= 0 then
+                    local abilityBase = MCDMUtils.GetStandardAbility("Float Text")
+                    if abilityBase then
+                        local abilityClone = DeepCopy(abilityBase)
+                        MCDMUtils.DeepReplace(abilityClone, "<<text>>", "Cannot Move")
+                        abilityClone.behaviors[1].color = "#FF0000"
+                        InvokeAbility(ability, abilityClone, casterToken, casterToken, options)
+                        ability:CommitToPaying(casterToken, options)
+                    end
+                    return
+                end
+            end
+
+
+
             local shift = MCDMUtils.GetStandardAbility("Shift")
 			local abilityClone = DeepCopy(shift)
             AbilityUtils.DeepReplaceAbility(abilityClone, "<<targetfilter>>", "")
-            AbilityUtils.DeepReplaceAbility(abilityClone, "<<distance>>", match.distance)
+            AbilityUtils.DeepReplaceAbility(abilityClone, "<<distance>>", distance)
             abilityClone.invoker = casterToken.properties
 
             InvokeAbility(ability, abilityClone, casterToken, casterToken, options)

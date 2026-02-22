@@ -36,7 +36,7 @@ local cultureLanguageChoice = CharacterLanguageChoice.Create{
 local cultureLoreBenefit = nil
 dmhub.RegisterEventHandler("refreshTables", function(keys)
     if cultureLoreBenefit == nil then
-        cultureLoreBenefit = dmhub.DeepCopy(MCDMImporter.GetStandardFeature("Culture Lore Benefit"))
+        cultureLoreBenefit = DeepCopy(MCDMImporter.GetStandardFeature("Culture Lore Benefit"))
         if cultureLoreBenefit ~= nil then
             cultureLoreBenefit.description = "You gain an edge on tests made to recall lore about your culture, and on tests made to influence and interact with people of your culture."
         end

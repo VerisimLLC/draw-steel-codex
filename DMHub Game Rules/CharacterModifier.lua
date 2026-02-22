@@ -120,7 +120,7 @@ function CharacterModifier.DuplicateAndAddContext(modifier, context)
 		return nil
 	end
 
-	local result = dmhub.DeepCopy(modifier)
+	local result = DeepCopy(modifier)
 	result:InstallSymbolsFromContext(context)
 	return result
 end
@@ -209,7 +209,7 @@ end
 function CharacterModifier:UsageLimitEditor(options)
 
 	local resultPanel
-	options = dmhub.DeepCopy(options or {})
+	options = DeepCopy(options or {})
 
 	local multicharge = false
 	if options.multicharge then
@@ -1191,7 +1191,7 @@ CharacterModifier.TypeInfo.resistance = {
                     sort = true,
 					change = function(element)
 						if optionsTable[element.idChosen] then
-							local newEntry = dmhub.DeepCopy(modifier.resistances[1])
+							local newEntry = DeepCopy(modifier.resistances[1])
 							newEntry.damageType = element.idChosen
 							modifier.resistances[#modifier.resistances+1] = newEntry
 							Refresh()
@@ -1904,7 +1904,7 @@ CharacterModifier.TypeInfo.spell = {
 		local spellsTable = dmhub.GetTable("Spells")
 		local spell = spellsTable[modifier.spell]
 		if spell ~= nil then
-			local spellClone = dmhub.DeepCopy(spell)
+			local spellClone = DeepCopy(spell)
 			spellClone.usesSpellSlots = false
 			spellClone.attributeOverride = modifier:try_get("attribute")
 
@@ -2841,7 +2841,7 @@ function CharacterModifier:SetDomain(domainid)
 end
 
 function CharacterModifier:ForceDomains(domains)
-	self.domains = dmhub.DeepCopy(domains)
+	self.domains = DeepCopy(domains)
 	local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
 	local UpdateDomains = typeInfo.UpdateDomains
 	if UpdateDomains then
@@ -3644,7 +3644,7 @@ function CharacterModifier:HelpAdditionalSymbols(symbols)
 	end
 
 	if symbols ~= nil then
-		result = dmhub.DeepCopy(result)
+		result = DeepCopy(result)
 		for k,sym in pairs(symbols) do
 			result[k] = sym
 		end

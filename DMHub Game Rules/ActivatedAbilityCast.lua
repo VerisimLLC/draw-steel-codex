@@ -43,6 +43,7 @@ ActivatedAbilityCast.heroicresourcesgained = 0
 ActivatedAbilityCast.opportunityAttacksTriggered = 0
 ActivatedAbilityCast.targets = {}
 ActivatedAbilityCast.auraObject = false
+ActivatedAbilityCast.forcedMovementCollision = false
 
 --a table of custom memory for this cast.
 ActivatedAbilityCast.memory = false
@@ -202,6 +203,18 @@ ActivatedAbilityCast.helpSymbols = {
 		type = "number",
 		desc = "The number of conditions purged by this ability cast.",
 	},
+
+    forcedmovementdistance = {
+        name = "Forced Movement Distance",
+        type = "number",
+        desc = "The total distance of forced movement caused by this ability.",
+    },
+
+    forcedmovementcollision = {
+        name = "Forced Movement Collision",
+        type = "boolean",
+        desc = "True if any forced movement caused by this ability collided with a creature or object.",
+    },
 }
 
 ActivatedAbilityCast.lookupSymbols = {
@@ -216,9 +229,11 @@ ActivatedAbilityCast.lookupSymbols = {
     memory = function(c)
         return function(str)
             if c.memory == false then
+            print("MEMORY:: LOOKUP", str, "NONE")
                 return nil
             end
 
+            print("MEMORY:: LOOKUP", str, "HAVE", c.memory[str], "FROM", table.keys(c.memory))
             return c.memory[str]
         end
     end,
@@ -393,6 +408,20 @@ ActivatedAbilityCast.lookupSymbols = {
 	purgedconditions = function(c)
 		return c:try_get("purgedConditions") or 0
 	end,
+
+    forcedmovementdistance = function(c)
+        local paths = c:get_or_add("forcedMovementPaths", {})
+        local totalDistance = 0
+        for _, path in ipairs(paths) do
+            totalDistance = totalDistance + path.numSteps
+        end
+        print("MEMORY:: FORCED MOVEMENT DISTANCE =", totalDistance, "FROM", #paths)
+        return totalDistance
+    end,
+
+    forcedmovementcollision = function(c)
+        return c.forcedMovementCollision
+    end,
 }
 
 --- @param tokenid string

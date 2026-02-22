@@ -2611,7 +2611,7 @@ end
 --  completeAttack: when the entire attack is completed (including damage, or including a miss with no damage roll) this is called. bool argument which is true iff the attack hit. Options argument: {criticalHit = true if a critical hit}
 --  cancelAttack: When the user cancels out either on the attack roll or the damage roll.
 function creature.RollAttackHit(self, attack, target, options)
-	local optionsCopy = dmhub.DeepCopy(options or {})
+	local optionsCopy = DeepCopy(options or {})
 
 	--"cast" is the one symbol we want to not deep copy.
 	if optionsCopy.symbols ~= nil and optionsCopy.symbols.cast ~= nil then
@@ -3591,7 +3591,7 @@ function creature:GetActivatedAbilities(options)
 	for _,entry in ipairs(innateSpellcasting) do
 		local spell = spellsTable[entry.spellid]
 		if spell ~= nil then
-			local spellClone = dmhub.DeepCopy(spell)
+			local spellClone = DeepCopy(spell)
 			spellClone.usesSpellSlots = false
 			spellClone.attributeOverride = entry.attrid
 			spellClone._tmp_boundCaster = boundCaster
@@ -5694,6 +5694,7 @@ function creature:OnMove(path)
     local adjacentLocationMap = {}
     for i,otherToken in ipairs(allTokens) do
         local adj = otherToken.properties:AdjacentLocations()
+        print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
         local moveNextTo = false
 
@@ -5733,6 +5734,7 @@ function creature:OnMove(path)
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
         local locs = ourToken:LocsOccupyingWhenAt(step)
+        print("LOCS::", #locs, "checking tokens:", #allTokens)
 
         for j,otherToken in ipairs(allTokens) do
             local grabbedBy = otherToken.properties._tmp_grabbedby == ourCharid
@@ -5752,7 +5754,9 @@ function creature:OnMove(path)
                     end
                 end
 
+                print("LOCS:: TRYING FOR", otherToken.charid, ourToken.charid, otherToken.properties:CanUseTriggeredAbilities())
                 if otherToken.charid ~= ourToken.charid and otherToken.properties:CanUseTriggeredAbilities() then
+                    print("LOCS:: CHECK ADJACENCY", otherToken.charid)
                     local adjacent = false
                     local adj = adjacentLocationMap[j]
                     for _,adjLoc in ipairs(adj) do
@@ -5765,6 +5769,7 @@ function creature:OnMove(path)
                     end
 
                     if adjacent then
+                    print("LOCS:: IS ADJACENT", otherToken.charid)
                         adjacentTokens[otherToken.charid] = otherToken
                     end
                 end

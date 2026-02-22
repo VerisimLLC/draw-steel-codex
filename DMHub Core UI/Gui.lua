@@ -732,7 +732,7 @@ local prettyButtonStyles = {
 --- @param options PanelArgs
 --- @return Panel
 function gui.FancyButton(options)
-	options = dmhub.DeepCopy(options or {})
+	options = DeepCopy(options or {})
 
 	local text = options.text or ''
 	options.text = nil
@@ -990,7 +990,7 @@ function gui.Check(args)
 
 	local colon = cond(placement == "right", ":", "")
 	
-	local options = dmhub.DeepCopy(args)
+	local options = DeepCopy(args)
 	local checked = options.value or false
 	options.value = nil
 
@@ -1248,7 +1248,7 @@ function gui.Slider(args)
 	local notchAlign = args.notchAlign or 'center'
 	args.notchAlign = nil
 
-	local options = dmhub.DeepCopy(args)
+	local options = DeepCopy(args)
 
 	local unclamped = options.unclamped or false
 	options.unclamped = nil
@@ -1618,7 +1618,7 @@ end
 --- @param args ColorPickerArgs
 --- @return ColorPicker
 function gui.ColorPicker(args)
-	local options = dmhub.DeepCopy(args)
+	local options = DeepCopy(args)
 
 	local hasAlpha = options.hasAlpha
 	if hasAlpha == nil then
@@ -2082,7 +2082,7 @@ gui.TriangleStyles = triangleStyles
 --- @return Panel
 function gui.TreeNode(args)
 
-	local options = dmhub.DeepCopy(args)
+	local options = DeepCopy(args)
 
 	local text = options.text
 	options.text = nil
@@ -4069,7 +4069,7 @@ end
 function gui.Curve(options)
 
 	--the current value. Refers to a curve representing the current value.
-	local currentValue = dmhub.DeepCopy(options.value)
+	local currentValue = DeepCopy(options.value)
 	options.value = nil
 
 	--normalizes and returns a table representing a point. Normalizes the range to our [0-1] values.
@@ -4184,7 +4184,7 @@ function gui.Curve(options)
 		end,
 
 		SetValue = function(element, val, firechange)
-			currentValue = dmhub.DeepCopy(val)
+			currentValue = DeepCopy(val)
 
 			for i,p in ipairs(points) do
 				element.shapes:Remove(p.discid)

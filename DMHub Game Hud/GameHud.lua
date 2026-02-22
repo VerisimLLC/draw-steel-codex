@@ -862,7 +862,7 @@ dmhub.CreateGameHud = function(dialog, tokenInfo)
 						return
 					end
 
-					m_presentedDialogArgs = dmhub.DeepCopy(data.dialog)
+					m_presentedDialogArgs = DeepCopy(data.dialog)
                     local dialogInfo = g_presentableDialogs[m_presentedDialogArgs.dialog]
                     if dialogInfo ~= nil then
                         m_presentedDialog = dialogInfo.create(m_presentedDialogArgs.args)

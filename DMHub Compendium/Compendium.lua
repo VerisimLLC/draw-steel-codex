@@ -362,7 +362,7 @@ local CreateListItem = function(options)
 							click = function()
 								local table = dmhub.GetTable(options.tableName)
 								local item = table[options.key]
-								local newItem = dmhub.DeepCopy(item)
+								local newItem = DeepCopy(item)
 								newItem.id = dmhub.GenerateGuid()
 								newItem.name = generateDuplicateName(newItem.name)
 								dmhub.SetAndUploadTableItem(options.tableName, newItem)
@@ -1465,7 +1465,7 @@ local ShowResourcesPanel = function(parentPanel)
 				if resource.iconid == nil or currentDisplayMode == 'normal' then
 					resource.iconid = element.value
 				else
-					resource.display = dmhub.DeepCopy(resource.display)
+					resource.display = DeepCopy(resource.display)
 					resource.display[currentDisplayMode]['bgimage'] = element.value
 				end
 				UploadResource()
@@ -1506,7 +1506,7 @@ local ShowResourcesPanel = function(parentPanel)
 				height = 32,
 				value = resource.display[currentDisplayMode].bgcolor or 'white',
 				change = function(element)
-					resource.display = dmhub.DeepCopy(resource.display)
+					resource.display = DeepCopy(resource.display)
 					for k,disp in pairs(resource.display) do
 						disp.bgcolor = element.value
 					end
@@ -1568,7 +1568,7 @@ local ShowResourcesPanel = function(parentPanel)
 
 				events = {
 					change = function(element)
-						resource.display = dmhub.DeepCopy(resource.display)
+						resource.display = DeepCopy(resource.display)
 						resource.display[currentDisplayMode][options.attr] = element.value
 						iconEditor:FireEvent('create')
 					end,
@@ -5024,7 +5024,7 @@ local LibraryPanel = function()
 				table.remove(g_recentFeatureEdits, 1)
 			end
 
-			recentsCache = dmhub.DeepCopy(g_recentFeatureEdits)
+			recentsCache = DeepCopy(g_recentFeatureEdits)
 
 			if #g_recentFeatureEdits == 0 then
 				recentsHeading = nil

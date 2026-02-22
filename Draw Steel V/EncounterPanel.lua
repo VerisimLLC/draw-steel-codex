@@ -549,7 +549,7 @@ local function createGroupPanel(encounter)
                                 balancing[i] = balancing[i] or {}
                             end
 
-                            local balancingBaseline = dmhub.DeepCopy(balancing)
+                            local balancingBaseline = DeepCopy(balancing)
                             local children = {}
 
                             for _,i in ipairs({3,4,5,6,7}) do

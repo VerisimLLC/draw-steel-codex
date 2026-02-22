@@ -173,7 +173,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        local selfClone = dmhub.DeepCopy(self)
+        local selfClone = DeepCopy(self)
         selfClone.powerRollModifier.casterCharid = token.charid
 
         if self:try_get("castingCostOverride","") ~= "" then

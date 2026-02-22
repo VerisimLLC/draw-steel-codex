@@ -57,6 +57,7 @@ function CharacterResource.GetMalice()
 end
 
 function CharacterResource.SetMalice(amount, message)
+    print("SetMalice::", amount)
     CharacterResource.SetGlobalResource(CharacterResource.maliceResourceId, amount, message)
 end
 

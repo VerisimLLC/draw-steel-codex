@@ -474,7 +474,7 @@ function ActivatedAbilityBehavior:SummonEditor(parentPanel, list, options)
         }
     }
 
-	local bestiaryFilterHelpSymbols = dmhub.DeepCopy(ActivatedAbility.helpCasting)
+	local bestiaryFilterHelpSymbols = DeepCopy(ActivatedAbility.helpCasting)
 	bestiaryFilterHelpSymbols[#bestiaryFilterHelpSymbols+1] = {
 		name = "Beast",
 		type = "creature",

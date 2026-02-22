@@ -832,7 +832,8 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
         },
     }
 
-    result[#result+1] = gui.Panel{
+    --Future support Shwayguy
+    --[[ result[#result+1] = gui.Panel{
         classes = {"formPanel"},
         gui.Label{
             classes = {"formLabel"},
@@ -880,7 +881,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                 })
 			},
         }
-    }
+    } ]]
 
     result[#result+1] = gui.Panel{
         classes = {"formPanel"},

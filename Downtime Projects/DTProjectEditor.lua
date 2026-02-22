@@ -26,15 +26,6 @@ end
 --- Gets the fresh project data from the character sheet
 --- @return DTProject|nil project The current project or nil if not found
 function DTProjectEditor:GetProject()
-    -- if self.project == nil then return end
-    -- local projectId = self.project:GetID()
-    -- local token = getToken()
-    -- if token and token.properties and token.properties:IsHero() then
-    --     local downtimeInfo = token.properties:GetDowntimeInfo()
-    --     if downtimeInfo then
-    --         return downtimeInfo:GetProject(projectId)
-    --     end
-    -- end
     return self.project
 end
 
@@ -1610,6 +1601,26 @@ function DTProjectEditor:_createRollButton(options)
                     if dtFollowers then
                         followersWithRolls = dtFollowers:GetFollowersWithAvailbleRolls() or {}
                     end
+                end
+
+                local function XshowRollDialog(roller)
+                    local options = {
+                        attrId = "agl",
+                        explanation = "Project roll",
+                        title = "Make a project roll",
+                        skills = {},
+                        languages = {},
+                        modifiers = {},
+                        silent = true,
+                        callback = function(result, boons, banes)
+                            print("THC:: RESULT::", result, boons, banes)
+                        end,
+                    }
+                    local followerId = roller:GetFollowerID()
+                    local rollingToken = followerId and dmhub.GetTokenById(followerId) or token
+                    dmhub.Coroutine(function()
+                        rollingToken.properties:RequestProjectRoll(rollingToken, options)
+                    end)
                 end
 
                 -- Helper function to create and show roll dialog

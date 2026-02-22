@@ -503,9 +503,13 @@ function CBClassDetail._characteristicPanel()
                     _fireControllerEvent("tokenDataChanged")
                 end,
                 refreshBuilderState = function(element, state)
-                    local hero = _getHero()
-                    local attributes = hero:try_get("attributes")
-                    local baseValue = attributes and attributes[attr.id] and attributes[attr.id].baseValue or 0
+                    local locked = element.parent:HasClass("locked")
+                    local baseValue = locked and 2 or 0
+                    if not locked then
+                        local hero = _getHero()
+                        local attributes = hero:try_get("attributes")
+                        baseValue = attributes and attributes[attr.id] and attributes[attr.id].baseValue or 0
+                    end
                     element.text = string.format("%+d", baseValue)
                     local draggable = element.parent.data.locked == false
                     element.draggable = draggable

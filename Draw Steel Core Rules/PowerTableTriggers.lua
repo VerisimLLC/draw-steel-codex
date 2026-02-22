@@ -532,18 +532,23 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                             symbols = {
                                 {
                                     name = "Caster",
-                                    type = "Creature",
-                                    description = "The creature who is casting the ability.",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
                                 },
                                 {
                                     name = "Ability",
-                                    type = "Ability",
-                                    description = "The ability being cast.",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The creature being targeted by this ability. Only valid for single target abilities.",
                                 },
                                 {
                                     name = "TargetCount",
                                     type = "number",
-                                    description = "The number of targets the ability has.",
+                                    desc = "The number of targets the ability has.",
                                 },
                             }
                         }
@@ -578,18 +583,23 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                             symbols = {
                                 {
                                     name = "Caster",
-                                    type = "Creature",
-                                    description = "The creature who is casting the ability.",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
                                 },
                                 {
                                     name = "Ability",
-                                    type = "Ability",
-                                    description = "The ability being cast.",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The creature being targeted by this ability. Only valid for single target abilities.",
                                 },
                                 {
                                     name = "TargetCount",
                                     type = "number",
-                                    description = "The number of targets the ability has.",
+                                    desc = "The number of targets the ability has.",
                                 },
                             }
                         }
@@ -625,18 +635,23 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                             symbols = {
                                 {
                                     name = "Caster",
-                                    type = "Creature",
-                                    description = "The creature who is casting the ability.",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
                                 },
                                 {
                                     name = "Ability",
-                                    type = "Ability",
-                                    description = "The ability being cast.",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
+                                },
+                                {
+                                    name = "Target",
+                                    type = "creature",
+                                    desc = "The creature being targeted by this ability. Only valid for single target abilities.",
                                 },
                                 {
                                     name = "TargetCount",
                                     type = "number",
-                                    description = "The number of targets the ability has.",
+                                    desc = "The number of targets the ability has.",
                                 },
                             }
                         }
@@ -677,28 +692,28 @@ CharacterModifier.TypeInfo.powertabletrigger = {
                             symbols = {
                                 {
                                     name = "Caster",
-                                    type = "Creature",
-                                    description = "The creature who is casting the ability.",
+                                    type = "creature",
+                                    desc = "The creature who is casting the ability.",
                                 },
                                 {
                                     name = "Target",
-                                    type = "Creature",
-                                    description = "The target of the attack.",
+                                    type = "creature",
+                                    desc = "The target of the attack.",
                                 },
                                 {
                                     name = "Triggerer",
-                                    type = "Creature",
-                                    description = "The creature who triggered the ability.",
+                                    type = "creature",
+                                    desc = "The creature who triggered the ability.",
                                 },
                                 {
                                     name = "Ability",
-                                    type = "Ability",
-                                    description = "The ability being cast.",
+                                    type = "ability",
+                                    desc = "The ability being cast.",
                                 },
                                 {
                                     name = "Cast",
-                                    type = "Spellcast",
-                                    description = "The cast context of the ability being cast.",
+                                    type = "spellcast",
+                                    desc = "The cast context of the ability being cast.",
                                 },
                             }
                         }

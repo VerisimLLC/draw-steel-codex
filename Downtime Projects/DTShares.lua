@@ -152,7 +152,6 @@ function DTShares:Share(sharedBy, projectId, sharedWith)
     if not doc then return end
 
     local data = doc.data
-    print("THC:: DTSHARES:: SHARE:: DATA::", json(data))
 
     -- Build set of new recipients for easy lookup
     local newRecipients = {}
@@ -183,7 +182,6 @@ function DTShares:Share(sharedBy, projectId, sharedWith)
             toRemove[#toRemove + 1] = recipientId
         end
     end
-    print("THC:: DTSHARES:: SHARE::", json(toAdd), json(toRemove))
 
     -- If nothing changed, bail out
     if #toAdd == 0 and #toRemove == 0 then return end

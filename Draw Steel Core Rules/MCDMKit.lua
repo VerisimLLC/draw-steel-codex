@@ -319,12 +319,15 @@ function Kit.CombineKits(creature, a, b)
 
 	for _,abilityRef in ipairs(a:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
+		--Signature abilities that are melee or ranged are bifurcated so correct bonuses are applied to each variation.
+        ability = ability:BifurcateIntoMeleeAndRanged(creature)
         ApplyBonusesFromKit(a, ability, nil, function(a,b) return a - b end)
 		abilities[#abilities+1] = ability
 	end
 
 	for _,abilityRef in ipairs(b:SignatureAbilities()) do
         local ability = abilityRef:MakeTemporaryClone()
+        ability = ability:BifurcateIntoMeleeAndRanged(creature)
         ApplyBonusesFromKit(b, ability, nil, function(a,b) return a - b end)
 		abilities[#abilities+1] = ability
 	end
@@ -373,12 +376,31 @@ function Kit.CombineKits(creature, a, b)
 
     for i=1,#abilities do
         abilities[i] = abilities[i]:MakeTemporaryClone()
-        local modificationLog = {}
-        ApplyBonusesFromKit(result, abilities[i], modificationLog)
-		if #modificationLog > 0 then
-			local log = abilities[i]:get_or_add("modificationLog", {})
-			log[#log+1] = string.format("Includes %s from %s kit", string.join(modificationLog, ", "), result.name)
-		end
+        
+        if abilities[i].meleeAndRanged then
+            -- Handle bifurcated abilities - apply bonuses to both variations
+            local meleeLog = {}
+            ApplyBonusesFromKit(result, abilities[i].meleeVariation, meleeLog)
+            if #meleeLog > 0 then
+                local log = abilities[i].meleeVariation:get_or_add("modificationLog", {})
+                log[#log+1] = string.format("Includes %s from %s kit", string.join(meleeLog, ", "), result.name)
+            end
+            
+            local rangedLog = {}
+            ApplyBonusesFromKit(result, abilities[i].rangedVariation, rangedLog)
+            if #rangedLog > 0 then
+                local log = abilities[i].rangedVariation:get_or_add("modificationLog", {})
+                log[#log+1] = string.format("Includes %s from %s kit", string.join(rangedLog, ", "), result.name)
+            end
+        else
+            -- Handle non-bifurcated abilities
+            local modificationLog = {}
+            ApplyBonusesFromKit(result, abilities[i], modificationLog)
+            if #modificationLog > 0 then
+                local log = abilities[i]:get_or_add("modificationLog", {})
+                log[#log+1] = string.format("Includes %s from %s kit", string.join(modificationLog, ", "), result.name)
+            end
+        end
     end
 
 	return result

@@ -499,6 +499,8 @@ local TEST_DETAIL = [[
 
 **Latest Release**
 
+* Characteristics show static values in class preview mode (i.e. locked characteristics are +2).
+
 **Previous Releases**
 
 * Builder is a little more informative for domain features, showing more information about what you get when you select them.

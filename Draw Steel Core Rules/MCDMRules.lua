@@ -978,7 +978,7 @@ local g_abilitySymbols = {
     },
     {
         name = "Cast",
-        type = "cast",
+        type = "spellcast",
         desc = "Casting information for the ability",
     }
 }
@@ -2416,7 +2416,7 @@ local g_abilitySymbols = {
     },
     {
         name = "Cast",
-        type = "cast",
+        type = "spellcast",
         desc = "Casting information for the ability",
     }
 }

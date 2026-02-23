@@ -3292,7 +3292,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 
 					local healAmount = value
 
-                    local half = (target.token.properties:CalculateNamedCustomAttribute("Stamina Regain Halved") == 0)
+                    local half = (target.token.properties:CalculateNamedCustomAttribute("Stamina Regain Halved") > 0)
                     if half then
                         healAmount = math.floor(healAmount / 2)
                     end

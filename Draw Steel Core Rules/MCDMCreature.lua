@@ -3398,7 +3398,7 @@ function creature.Heal(self, amount, note)
         return
     end
 
-    local half = (self:CalculateNamedCustomAttribute("Stamina Regain Halved") == 0)
+    local half = (self:CalculateNamedCustomAttribute("Stamina Regain Halved") > 0)
     if half then
         amount = math.floor(amount / 2)
     end

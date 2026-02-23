@@ -237,6 +237,10 @@ function RichEncounter.CreateDisplay(self)
                                 fitLocation = true
                             })
 
+                            token.properties.initiativeGrouping = groupid
+                            token.properties:OnCreateFromBestiary(token, groupid)
+
+
                             print("SPAWN:: SPAWNED TOKEN:", token.name ~= nil, "invisible = ", invisibleToPlayers[i] or false, "has appearance =", appearanceInfo)
                             if invisibleToPlayers[i] then
                                 token.invisibleToPlayers = true
@@ -247,7 +251,6 @@ function RichEncounter.CreateDisplay(self)
                             end
 
                             token.properties.minHeroes = group.minHeroes
-                            token.properties.initiativeGrouping = groupid
 
                             local balancing = group.balancing
                             if balancing ~= nil then
@@ -329,7 +332,8 @@ function RichEncounter.CreateDisplay(self)
         reset = function(element)
             local charids = self:try_get("spawns", {})
             game.DeleteCharacters(charids)
-            element:FireEvent("spawn")
+            game.Refresh{}
+            element:ScheduleEvent("spawn", 0.1)
         end,
 
         create = function(element)

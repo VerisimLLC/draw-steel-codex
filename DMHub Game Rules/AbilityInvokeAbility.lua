@@ -14,16 +14,24 @@ AbilityUtils = {
 		end
 
 		for k,v in pairs(node) do
-			if type(v) == "string" then
+			if type(v) == "string" and k ~= "importMatch" then
 				local s = v
 
 				for count=1,8 do
-					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+(?<defaultValue>=[0-9 a-zA-Z]*)?)>>(?<tail>.*)$")
+					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)(?<defaultValue>=[0-9 a-zA-Z]*)?>>(?<tail>.*)$")
 					if match == nil then
 						break
 					end
 
-					output[match.name] = true
+                    print("EXTRACT:: MATCH", match.name, match.defaultValue or "no default", "FROM", s, "KEY =", k)
+
+                    local defaultValue = ""
+
+                    if match.defaultValue then
+                        defaultValue = string.sub(match.defaultValue, 2) --remove the = from the default value.
+                    end
+
+					output[match.name] = {defaultValue = defaultValue}
 					s = match.tail
 				end
 
@@ -54,26 +62,29 @@ AbilityUtils = {
 		end
 	end,
 
-    SetDefaultParameters = function(node)
+    SetDefaultParameters = function(node, from)
 		if type(node) ~= "table" then
 			return
 		end
 		for k,v in pairs(node) do
             if type(v) == "string" then
                 local s = v
-                for count=1,8 do
-                    local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)=(?<defaultValue>[0-9 a-zA-Z]*)>>(?<tail>.*)$")
-                    if match == nil then
-                        break
+                local match = regex.MatchGroups(s, "^.*?<<" .. from .. "(?<defaultValue>=[0-9 a-zA-Z]*)?>>(?<tail>.*)$")
+
+                if match ~= nil then
+                    local defaultValue = match.defaultValue or ""
+                    if string.starts_with(defaultValue, "=") then
+                        defaultValue = string.sub(defaultValue, 2) --remove the = from the default value.
                     end
 
-                    node[k] = regex.ReplaceAll(node[k], "<<"..match.name.."=[0-9 a-zA-Z]*>>", match.defaultValue)
-                    s = match.tail
+                    if defaultValue == "" then
+                        node[k] = regex.ReplaceAll(s, "<<" .. from .. ">>", "")
+                    else
+                        node[k] = regex.ReplaceAll(s, "<<" .. from .. "=[0-9 a-zA-Z]*>>", defaultValue)
+                    end
                 end
-
-                node[k] = s
             else
-                AbilityUtils.SetDefaultParameters(v)
+                AbilityUtils.SetDefaultParameters(v, from)
             end
         end
     end,
@@ -269,7 +280,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
                             for k,_ in pairs(allParameters) do
                                 --clear out any parameters we didn't explicitly set.
-                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
+                                AbilityUtils.SetDefaultParameters(abilityClone, k)
                             end
                         end
 
@@ -661,6 +672,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 			local parameters = {}
 			AbilityUtils.ExtractAbilityParameters(abilityTemplate, parameters)
+            print("EXTRACT::", parameters)
 
 			local children = {}
 
@@ -674,7 +686,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 					gui.Input{
 						classes = {"formInput"},
                         width = 280,
-						text = self:try_get("standardAbilityParams", {})[k] or "",
+						text = self:try_get("standardAbilityParams", {})[k] or v.defaultValue,
 						change = function(element)
 							local t = self:get_or_add("standardAbilityParams", {})
 							t[k] = element.text
@@ -835,14 +847,12 @@ function AbilityInvocation:Invoke()
 		for k,v in pairs(self:try_get("standardAbilityParams", {})) do
             allParameters[k] = nil
 			local str = AbilityUtils.SubstituteAbilityParameters(v, lookupSymbols)
-            print("PARAM:: SUB", v, "-->", str)
 			AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", str)
 		end
 
         for k,_ in pairs(allParameters) do
             --clear out any parameters we didn't explicitly set.
-            AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
-            print("PARAM:: CLEAR", k)
+            AbilityUtils.SetDefaultParameters(abilityClone, k)
         end
 	end
 

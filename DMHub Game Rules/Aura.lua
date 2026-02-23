@@ -950,9 +950,11 @@ function AuraComponent.CreatePropertiesEditor(component)
                         element.text = text
                     end
                 end,
+
                 change = function(element)
                     component:BeginChanges()
                     component.properties.aura.area.radius = tonumber(element.text)
+                    print("WRITE::", element.text, "->", tonumber(element.text), "->", component.properties.aura.area.radius)
                     element.text = tostring(component.properties.aura.area.radius)
                     component:CompleteChanges("Change radius")
                 end,

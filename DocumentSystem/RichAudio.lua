@@ -343,6 +343,7 @@ function RichAudio.CreateEditor(self)
             value = self.sound or nil,
             change = function(element)
                 self.sound = element.value
+                resultPanel:FireEventTree("refreshEditor", self)
             end,
         },
 
@@ -389,6 +390,7 @@ function RichAudio.CreateEditor(self)
             end,
             change = function(element)
                 m_asset.loop = element.value
+                m_asset:Upload()
             end,
         },
     }

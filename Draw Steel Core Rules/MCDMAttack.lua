@@ -23,7 +23,7 @@ function creature.MCDMRollAttack(self, attack, targets, options)
     options.symbols = options.symbols or {}
     options.symbols.cast = options.symbols.cast or {}
 
-	local optionsCopy = dmhub.DeepCopy(options or {})
+	local optionsCopy = DeepCopy(options or {})
 
 	--"cast" is the one symbol we want to not deep copy.
 	if optionsCopy.symbols ~= nil and optionsCopy.symbols.cast ~= nil then

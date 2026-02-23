@@ -386,7 +386,7 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
                     height = 40,
                     fontSize = 20,
                     change = function(element)
-                        ongoingEffect.display = dmhub.DeepCopy(ongoingEffect.display)
+                        ongoingEffect.display = DeepCopy(ongoingEffect.display)
                         ongoingEffect.display.blend = cond(element.idChosen == 'add', 'add', nil)
                         iconEditor:FireEvent('create')
                         UploadOngoingEffect()
@@ -418,7 +418,7 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 
                     events = {
                         change = function(element)
-                            ongoingEffect.display = dmhub.DeepCopy(ongoingEffect.display)
+                            ongoingEffect.display = DeepCopy(ongoingEffect.display)
                             ongoingEffect.display[options.attr] = element.value
                             iconEditor:FireEvent('create')
                         end,

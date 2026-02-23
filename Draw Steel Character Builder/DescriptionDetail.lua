@@ -38,7 +38,7 @@ function CBDescriptionDetail._editPane()
     end
 
     local function makeDescriptionField(placeholderText, getter, setter, opts)
-        local inputConfig = dmhub.DeepCopy(opts or {})
+        local inputConfig = DeepCopy(opts or {})
 
         -- If opts had classes, append them to the base classes
         local baseClasses = {"builder-base", "input", "primary"}

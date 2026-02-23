@@ -704,7 +704,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 		},
 
 		paste = function(element, item, index)
-			item = dmhub.DeepCopy(item)
+			item = DeepCopy(item)
 			item:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 			item:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
 			table.insert(self.features, index, item)
@@ -830,7 +830,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 						self.features[#self.features+1] = CharacterSingleFeat.CreateNew()
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'paste' then
-						local clone = dmhub.DeepCopy(clipboardItem)
+						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
 						self.features[#self.features+1] = clone
@@ -838,7 +838,7 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
 						if prefab ~= nil then
-							local clone = dmhub.DeepCopy(prefab)
+							local clone = DeepCopy(prefab)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
@@ -1092,7 +1092,7 @@ local SetClass = function(tableName, classPanel, classid)
 	children[#children+1] = savingsThrowList
 
 
-	local savingThrowOptions = dmhub.DeepCopy(creature.savingThrowDropdownOptions)
+	local savingThrowOptions = DeepCopy(creature.savingThrowDropdownOptions)
 	savingThrowOptions[#savingThrowOptions+1] = { id = 'none', text = 'Add Saving Throw...' }
 
 	children[#children+1] = gui.Dropdown{
@@ -1394,7 +1394,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 
 		paste = function(element, item, index)
 			if item.typeName == "CharacterFeature" or item.typename == "CharacterFeatureList" then
-				item = dmhub.DeepCopy(item)
+				item = DeepCopy(item)
 				item:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 				item:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
 				table.insert(self.options, index, item)
@@ -1568,7 +1568,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 						}
 						resultPanel:FireEvent("change", self)
 					elseif element.idChosen == 'paste' then
-						local clone = dmhub.DeepCopy(clipboardItem)
+						local clone = DeepCopy(clipboardItem)
 						clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 						clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
 						self.options[#self.options+1] = clone
@@ -1576,7 +1576,7 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 					else
 						local prefab = CharacterFeaturePrefabs.FindPrefab(element.idChosen)
 						if prefab ~= nil then
-							local clone = dmhub.DeepCopy(prefab)
+							local clone = DeepCopy(prefab)
 							clone.prefab = element.idChosen
 							clone:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
 							clone:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)

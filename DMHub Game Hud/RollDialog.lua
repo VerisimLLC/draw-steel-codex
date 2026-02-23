@@ -1597,7 +1597,7 @@ function GameHud.CreateRollDialog(self)
 				local beginRollFn = beginRoll
 				local completeRollFn = completeRoll
 				local creatureUsed = creature
-				local modifiersUsed = dmhub.DeepCopy(activeModifiers)
+				local modifiersUsed = DeepCopy(activeModifiers)
 
 				local tokenid = nil
 				

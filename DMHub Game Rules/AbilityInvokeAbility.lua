@@ -14,16 +14,24 @@ AbilityUtils = {
 		end
 
 		for k,v in pairs(node) do
-			if type(v) == "string" then
+			if type(v) == "string" and k ~= "importMatch" then
 				local s = v
 
 				for count=1,8 do
-					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)>>(?<tail>.*)$")
+					local match = regex.MatchGroups(s, "^.*?<<(?<name>[a-zA-Z_]+)(?<defaultValue>=[0-9 a-zA-Z]*)?>>(?<tail>.*)$")
 					if match == nil then
 						break
 					end
 
-					output[match.name] = true
+                    print("EXTRACT:: MATCH", match.name, match.defaultValue or "no default", "FROM", s, "KEY =", k)
+
+                    local defaultValue = ""
+
+                    if match.defaultValue then
+                        defaultValue = string.sub(match.defaultValue, 2) --remove the = from the default value.
+                    end
+
+					output[match.name] = {defaultValue = defaultValue}
 					s = match.tail
 				end
 
@@ -38,6 +46,11 @@ AbilityUtils = {
 			return
 		end
 
+        if string.starts_with(from, "<<") and string.ends_with(from, ">>") then
+            --add in a regex match for the default value, =.* as an optional part of the parameter name, before the >>.
+            from = string.sub(from, 1, -3) .."(=[0-9 a-zA-Z]*)?"..string.sub(from, -2)
+        end
+
 		for k,v in pairs(node) do
 			if v == from then
 				node[k] = to
@@ -48,6 +61,33 @@ AbilityUtils = {
 			end
 		end
 	end,
+
+    SetDefaultParameters = function(node, from)
+		if type(node) ~= "table" then
+			return
+		end
+		for k,v in pairs(node) do
+            if type(v) == "string" then
+                local s = v
+                local match = regex.MatchGroups(s, "^.*?<<" .. from .. "(?<defaultValue>=[0-9 a-zA-Z]*)?>>(?<tail>.*)$")
+
+                if match ~= nil then
+                    local defaultValue = match.defaultValue or ""
+                    if string.starts_with(defaultValue, "=") then
+                        defaultValue = string.sub(defaultValue, 2) --remove the = from the default value.
+                    end
+
+                    if defaultValue == "" then
+                        node[k] = regex.ReplaceAll(s, "<<" .. from .. ">>", "")
+                    else
+                        node[k] = regex.ReplaceAll(s, "<<" .. from .. "=[0-9 a-zA-Z]*>>", defaultValue)
+                    end
+                end
+            else
+                AbilityUtils.SetDefaultParameters(v, from)
+            end
+        end
+    end,
 
 	--utility to scan for an <<expression>> in a string and evaluate it as goblin script.
 	--Useful to evaluate in the context of the caster.
@@ -240,7 +280,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             end
                             for k,_ in pairs(allParameters) do
                                 --clear out any parameters we didn't explicitly set.
-                                AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
+                                AbilityUtils.SetDefaultParameters(abilityClone, k)
                             end
                         end
 
@@ -632,6 +672,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 
 			local parameters = {}
 			AbilityUtils.ExtractAbilityParameters(abilityTemplate, parameters)
+            print("EXTRACT::", parameters)
 
 			local children = {}
 
@@ -645,7 +686,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
 					gui.Input{
 						classes = {"formInput"},
                         width = 280,
-						text = self:try_get("standardAbilityParams", {})[k] or "",
+						text = self:try_get("standardAbilityParams", {})[k] or v.defaultValue,
 						change = function(element)
 							local t = self:get_or_add("standardAbilityParams", {})
 							t[k] = element.text
@@ -811,7 +852,7 @@ function AbilityInvocation:Invoke()
 
         for k,_ in pairs(allParameters) do
             --clear out any parameters we didn't explicitly set.
-            AbilityUtils.DeepReplaceAbility(abilityClone, "<<"..k..">>", "")
+            AbilityUtils.SetDefaultParameters(abilityClone, k)
         end
 	end
 

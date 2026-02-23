@@ -817,7 +817,7 @@ end
 
 --- @return Loc[]
 function creature:AdjacentLocations()
-    if rawget(self, "_tmp_adjacentLocsxx") == nil then
+    if rawget(self, "_tmp_adjacentLocs") == nil then
         local token = dmhub.LookupToken(self)
         if token ~= nil then
             self._tmp_adjacentLocs = MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs(token)
@@ -897,6 +897,19 @@ creature.RegisterSymbol {
         desc = "If this creature is dying this will be true.",
         seealso = {},
     },
+}
+
+creature.RegisterSymbol{
+    symbol = "malice",
+    lookup = function(c)
+        return CharacterResource.GetMalice()
+    end,
+    help = {
+        name = "Malice",
+        type = "number",
+        desc = "The amount of malice the Director has available.",
+        seealso = {},
+    }
 }
 
 creature.RegisterSymbol {
@@ -3383,6 +3396,11 @@ function creature.Heal(self, amount, note)
     if not canHeal then
         self:FloatLabel("Cannot Regain Stamina", "#ff0000")
         return
+    end
+
+    local half = (self:CalculateNamedCustomAttribute("Stamina Regain Halved") > 0)
+    if half then
+        amount = math.floor(amount / 2)
     end
 
     if type(amount) == 'string' then

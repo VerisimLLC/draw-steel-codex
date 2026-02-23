@@ -359,7 +359,7 @@ mod.shared.ImportMapToFloorCo = function(info)
 
 
                     --uvtt format walls.
-                    local segments = dmhub.DeepCopy(line_of_sight)
+                    local segments = DeepCopy(line_of_sight)
                     local segmentsDeleted = {}
 
                     local changes = true

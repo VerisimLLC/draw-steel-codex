@@ -3144,7 +3144,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 local beginRollFn = beginRoll
                 local completeRollFn = completeRoll
                 local creatureUsed = creature
-                local modifiersUsed = dmhub.DeepCopy(m_activeModifiers)
+                local modifiersUsed = DeepCopy(m_activeModifiers)
                 local multitargetsUsed = m_multitargets
 
                 local tokenid = nil

@@ -8,7 +8,7 @@ local addAllDropdownOption = function(options)
 		text = 'All',
 	}
 
-	local result = dmhub.DeepCopy(options)
+	local result = DeepCopy(options)
 	table.insert(result, 1, op)
 	return result
 end

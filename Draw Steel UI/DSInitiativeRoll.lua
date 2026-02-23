@@ -817,7 +817,7 @@ local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
 
-local function ShowCombatSetupDialog()
+local function ShowCombatSetupDialog(selectedTokens)
     local m_encounterStrength = 0
     local m_encounterStrengthSingleHero = 0
     local surprisedCondition = CharacterCondition.conditionsByName["surprised"]
@@ -1372,7 +1372,7 @@ local function ShowCombatSetupDialog()
     }
 
     local tokens = dmhub.allTokens
-    local selectedTokens = dmhub.selectedTokens
+    selectedTokens = selectedTokens or dmhub.selectedTokens
     if selectedTokens == nil or #selectedTokens < 2 then
         selectedTokens = nil
     end
@@ -1630,10 +1630,44 @@ local function ShowCombatSetupDialog()
 end
 
 Commands.rollinitiative = function(str)
+    local args = string.split(str or "", " ")
+
     local tokens = dmhub.selectedTokens
+
+    print("ARGS::", #args)
+    if #args == 4 then
+        local x1 = tonumber(args[1]) or 0
+        local y1 = tonumber(args[2]) or 0
+        local x2 = tonumber(args[3]) or 0
+        local y2 = tonumber(args[4]) or 0
+
+        if x1 > x2 then
+            local temp = x1
+            x1 = x2
+            x2 = temp
+        end
+
+        if y1 > y2 then
+            local temp = y1
+            y1 = y2
+            y2 = temp
+        end
+
+        tokens = {}
+
+        for _,token in ipairs(dmhub.allTokens) do
+            if token.loc.x >= x1 and token.loc.x <= x2 and token.loc.y >= y1 and token.loc.y <= y2 then
+                tokens[#tokens+1] = token
+            end
+        end
+
+        print("ARGS:: GOT TOKENS", #tokens, "/", #dmhub.allTokens)
+    end
+
+
     local info = GameHud.instance.initiativeInterface
     if info.initiativeQueue == nil or info.initiativeQueue.hidden then
-        ShowCombatSetupDialog()
+        ShowCombatSetupDialog(tokens)
 
         --g_selectedTokensOpenInitiative = tokens
         --showDrawSteelBanner()
@@ -1691,7 +1725,7 @@ Commands.rollinitiative = function(str)
 
     averageVictories = math.floor(averageVictories)
 
-    CharacterResource.SetMalice(averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
+    CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
     CharacterResource.SetVillainActions(1)
 
     info.UploadInitiative()

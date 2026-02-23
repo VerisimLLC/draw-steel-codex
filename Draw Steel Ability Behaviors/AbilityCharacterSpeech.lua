@@ -46,6 +46,14 @@ function ActivatedAbilityCharacterSpeechBehavior:Cast(ability, casterToken, targ
                         }
                     end,
                 }
+            elseif self:has_key("fallbackText") then
+                tok:ModifyProperties{
+                    description = "Float text",
+                    undoable = false,
+                    execute = function()
+                        tok.properties:FloatLabel(self.fallbackText, "white")
+                    end,
+                }
             end
         end
     end
@@ -113,6 +121,28 @@ function ActivatedAbilityCharacterSpeechBehavior:EditorItems(parentPanel)
                     end
                 end,
             },
+        }
+
+        children[#children+1] = gui.Panel{
+            classes = {"formPanel"},
+            gui.Label{
+                classes = {"formLabel"},
+                text = "Fallback Text:",
+            },
+            gui.Input{
+                classes = {"formInput"},
+                width = 280,
+                height = "auto",
+                minHeight = 20,
+                maxHeight = 160,
+                halign = "left",
+                placeholderText = "Enter no language text",
+                text = self:try_get("fallbackText") or "",
+                change = function(element)
+                    self.fallbackText = element.text
+                    Refresh()
+                end,
+            }
         }
 
         panel.children = children

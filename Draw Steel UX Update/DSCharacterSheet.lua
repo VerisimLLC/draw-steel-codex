@@ -2669,7 +2669,7 @@ function DSCharacterSheet.CharacterSheetSkillsPanelLegacy()
 									--characters have calculation breakdowns for skills and can have them overridden.
 									local popupParentElement = element
 
-									local options = dmhub.DeepCopy(creature.GetProficiencyDropdownOptions())
+									local options = DeepCopy(creature.GetProficiencyDropdownOptions())
 									table.insert(options, 1, {
 										id = nil,
 										text = "No Override",

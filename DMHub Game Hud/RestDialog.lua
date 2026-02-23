@@ -368,7 +368,7 @@ function GameHud:CreateRestingDialog(requestid, request)
 		--chat submission/dice roll.
 		submit = function(element)
 			local tokenid = hitDiceTokenId
-			local hitdice = dmhub.DeepCopy(hitDiceSelected)
+			local hitdice = DeepCopy(hitDiceSelected)
 			local token = dmhub.GetTokenById(hitDiceTokenId)
 			local roll = currentRoll
 			hitDiceTokenId = nil

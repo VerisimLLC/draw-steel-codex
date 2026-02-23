@@ -36,5 +36,9 @@ MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs = function(token)
         result[#result+1] = bottomRight:dir(1, -i)
     end
 
+    for i,loc in ipairs(result) do
+        print("LOCS:: OCCUPIED LOC", i, loc.x, loc.y)
+    end
+
     return result
 end

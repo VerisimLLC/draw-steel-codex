@@ -147,7 +147,7 @@ function ActivatedAbility:GetDurationInRounds()
 end
 
 function ActivatedAbility:SetDomains(domains)
-	self.domains = dmhub.DeepCopy(domains)
+	self.domains = DeepCopy(domains)
 end
 
 function ActivatedAbility:OnDeserialize()
@@ -2575,14 +2575,18 @@ function ActivatedAbility:RequireSavingThrowsCo(behavior, casterToken, tokenids,
 	local dcresult = {}
 
 	if self.silent then
+        print("AWAIT:: silent requested...")
 		AwaitRequestedActionCoroutine(actionid, dcresult)
 	else
+        print("AWAIT:: show summary...")
 		gamehud:ShowRollSummaryDialog(actionid, dcresult)
 	end
 
 	while dcresult.result == nil do
 		coroutine.yield(0.1)
 	end
+
+    print("AWAIT:: FINI")
 
 	options.have_dc = true
 
@@ -3288,6 +3292,11 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 
 					local healAmount = value
 
+                    local half = (target.token.properties:CalculateNamedCustomAttribute("Stamina Regain Halved") > 0)
+                    if half then
+                        healAmount = math.floor(healAmount / 2)
+                    end
+
                     ability.RecordTokenMessage(target.token, options, string.format("Regained %d Stamina", healAmount))
 					target.token:ModifyProperties{
 						description = "Regained Stamina",
@@ -3657,7 +3666,7 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	local tokenids = ActivatedAbility.GetTokenIds(targets)
 	if self:try_get('dc', 'none') ~= 'none' then
 
-		local dc_options = dmhub.DeepCopy(self:try_get("dc_options", {}))
+		local dc_options = DeepCopy(self:try_get("dc_options", {}))
 		dc_options.condition = self:ConditionID()
 
 		dcaction = ability:RequireSavingThrowsCo(self, casterToken, tokenids, {

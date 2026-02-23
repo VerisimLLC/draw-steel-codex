@@ -181,6 +181,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 							speed = overshoot,
 							collideWith = movementInfo.collideWith,
 						}
+
+                        options.symbols.cast.forcedMovementCollision = true
 					end
 
                     if movementType == "move" then

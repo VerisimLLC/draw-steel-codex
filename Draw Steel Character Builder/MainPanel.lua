@@ -179,7 +179,7 @@ function CharacterBuilder.CreatePanel()
             local hero = _getHero()
             if hero then
                 local levelChoices = hero:GetLevelChoices()
-                state:Set{ key = "levelChoices", value = dmhub.DeepCopy(levelChoices) }
+                state:Set{ key = "levelChoices", value = DeepCopy(levelChoices) }
             end
         end,
 

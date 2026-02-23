@@ -2,6 +2,17 @@ local mod = dmhub.GetModLoading()
 
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
+local anthemLimited = setting{
+    id = "anthemlimited",
+    description = "Limit Anthem Lengths",
+    editor = "check",
+    default = true,
+    ord = 101,
+    storage = "game",
+    section = "audio",
+    classes = {"dmonly"},
+}
+
 local anthemDuration = setting{
     id = "anthemlength",
     description = "Anthem Duration",
@@ -15,6 +26,11 @@ local anthemDuration = setting{
 	storage = "game",
 	section = "audio",
 	classes = {"dmonly"},
+
+	monitorVisible = {'anthemlimited'},
+	visible = function()
+		return dmhub.GetSettingValue('anthemlimited')
+	end
 }
 
 local playersControlInitiativeSetting = setting{
@@ -1762,7 +1778,7 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                     end
                 end
 
-                if anthemToken ~= nil and anthemDuration:Get() >= 1 then
+                if anthemToken ~= nil and (anthemDuration:Get() >= 1 or not anthemLimited:Get()) then
                     if anthemToken.charid ~= m_anthemTokenId then
                         StopAnthem()
                         m_anthemTokenId = anthemToken.charid
@@ -1770,7 +1786,9 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
                         if asset ~= nil then
                             m_anthemEventInstance = asset:Play()
                             m_anthemEventInstance.volume = anthemToken.anthemVolume
-                            m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
+                            if anthemLimited:Get() then
+                                m_anthemEventInstance:SetStopAfter(anthemDuration:Get())
+                            end
                             element.monitorGame = anthemToken.monitorPath
                         end
                     end

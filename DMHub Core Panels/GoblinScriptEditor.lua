@@ -857,7 +857,7 @@ setting {
 }
 
 local CollapsibleSectionPanel = function(options)
-	options = dmhub.DeepCopy(options)
+	options = DeepCopy(options)
 
 	local GetCollapsed = function()
 		return dmhub.GetSettingValue(options.collapseSetting)
@@ -1414,7 +1414,7 @@ function gui.GoblinScriptLuaDialog(options)
 end
 
 function gui.GoblinScriptEditorDialog(options)
-	options = dmhub.DeepCopy(options or {})
+	options = DeepCopy(options or {})
 
 	local dialogWidth = 1200
 	local dialogHeight = 980
@@ -1726,7 +1726,7 @@ function gui.GoblinScriptEditorDialog(options)
 end
 
 function gui.GoblinScriptTypeInfoDialog(options)
-	options = dmhub.DeepCopy(options or {})
+	options = DeepCopy(options or {})
 
 	local dialogWidth = 1200
 	local dialogHeight = 980

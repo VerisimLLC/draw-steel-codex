@@ -703,7 +703,11 @@ Commands.updateimplementationvalues = function(str)
 end
 
 local function DeepCopyInternal(t)
-    if type(t) ~= "table" then
+    local t_type = type(t)
+    if t_type ~= "table" then
+        if t_type == "userdata" then
+            return dmhub.DeepCopy(t)
+        end
         return t
     end
 

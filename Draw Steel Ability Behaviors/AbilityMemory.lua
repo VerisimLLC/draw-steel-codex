@@ -30,11 +30,12 @@ function ActivatedAbilityRememberBehavior:Cast(ability, casterToken, targets, op
     for _, target in ipairs(targets) do
         symbols.target = target.token.properties
         local value = ExecuteGoblinScript(self.calculation, target.token.properties:LookupSymbol(symbols), 0, "Remember Value Calculation")
+        print("MEMORY:: CALC", self.calculation, "=", value, "FROM", table.keys(symbols))
         val = val + value
     end
 
     options.symbols.cast:StoreMemory(self.memoryName, val)
-    print("MEMORY:: Store", self.memoryName, "=", val)
+    print("MEMORY:: Store", self.memoryName, "=", val, "FROM", #targets)
 end
 
 function ActivatedAbilityRememberBehavior:EditorItems(parentPanel)
@@ -93,6 +94,11 @@ function ActivatedAbilityRememberBehavior:EditorItems(parentPanel)
                             type = "creature",
                             desc = "The creature that is the target of the ability.",
                         },
+                        cast = {
+                            name = "Cast",
+                            type = "spellcast",
+                            desc = "The current ability cast, which can be used to store the memory value."
+                        }
                     }
                 },
             },

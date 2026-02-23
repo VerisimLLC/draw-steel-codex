@@ -36,8 +36,8 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
         }
 
     else
-        if options.targetArea ~= nil then
-            print("TARGET::", options.targetArea, "->", #options.targetArea.perimeter)
+        if options.targetArea ~= nil and #targets <= 1 then
+            print("TARGET::", options.targetArea, "->", #options.targetArea.perimeter, "/", #targets)
             game.currentFloor:ChangeElevation{
                 type = "polygon",
                 points = options.targetArea.perimeter,
@@ -53,9 +53,11 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
                     targetLocs[#targetLocs + 1] = target.loc
                 end
             end
+            print("TARGET:: HAVE TARGETS", #targetLocs)
 
             for _,loc in ipairs(targetLocs) do
                 if self.shape == "circle" then
+                    print("TARGET:: CIRCLE", loc.x, loc.y, "RADIUS", self.radius)
                     game.currentFloor:ChangeElevation{
                         type = "ellipse",
                         center = { x = loc.x, y = loc.y },
@@ -66,6 +68,7 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
                         recalculateTokenElevation = self.recalculateElevation,
                     }
                 else
+                    print("TARGET:: RECT", loc.x, loc.y, "RADIUS", self.radius)
                     game.currentFloor:ChangeElevation{
                         type = "rectangle",
                         p1 = { x = loc.x - self.radius/2, y = loc.y - self.radius/2 },

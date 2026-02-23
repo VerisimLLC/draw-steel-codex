@@ -596,7 +596,7 @@ audio.SoundEvent{
 audio.SoundEvent{
     name = "Attack.Hit_holy",
     mixgroup = "gameplay",
-    sounds = {"Atk_Hit/Atk_Hit_Holy_v1_01.wav","Atk_Hit/Atk_Hit_Holy_v1_02.wav","Atk_Hit/Atk_Hit_Holy_v1_03.wav","Atk_Hit/Atk_Hit_Holy_v1_04.wav"},
+    sounds = {"Atk_Hit/Atk_Hit_Holy_v2_01.wav","Atk_Hit/Atk_Hit_Holy_v2_02.wav","Atk_Hit/Atk_Hit_Holy_v2_03.wav","Atk_Hit/Atk_Hit_Holy_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,

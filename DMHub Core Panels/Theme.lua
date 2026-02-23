@@ -134,7 +134,7 @@ function Theme.CreateEditorSection(sectionid)
 			flow = "vertical",
 			refreshTheme = function(element, theme)
 				local newStylePanels = {}
-				styles = dmhub.DeepCopy(theme.GetSection(sectionid))
+				styles = DeepCopy(theme.GetSection(sectionid))
 				for i,style in ipairs(styles) do
 					local stylePanel = stylePanels[i] or Theme.CreateStylePanel{
 						change = function(element)

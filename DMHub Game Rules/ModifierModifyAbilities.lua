@@ -552,7 +552,7 @@ CharacterModifier.TypeInfo.modifyability = {
 				if replacementMode == "replace" then
 					for j=1,nstarting do
 						if ability.behaviors[j].typeName == behavior.typeName then
-							ability.behaviors[j] = dmhub.DeepCopy(behavior)
+							ability.behaviors[j] = DeepCopy(behavior)
 							replaced = true
 							break
 						end
@@ -560,7 +560,7 @@ CharacterModifier.TypeInfo.modifyability = {
 				end
 
 				if not replaced then
-					ability.behaviors[#ability.behaviors+1] = dmhub.DeepCopy(behavior)
+					ability.behaviors[#ability.behaviors+1] = DeepCopy(behavior)
 				end
 			end
 

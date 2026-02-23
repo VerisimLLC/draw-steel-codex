@@ -206,7 +206,7 @@ local function createListItem(options)
 							click = function()
 								local table = dmhub.GetTable(options.tableName)
 								local item = table[options.key]
-								local newItem = dmhub.DeepCopy(item)
+								local newItem = DeepCopy(item)
 								newItem.id = dmhub.GenerateGuid()
 								newItem.name = generateDuplicateName(newItem.name)
 								dmhub.SetAndUploadTableItem(options.tableName, newItem)

@@ -436,7 +436,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         thinkTime = 0.05,
 
         think = function(element)
-            gridlessChoice:SetClass("hidden", gridlessChoice.value and (element.haveNext or element.havePrevious or element.haveConfirm))
+            gridlessChoice:SetClass("hidden", gridlessChoice.value and (element.haveNext or element.havePrevious or element.haveConfirm or not string.starts_with(element.instructionsText, "Pick a grid square")))
             previousButton:SetClass("hidden", not element.havePrevious)
             continueButton:SetClass("hidden", not element.haveNext)
             confirmButton:SetClass("hidden", not element.haveConfirm)

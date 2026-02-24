@@ -596,7 +596,7 @@ audio.SoundEvent{
 audio.SoundEvent{
     name = "Attack.Hit_holy",
     mixgroup = "gameplay",
-    sounds = {"Atk_Hit/Atk_Hit_Holy_v1_01.wav","Atk_Hit/Atk_Hit_Holy_v1_02.wav","Atk_Hit/Atk_Hit_Holy_v1_03.wav","Atk_Hit/Atk_Hit_Holy_v1_04.wav"},
+    sounds = {"Atk_Hit/Atk_Hit_Holy_v2_01.wav","Atk_Hit/Atk_Hit_Holy_v2_02.wav","Atk_Hit/Atk_Hit_Holy_v2_03.wav","Atk_Hit/Atk_Hit_Holy_v2_04.wav"},
     volume = 1.0,
     ignoreDuplicates = 0.2,
     pitchRand = 0.2,
@@ -1008,6 +1008,17 @@ audio.SoundEvent{
     pitchRand = 0.1,
     ignoreDuplicates = 0.2,
 }
+
+audio.SoundEvent{
+    name = "Foot.Float_Generic",
+    mixgroup = "footsteps",
+    sounds = {"foot/FS_Float_Gnrc_v1_01.wav","foot/FS_Float_Gnrc_v1_02.wav","foot/FS_Float_Gnrc_v1_03.wav","foot/FS_Float_Gnrc_v1_04.wav","foot/FS_Float_Gnrc_v1_05.wav","foot/FS_Float_Gnrc_v1_06.wav"},
+    volume = 0.08,
+    pitchRand = 0.0,
+    ignoreDuplicates = 0.5,
+}
+
+
 
 
 

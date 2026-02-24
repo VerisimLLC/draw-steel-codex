@@ -1846,25 +1846,28 @@ function DTProjectEditor:_createSharedProjectButtons(ownerName, ownerId)
         border = 0,
         confirm = function(rolls, controller, roller)
             local token = dmhub.GetCharacterById(ownerId)
-            if token then
-                local project = controller.data.project
-                if project then
-                    token:ModifyProperties{
-                        description = "Downtime project update",
-                        execute = function ()
-                            for _, roll in ipairs(rolls) do
-                                project:AddRoll(roll)
+            local project = controller.data.project
+            if token and project then
+                -- Protect against stale project references
+                local downtimeInfo = token.properties:GetDowntimeInfo()
+                if downtimeInfo then
+                    local p2 = downtimeInfo:GetProject(project:GetID())
+                    if p2 then
+                        token:ModifyProperties{
+                            description = "Downtime project update",
+                            execute = function ()
+                                p2:AddRolls(rolls)
                             end
+                        }
+                        local downtimeController = controller:FindParentWithClass("downtimeController")
+                        if downtimeController then
+                            downtimeController:FireEvent("adjustRolls", -1, roller)
                         end
-                    }
-                    local downtimeController = controller:FindParentWithClass("downtimeController")
-                    if downtimeController then
-                        downtimeController:FireEvent("adjustRolls", -1, roller)
                     end
-                    dmhub.Schedule(0.1, function()
-                        controller:FireEventTree("refreshToken")
-                    end)
                 end
+                dmhub.Schedule(0.1, function()
+                    controller:FireEventTree("refreshToken")
+                end)
             end
         end
     })
@@ -2009,16 +2012,25 @@ function DTProjectEditor:CreateEditorPanel()
         addRolls = function(element, rolls, roller)
             local downtimeController = element:FindParentWithClass("downtimeController")
             if downtimeController then
-                modifyTokenProps{
-                    execute = function()
-                        element.data.project:AddRolls(rolls)
-                    end,
-                }
-                downtimeController:FireEvent("adjustRolls", -1, roller)
-                dmhub.Schedule(0.2, function()
-                    DTSettings.Touch()
-                    DTShares.Touch()
-                end)
+                local token = getToken()
+                if token then
+                    local downtimeInfo = token.properties:GetDowntimeInfo()
+                    if downtimeInfo then
+                        local project = downtimeInfo:GetProject(element.data.project:GetID())
+                        if project then
+                            token:ModifyProperties{
+                                execute = function()
+                                    project:AddRolls(rolls)
+                                end,
+                            }
+                            downtimeController:FireEvent("adjustRolls", -1, roller)
+                            dmhub.Schedule(0.2, function()
+                                DTSettings.Touch()
+                                DTShares.Touch()
+                            end)
+                        end
+                    end
+                end
             end
         end,
 

@@ -116,7 +116,7 @@ function DTCharSheetTab.CreateDowntimePanel()
             local rollerTokenId = roller:GetTokenID()
             local dtInfo = token.properties:GetDowntimeInfo()
             if dtInfo then
-                modifyTokenProps{
+                token:ModifyProperties{
                     execute = function()
                         if rollerTokenId == tokenId then
                             dtInfo:GrantRolls(amount)

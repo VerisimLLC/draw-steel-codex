@@ -503,9 +503,10 @@ function CBClassDetail._characteristicPanel()
                     _fireControllerEvent("tokenDataChanged")
                 end,
                 refreshBuilderState = function(element, state)
+                    local blockSel = state:Get(SELECTOR .. ".blockFeatureSelection") == true
                     local locked = element.parent:HasClass("locked")
                     local baseValue = locked and 2 or 0
-                    if not locked then
+                    if not blockSel then
                         local hero = _getHero()
                         local attributes = hero:try_get("attributes")
                         baseValue = attributes and attributes[attr.id] and attributes[attr.id].baseValue or 0

@@ -10,13 +10,35 @@ RegisterGameType("ActivatedAbilityPersistenceControlBehavior", "ActivatedAbility
 RegisterGameType("ActivatedAbilityPersistenceCastBehavior", "ActivatedAbilityBehavior")
 
 RegisterGoblinScriptSymbol(creature, {
-	name = "Persistent Abilities",
+	name = "Number of Persistent Abilities",
 	type = "number",
 	desc = "The number of persistent abilities that this creature has active.",
-	examples = {'self.Persistent Abilities < 1'},
+	examples = {'self.Number of Persistent Abilities < 1'},
 	calculate = function(c)
         local persistentAbilities = c:try_get("persistentAbilities", {})
         return #persistentAbilities
+	end,
+})
+
+RegisterGoblinScriptSymbol(creature, {
+	name = "Persistent Abilities",
+	type = "set",
+	desc = "Persistent abilities that this creature currently has active.",
+	examples = {'self.Persistent Abilities has "Behold the Mystery"'},
+	calculate = function(c)
+        local persistentAbilities = c:try_get("persistentAbilities", {})
+
+        local results = {}
+        for _, ability in pairs(persistentAbilities) do
+            print("Ability::", json(ability))
+            results[#results+1] = ability.abilityName
+        end
+
+        print("results::", results)
+
+        return StringSet.new {
+            strings = results,
+        }
 	end,
 })
 
@@ -54,7 +76,7 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         local heroicResource = classInfo.class:get_or_add("heroicResourceChecklist", {})
         for _, resourceInfo in pairs(heroicResource) do
             if string.lower(resourceInfo.name or "") == "start of turn" then
-                startOfTurnHeroicResource = tonumber(resourceInfo.quantity) or 0
+                startOfTurnHeroicResource = resourceInfo.quantity or 0
             end
         end
     end

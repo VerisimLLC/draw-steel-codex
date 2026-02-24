@@ -164,10 +164,11 @@ function CharacterComplication:Render(args)
             },
         },
 
-        gui.Label{
-            classes = {"title"},
-            text = self.name,
-        },
+        --I think we don't need this since it's redundant with the dropdown triangle.
+        --gui.Label{
+        --    classes = {"title"},
+        --    text = self.name,
+        --},
         gui.Label{
             text = self.description,
         },

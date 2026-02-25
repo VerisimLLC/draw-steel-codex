@@ -1376,6 +1376,16 @@ TriggeredAbility.RegisterTrigger{
             desc = "The dice roll without any modifiers.",
         },
         {
+            name = "High Roll",
+            type = "number",
+            desc = "The highest result of the 2d10 rolled during the power roll.",
+        },
+        {
+            name = "Low Roll",
+            type = "number",
+            desc = "The lowest result of the 2d10 rolled during the power roll.",
+        },
+        {
             name = "Surges",
             type = "number",
             desc = "The number of surges used (across all targets).",
@@ -2819,6 +2829,16 @@ TriggeredAbility.RegisterTrigger{
             name = "Natural Roll",
             type = "number",
             desc = "The dice roll without any modifiers.",
+        },
+        {
+            name = "High Roll",
+            type = "number",
+            desc = "The highest result of the 2d10 rolled during the power roll.",
+        },
+        {
+            name = "Low Roll",
+            type = "number",
+            desc = "The lowest result of the 2d10 rolled during the power roll.",
         },
         {
             name = "Surges",

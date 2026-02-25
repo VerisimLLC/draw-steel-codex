@@ -126,23 +126,36 @@ ActivatedAbilityCast.helpSymbols = {
 		examples = {"Damage Raw Against(self) > 5"},
 	},
 
-	naturalattackroll = {
-		name = "Natural Attack Roll",
-		type = "number",
-		desc = "The unmodified d20 attack roll made while using this ability.",
-	},
+    --Depreciated in MCDM
+	-- naturalattackroll = {
+	-- 	name = "Natural Attack Roll",
+	-- 	type = "number",
+	-- 	desc = "The unmodified d20 attack roll made while using this ability.",
+	-- },
 
-	attackroll = {
-		name = "Attack Roll",
-		type = "number",
-		desc = "The attack roll made while using this ability.",
-	},
+	-- attackroll = {
+	-- 	name = "Attack Roll",
+	-- 	type = "number",
+	-- 	desc = "The attack roll made while using this ability.",
+	-- },
 
     naturalroll = {
 		name = "Natural Roll",
 		type = "number",
-		desc = "The unmodified 2d10 roll made while using this ability.",
+		desc = "The unmodified total of the dice rolled during the power roll of this ability.",
 	},
+
+    highroll = {
+        name = "High Roll",
+        type = "number",
+        desc = "The highest result of the 2d10 rolled during the power roll of this ability.",
+    },
+
+    lowroll = {
+        name = "Low Roll",
+        type = "number",
+        desc = "The lowest result of the 2d10 rolled during the power roll of this ability.",
+    },
 
 	healing = {
 		name = "Healing",
@@ -162,7 +175,7 @@ ActivatedAbilityCast.helpSymbols = {
 	roll = {
 		name = "Roll",
 		type = "number",
-		desc = "The roll made while using this ability.",
+		desc = "The roll made while using this ability. This is only valid for abilities with the Roll Behavior.",
 	},
     hastarget = {
         name = "HasTarget",
@@ -345,6 +358,14 @@ ActivatedAbilityCast.lookupSymbols = {
     naturalroll = function(c)
 		return c.naturalRoll
 	end,
+
+    highroll = function(c)
+        return c.highRoll
+    end,
+
+    lowroll = function(c)
+        return c.lowRoll
+    end,
 
 	attackroll = function(c)
 		return c.attackroll

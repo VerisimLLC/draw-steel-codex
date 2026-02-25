@@ -699,7 +699,11 @@ CharacterModifier.TypeInfo.power = {
                     local before = string.sub(tier, 1, index+length-1)
                     local after = string.sub(tier, index+length)
 
-                    rollProperties.tiers[i] = string.format("%s (half)%s", before, after)
+                    if damageMultiplier == "half" then
+                        rollProperties.tiers[i] = string.format("%s (half)%s", before, after)
+                    else
+                        rollProperties.tiers[i] = string.format("%s (no damage)%s", before, after)
+                    end
                 end
             end
         end
@@ -1598,6 +1602,10 @@ CharacterModifier.TypeInfo.power = {
                             id = "half",
                             text = "Half Damage",
                         },
+                        {
+                            id = "none",
+                            text = "No Damage",
+                        }
                     },
                     idChosen = modifier:try_get("damageMultiplier", "full"),
                     change = function(element)

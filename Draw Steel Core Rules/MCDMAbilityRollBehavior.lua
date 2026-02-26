@@ -378,7 +378,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     end
 
                     local eventName = string.format("UI.PowerRoll_Tier%d", tier)
-                    if critEligible and m_rollInfo.naturalRoll == 19 or m_rollInfo.naturalRoll == 20 then
+                    if critEligible and m_rollInfo.naturalRoll >= caster:CalculateNamedCustomAttribute("Critical Threshold") then
                         eventName = "UI.PowerRoll_Crit"
                     end
 
@@ -1139,6 +1139,27 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
                 autofailure = rollInfo.autofailure,
                 autosuccess = rollInfo.autosuccess,
             }
+            
+            -- Collect the 2d10 results
+            local d10Results = {}
+            for _, roll in ipairs(rollInfo.rolls or {}) do
+                if not roll.dropped and roll.numFaces == 10 then
+                    table.insert(d10Results, roll.result)
+                end
+            end
+            
+            -- Determine high and low rolls from the 2d10
+            local highroll = 0
+            local lowroll = 0
+            if #d10Results >= 2 then
+                -- Take the first two d10 results and find high/low
+                highroll = math.max(d10Results[1], d10Results[2])
+                lowroll = math.min(d10Results[1], d10Results[2])
+            end
+
+            options.symbols.cast.naturalRoll = rollInfo.naturalRoll
+            options.symbols.cast.lowRoll = lowroll
+            options.symbols.cast.highRoll = highroll
             options.symbols.cast.boonsApplied = rollInfo.boons
             options.symbols.cast.banesApplied = rollInfo.banes
             options.symbols.cast.casterid = casterToken.id
@@ -1391,6 +1412,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     options.powerRollPass = nil
 
     triggerInfo.naturalroll = m_rollInfo.naturalRoll
+    triggerInfo.highroll = options.symbols.cast.highRoll
+    triggerInfo.lowroll = options.symbols.cast.lowRoll
 
     triggerInfo.ability = ability
 

@@ -131,8 +131,14 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
         local _, count = string.gsub(match.mods, "half", "")
         halfCount = count
     end
+
+    local noDamage = false
+    if match.mods then
+        local _, count = string.gsub(match.mods, "no damage", "")
+        noDamage = count > 0
+    end
     
-    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount)
+    print("ExecuteDamage::", damage, damageType, "halfCount:", halfCount, "noDamage:", noDamage)
 
     if damage == nil then
         local complete = false
@@ -208,14 +214,17 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
             damageMessage = damageMessage .. " " .. string.trim(halfText)
         end
         ability.RecordTokenMessage(targetToken, options, damageMessage)
-        targetToken:ModifyProperties{
-            description = "Inflict Damage",
-            undoable = false,
-            execute = function()
-                result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast})
-                options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage)
-            end,
-        }
+
+        if not noDamage then
+            targetToken:ModifyProperties{
+                description = "Inflict Damage",
+                undoable = false,
+                execute = function()
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast})
+                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage)
+                end,
+            }
+        end
     end
 end
 

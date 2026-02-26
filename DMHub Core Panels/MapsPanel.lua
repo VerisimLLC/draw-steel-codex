@@ -307,8 +307,22 @@ local CreateMapNode = function(map)
 		end,
 
 		rightClick = function(element)
-			local entries = {
-				{
+			local entries = {}
+
+
+            if module.IsMapAvailableInModule(map.id) then
+                entries[#entries+1] = {
+                    text = "Reset Map",
+                    click = function()
+                        element.popup = nil
+                        module.ReinstallMap(map.id, function(success)
+                            print("ReinstallMap::", success)
+                        end)
+                    end,
+                }
+            end
+
+			entries[#entries+1] = {
 					text = "Duplicate Map",
 					click = function()
 						element.popup = nil
@@ -332,8 +346,7 @@ local CreateMapNode = function(map)
 							operation:Update()
 						end)
 					end,
-				},
-			}
+				}
 
 			entries[#entries+1] =
 			{
@@ -715,6 +728,7 @@ CreateMapDialog = function()
 		},
 
 		create = function(element)
+            module.SyncModuleSnapshots()
 			g_mapDialog = element
 		end,
 

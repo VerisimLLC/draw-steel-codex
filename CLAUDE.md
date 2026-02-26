@@ -63,6 +63,47 @@ end
 ### Data Tables
 Game data is stored in named tables accessed via `dmhub.GetTable("tableName")`. Iterate with `unhidden_pairs(t)` (skips soft-deleted entries). Write with `dmhub.SetAndUploadObject(tableName, id, obj)`.
 
+### Shared Documents
+Shared cloud documents provide key-value storage that syncs across all clients in a game session. They are used for real-time shared state such as chat events, audio grid slots, global resources, initiative data, and downtime project shares. Unlike Data Tables (which store game content definitions), documents hold live session state.
+
+**Getting a snapshot:**
+```lua
+local doc = mod:GetDocumentSnapshot("myDocId")
+```
+The `docid` is any unique string. The returned snapshot has a `.data` table (the document contents) and a `.path` string (for monitoring).
+
+**Reading data:**
+```lua
+local value = doc.data.someKey
+```
+
+**Writing data** (must wrap mutations in `BeginChange`/`CompleteChange`):
+```lua
+local doc = mod:GetDocumentSnapshot("myDocId")
+doc:BeginChange()
+doc.data.someKey = newValue
+doc:CompleteChange("Description of change")
+```
+`CompleteChange` accepts an optional second argument table, e.g. `{undoable = false}`.
+
+**Monitoring for changes in UI panels** -- set `monitorGame` to the document path so `refreshGame` fires when any client changes the document:
+```lua
+gui.Panel{
+    monitorGame = mod:GetDocumentSnapshot("myDocId").path,
+    refreshGame = function(element)
+        local doc = mod:GetDocumentSnapshot("myDocId")
+        -- update UI from doc.data
+    end,
+}
+```
+
+**Checkpoint backups** -- register a document so it is included in game-state checkpoint saves:
+```lua
+mod:RegisterDocumentForCheckpointBackups("myDocId")
+```
+
+**Helper for path** -- `mod:GetDocumentPath("myDocId")` returns the monitoring path string directly (equivalent to `mod:GetDocumentSnapshot("myDocId").path`).
+
 ### UI (gui panels)
 UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. Panels are declarative tables with style properties and event callbacks (`click`, `change`, `create`, `think`, `refreshGame`). Panels that need to react to data changes use `monitorstate` or `monitor` fields.
 

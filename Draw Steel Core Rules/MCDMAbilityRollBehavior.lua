@@ -129,8 +129,11 @@ local function BoonsAndBanesToMod(boons, banes)
     return (min(2, boons) - min(2, banes))*2
 end
 
+-- Utility namespace for power roll helpers shared across files.
+RollUtils = {}
+
 --result has {total = number, boons = nil|number, banes = nil|number, autosuccess = bool?, autofailure = bool?, nottierone = bool?, nottierthree = bool?, tiers = nil|number}
-local function DiceResultToTier(result)
+function RollUtils.DiceResultToTier(result)
     if result.autosuccess then
         return 3
     end
@@ -169,6 +172,9 @@ local function DiceResultToTier(result)
 
     return tier
 end
+
+-- Local alias so existing call sites in this file keep working.
+local DiceResultToTier = RollUtils.DiceResultToTier
 
 local g_TierNames = GameSystem.TierNames
 
@@ -1142,6 +1148,33 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             m_canceled = true
         end,
     }
+
+    -- Share targeting and modifier info with other players via the
+    -- ability timeline shared document.
+    if CharacterPanel.UpdateAbilitySharing ~= nil then
+        local targetTokenIds = {}
+        for _, target in ipairs(multitargets or {}) do
+            if target.token ~= nil then
+                targetTokenIds[#targetTokenIds+1] = target.token.charid
+            end
+        end
+
+        local sharedModifiers = {}
+        for _, mod in ipairs(modifiersApplied or {}) do
+            if mod.modifier ~= nil then
+                sharedModifiers[#sharedModifiers+1] = {
+                    name = mod.modifier.name or "",
+                    guid = mod.modifier.guid or "",
+                    enabled = (mod.hint ~= nil and mod.hint.result) or false,
+                }
+            end
+        end
+
+        CharacterPanel.UpdateAbilitySharing({
+            targetTokenIds = targetTokenIds,
+            modifiers = sharedModifiers,
+        })
+    end
 
     local holdOpenRefreshAt = nil
     local refreshAtPanel = nil

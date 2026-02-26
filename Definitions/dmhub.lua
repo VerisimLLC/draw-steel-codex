@@ -397,6 +397,64 @@ function dmhub.GetTableVisible(tableName)
 	-- dummy implementation for documentation purposes only
 end
 
+--- ExportTable: Exports a single object table to JSON files on disk. Creates a subdirectory named after the table containing _table.json (the whole table) and individual .json files per item. Returns nil if the table does not exist.
+--- @param tableName string The name of the table to export.
+--- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
+--- @return { itemsExported: number, directory: string }|nil
+function dmhub.ExportTable(tableName, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportAllTables: Exports all object tables to JSON files on disk. Each table becomes a subdirectory with _table.json and per-item .json files. A _manifest.json is also written listing all table names.
+--- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
+--- @return { tablesExported: number, itemsExported: number, directory: string }
+function dmhub.ExportAllTables(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImportTable: Imports a single object table from JSON files on disk into memory. Reads _table.json from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
+--- @param tableName string The name of the table to import into.
+--- @param options nil|{ directory: string }
+--- @return { itemsImported: number, errors: string[] }|nil
+function dmhub.ImportTable(tableName, options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImportAllTables: Imports all object tables from JSON files on disk into memory. Reads each subdirectory in the export directory as a table. Does NOT upload to the cloud -- use UploadAllTables for that.
+--- @param options nil|{ directory: string }
+--- @return { tablesImported: number, itemsImported: number, errors: string[] }
+function dmhub.ImportAllTables(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadAllTables: Uploads all in-memory object tables to the cloud. Optionally specify a list of table names to upload; by default uploads all tables.
+--- @param options nil|{ tables: string[] }
+--- @return { tablesUploaded: number, itemsUploaded: number }
+function dmhub.UploadAllTables(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ExportAllMonsters: Exports all bestiary monsters to JSON files on disk. Each monster becomes a separate .json file in the export directory, named after the monster. A _manifest.json listing all monsters is also written.
+--- @param options nil|{ directory: string, includeHidden: boolean }
+--- @return { monstersExported: number, directory: string }
+function dmhub.ExportAllMonsters(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- ImportAllMonsters: Imports bestiary monsters from JSON files on disk into memory. Reads _manifest.json to find each monster file and its original ID, then deserializes each into the in-memory bestiary. Does NOT upload to the cloud -- use UploadAllMonsters for that.
+--- @param options nil|{ directory: string }
+--- @return { monstersImported: number, errors: string[] }|nil
+function dmhub.ImportAllMonsters(options)
+	-- dummy implementation for documentation purposes only
+end
+
+--- UploadAllMonsters: Uploads all in-memory bestiary monsters to the cloud. Optionally specify a list of monster IDs to upload; by default uploads all monsters.
+--- @param options nil|{ monsters: string[] }
+--- @return { monstersUploaded: number }
+function dmhub.UploadAllMonsters(options)
+	-- dummy implementation for documentation purposes only
+end
+
 --- SearchTable
 --- @param tableName string The name of the table
 --- @param searchString the string to search for.

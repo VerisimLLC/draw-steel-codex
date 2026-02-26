@@ -299,6 +299,7 @@ function GameHud.CreateEmbeddedRollDialog()
 
     local resultPanel
     local CalculateRollText
+    local BroadcastDialogState
 
     local rollAllPrompts = nil
     local rollActive = nil
@@ -765,7 +766,191 @@ function GameHud.CreateEmbeddedRollDialog()
             end
         end
 
+        -- Schedule a broadcast of updated dialog state. We use a short delay
+        -- to coalesce rapid successive calls (e.g. during RecalculateMultiTargets).
+        if resultPanel.valid and not resultPanel:HasClass("hidden") then
+            resultPanel:ScheduleEvent("broadcastDialogState", 0.05)
+        end
+
         return roll
+    end
+
+    -- Broadcast the current roll dialog state to the shared ability document
+    -- so remote players can see a read-only view of the dialog.
+    BroadcastDialogState = function(extraFields)
+        if CharacterPanel.UpdateAbilitySharing == nil then
+            return
+        end
+
+        local rollState = "preparing"
+        if resultPanel:HasClass("finishedRolling") then
+            rollState = "finished"
+        elseif resultPanel:HasClass("rolling") then
+            rollState = "rolling"
+        end
+
+        -- Gather per-target data.
+        local targets = {}
+        if m_multitargets ~= nil then
+            for i, target in ipairs(m_multitargets) do
+                local t = {
+                    tokenId = target.token.charid,
+                    name = target.token.name or "",
+                    surges = target.surges or 0,
+                    boons = target.boons or 0,
+                    banes = target.banes or 0,
+                }
+                targets[#targets+1] = t
+            end
+        end
+
+        -- Gather modifier data with richer details.
+        local modifiers = {}
+        for _, m in ipairs(m_options and m_options.modifiers or {}) do
+            if m.modifier ~= nil then
+                local ischecked = false
+                local force = m.modifier:try_get("force", false)
+                if m.override ~= nil then
+                    ischecked = m.override
+                elseif force then
+                    ischecked = true
+                elseif m.hint ~= nil then
+                    ischecked = m.hint.result
+                end
+
+                -- Skip modifiers that fail requirements.
+                if m.failsRequirement then
+                    goto continueBroadcast
+                end
+
+                local buffOrDebuff = m.modifier:BuffOrDebuff(m)
+                local text = m.modifier.name or ""
+                if m.modFromTarget then
+                    text = string.format("Target is %s", text)
+                end
+
+                modifiers[#modifiers+1] = {
+                    name = text,
+                    guid = m.modifier.guid or "",
+                    enabled = ischecked,
+                    forced = force,
+                    buffOrDebuff = buffOrDebuff,
+                }
+                ::continueBroadcast::
+            end
+        end
+
+        -- Gather trigger info.
+        local triggers = {}
+        if m_multitargets ~= nil then
+            local mainIdx = GetCurrentMultiTarget()
+            local mainTarget = mainIdx ~= nil and m_multitargets[mainIdx]
+            if mainTarget ~= nil then
+                for _, trig in ipairs(mainTarget.triggers or {}) do
+                    triggers[#triggers+1] = {
+                        name = trig.modifier and trig.modifier.name or "",
+                        charid = trig.charid,
+                        triggered = trig.triggered or false,
+                        hostile = trig.hostile or false,
+                    }
+                end
+            end
+        end
+
+        -- Determine boon/bane state from the roll input text.
+        local boonValue = 0
+        if rollInput ~= nil and rollInput.valid and creature ~= nil then
+            local parsed = dmhub.ParseRoll(rollInput.text, creature)
+            if parsed ~= nil then
+                local boons = parsed.boons or 0
+                local banes = parsed.banes or 0
+                if boons > 0 and banes > 0 then
+                    if boons > banes then
+                        boonValue = 1
+                    elseif boons < banes then
+                        boonValue = -1
+                    end
+                else
+                    boonValue = boons - banes
+                end
+            end
+        end
+
+        -- Gather power roll tier data if this is a power roll.
+        local tierTexts = nil
+        local rollResult = nil
+        local isPowerRoll = (rollType ~= nil and string.find(rollType, "ability_power_roll") ~= nil) or false
+        if isPowerRoll and rollProperties ~= nil and rollProperties.tiers ~= nil then
+            tierTexts = {}
+            for i = 1, #rollProperties.tiers do
+                tierTexts[i] = rollProperties.tiers[i]
+            end
+        end
+
+        -- Compute the highlighted tier directly so remote clients receive
+        -- a simple integer rather than needing to replicate DiceResultToTier.
+        local highlightedTier = nil
+        if m_rollInfo ~= nil and (rollState == "finished" or rollState == "rolling") then
+            local total = m_rollInfo.total or 0
+            local boons = m_rollInfo.boons or 0
+            local banes = m_rollInfo.banes or 0
+
+            if m_rollInfo.autosuccess then
+                highlightedTier = 3
+            elseif m_rollInfo.autofailure then
+                highlightedTier = 1
+            else
+                highlightedTier = 1
+                if total >= 17 then
+                    highlightedTier = 3
+                elseif total >= 12 then
+                    highlightedTier = 2
+                end
+                if boons >= 2 and banes == 0 then
+                    highlightedTier = highlightedTier + 1
+                elseif banes >= 2 and boons == 0 then
+                    highlightedTier = highlightedTier - 1
+                end
+                highlightedTier = highlightedTier + (m_rollInfo.tiers or 0)
+                if highlightedTier > 3 then highlightedTier = 3 end
+                if highlightedTier < 1 then highlightedTier = 1 end
+                if highlightedTier == 3 and m_rollInfo.nottierthree then
+                    highlightedTier = 2
+                end
+                if highlightedTier == 1 and m_rollInfo.nottierone then
+                    highlightedTier = 2
+                end
+            end
+
+            -- Override tier from roll properties if the caster picked a
+            -- different tier manually.
+            if rollProperties ~= nil then
+                highlightedTier = rollProperties:try_get("overrideTier")
+                    or highlightedTier
+            end
+        end
+
+        local dialogState = {
+            rollState = rollState,
+            rollText = rollInput ~= nil and rollInput.valid and rollInput.text or "",
+            rollType = rollType or "",
+            targets = targets,
+            modifiers = modifiers,
+            triggers = triggers,
+            boonValue = boonValue,
+            isPowerRoll = isPowerRoll,
+            tierTexts = tierTexts,
+            highlightedTier = highlightedTier,
+            rollId = resultPanel.data.rollid,
+        }
+
+        if extraFields ~= nil then
+            for k, v in pairs(extraFields) do
+                dialogState[k] = v
+            end
+        end
+
+        CharacterPanel.UpdateAbilitySharing({ dialogState = dialogState })
     end
 
     local DuplicateTriggerToMultiTargets
@@ -3023,6 +3208,9 @@ function GameHud.CreateEmbeddedRollDialog()
             destroy = function(element)
                 --dmhub.SetSettingValue("hideactionbar", element.data.hideactionbar)
             end,
+            broadcastDialogState = function(element)
+                BroadcastDialogState()
+            end,
             submit = function(element)
                 if not rollInput:HasClass("manualEdit") then
                     RecalculateMultiTargets()
@@ -3038,6 +3226,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     resultPanel:SetClassTree("rolling", true)
                     resultPanel:SetClassTree("finishedRolling", false)
                     g_holdingRollOpen = true
+                    BroadcastDialogState()
 
 
                     proceedAfterRollButton.events.press = function()
@@ -3381,6 +3570,10 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
 
                         resultPanel:FireEventTree("beginRoll", rollInfo, resultPanel.data.rollid)
+
+                        -- Broadcast now that m_rollInfo is set so remote
+                        -- clients receive the highlighted tier immediately.
+                        BroadcastDialogState()
                     end,
                     pending = function(rollInfo)
                         m_rollInfo = rollInfo
@@ -3398,6 +3591,7 @@ function GameHud.CreateEmbeddedRollDialog()
                             resultPanel:SetClassTree("rolling", false)
                             resultPanel:SetClassTree("rollPending", false)
                             resultPanel:SetClassTree("finishedRolling", true)
+                            BroadcastDialogState()
 
                             proceedAfterRollButton.events.press = function()
                                 print("AI:: PRESSED PROCEED AFTER ROLL")

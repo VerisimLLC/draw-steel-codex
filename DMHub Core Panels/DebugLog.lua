@@ -169,6 +169,9 @@ CreateDebugLogPanel = function()
                                     color = color,
                                     halign = "left",
                                     text = textTruncated,
+                                    collectText = function(element, output)
+                                        output[#output+1] = text
+                                    end,
                                 },
 
                                 copyIcon,
@@ -203,6 +206,16 @@ CreateDebugLogPanel = function()
                 click = function(element)
                     dmhub.debugLog = {}
                     m_scrollableList:FireEventTree("clear")
+                end,
+            },
+            gui.Button{
+                valign = "center",
+                fontSize = 12,
+                text = "Copy",
+                click = function(element)
+                    local text = {}
+                    m_scrollableList:FireEventTreeVisible("collectText", text)
+                    dmhub.CopyToClipboard(table.concat(text))
                 end,
             }
         },

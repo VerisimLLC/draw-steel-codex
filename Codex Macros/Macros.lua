@@ -1348,5 +1348,17 @@ Commands.print = function(str)
     end
     sw:Stop()
     print("Time:", sw.milliseconds, #tokens)
+end
 
+if devmode() then
+
+    Commands.exporttables = function(str)
+        dmhub.ExportAllTables()
+        dmhub.ExportAllMonsters()
+    end
+
+    Commands.importtables = function(str)
+        dmhub.ImportAllTables()
+        dmhub.ImportAllMonsters()
+    end
 end

@@ -25,6 +25,7 @@ end
 
 
 function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, targets, options)
+    print("DSCommand:: Cast rule='" .. tostring(self.rule) .. "' targets=" .. tostring(#(targets or {})) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
     local promptWhenResolving = self:try_get("promptWhenResolving", false)
 
     local targetChoices = {}
@@ -847,7 +848,83 @@ local g_rulePatterns = {
                 print("TELEPORT:: SUCCESS!")
             end
         end,
-    }
+    },
+
+    {
+        pattern = "^free strike or grabbed if adjacent$",
+        execute = function(behavior, ability, casterToken, targetToken, options, match)
+            -- Check if target ended up adjacent after being pulled
+            local distance = casterToken:Distance(targetToken)
+            print("FreeStrikeOrGrab:: distance=" .. tostring(distance) .. " caster=" .. creature.GetTokenDescription(casterToken) .. " target=" .. creature.GetTokenDescription(targetToken))
+            if distance > 1 then
+                print("FreeStrikeOrGrab:: target not adjacent (distance > 1), skipping")
+                return
+            end
+
+            ability:CommitToPaying(casterToken, options)
+
+            -- Try to invoke a free strike (skippable). If skipped, grab instead.
+            local freeStrikeAbility = MCDMUtils.GetStandardAbility("Melee Free Strike")
+            print("FreeStrikeOrGrab:: standard ability found=" .. tostring(freeStrikeAbility ~= nil) .. " freeStrikeDmg=" .. tostring(casterToken.properties:OpportunityAttack()))
+            local madeStrike = false
+            if freeStrikeAbility ~= nil then
+                local abilityClone = DeepCopy(freeStrikeAbility)
+                abilityClone.skippable = true
+                abilityClone.notooltip = true
+                abilityClone.keywords = ability.keywords
+                abilityClone.recordTargets = true
+                abilityClone.promptOverride = "Target pulled adjacent! Make a free strike? (Skip to grab instead)"
+
+                -- Set up the free strike damage from the caster's free strike value
+                local freeStrikeDamage = tostring(casterToken.properties:OpportunityAttack())
+                abilityClone.behaviors[1].roll = freeStrikeDamage .. "*Charges"
+
+                local symbols = {
+                    invoker = GenerateSymbols(casterToken.properties),
+                    cast = options.symbols.cast,
+                    charges = options.symbols.charges,
+                }
+
+                madeStrike = ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(
+                    casterToken,    -- invokerToken
+                    abilityClone,   -- ability
+                    casterToken,    -- casterToken (monster makes the free strike)
+                    "prompt",       -- targeting
+                    symbols,
+                    options
+                )
+                print("FreeStrikeOrGrab:: ExecuteInvoke returned madeStrike=" .. tostring(madeStrike))
+            else
+                print("FreeStrikeOrGrab:: Melee Free Strike standard ability not found!")
+            end
+
+            if not madeStrike then
+                -- Controller skipped free strike (or no free strike available) -> apply Grabbed
+                local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+                for k,v in unhidden_pairs(conditionsTable) do
+                    if string.lower(v.name) == "grabbed" then
+                        ability.RecordTokenMessage(targetToken, options, "Grabbed")
+                        local riders = ability:GetRidersForCondition(k, casterToken, targetToken, options)
+                        targetToken:ModifyProperties{
+                            description = "Inflict Condition",
+                            execute = function()
+                                targetToken.properties:InflictCondition(k, {
+                                    duration = "eoe",
+                                    riders = riders,
+                                    sourceDescription = string.format("Inflicted by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name),
+                                    casterInfo = {
+                                        tokenid = casterToken.charid,
+                                    },
+                                    cast = options.symbols.cast,
+                                })
+                            end,
+                        }
+                        break
+                    end
+                end
+            end
+        end,
+    },
 }
 
 function ActivatedAbility.RegisterPowerTableRule(args)

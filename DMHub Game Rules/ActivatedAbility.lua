@@ -1393,6 +1393,12 @@ function ActivatedAbility:SwitchModes(i)
     result.OnFinishCast = self:try_get("OnFinishCast")
     result.multipleModes = self.multipleModes
 
+    -- Preserve invoke-specific fields through mode switch.
+    result.invoker = self:try_get("invoker")
+    result.skippable = self:try_get("skippable")
+    result.countsAsCast = self:try_get("countsAsCast")
+    result.promptOverride = self:try_get("promptOverride")
+
     if result.resourceCost == "none" then
         result.resourceCost = self.resourceCost
         result.resourceNumber = self.resourceNumber
@@ -2343,6 +2349,11 @@ end
 
 --- @return boolean Returns true if this ability requires some kind of player prompt when cast. It can't auto-target if invoked. Used with augmented abilities etc.
 function ActivatedAbility:RequiresPromptWhenCast()
+    -- Multi-mode abilities need a prompt so the user can choose a mode.
+    if self.multipleModes and self:has_key("modeList") then
+        return true
+    end
+
     for _,behavior in ipairs(self.behaviors) do
         if behavior.mono then
             return true
@@ -2517,6 +2528,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 	options.targets = targets
 
 	for i,behavior in ipairs(self.behaviors) do
+		print("CastCoroutine:: behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
 		if not behavior.instant and (not behavior:IsFiltered(self, casterToken, options)) then
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 CharacterPanel.HighlightAbilitySection{

@@ -215,7 +215,8 @@ CreateDebugLogPanel = function()
                 click = function(element)
                     local text = {}
                     m_scrollableList:FireEventTreeVisible("collectText", text)
-                    dmhub.CopyToClipboard(table.concat(text))
+                    dmhub.CopyToClipboard(table.concat(text, "\n"))
+                    gui.Tooltip("Copied to clipboard!")(element)
                 end,
             }
         },

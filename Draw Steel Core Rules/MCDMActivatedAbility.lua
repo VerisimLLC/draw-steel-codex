@@ -2486,6 +2486,8 @@ function ActivatedAbility:BifurcateIntoMeleeAndRanged(creature)
     melee.range = self:try_get("meleeRange", 1)
 
     melee.isMeleeVariation = true
+    melee.isRangedVariation = false
+    ranged.isMeleeVariation = false
     ranged.isRangedVariation = true
 
     result.meleeAndRanged = true

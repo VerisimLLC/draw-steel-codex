@@ -123,32 +123,17 @@ local g_readOnlyBoonsLabels = { "BANEx2", "BANE", "NONE", "EDGE", "EDGEx2" }
 
 -- Build a read-only modifier pill that mirrors the interactive ModifierPanel
 -- style from EmbeddedRollDialog. Shows buff/debuff coloring and selected state.
+-- Colors are driven by classes + selectors on the parent Modifiers panel.
 local function CreateReadOnlyModifierPill(modInfo)
-    local borderColor = "#777777"
-    if modInfo.enabled then
-        if modInfo.buffOrDebuff == "buff" then
-            borderColor = Styles.ModifierBuffColor
-        elseif modInfo.buffOrDebuff == "debuff" then
-            borderColor = Styles.ModifierDebuffColor
-        else
-            borderColor = Styles.Gold04
-        end
-    end
-
-    local indicatorBgcolor = "#777777"
-    local indicatorCollapsed = true
-    if modInfo.buffOrDebuff == "buff" then
-        indicatorCollapsed = false
-        indicatorBgcolor = modInfo.enabled and Styles.ModifierBuffColor or "#777777"
-    elseif modInfo.buffOrDebuff == "debuff" then
-        indicatorCollapsed = false
-        indicatorBgcolor = modInfo.enabled and Styles.ModifierDebuffColor or "#777777"
-    end
-
-    local labelColor = modInfo.enabled and "white" or "#777777"
+    local isBuff = modInfo.buffOrDebuff == "buff"
+    local isDebuff = modInfo.buffOrDebuff == "debuff"
 
     return gui.Panel{
-        borderColor = borderColor,
+        classes = {"modPill",
+            cond(modInfo.enabled, "enabled"),
+            cond(isBuff, "buff"),
+            cond(isDebuff, "debuff"),
+        },
         borderWidth = 2,
         cornerRadius = 4,
         width = "auto",
@@ -159,17 +144,24 @@ local function CreateReadOnlyModifierPill(modInfo)
         bgcolor = Styles.RichBlack03,
         hmargin = 2,
 
+        updateModifierPill = function(element, info)
+            element:SetClassTree("enabled", info.enabled)
+            element:SetClassTree("buff", info.buffOrDebuff == "buff")
+            element:SetClassTree("debuff", info.buffOrDebuff == "debuff")
+        end,
+
         gui.Panel{
+            classes = {"modIndicator"},
             bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
             width = 18,
             height = 18,
-            bgcolor = indicatorBgcolor,
-            collapsed = indicatorCollapsed and 1 or 0,
-            uiscale = modInfo.buffOrDebuff == "buff" and {y=-1, x=1} or nil,
-            y = modInfo.buffOrDebuff == "debuff" and 2 or 0,
+            collapsed = (not isBuff and not isDebuff) and 1 or 0,
+            uiscale = isBuff and {y=-1, x=1} or nil,
+            y = isDebuff and 2 or 0,
         },
 
         gui.Label{
+            classes = {"modLabel"},
             text = modInfo.name,
             fontSize = 16,
             width = "auto",
@@ -177,8 +169,6 @@ local function CreateReadOnlyModifierPill(modInfo)
             lmargin = 0,
             rmargin = 4,
             valign = "center",
-            color = labelColor,
-            opacity = modInfo.enabled and 0.95 or 0.6,
         },
     }
 end
@@ -277,29 +267,14 @@ local function CreateReadOnlyRollInfo(shareData)
             end
 
             -- Entry bgcolor and border based on selection state.
-            local entryBgcolor = Styles.RichBlack03
-            local entryBorderColor = Styles.Gold02
-            local entryBorderWidth = 1
-            if isSelected then
-                entryBorderWidth = 2
-                if isBoon then
-                    entryBgcolor = "srgb:#000044"
-                    entryBorderColor = Styles.ModifierBuffColor
-                elseif isBane then
-                    entryBgcolor = "srgb:#16080B"
-                    entryBorderColor = Styles.ModifierDebuffColor
-                else
-                    entryBgcolor = "srgb:#16080B"
-                end
-            end
-
             boonEntries[#boonEntries+1] = gui.Panel{
+                updateRollDialog = function(element, ds)
+                    element:SetClass("selected", (ds.boonValue or 0) == entryBoon)
+                end,
+                classes = {"boonPanel", cond(isBoon, "boon"), cond(isBane, "bane"), cond(isSelected, "selected")},
                 width = "auto", height = "auto",
                 flow = "horizontal",
                 bgimage = true,
-                bgcolor = entryBgcolor,
-                borderWidth = entryBorderWidth,
-                borderColor = entryBorderColor,
                 cornerRadius = 6,
                 hpad = 6,
                 vmargin = 2,
@@ -318,6 +293,29 @@ local function CreateReadOnlyRollInfo(shareData)
         end
 
         sections[#sections+1] = gui.Panel{
+            styles = {
+                {
+                    selectors = {"boonPanel"},
+                    bgcolor = Styles.RichBlack03,
+                    borderWidth = 1,
+                },
+                {
+                    selectors = {"boonPanel", "selected"},
+                    bgcolor = "srgb:#16080B",
+                    borderWidth = 2,
+                },
+                {
+                    selectors = {"boonPanel", "selected", "boon"},
+                    bgcolor = "srgb:#000044",
+                    borderColor = Styles.ModifierBuffColor,
+
+                },
+                {
+                    selectors = {"boonPanel", "selected", "bane"},
+                    bgcolor = "srgb:#16080B",
+                    borderColor = Styles.ModifierDebuffColor,
+                },
+            },
             halign = "center",
             width = "auto", height = "auto",
             flow = "horizontal",
@@ -327,23 +325,71 @@ local function CreateReadOnlyRollInfo(shareData)
     end
 
     -- Modifiers panel.
-    if ds.modifiers ~= nil and #ds.modifiers > 0 then
-        local modChildren = {}
-        for _, m in ipairs(ds.modifiers) do
-            -- Skip forced-hidden modifiers.
-            if not m.forced then
-                modChildren[#modChildren+1] = CreateReadOnlyModifierPill(m)
+    local modifierPills = {}
+    sections[#sections+1] = gui.Panel{
+        styles = {
+            {
+                selectors = {"modPill"},
+                borderColor = "#777777",
+            },
+            {
+                selectors = {"modPill", "enabled"},
+                borderColor = Styles.Gold04,
+            },
+            {
+                selectors = {"modPill", "enabled", "buff"},
+                borderColor = Styles.ModifierBuffColor,
+            },
+            {
+                selectors = {"modPill", "enabled", "debuff"},
+                borderColor = Styles.ModifierDebuffColor,
+            },
+            {
+                selectors = {"modIndicator"},
+                bgcolor = "#777777",
+            },
+            {
+                selectors = {"modIndicator", "enabled", "buff"},
+                bgcolor = Styles.ModifierBuffColor,
+            },
+            {
+                selectors = {"modIndicator", "enabled", "debuff"},
+                bgcolor = Styles.ModifierDebuffColor,
+            },
+            {
+                selectors = {"modLabel"},
+                color = "#777777",
+                opacity = 0.6,
+            },
+            {
+                selectors = {"modLabel", "enabled"},
+                color = "white",
+                opacity = 0.95,
+            },
+        },
+        width = "100%", height = "auto",
+        flow = "horizontal",
+        wrap = true,
+
+        create = function(element)
+            element:FireEvent("updateRollDialog", ds)
+        end,
+
+        updateRollDialog = function(element, ds)
+            local children = {}
+            local newModifierPills = {}
+            for _,m in ipairs(ds.modifiers or {}) do
+                if not m.forced then
+                    newModifierPills[m.guid] = modifierPills[m.guid] or CreateReadOnlyModifierPill(m)
+                    children[#children+1] = newModifierPills[m.guid]
+                    newModifierPills[m.guid]:FireEventTree("updateModifierPill", m)
+                end
             end
-        end
-        if #modChildren > 0 then
-            sections[#sections+1] = gui.Panel{
-                width = "100%", height = "auto",
-                flow = "horizontal",
-                wrap = true,
-                children = modChildren,
-            }
-        end
-    end
+
+            modifierPills = newModifierPills
+            element.children = children
+        end,
+    }
 
     -- Multi-target container (token portraits with surge icons).
     if ds.targets ~= nil and #ds.targets > 1 then
@@ -552,6 +598,7 @@ local function CreateReadOnlyRollInfo(shareData)
                             row:SetClassTree("highlight", idx == highlightTier)
                         end
                     end
+                    element:ScheduleEvent("create", 0.1)
                     return
                 end
 
@@ -652,22 +699,31 @@ local function CreateReadOnlyRollInfo(shareData)
 
             think = function(element)
                 local d = element.data
-                if d == nil then --or d.m_finished then
+                if d == nil then
                     return
                 end
 
                 -- When all dice have settled, lock in the final tier
                 -- using the authoritative result from the rollMsg,
                 -- matching the pattern in MCDMAbilityRollBehavior.lua.
-                if d.m_endTime ~= nil and dmhub.Time() > d.m_endTime then
+                if not d.m_finished and d.m_endTime ~= nil and dmhub.Time() > d.m_endTime then
                     d.m_finished = true
-                    element.thinkTime = 0
-
                     local finalTier = RollUtils.DiceResultToTier(d.rollMsg)
                     for idx, row in ipairs(element.children) do
                         row:SetClassTree("highlight", idx == finalTier)
                     end
                 end
+
+                -- Once finished (either from dice settling above or
+                -- from the m_numDice==0 path in create), fire an event
+                -- so sibling labels (phase banner, roll state) can
+                -- update themselves.
+                if d.m_finished and not d.m_eventFired then
+                    d.m_eventFired = true
+                    element.thinkTime = 0
+                    element.root:FireEventTree("rollDiceSettled")
+                end
+
             end,
         }
 
@@ -677,7 +733,8 @@ local function CreateReadOnlyRollInfo(shareData)
     -- Triggers display.
     if ds.triggers ~= nil and #ds.triggers > 0 then
         local trigChildren = {}
-        for _, trig in ipairs(ds.triggers) do
+        for index, trig in ipairs(ds.triggers) do
+            local triggerIndex = index
             local trigToken = dmhub.GetTokenById(trig.charid)
             local tokenImg = nil
             if trigToken ~= nil and trigToken.valid then
@@ -691,13 +748,22 @@ local function CreateReadOnlyRollInfo(shareData)
             local labelColor = trig.triggered and Styles.backgroundColor or Styles.textColor
 
             trigChildren[#trigChildren+1] = gui.Panel{
-                width = 120, height = 70,
+                width = 120,
+                height = 70,
                 bgimage = true,
                 bgcolor = trigBgcolor,
                 flow = "vertical",
                 borderWidth = 1,
                 borderColor = trig.triggered and "white" or "grey",
                 halign = trig.hostile and "right" or "left",
+                updateRollDialog = function(element, ds)
+                    local trig = ds.triggers[triggerIndex]
+                    if trig ~= nil then
+                        local triggered = trig.triggered
+                        element.selfStyle.bgcolor = triggered and Styles.textColor or "#00000000"
+                        element.selfStyle.borderColor = triggered and "white" or "grey"
+                    end
+                end,
 
                 tokenImg,
                 gui.Label{
@@ -706,6 +772,12 @@ local function CreateReadOnlyRollInfo(shareData)
                     width = "auto", height = "auto",
                     halign = "center",
                     color = labelColor,
+                    updateRollDialog = function(element, ds)
+                        local trig = ds.triggers[triggerIndex]
+                        if trig ~= nil then
+                            element.selfStyle.color = trig.triggered and Styles.backgroundColor or Styles.textColor
+                        end
+                    end,
                 },
             }
         end
@@ -721,7 +793,8 @@ local function CreateReadOnlyRollInfo(shareData)
         end
     end
 
-    -- Roll state indicator.
+    -- Roll state indicator. Listens for rollDiceSettled to transition
+    -- from "Rolling..." to "Awaiting result..." when dice settle locally.
     if ds.rollState == "rolling" then
         sections[#sections+1] = gui.Label{
             text = "Rolling...",
@@ -731,6 +804,10 @@ local function CreateReadOnlyRollInfo(shareData)
             halign = "center",
             tmargin = 4,
             italics = true,
+            rollDiceSettled = function(element)
+                element.text = "Awaiting result..."
+                element.selfStyle.color = "#88ddff"
+            end,
         }
     elseif ds.rollState == "finished" then
         sections[#sections+1] = gui.Label{
@@ -746,6 +823,63 @@ local function CreateReadOnlyRollInfo(shareData)
 
     if #sections == 0 then
         return nil
+    end
+
+    -- Phase banner tab on the left edge, matching the style used by the
+    -- interactive EmbeddedRollDialog ("Roll Dice", "Results", etc.).
+    -- The "Target" tab is already built into the ability tooltip so we
+    -- only add tabs for the roll and results phases.
+    local phaseTab = nil
+    local phaseLabelText = nil
+    if ds.rollState == "finished" then
+        phaseLabelText = "Results"
+    elseif ds.rollState ~= nil then
+        phaseLabelText = "Roll Dice"
+    end
+
+    if phaseLabelText ~= nil then
+        local phaseLabelElement = gui.Label{
+            color = "black",
+            width = "auto",
+            height = "auto",
+            fontSize = 22,
+            bold = true,
+            text = phaseLabelText,
+            y = -18,
+            rotate = 90,
+            halign = "center",
+            valign = "center",
+            rollDiceSettled = function(element)
+                element.text = "Results"
+            end,
+        }
+
+        phaseTab = gui.Panel{
+            styles = {
+                {
+                    selectors = {"results"},
+                    y = 60,
+                }
+            },
+            x = -32,
+            floating = true,
+            valign = "top",
+            halign = "left",
+            height = 166 * 0.8,
+            width = 33 * 0.8,
+            bgimage = ActivatedAbility.TabBGImage(),
+            bgcolor = "white",
+            rollDiceSettled = function(element)
+                element:SetClass("results", true)
+            end,
+            phaseLabelElement,
+        }
+    end
+
+    -- Add the floating tab as a child -- it won't affect the vertical
+    -- flow because it is positioned with floating = true.
+    if phaseTab ~= nil then
+        sections[#sections+1] = phaseTab
     end
 
     return gui.Panel{
@@ -817,13 +951,10 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
     -- If the remote display is already showing for this user, do an
     -- incremental update: replace the embedded roll info and update
     -- section highlighting without rebuilding the full ability tooltip.
-    if g_remoteDisplayUserId == shareData.userid
-        and g_remoteAbilityPanel ~= nil
-        and g_remoteAbilityPanel.valid
-    then
-        -- Only rebuild the roll info panel when the rollState changes.
-        -- During "rolling" the tier table has live dice event subscriptions;
-        -- rebuilding it would destroy those and break the animation.
+    if g_remoteDisplayUserId == shareData.userid and g_remoteAbilityPanel ~= nil and g_remoteAbilityPanel.valid then
+        -- Rebuild the roll info panel when data changes, EXCEPT during
+        -- "rolling" where the tier table has live dice event
+        -- subscriptions that would be destroyed by a rebuild.
         local currentRollState = shareData.dialogState
             and shareData.dialogState.rollState or nil
         if currentRollState ~= g_remoteLastRollState then
@@ -832,6 +963,8 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
             if rollInfoPanel ~= nil then
                 g_remoteAbilityPanel:FireEventTree("embedRollDialog", rollInfoPanel)
             end
+        elseif shareData.dialogState ~= nil then
+            g_remoteAbilityPanel:FireEventTree("updateRollDialog", shareData.dialogState)
         end
 
         -- Update section highlighting if changed.
@@ -977,19 +1110,17 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             g_remoteLastSection = nil
             g_remoteLastRollState = nil
 
-            -- Start sharing if this token is on the current turn.
-            if ShouldShareAbility(token) then
-                BeginAbilitySharing(token, ability)
-            end
+            -- Sharing is not started here. It begins in
+            -- HighlightAbilitySection, which is the definitive signal
+            -- that the ability is being actively used (targeting has
+            -- begun) rather than just previewed on hover.
 
             local panel
 
             local needParent = true
 
-                print("ABILITY:: RENDER TRIGGER START", ability.typeName)
             if ability.typeName == "ActiveTrigger" then
                 local triggerInfo = token.properties:GetTriggeredActionInfo(ability:GetText())
-                print("ABILITY:: RENDER TRIGGER", ability:GetText(), json(triggerInfo))
                 if triggerInfo ~= nil then
                     panel = triggerInfo:Render { width = 340, valign = "center" }
                     panel:SetClass("hidden", false)
@@ -1031,7 +1162,6 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
         end,
 
         hideAbility = function(element)
-            ClearAbilityShare()
             element.children = {}
 
             -- The local ability was hidden; re-evaluate whether a remote
@@ -1039,6 +1169,17 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
             g_displayedAbility = nil
             local doc = mod:GetDocumentSnapshot(g_abilityShareDocId)
             RefreshRemoteAbilityDisplay(remoteDisplayPanel, doc.data)
+
+            -- Defer clearing the share so that if the ability is being
+            -- replaced (e.g. targeting finished, cast phase starting),
+            -- the new DisplayAbility call has time to re-establish
+            -- g_displayedAbility before we wipe the share.
+            dmhub.Schedule(0.2, function()
+                if mod.unloaded then return end
+                if g_displayedAbility == nil then
+                    ClearAbilityShare()
+                end
+            end)
         end,
     }
 
@@ -1059,17 +1200,22 @@ function CharacterPanel.EmbedDialogInAbility()
     local dialog = GameHud.CreateEmbeddedRollDialog()
 
     local panel = GameHud.instance.abilityDisplay
-    print("HIDE:: DO EMBED")
     panel:FireEventTree("embedRollDialog", dialog)
     return dialog
 end
 
-function CharacterPanel.DisplayAbility(token, ability, symbols)
-    print("MENU:: DISPLAY ABILITY", ability)
+local g_abilityLocked = false
+
+function CharacterPanel.UnlockDisplayAbility()
+    g_abilityLocked = false
+end
+
+function CharacterPanel.DisplayAbility(token, ability, symbols, options)
     if (not GameHud.instance) or (not GameHud.instance.abilityDisplay) then
-        print("MENU:: DISPLAY ABILITY FAILED")
         return false
     end
+
+    options = options or {}
 
     local panel = GameHud.instance.abilityDisplay
 
@@ -1077,17 +1223,25 @@ function CharacterPanel.DisplayAbility(token, ability, symbols)
         return p:HasClass("embeddedRollDialog")
     end)
     if embeddedRoll ~= nil then
-        print("MENU:: ALREADY HAVE AN ABILITY")
         --could not displace existing ability.
-        --return false
+        if g_abilityLocked then
+            return false
+        end
 
-        --displace existing ability.
-        CharacterPanel.HideAbility(g_displayedAbility)
+        -- Displace the existing ability visually, but do NOT clear
+        -- sharing or g_displayedAbility. This path is hit when the
+        -- same ability transitions from targeting to casting (e.g. the
+        -- player clicked a target). Sharing should continue
+        -- uninterrupted -- showAbility is about to fire next and will
+        -- repopulate the panel.
+        panel.children = {}
     end
 
-        print("MENU:: DISPLAY ABILITY SHOWING")
-
     panel:FireEventTree("showAbility", token, ability, symbols)
+
+    if options.lock then
+        g_abilityLocked = true
+    end
 
     return true
 end
@@ -1099,6 +1253,18 @@ function CharacterPanel.HighlightAbilitySection(options)
 
     local panel = GameHud.instance.abilityDisplay
     panel:FireEventTree("showAbilitySection", options)
+
+    -- Begin sharing if we haven't already. HighlightAbilitySection is
+    -- the definitive signal that the ability is being actively used
+    -- (targeting has begun), regardless of how the ability was activated
+    -- (direct click vs action bar menu).
+    if g_sharingData == nil
+        and options.caster ~= nil
+        and g_displayedAbility ~= nil
+        and ShouldShareAbility(options.caster)
+    then
+        BeginAbilitySharing(options.caster, g_displayedAbility)
+    end
 
     -- Update the shared document with the new section.
     if g_sharingData ~= nil then
@@ -1123,14 +1289,9 @@ function CharacterPanel.UpdateAbilitySharing(data)
 end
 
 function CharacterPanel.HideAbility(ability)
-    print("ABILITY:: HIDE", ability)
     if (not GameHud.instance) or (not rawget(GameHud.instance, "abilityDisplay")) then
         return
     end
-
-    -- Clear sharing immediately when the ability hides, even if the
-    -- visual hide is deferred (e.g. ctrl held).
-    ClearAbilityShare()
 
     local panel = GameHud.instance.abilityDisplay
 

@@ -2762,6 +2762,7 @@ function CreateTokenHud(token)
             interactable = false,
             blocksGameInteraction = false,
             inworld = true,
+            worldspace = true,
 
 		    children = childPanels.bottom,
 

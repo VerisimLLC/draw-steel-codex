@@ -4,6 +4,7 @@ local mod = dmhub.GetModLoading()
 
 local g_holdingRollOpen = false
 dmhub.HoldAmendableRollOpen = function()
+    print("ROLL:: HOLD OPEN:", g_holdingRollOpen)
     return g_holdingRollOpen
 end
 
@@ -845,7 +846,7 @@ function GameHud.CreateEmbeddedRollDialog()
         if m_multitargets ~= nil then
             local mainIdx = GetCurrentMultiTarget()
             local mainTarget = mainIdx ~= nil and m_multitargets[mainIdx]
-            if mainTarget ~= nil then
+            if mainTarget then
                 for _, trig in ipairs(mainTarget.triggers or {}) do
                     triggers[#triggers+1] = {
                         name = trig.modifier and trig.modifier.name or "",
@@ -2595,7 +2596,11 @@ function GameHud.CreateEmbeddedRollDialog()
         fontSize = 20,
         events = {
             press = function(element)
-                resultPanel:FireEvent('submit')
+                if string.find(rollInput.text, "d") ~= nil then
+                    dice.Click()
+                else
+                    resultPanel:FireEvent('submit')
+                end
             end,
             enter = function(element)
                 print("RollDialog:: ENTER")
@@ -2703,7 +2708,7 @@ function GameHud.CreateEmbeddedRollDialog()
                     thinkTime = 0.01,
 
                     create = function(element)
-                        element:SetAsDicePreviewPanel()
+                        element:SetAsDicePreviewPanel(true)
                     end,
 
                     hover = function(element)

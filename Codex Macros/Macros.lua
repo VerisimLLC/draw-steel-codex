@@ -1361,4 +1361,8 @@ if devmode() then
         dmhub.ImportAllTables()
         dmhub.ImportAllMonsters()
     end
+
+    Commands.gc = function(str)
+        collectgarbage("collect")
+    end
 end

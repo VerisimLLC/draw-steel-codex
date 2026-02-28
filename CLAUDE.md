@@ -107,6 +107,8 @@ mod:RegisterDocumentForCheckpointBackups("myDocId")
 ### UI (gui panels)
 UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. Panels are declarative tables with style properties and event callbacks (`click`, `change`, `create`, `think`, `refreshGame`). Panels that need to react to data changes use `monitorstate` or `monitor` fields.
 
+See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
+
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`.
 

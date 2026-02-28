@@ -1,9 +1,9 @@
 local mod = dmhub.GetModLoading()
 
 local g_settingTimeline = setting{
-    id = "rolltimeline",
+    id = "rolltimelinedialog",
     description = "Timeline Dialog",
-    default = false,
+    default = true,
     editor = "check",
     --section = "General",
     storage = "preference",
@@ -1049,10 +1049,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local dialog = GameHud.instance.rollDialog
 
-    print("Timeline::", g_settingTimeline:Get())
     if g_settingTimeline:Get() then
 
-        local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols)
+        local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
         print("Timeline:: Displaying:", displaying)
 
         if displaying then
@@ -1213,6 +1212,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
             holdOpenRefreshAt = nil
         end
     end
+
+    CharacterPanel.UnlockDisplayAbility()
 
     if refreshAtPanel ~= nil and refreshAtPanel.valid then
         refreshAtPanel:FireEvent("clearInteracting")

@@ -347,7 +347,7 @@ local function ImportObjectsDialog(filePaths, progressPanel)
 						operation.progress = percent
 						operation:Update()
 					end,
-					complete = function()
+					complete = function(guids)
 						operation.progress = 1
 						operation:Update()
 					end,
@@ -572,4 +572,90 @@ end
 
 mod.shared.ImportObjects = function()
 	ImportObjectsWizard()
+end
+
+print("Import:: Registered object import")
+dmhub.ObjectDirectImport = function(path, point)
+    print("Import:: Object import:", path, point.x, point.y)
+
+    dmhub.Coroutine(function()
+
+        local importer = dmhub.CreateObjectImporter{ paths = {path}, threshold = 0, breakup = false }
+
+
+		local operation = nil
+        local finished = false
+        
+        local t = dmhub.Time()
+        
+        dmhub.CreateNetworkOperation()
+
+        while importer.percentComplete < 1 do
+            print("Import:: waiting...", importer.percentComplete)
+            coroutine.yield(0.1)
+        end
+
+        --make sure the importer has to calculate the textures.
+        local _ = importer.sizeInfo
+
+        importer:Upload{
+            progress = function(percent, desc)
+                if operation ~= nil then
+                    operation.progress = percent - 0.01
+                    operation:Update()
+                end
+                print("Import:: progress...", percent)
+            end,
+            complete = function(guids)
+                if operation ~= nil then
+                    operation.progress = 0.99
+                    operation:Update()
+                end
+                print("Import:: imported object", guids)
+                for _,guid in ipairs(guids) do
+                    dmhub.Coroutine(function()
+                        --wait for the object to be spawnable.
+                        for i=1,100 do
+                            local obj = game.currentFloor:SpawnObjectLocal(guid, {
+                            })
+
+                            print("Import:: Spawned:", obj ~= nil)
+                            if obj ~= nil then
+                                obj.x = point.x
+                                obj.y = point.y
+
+                                obj:Upload()
+                                break
+                            else
+                                coroutine.yield(0.01)
+                            end
+                        end
+
+                    end)
+                end
+
+                finished = true
+
+            end,
+            error = function()
+                finished = true
+                print("Import:: Error importing")
+            end,
+        }
+
+        while not finished do
+            if operation == nil and dmhub.Time() > t + 1 then
+                operation = dmhub.CreateNetworkOperation()
+                operation.progress = 0
+                operation.description = "Uploading Objects"
+                operation.status = "Uploading..."
+                operation:Update()
+            end
+        end
+
+        if operation ~= nil then
+            operation.progress = 1
+            operation:Update()
+        end
+    end)
 end

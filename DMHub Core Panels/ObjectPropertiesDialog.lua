@@ -934,7 +934,7 @@ local CreateEditorPanel = function(fieldInfo, displayInfo, options, valueIndex, 
 					flow = "horizontal",
 					halign = "right",
                     rmargin = 8,
-                    y = -40,
+                    y = -20,
                     floating = true,
 
 					gui.Panel{
@@ -2005,18 +2005,18 @@ local CreateObjectEditor = function(nodes, options)
 
 						if group == nil then
 							local childrenPanel = gui.Panel{
-								classes = {"collapsed"},
+								classes = {"groupingPanel", "collapsed"},
 								flow = "vertical",
 								width = "100%",
 								height = "auto",
 								vpad = 5,
 							}
 							group = gui.Panel{
-								width = "100%",
+								width = "95%",
 								height = "auto",
 								flow = "vertical",
 								bgimage = 'panels/square.png',
-								bgcolor = "#33336699",
+								bgcolor = "#222222ff",
 								cornerRadius = 12,
 								vmargin = 4,
 
@@ -2031,7 +2031,8 @@ local CreateObjectEditor = function(nodes, options)
 									width = "90%",
 									height = "auto",
 									halign = "left",
-									pad = 2,
+                                    hpad = 2,
+									vpad = 0,
 									gui.Panel{
 										bgimage = 'panels/triangle.png',
 										styles = gui.TriangleStyles,
@@ -2851,7 +2852,7 @@ local function CreateObjectEditorPanel()
 			},
 			{
 				selectors = {"field-editor-panel"},
-				bgcolor = '#33333399',
+				bgcolor = '#222222ff',
 				width = "90%",
 				minHeight = 40,
 				height = "auto",
@@ -2862,6 +2863,10 @@ local function CreateObjectEditorPanel()
 				margin = 4,
 				flow = 'vertical',
 			},
+            {
+                selectors = {"field-editor-panel", "parent:groupingPanel"},
+                width = "100%",
+            },
 			{
 				selectors = {"field-description-label"},
 				priority = 4,
@@ -2955,7 +2960,7 @@ local function CreateObjectEditorPanel()
 				local createEditorFunction
 				createEditorFunction = function()
 					return CreateObjectEditor(objects, {
-						sliderWidth = 160,
+						sliderWidth = 220,
 						labelWidth = 30,
 						addPropertyText = 'Add...', --the text to use to add properties. This is the short version for a smaller area.
 						objectInstances = true, --this signals that we are editing actual object instances, not blueprints.

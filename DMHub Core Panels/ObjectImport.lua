@@ -588,8 +588,6 @@ dmhub.ObjectDirectImport = function(path, point)
         
         local t = dmhub.Time()
         
-        dmhub.CreateNetworkOperation()
-
         while importer.percentComplete < 1 do
             print("Import:: waiting...", importer.percentComplete)
             coroutine.yield(0.1)
@@ -651,6 +649,7 @@ dmhub.ObjectDirectImport = function(path, point)
                 operation.status = "Uploading..."
                 operation:Update()
             end
+            coroutine.yield(0.1)
         end
 
         if operation ~= nil then

@@ -587,10 +587,15 @@ function CharacterFeatureChoice:GetEntries(creature)
 	local result = {}
 	for _,f in ipairs(options) do
 		--make sure the creature meets the pre-requisites for this feature.
-		for i,prerequisite in ipairs(f:try_get("prerequisites", {})) do
-			if prerequisite:Met(creature) then
-				result[#result+1] = f
+		local prereqs = f:try_get("prerequisites", {})
+		if #prereqs > 0 then
+			for i,prerequisite in ipairs() do
+				if prerequisite:Met(creature) then
+					result[#result+1] = f
+				end
 			end
+		else
+			result[#result+1] = f
 		end
 	end
 

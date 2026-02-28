@@ -1209,10 +1209,13 @@ local function AbilityHeading(args)
                                                 click = function()
                                                     element.popup = nil
 
-                                                    element.root:AddChild(m_ability:ShowEditActivatedAbilityDialog{
+                                                    -- Get the original ability from the parent object
+                                                    local originalAbility = GetObjectAtPath(obj, path)
+                                                    
+                                                    element.root:AddChild(originalAbility:ShowEditActivatedAbilityDialog{
                                                         close = function()
-                                                            --Use found path to locate ability in parent object
-                                                            SetObjectAtPath(obj, path, m_ability)
+                                                            --Use found path to save edited ability back to parent object
+                                                            SetObjectAtPath(obj, path, originalAbility)
                         
                                                             -- Upload the parent object
                                                             dmhub.SetAndUploadTableItem(tableid, obj)

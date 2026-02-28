@@ -3553,10 +3553,19 @@ function creature:DispatchEventAndWait(eventName, info)
         end
     end
 
-    --wait for event or trigger to be dismissed
-    local clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
-    while not eventComplete and not clearedTriggers[triggerId] do
-        clearedTriggers = self:get_or_add("_tmp_clearedTriggers", {})
+    --wait for event to complete or trigger to be dismissed
+    local triggerStillExists = true
+    while not eventComplete and triggerStillExists do
+        -- Check if trigger still exists in available triggers
+        triggerStillExists = false
+        if triggerId then
+            for _, triggerInfo in pairs(self:GetAvailableTriggers() or {}) do
+                if triggerInfo.id == triggerId then
+                    triggerStillExists = true
+                    break
+                end
+            end
+        end
         coroutine.yield(0.1)
     end
 end

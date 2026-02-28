@@ -583,7 +583,18 @@ end
 function CharacterFeatureChoice:GetEntries(creature)
 	local levelChoices = creature:GetLevelChoices() or {}
 	local options = self:GetOptions(levelChoices)
-	return options
+
+	local result = {}
+	for _,f in ipairs(options) do
+		--make sure the creature meets the pre-requisites for this feature.
+		for i,prerequisite in ipairs(f:try_get("prerequisites", {})) do
+			if prerequisite:Met(creature) then
+				result[#result+1] = f
+			end
+		end
+	end
+
+	return result
 end
 
 function CharacterFeatureChoice:GetOptions(choices)

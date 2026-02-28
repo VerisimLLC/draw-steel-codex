@@ -703,7 +703,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 width = "95%-30",
                 height = 20,
                 halign = "left",
-                placeholderText = "Search complications...",
+                placeholderText = "Start typing to search. Use > for starts with.",
                 editlag = 0.5,
                 data = {
                     featureId = feature:GetGuid()

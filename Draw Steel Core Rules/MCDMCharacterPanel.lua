@@ -4175,7 +4175,7 @@ function CharacterPanel.CharacteristicsPanel(token)
                 local potency = m_token.properties:AttributeForPotencyResistance(attrid)
                 if m_token.properties:GetAttribute(attrid):Modifier() ~= potency then
                     local attrName = creature.attributesInfo[attrid].description
-                    text = string.format("Your %s counts as %s for resisting potencies.\nBasic Might Score: %d", attrName, ModifierStr(potency), m_token.properties:GetAttribute(attrid):Value())
+                    text = string.format("Your %s counts as %s for resisting potencies.\nBasic %s Score: %d", attrName, ModifierStr(potency), attrName,  m_token.properties:GetAttribute(attrid):Value())
                     local modifications = m_token.properties:AttributeForPotencyResistanceDescription(attrid)
                     for _,modification in ipairs(modifications) do
                         text = string.format("%s\n%s: %s", text, modification.key, modification.value)

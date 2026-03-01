@@ -1,4 +1,4 @@
---- @class MonsterAsset:GameAsset 
+--- @class MonsterAsset:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 MonsterAsset = {}
 
 --- MatchesSearch

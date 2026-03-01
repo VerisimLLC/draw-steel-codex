@@ -1,4 +1,4 @@
---- @class LuaCore 
+--- @class LuaCore Core utility functions for creating primitive Lua types such as Color, Loc, Vector2, Vector3, and Vector4.
 LuaCore = {}
 
 --- Color: Examples:

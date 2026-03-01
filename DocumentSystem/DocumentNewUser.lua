@@ -1,5 +1,14 @@
 local mod = dmhub.GetModLoading()
 
+local g_showDirectorWelcome = setting{
+    id = "showdirectorwelcome",
+    description = "Show Adventure Progress on Start",
+    storage = "pergamepreference",
+    default = true,
+    editor = "check",
+    section = "Game",
+}
+
 function ShowDocumentOnStart(docname)
     dmhub.Coroutine(function()
 
@@ -28,6 +37,10 @@ end
 
 dmhub.RegisterEventHandler("EnterGame", function()
     if dmhub.isDM then
+        if not g_showDirectorWelcome:Get() then
+            return
+        end
+
         local adventuresDocument = GetCurrentAdventuresDocument()
         local docid = nil
         local bestOrd = nil

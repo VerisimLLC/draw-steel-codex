@@ -19,7 +19,7 @@ local function IsTokenOnCurrentTurn(token)
     end
 
     local currentId = q.currentTurn
-    if currentId == nil then
+    if not currentId then
         return false
     end
 
@@ -626,7 +626,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 element.thinkTime = 0.1
 
                 -- If there are no dice at all, just show the final tier.
-                if m_numDice == 0 then
+                if m_numDice == 0 and rollMsg.total ~= nil then
                     local tier = RollUtils.DiceResultToTier(rollMsg)
                     for idx, row in ipairs(element.children) do
                         row:SetClassTree("highlight", idx == tier)
@@ -706,7 +706,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 -- When all dice have settled, lock in the final tier
                 -- using the authoritative result from the rollMsg,
                 -- matching the pattern in MCDMAbilityRollBehavior.lua.
-                if not d.m_finished and d.m_endTime ~= nil and dmhub.Time() > d.m_endTime then
+                if not d.m_finished and d.m_endTime ~= nil and dmhub.Time() > d.m_endTime and d.rollMsg.total ~= nil then
                     d.m_finished = true
                     local finalTier = RollUtils.DiceResultToTier(d.rollMsg)
                     for idx, row in ipairs(element.children) do
@@ -723,7 +723,6 @@ local function CreateReadOnlyRollInfo(shareData)
                     element.thinkTime = 0
                     element.root:FireEventTree("rollDiceSettled")
                 end
-
             end,
         }
 

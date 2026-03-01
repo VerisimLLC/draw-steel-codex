@@ -1,11 +1,11 @@
---- @class Vector2 
---- @field tostring any 
---- @field Item any 
---- @field x any 
---- @field y any 
---- @field length any 
---- @field unit any 
---- @field angle any 
+--- @class Vector2 Represents a 2D vector with x and y components.
+--- @field tostring string String representation of this vector.
+--- @field Item number Access vector components by index (0=x, 1=y).
+--- @field x number The x component.
+--- @field y number The y component.
+--- @field length number The magnitude (length) of the vector.
+--- @field unit Vector2 A normalized (unit length) copy of this vector.
+--- @field angle number The signed angle in degrees from the up direction (0,1) to this vector.
 Vector2 = {}
 
 --- DeepCopy
@@ -28,9 +28,9 @@ function Vector2:Equals(other)
 	-- dummy implementation for documentation purposes only
 end
 
---- Rotate
+--- Rotate: Returns this vector rotated by the given number of degrees.
 --- @param degrees number
---- @return any
+--- @return Vector2
 function Vector2:Rotate(degrees)
 	-- dummy implementation for documentation purposes only
 end

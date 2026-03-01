@@ -1,11 +1,11 @@
---- @class LuaGameSession 
+--- @class LuaGameSession Represents an active player session in the game, providing access to connection info, display name, and performance data.
 --- @field version nil|string (Read-only) the version of the engine the user is using.
 --- @field perf {min: number, max: number, mean: number, median: number, screenWidth: number, screenHeight: number, meanCPU: number, meanGPU: number} Performance information from the user.
---- @field loggedOut boolean 
---- @field displayName string 
---- @field displayColor color 
---- @field richStatus nil|string 
---- @field timeSinceLastContact number 
---- @field dm boolean 
---- @field primaryCharacter string 
+--- @field loggedOut boolean True if this player has logged out of the session.
+--- @field displayName string The player's display name.
+--- @field displayColor Color The player's display color.
+--- @field richStatus nil|string The player's rich status text, or nil if none is set.
+--- @field timeSinceLastContact number Time in seconds since the last contact from this player.
+--- @field dm boolean True if this player is the Dungeon Master.
+--- @field primaryCharacter string The identifier of this player's primary character.
 LuaGameSession = {}

@@ -1,9 +1,9 @@
---- @class Vector3 
---- @field tostring any 
---- @field Item any 
---- @field x any 
---- @field y any 
---- @field z any 
+--- @class Vector3 Represents a 3D vector with x, y, and z components.
+--- @field tostring string String representation of this vector.
+--- @field Item number Access vector components by index (0=x, 1=y, 2=z).
+--- @field x number The x component.
+--- @field y number The y component.
+--- @field z number The z component.
 Vector3 = {}
 
 --- DeepCopy

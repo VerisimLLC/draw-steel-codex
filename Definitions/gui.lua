@@ -1,4 +1,4 @@
---- @class gui 
+--- @class gui Factory class for creating GUI elements such as panels, labels, inputs, and tables in the sheet system.
 gui = {}
 
 --- Style: Create a Style
@@ -22,9 +22,9 @@ function gui.Carousel(table)
 	-- dummy implementation for documentation purposes only
 end
 
---- MapImport
---- @param table any
---- @return any
+--- MapImport: Create a MapImport panel for importing map files.
+--- @param table table The map import configuration.
+--- @return Panel
 function gui.MapImport(table)
 	-- dummy implementation for documentation purposes only
 end
@@ -57,54 +57,52 @@ function gui.Input(table)
 	-- dummy implementation for documentation purposes only
 end
 
---- RegisterTheme
---- @param themeid any
---- @param sectionid any
---- @param styles any
---- @return nil
+--- RegisterTheme: Registers style overrides for a theme section.
+--- @param themeid string The theme ID.
+--- @param sectionid string The section within the theme.
+--- @param styles table The style overrides to register.
 function gui.RegisterTheme(themeid, sectionid, styles)
 	-- dummy implementation for documentation purposes only
 end
 
---- CreateTheme
---- @param themeType any
---- @return any
+--- CreateTheme: Creates a new sheet theme with the given type and a generated GUID.
+--- @param themeType string The theme type identifier.
+--- @return LuaSheetTheme
 function gui.CreateTheme(themeType)
 	-- dummy implementation for documentation purposes only
 end
 
---- Gradient
---- @param value any
---- @return any
+--- Gradient: Creates a style gradient from the given configuration table.
+--- @param value table The gradient configuration.
+--- @return StyleGradientLua
 function gui.Gradient(value)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkdownStyle
---- @param value any
---- @return any
+--- MarkdownStyle: Creates a markdown style configuration from the given table.
+--- @param value table The markdown style settings.
+--- @return MarkdownStyle
 function gui.MarkdownStyle(value)
 	-- dummy implementation for documentation purposes only
 end
 
---- TryGetImageDimensions
---- @param imageid string
---- @return any
+--- TryGetImageDimensions: Tries to get the dimensions of an image by ID. Returns a table with width, height, and ppu fields, or nil if not available.
+--- @param imageid string The image asset ID.
+--- @return nil|table
 function gui.TryGetImageDimensions(imageid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetImageDimensionsCallback
---- @param imageid string
---- @param f any
---- @return nil
+--- GetImageDimensionsCallback: Asynchronously gets image dimensions and calls the callback with a table containing width, height, and ppu.
+--- @param imageid string The image asset ID.
+--- @param f function Callback receiving a table with width, height, and ppu.
 function gui.GetImageDimensionsCallback(imageid, f)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetSheetById
---- @param id string
---- @return any
+--- GetSheetById: Finds a sheet panel by its ID across all top-level sheets. Returns nil if not found.
+--- @param id string The panel ID.
+--- @return nil|Panel
 function gui.GetSheetById(id)
 	-- dummy implementation for documentation purposes only
 end

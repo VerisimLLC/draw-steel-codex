@@ -823,7 +823,6 @@ function CustomDocument:PresentDocument(args)
 
     }
 
-    local a = table.shallow_copy(args)
     args.dialog = dialog
     local mainPanel = self:CreateInterface(args)
     dialog:AddChild(mainPanel)

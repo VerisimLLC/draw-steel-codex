@@ -1,4 +1,4 @@
---- @class SheetTheme:GameAsset 
+--- @class SheetTheme:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 SheetTheme = {}
 
 --- GetBaseTheme

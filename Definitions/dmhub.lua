@@ -15,59 +15,60 @@
 --- @field GetSelectedFloor fun(): string|nil A function that can be set to tell the engine which floor asset id is selected in the UI.
 --- @field GetSelectedWall fun(): string|nil A function that can be set to tell the engine which wall asset id is selected in the UI.
 --- @field GetSelectedEffect fun(): string|nil A function that can be set to tell the engine which effect asset id is selected in the UI.
---- @field SelectTerrain fun(terrainid: string): nil 
---- @field SelectFloor fun(floorid: string): nil 
---- @field SelectWall fun(wallid: string): nil 
---- @field SelectEffect fun(effectid: string): nil 
---- @field ObjectsSelected fun(objectids: string[]): nil 
+--- @field SelectTerrain fun(terrainid: string): nil A function that can be set to select a terrain asset by id in the UI.
+--- @field SelectFloor fun(floorid: string): nil A function that can be set to select a floor asset by id in the UI.
+--- @field SelectWall fun(wallid: string): nil A function that can be set to select a wall asset by id in the UI.
+--- @field SelectEffect fun(effectid: string): nil A function that can be set to select an effect asset by id in the UI.
+--- @field ObjectsSelected fun(objectids: string[]): nil A function that is called when objects are selected on the map, receiving a list of object ids.
 --- @field GetLightingInfo fun(floorid: string): {cacheable: boolean, indoors: Color, outdoors: Color, illumination: number, shadow: {dir: Vector2, color: Color} } A function that can be set to tell the engine what the current lighting looks like. It will be called every frame to set the lighting.
---- @field ObjectEditingEnabled fun(): boolean 
---- @field SelectionToolEnabled fun(): boolean 
---- @field GetActiveClipboardItem fun(): ClipboardItem 
---- @field TokenVisionUpdated fun(): nil 
---- @field GetFocus fun(): Panel|nil 
---- @field CreateLootComponent fun(): table 
---- @field CreateTextComponent fun(): table 
---- @field GetObjectInteractives fun(): table 
---- @field ShowObjectInteractive any 
---- @field CreateObjectInteractive fun(): table 
+--- @field ObjectEditingEnabled fun(): boolean A function that returns whether object editing mode is currently enabled in the UI.
+--- @field SelectionToolEnabled fun(): boolean A function that returns whether the selection tool is currently enabled in the UI.
+--- @field GetActiveClipboardItem fun(): ClipboardItem A function that returns the currently active clipboard item, if any.
+--- @field TokenVisionUpdated fun(): nil A function that is called when token vision has been recalculated and updated.
+--- @field GetFocus fun(): Panel|nil A function that returns the currently focused UI panel, or nil if nothing is focused.
+--- @field CreateLootComponent fun(): table A function that creates a loot component table for attaching to an object.
+--- @field CreateTextComponent fun(): table A function that creates a text component table for attaching to an object.
+--- @field GetObjectInteractives fun(): table A function that returns the list of interactive components available for objects.
+--- @field ShowObjectInteractive fun(): nil A function that is called to show the object interactive UI.
+--- @field CreateObjectInteractive fun(): table A function that creates an interactive component table for attaching to an object.
 --- @field CreateGameHud fun(container: SheetContainer, sheethud: SheetHud): Panel 
 --- @field DataStreamed fun(eventName: string, path: string, payload: string): nil 
 --- @field DataTransmitted fun(method: string, path: string, payload: string): nil 
 --- @field DistanceDisplayFunction fun(distance: number): string Given a distance in the world, converts to a string ready to be displayed to the player.
 --- @field RankPrimaryToken fun(creature: Creature): number|nil Given a creature, this function should return a score to reflect how likely this creature is to be a player character. It is used so if a player has control of multiple tokens, to determine which one, by default, is considered their primary character.
---- @field GetActiveWhiteboardTool fun(): { tool: string, color: Color, width: Number } 
---- @field CancelEditing fun(sheet: Sheet): boolean 
---- @field GetSymbolTypesDocumentation fun(typename: string): nil|{name: string, type: string, desc: string}[] 
+--- @field GetActiveWhiteboardTool fun(): { tool: string, color: Color, width: Number } A function that returns the currently active whiteboard drawing tool and its settings.
+--- @field CancelEditing fun(sheet: Sheet): boolean A function that attempts to cancel editing a sheet, returning true if editing was successfully cancelled.
+--- @field GetSymbolTypesDocumentation fun(typename: string): nil|{name: string, type: string, desc: string}[] A function that returns documentation for symbol types of the given type name, or nil if not found.
 --- @field IsDialogOpen fun(): boolean Function that can be used to communicate to the engine whether a modal dialog is currently open.
---- @field SetTokenSize fun(token: CharacterToken, sizeid: string): nil 
---- @field ShowGameContextMenu fun(entries: {text: string, tooltip: string, icon: string, click: fun(): nil}[]): nil 
---- @field CreateKeyFrameComponent fun(): table 
---- @field CreateEventHandlerComponent fun(): table 
---- @field CreateEventTriggerComponent fun(): table 
---- @field CreateDataInputComponent fun(): table 
---- @field CreateDataOutputComponent fun(): table 
---- @field TokensAreFriendly fun(a: CharacterToken, b: CharacterToken): boolean 
---- @field DescribeToken fun(token: CharacterToken): string 
+--- @field SetTokenSize fun(token: CharacterToken, sizeid: string): nil A function that sets the size of a token to the given size id.
+--- @field ShowGameContextMenu fun(entries: {text: string, tooltip: string, icon: string, click: fun(): nil}[]): nil A function that displays a context menu with the given entries when right-clicking in the game.
+--- @field CreateKeyFrameComponent fun(): table A function that creates a keyframe animation component table for attaching to an object.
+--- @field CreateEventHandlerComponent fun(): table A function that creates an event handler component table for attaching to an object.
+--- @field CreateEventTriggerComponent fun(): table A function that creates an event trigger component table for attaching to an object.
+--- @field CreateDataInputComponent fun(): table A function that creates a data input component table for attaching to an object.
+--- @field CreateDataOutputComponent fun(): table A function that creates a data output component table for attaching to an object.
+--- @field TokensAreFriendly fun(a: CharacterToken, b: CharacterToken): boolean A function that determines whether two tokens are considered friendly to each other.
+--- @field DescribeToken fun(token: CharacterToken): string A function that returns a human-readable description of the given token.
 --- @field DataError fun(message: string): nil Function which is called by the engine when a networking error occurs allowing display of a message to the user.
 --- @field GetHeightEditingInfo fun(): {opacity: number, blend: number, height: number, directional: boolean} Editor callback function: Used to determine what height editing options the user has selected in the UI.
 --- @field SelectHeight fun(height: number): nil Editor callback function: Used when the user uses the eyedropper tool to select a height to notify the interface what height they selected.
 --- @field GetWallHeight fun(): number Editor callback function: Used to determine the height the user is currently editing walls at.
---- @field CreateTargetableComponent fun(): table 
---- @field CreateCorpseComponent fun(): table 
---- @field TokenMovingOnPath fun(args: {token: CharacterToken, path: Path, position: vector3, delta: vector3, distanceMoved: number}): nil 
+--- @field CreateTargetableComponent fun(): table A function that creates a targetable component table for attaching to an object.
+--- @field CreateCorpseComponent fun(): table A function that creates a corpse component table for attaching to an object.
+--- @field TokenMovingOnPath fun(args: {token: CharacterToken, path: Path, position: vector3, delta: vector3, distanceMoved: number}): nil A function that is called each frame while a token is moving along a path, receiving movement details.
 --- @field GetSelectedEncounter fun(): {groups = table<string,number>[]}|nil A function that can be set to tell the engine which encounter is currently selected. The selected encounter should be deployable onto the map.
 --- @field CreateAuraComponent fun(): table A function that creates an aura component to attach to an object.
+--- @field ObjectDirectImport fun(string, vector3): nil A function that is called when we directly import an object.
 --- @field tokensLoggedInAs nil|string[] If the GM is forcibly logged in as a token or set of tokens so they can view through their eyes, this returns a list of the token ids that the GM is logged in as.
 --- @field tokenVision nil|string[] If the GM is viewing token vision this is equal to a list of the tokenids whose vision the GM is seeing through.
---- @field blockTokenSelection boolean 
---- @field tokenInfo SheetHud 
+--- @field blockTokenSelection boolean Whether token selection via clicking is currently blocked.
+--- @field tokenInfo SheetHud The SheetHud instance that displays token information in the UI.
 --- @field diagnosticStatus string (read-only) The most important diagnostic message to display to the user currently, or an empty string if there is none.
 --- @field status string (read-only) A general status message that describes the mouse's position in world space and information about the tile the user is pointing at, such as its terrain type and position.
 --- @field uploadQuotaTotal number The amount of data this user can upload each month, in bytes.
 --- @field uploadQuotaRemaining number The remaining data this user can upload this month, in bytes.
 --- @field singleFileUploadQuota number The maximum size file the user can upload, in bytes.
---- @field singleFilePatreonUpgradeMessage any 
+--- @field singleFilePatreonUpgradeMessage string The message displayed to the user explaining how to upgrade their Patreon tier to get larger single-file uploads.
 --- @field currentTerrainFill string|nil The terrain background the map currently has set. Nil means no background.
 --- @field MapExport MapExportCameraLua The MapExport interface which allows export of a map to an image or video.
 --- @field tablesUpdateId number A number which increases by 1 every time the compendium assets are updated. Can save this value and then compare to it later to see if the compendium has changed at all since we last checked.
@@ -89,31 +90,31 @@
 --- @field isLobbyGame boolean (read-only) true if in lobby
 --- @field gameid string (Read-only) The gameid of the current game.
 --- @field editorMode boolean (Read-only) returns true if the user is doing some kind of map/game editing, rather than in normal play mode.
---- @field undoState any 
---- @field connectionErrorStatus any 
---- @field patronTier number 
---- @field subscriptionTier number 
---- @field isAdminAccount boolean 
+--- @field undoState table (Read-only) Returns a table describing the current undo/redo state for user editing actions.
+--- @field connectionErrorStatus any The current connection error status, if any. Used to display connection issues to the user.
+--- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
+--- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
+--- @field isAdminAccount boolean True if the current user has admin privileges on their account.
 --- @field hasStoreAccess boolean (Read-only) controls whether there is a store in this version of the app.
 --- @field networkLogLevel number The log level we use for networking messages. 0 = all, 1 = information, 2 = warning, 3 = error, 4 = exception, 5 = none
---- @field activeObjectsPath string 
+--- @field activeObjectsPath string The game path pattern pointing to active objects. Can be used with monitorGame on a panel to monitor for object changes.
 --- @field users string[] (Read-only) A list of userids of all users in the game. You may call @see GetSessionInfo to find more information about each of them.
 --- @field despawnedTokens CharacterToken[] (Read-only) A list of all tokens that are on the current map but despawned from it.
 --- @field despawnedTokensCount number (Read-only) The number of despawned tokens on this map.
 --- @field allTokens CharacterToken[] (Read-only) A list of all tokens active and deployed on the map.
 --- @field allTokensIncludingObjects CharacterToken[] (Read-only) A list of all tokens active and deployed on the map, including object tokens.
 --- @field allObjectTokens CharacterToken[] (Read-only) A list of all object tokens active and deployed on the map.
---- @field selectedTokens CharacterToken[] 
+--- @field selectedTokens CharacterToken[] The list of currently selected tokens. Can be set to change the selection.
 --- @field currentToken nil|CharacterToken (Read-only) the token the player is assumed to be currently controlling -- the token they have control of and is selected, or their primary character. May return nil, though it won't if the player has a PC assigned to them.
 --- @field selectedOrPrimaryTokens CharacterToken[] (Read-only) a list consisting of the tokens selected, or the 'primary' token of the player if there is one. This can be used to get the token the player is presumably acting as if they perform an action. May return an empty list but does not return nil.
 --- @field primaryCharacter CharacterToken|nil (Read-only) the primary character for the current player. This can be an off-map token.
 --- @field tokenHovered nil|CharacterToken (Read-only) Gets the currently hovered token, or nil if there is none.
 --- @field modKeys @return {ctrl: nil|boolean, alt: nil|boolean, shift: nil|boolean} Returns which mod keys are currently depressed.
 --- @field mouseWheel @return number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
---- @field screenDimensions Vector2 
---- @field screenDimensionsBelowTitlebar Vector2 
---- @field uiVerticalScale number 
---- @field uiVerticalScaleBelowTitleBar number 
+--- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
+--- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
+--- @field uiVerticalScale number (Read-only) The vertical scale factor of the UI compared to a reference 1920x1080 resolution.
+--- @field uiVerticalScaleBelowTitleBar number (Read-only) The vertical scale factor of the UI below the title bar compared to a reference 1920x1080 resolution.
 --- @field uiscale number (Read-only) the amount the ui is being scaled by horizontally.
 --- @field serverTime number (Read-only) The server time in seconds. Server time is designed to be the same (or at least as close as possible) across all computers connected to the game.
 --- @field serverTimeMilliseconds number (Read-only) The server time in milliseconds. Server time is designed to be the same (or at least as close as possible) across all computers connected to the game.
@@ -134,7 +135,7 @@ function dmhub.TestFunction()
 	-- dummy implementation for documentation purposes only
 end
 
---- RecreateTitlescreen
+--- RecreateTitlescreen: Recreates the title screen UI from scratch.
 --- @return nil
 function dmhub.RecreateTitlescreen()
 	-- dummy implementation for documentation purposes only
@@ -160,7 +161,7 @@ function dmhub.UnloadMod(instanceGuid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetTypeDocumentation
+--- GetTypeDocumentation: Returns documentation for all public members of the given Lua type, including names, types, and descriptions.
 --- @param typeid: string The name of the type to query information about.
 --- @return {name: string, type: string, documentation: string|nil, typeSignature: string|nil}[]
 function dmhub.GetTypeDocumentation(typeid)
@@ -195,10 +196,9 @@ function dmhub.RefreshCharacterSheet()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetImageInfo
---- @param id string
---- @param callback any
---- @return nil
+--- GetImageInfo: Asynchronously retrieves the width and height of an image by its asset id, calling the callback with the result.
+--- @param id string The image asset id to query.
+--- @param callback fun(info: {width: number, height: number}|nil): nil Called with image info or nil if the image could not be loaded.
 function dmhub.GetImageInfo(id, callback)
 	-- dummy implementation for documentation purposes only
 end
@@ -268,11 +268,11 @@ function dmhub.ParseJsonFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
---- OpenTextFileInConnectedEditor
---- @param filename string
---- @param contents string
---- @param callback any
---- @return any
+--- OpenTextFileInConnectedEditor: Opens a text file in the user's default editor and watches for changes. Returns a file watcher object, or nil if the filename is invalid.
+--- @param filename string The filename to create and open.
+--- @param contents string The initial contents to write to the file.
+--- @param callback fun(newContents: string): nil Called when the file is modified externally.
+--- @return LuaFileWatcher|nil
 function dmhub.OpenTextFileInConnectedEditor(filename, contents, callback)
 	-- dummy implementation for documentation purposes only
 end
@@ -285,7 +285,7 @@ function dmhub.ReadTextFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
---- WriteTextFile
+--- WriteTextFile: Writes a text file to the user data directory. Only .txt and .json files are allowed. Returns the full path of the written file, or nil if the write failed.
 --- @param directory string
 --- @param filename string
 --- @param contents string
@@ -294,9 +294,9 @@ function dmhub.WriteTextFile(directory, filename, contents)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetTextFilePaths
---- @param directory string
---- @return any
+--- GetTextFilePaths: Returns a list of all .txt and .json file paths in the given user data subdirectory. Returns nil if the directory does not exist.
+--- @param directory string The subdirectory within user data to search.
+--- @return string[]|nil
 function dmhub.GetTextFilePaths(directory)
 	-- dummy implementation for documentation purposes only
 end
@@ -345,7 +345,7 @@ function dmhub.AddAndUploadImageToLibrary(libraryName, imageid)
 	-- dummy implementation for documentation purposes only
 end
 
---- SearchImages
+--- SearchImages: Searches available images for entries matching the given search string. If libraryName is provided, only that library is searched. Returns a list of matching image asset ids.
 --- @param searchString string The string to search for.
 --- @param libraryName string|nil The library to search for.
 --- @return string[] A list of image id's which match the search.
@@ -353,7 +353,7 @@ function dmhub.SearchImages(searchString, libraryName)
 	-- dummy implementation for documentation purposes only
 end
 
---- SearchSounds
+--- SearchSounds: Searches all available audio assets for entries matching the given search string. Returns a list of matching audio asset ids.
 --- @param searchString string The string to search for.
 --- @return string[] A list of audio id's which match the search.
 function dmhub.SearchSounds(searchString)
@@ -368,7 +368,7 @@ function dmhub.ObliterateTableItem(tableName, id)
 	-- dummy implementation for documentation purposes only
 end
 
---- SetAndUploadTableItem
+--- SetAndUploadTableItem: Sets an item in the named data table and uploads it to the cloud. Returns the id of the item. If the item has no id, a new one is generated.
 --- @param tableName string The name of the table the item is in.
 --- @param item table The item to upload to the table.
 --- @param options nil|{ deferUpload: boolean, success: (fun():nil), failure: (fun(message: string): nil) }
@@ -397,7 +397,7 @@ function dmhub.GetTableVisible(tableName)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExportTable: Exports a single object table to JSON files on disk. Creates a subdirectory named after the table containing _table.json (the whole table) and individual .json files per item. Returns nil if the table does not exist.
+--- ExportTable: Exports a single object table to YAML files on disk. Creates a subdirectory named after the table containing _table.yaml (the whole table) and individual .yaml files per item. Returns nil if the table does not exist.
 --- @param tableName string The name of the table to export.
 --- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
 --- @return { itemsExported: number, directory: string }|nil
@@ -405,14 +405,14 @@ function dmhub.ExportTable(tableName, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExportAllTables: Exports all object tables to JSON files on disk. Each table becomes a subdirectory with _table.json and per-item .json files. A _manifest.json is also written listing all table names.
+--- ExportAllTables: Exports all object tables to YAML files on disk. Each table becomes a subdirectory with _table.yaml and per-item .yaml files. A _manifest.yaml is also written listing all table names.
 --- @param options nil|{ directory: string, includeHidden: boolean, individualFiles: boolean }
 --- @return { tablesExported: number, itemsExported: number, directory: string }
 function dmhub.ExportAllTables(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportTable: Imports a single object table from JSON files on disk into memory. Reads _table.json from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
+--- ImportTable: Imports a single object table from YAML files on disk into memory. Reads _table.yaml from the table's subdirectory. Does NOT upload to the cloud -- use UploadAllTables for that. Returns nil if no import source was found.
 --- @param tableName string The name of the table to import into.
 --- @param options nil|{ directory: string }
 --- @return { itemsImported: number, errors: string[] }|nil
@@ -420,7 +420,7 @@ function dmhub.ImportTable(tableName, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportAllTables: Imports all object tables from JSON files on disk into memory. Reads each subdirectory in the export directory as a table. Does NOT upload to the cloud -- use UploadAllTables for that.
+--- ImportAllTables: Imports all object tables from YAML files on disk into memory. Reads each subdirectory in the export directory as a table. Does NOT upload to the cloud -- use UploadAllTables for that.
 --- @param options nil|{ directory: string }
 --- @return { tablesImported: number, itemsImported: number, errors: string[] }
 function dmhub.ImportAllTables(options)
@@ -434,14 +434,14 @@ function dmhub.UploadAllTables(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ExportAllMonsters: Exports all bestiary monsters to JSON files on disk. Each monster becomes a separate .json file in the export directory, named after the monster. A _manifest.json listing all monsters is also written.
+--- ExportAllMonsters: Exports all bestiary monsters to YAML files on disk. Each monster becomes a separate .yaml file in the export directory, named after the monster. A _manifest.yaml listing all monsters is also written.
 --- @param options nil|{ directory: string, includeHidden: boolean }
 --- @return { monstersExported: number, directory: string }
 function dmhub.ExportAllMonsters(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportAllMonsters: Imports bestiary monsters from JSON files on disk into memory. Reads _manifest.json to find each monster file and its original ID, then deserializes each into the in-memory bestiary. Does NOT upload to the cloud -- use UploadAllMonsters for that.
+--- ImportAllMonsters: Imports bestiary monsters from YAML files on disk into memory. Reads _manifest.yaml to find each monster file and its original ID, then deserializes each into the in-memory bestiary. Does NOT upload to the cloud -- use UploadAllMonsters for that.
 --- @param options nil|{ directory: string }
 --- @return { monstersImported: number, errors: string[] }|nil
 function dmhub.ImportAllMonsters(options)
@@ -455,7 +455,7 @@ function dmhub.UploadAllMonsters(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- SearchTable
+--- SearchTable: Searches items in a data table for entries whose string fields match the given search string. Returns a table of matching items, excluding hidden entries.
 --- @param tableName string The name of the table
 --- @param searchString the string to search for.
 --- @param options {fields: string[]} Fields can specify a list of fields that will be searched, rather than searching all fields.
@@ -528,7 +528,7 @@ function dmhub.CancelCurrentRoll()
 	-- dummy implementation for documentation purposes only
 end
 
---- ParseRoll
+--- ParseRoll: Parses a textual roll description into a structured table suitable for passing to Roll().
 --- @param text string
 --- @param lookupFunction function
 --- @param nil|table options
@@ -537,7 +537,7 @@ function dmhub.ParseRoll(text, lookupFunction, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- RollToString
+--- RollToString: Converts a structured roll table into a human-readable string such as '2d6 + 2 [slashing]'.
 --- @param rollInfo any
 --- @return string
 function dmhub.RollToString(rollInfo)
@@ -554,14 +554,14 @@ function dmhub.NormalizeRoll(text, lookupFunction, reason, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetRollAdvantage
+--- GetRollAdvantage: Determines from a roll text string whether it has advantage, disadvantage, or normal rolling. Returns 'advantage', 'disadvantage', or 'normal'.
 --- @param text string
 --- @return string
 function dmhub.GetRollAdvantage(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- ForceRollAdvantage
+--- ForceRollAdvantage: Modifies a roll text string to force the given advantage state. advantageState should be 'advantage', 'disadvantage', or 'normal'.
 --- @param text string
 --- @param advantageState string
 --- @return string
@@ -569,28 +569,28 @@ function dmhub.ForceRollAdvantage(text, advantageState)
 	-- dummy implementation for documentation purposes only
 end
 
---- RollExpectedValue
+--- RollExpectedValue: Returns the expected (average) value of a roll described by the given text.
 --- @param text string
 --- @return number
 function dmhub.RollExpectedValue(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- RollMinValue
+--- RollMinValue: Returns the minimum possible value of a roll described by the given text.
 --- @param text string
 --- @return number
 function dmhub.RollMinValue(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- RollMaxValue
+--- RollMaxValue: Returns the maximum possible value of a roll described by the given text.
 --- @param text string
 --- @return number
 function dmhub.RollMaxValue(text)
 	-- dummy implementation for documentation purposes only
 end
 
---- RegisterGoblinScriptDebugger
+--- RegisterGoblinScriptDebugger: Registers a callback function to be invoked for GoblinScript debugging purposes.
 --- @param callbackFunction any
 --- @return nil
 function dmhub.RegisterGoblinScriptDebugger(callbackFunction)
@@ -614,10 +614,10 @@ function dmhub.EvalGoblinScriptToObject(goblinscript, lookupFunction, reason)
 	-- dummy implementation for documentation purposes only
 end
 
---- CompileGoblinScriptDeterministic
---- @param goblinscript any
---- @param debugOut any
---- @return any
+--- CompileGoblinScriptDeterministic: Compiles a deterministic GoblinScript expression into a reusable Lua function for efficient repeated evaluation.
+--- @param goblinscript string The GoblinScript to compile.
+--- @param debugOut nil|table An optional table where debug info (lua code, errors) will be written.
+--- @return function
 function dmhub.CompileGoblinScriptDeterministic(goblinscript, debugOut)
 	-- dummy implementation for documentation purposes only
 end
@@ -631,7 +631,7 @@ function dmhub.EvalGoblinScriptDeterministic(goblinscript, lookupFunction, defau
 	-- dummy implementation for documentation purposes only
 end
 
---- ExplainDeterministicGoblinScript
+--- ExplainDeterministicGoblinScript: Evaluates a deterministic boolean GoblinScript expression and returns an explanation of each symbol's contribution using the explainFunction.
 --- param goblinscript string
 --- @param lookupFunction function
 --- @param explainFunction fun(symbol: string, has: boolean): string
@@ -711,7 +711,7 @@ function dmhub.SyncCamera(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ToRawJson
+--- ToRawJson: Converts a Lua value to a raw JSON string, preserving list structures.
 --- @param val any
 --- @return string
 function dmhub.ToRawJson(val)
@@ -895,7 +895,7 @@ function dmhub.KickPlayer(userid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetPartyInfo
+--- GetPartyInfo: Gets party information for the given party id.
 --- @param partyid string
 --- @return LuaPartyInfo
 function dmhub.GetPartyInfo(partyid)
@@ -947,19 +947,19 @@ function dmhub.GetInputForCommand(cmd)
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportObjects
+--- ImportObjects: Opens the import dialog to allow the user to import objects from image files.
 --- @return nil
 function dmhub.ImportObjects()
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportBattleMap
+--- ImportBattleMap: Opens the import dialog to allow the user to import a battle map image.
 --- @return nil
 function dmhub.ImportBattleMap()
 	-- dummy implementation for documentation purposes only
 end
 
---- AddObjectFolder
+--- AddObjectFolder: Adds a new object folder to the object palette and returns its id.
 --- @return string
 function dmhub.AddObjectFolder()
 	-- dummy implementation for documentation purposes only
@@ -971,7 +971,7 @@ function dmhub.LeaveGame()
 	-- dummy implementation for documentation purposes only
 end
 
---- ShowPlayerSettings
+--- ShowPlayerSettings: Opens the player settings dialog with the given arguments.
 --- @param args any
 --- @return nil
 function dmhub.ShowPlayerSettings(args)
@@ -1045,14 +1045,14 @@ function dmhub.RefreshMapLayout()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetSessionInfo
+--- GetSessionInfo: Gets session information for the given user, including connection status and ping data.
 --- @param userid The userid of the user to get session info concerning.
 --- @return LuaGameSession
 function dmhub.GetSessionInfo()
 	-- dummy implementation for documentation purposes only
 end
 
---- PingUser
+--- PingUser: Pings a connected user to measure latency. Calls the callback with the cloud round-trip time, and optionally the peer-to-peer callback with direct connection time.
 --- @param userid string The userid of the user to ping.
 --- @param callback (fun(): any) The callback to call when the pong is received. This means a message will have been sent to the cloud, the cloud notified the other user, and the user responded via the cloud.
 --- @param callbackPeerToPeer (fun(): any) The call when the peer-to-peer pong is received. This means a direct message was sent from this computer to the other computer. Sometimes peer-to-peer connections don't work and this may not be called.
@@ -1102,8 +1102,8 @@ function dmhub.GetCharacterIdsInParty(partyidStr)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetAllCharacters
---- @return any
+--- GetAllCharacters: Returns a table of all characters in the game, keyed by their character id. Includes characters not currently on the map.
+--- @return table<string, CharacterToken>
 function dmhub.GetAllCharacters()
 	-- dummy implementation for documentation purposes only
 end
@@ -1115,14 +1115,14 @@ function dmhub.GetCharacterById(idStr)
 	-- dummy implementation for documentation purposes only
 end
 
---- CreatureSizeToTokenScale
+--- CreatureSizeToTokenScale: Converts a creature size string (e.g. 'medium', 'large') to the corresponding token visual scale.
 --- @param creatureSize string
 --- @return number
 function dmhub.CreatureSizeToTokenScale(creatureSize)
 	-- dummy implementation for documentation purposes only
 end
 
---- Assert
+--- Assert: Asserts that the given condition is true. Raises an error if false.
 --- @param cond boolean
 function dmhub.Assert(cond)
 	-- dummy implementation for documentation purposes only
@@ -1147,16 +1147,16 @@ function dmhub.GetSettingValue()
 	-- dummy implementation for documentation purposes only
 end
 
---- CopyTokenToClipboard
+--- CopyTokenToClipboard: Copies the given token to the clipboard for later pasting.
 --- @param token any
 --- @return nil
 function dmhub.CopyTokenToClipboard(token)
 	-- dummy implementation for documentation purposes only
 end
 
---- PasteTokenFromClipboard
---- @param loc any
---- @return any
+--- PasteTokenFromClipboard: Pastes a token from the clipboard at the given location. Returns the token id of the pasted token, or nil if nothing was pasted.
+--- @param loc nil|Loc The location to paste the token at.
+--- @return nil|string
 function dmhub.PasteTokenFromClipboard(loc)
 	-- dummy implementation for documentation purposes only
 end
@@ -1308,33 +1308,33 @@ function dmhub.GetInternalClipboard()
 	-- dummy implementation for documentation purposes only
 end
 
---- CloseCharacterSheet
---- @return any
+--- CloseCharacterSheet: Closes the character sheet if it is currently open. Returns true if the sheet was closed, false if it was not open.
+--- @return boolean
 function dmhub.CloseCharacterSheet()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetPlayerActionRequests
---- @return any
+--- GetPlayerActionRequests: Gets all pending player action requests in the current game.
+--- @return table<string, LuaPlayerActionRequest>
 function dmhub.GetPlayerActionRequests()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetPlayerActionRequest
---- @param id any
---- @return any
+--- GetPlayerActionRequest: Gets a specific player action request by its id. Returns nil if the request does not exist.
+--- @param id string
+--- @return nil|LuaPlayerActionRequest
 function dmhub.GetPlayerActionRequest(id)
 	-- dummy implementation for documentation purposes only
 end
 
---- SendActionRequest
---- @param info any
---- @return any
+--- SendActionRequest: Sends a new player action request to the cloud and returns its guid. Clears any existing requests from the same requester unless the request is silent.
+--- @param info table The action request details.
+--- @return string
 function dmhub.SendActionRequest(info)
 	-- dummy implementation for documentation purposes only
 end
 
---- CancelActionRequest
+--- CancelActionRequest: Cancels a player action request with the given id.
 --- @param id any
 --- @return nil
 function dmhub.CancelActionRequest(id)
@@ -1452,7 +1452,7 @@ function dmhub.MarkLineOfSight(attacker, target)
 	-- dummy implementation for documentation purposes only
 end
 
---- ease
+--- ease: Applies the given easing function to t and returns the result. Useful for animation interpolation.
 --- @param t number A value between 0 and 1.
 --- @param easing Easing The easing to use.
 --- @return number
@@ -1493,7 +1493,7 @@ function dmhub.tr(text, options)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetPanelTrace
+--- GetPanelTrace: Returns the creation trace for the panel with the given id. Useful for debugging panel lifecycle.
 --- @param panelid string
 --- @return string
 function dmhub.GetPanelTrace(panelid)

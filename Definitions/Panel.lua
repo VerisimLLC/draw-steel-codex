@@ -348,8 +348,9 @@ function Panel:HaltEventPropagation()
 end
 
 --- SetAsDicePreviewPanel
+--- @param val boolean
 --- @return nil
-function Panel:SetAsDicePreviewPanel()
+function Panel:SetAsDicePreviewPanel(val)
 	-- dummy implementation for documentation purposes only
 end
 

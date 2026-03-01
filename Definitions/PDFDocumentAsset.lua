@@ -1,4 +1,4 @@
---- @class PDFDocumentAsset:GameAsset 
+--- @class PDFDocumentAsset:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 --- @field hasBookmarks boolean 
 --- @field cachePath string 
 PDFDocumentAsset = {}

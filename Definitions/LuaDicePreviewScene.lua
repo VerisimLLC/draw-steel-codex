@@ -1,11 +1,11 @@
---- @class LuaDicePreviewScene 
---- @field assetid string 
---- @field selectedIndex number 
---- @field dragging boolean 
---- @field fixedTime boolean 
---- @field solo boolean 
---- @field initialRotation number 
---- @field diceScale number 
---- @field bgcolor string 
---- @field bgtexture string 
+--- @class LuaDicePreviewScene Provides control over the dice preview scene used to render dice in a UI context.
+--- @field assetid string Sets the dice set asset identifier to preview. (Write-only)
+--- @field selectedIndex number The index of the currently selected die in the preview.
+--- @field dragging boolean Sets whether the user is currently dragging a die in the preview. (Write-only)
+--- @field fixedTime boolean Sets whether the preview uses a fixed time step (1/60s) instead of real delta time. (Write-only)
+--- @field solo boolean Sets whether only the selected die is visible, hiding all others. (Write-only)
+--- @field initialRotation number Sets the initial rotation angle in degrees applied to dice when the preview initializes. (Write-only)
+--- @field diceScale number Sets a uniform scale override for all dice in the preview. Set to 0 to use the default calculated scale. (Write-only)
+--- @field bgcolor string Sets the background color of the preview camera as an HTML color string (e.g. '#ff0000'). (Write-only)
+--- @field bgtexture string Sets a background texture by image asset identifier. Set to nil or empty string to hide the background texture. (Write-only)
 LuaDicePreviewScene = {}

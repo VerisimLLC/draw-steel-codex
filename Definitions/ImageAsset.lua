@@ -1,4 +1,4 @@
---- @class ImageAsset:GameAsset 
+--- @class ImageAsset:GameAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
 --- @field previewSpriteRect any 
 --- @field isVideo boolean 
 --- @field isLoadedAndVideo any 

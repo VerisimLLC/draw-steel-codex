@@ -2005,7 +2005,7 @@ local CreateObjectEditor = function(nodes, options)
 
 						if group == nil then
 							local childrenPanel = gui.Panel{
-								classes = {"groupingPanel", "collapsed"},
+								classes = {"groupingPanel"},
 								flow = "vertical",
 								width = "100%",
 								height = "auto",
@@ -2033,7 +2033,9 @@ local CreateObjectEditor = function(nodes, options)
 									halign = "left",
                                     hpad = 2,
 									vpad = 0,
+                                    tmargin = 4,
 									gui.Panel{
+                                        classes = {"expanded"},
 										bgimage = 'panels/triangle.png',
 										styles = gui.TriangleStyles,
 										press = function(element)

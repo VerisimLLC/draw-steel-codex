@@ -990,7 +990,7 @@ function AuraComponent.CreatePropertiesEditor(component)
             gui.Input {
                 width = 40,
                 characterLimit = 4,
-                halign = "right",
+                halign = "left",
                 valign = "center",
                 text = tostring(component.properties.aura.area.radius),
                 thinkTime = 0.2,

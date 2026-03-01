@@ -1,4 +1,4 @@
---- @class BrushAsset:GameAsset 
+--- @class BrushAsset:GameAsset Base class for all game assets (images, audio, etc.) stored in the cloud asset system.
 --- @field tipAsset any 
 --- @field textureAsset any 
 BrushAsset = {}

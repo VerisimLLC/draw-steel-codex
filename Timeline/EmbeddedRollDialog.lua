@@ -794,14 +794,16 @@ function GameHud.CreateEmbeddedRollDialog()
         local targets = {}
         if m_multitargets ~= nil then
             for i, target in ipairs(m_multitargets) do
-                local t = {
-                    tokenId = target.token.charid,
-                    name = target.token.name or "",
-                    surges = target.surges or 0,
-                    boons = target.boons or 0,
-                    banes = target.banes or 0,
-                }
-                targets[#targets+1] = t
+                if target.token ~= nil and target.token.valid then
+                    local t = {
+                        tokenId = target.token.charid,
+                        name = target.token.name or "",
+                        surges = target.surges or 0,
+                        boons = target.boons or 0,
+                        banes = target.banes or 0,
+                    }
+                    targets[#targets+1] = t
+                end
             end
         end
 
@@ -2912,6 +2914,9 @@ function GameHud.CreateEmbeddedRollDialog()
 
         styles = styles,
 
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_ROLL_DIALOG,
+
         mainPanel,
 
         data = {
@@ -3215,6 +3220,9 @@ function GameHud.CreateEmbeddedRollDialog()
             end,
             broadcastDialogState = function(element)
                 BroadcastDialogState()
+            end,
+            escape = function(element)
+                element.data.Cancel()
             end,
             submit = function(element)
                 if not rollInput:HasClass("manualEdit") then

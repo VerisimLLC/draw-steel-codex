@@ -1,4 +1,4 @@
---- @class ObjectAsset:ImageAsset 
+--- @class ObjectAsset:ImageAsset An image asset stored in the cloud, with support for keywords, color adjustments, and sprite generation.
 --- @field textureReadable boolean 
 ObjectAsset = {}
 

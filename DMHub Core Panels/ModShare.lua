@@ -2082,15 +2082,21 @@ local showShareModuleDialog = function(options)
 					element.text = "Your module will be published with the unique ID <b>" .. moduleInstance.fullid .. "</b>"
 				elseif authorIdsAvailable[moduleInstance.authorid] == nil and authorIdsUnavailable[moduleInstance.authorid] == nil then
 					element.text = "Checking availability of author name..."
-					moduleInstance:CheckAuthorIDAvailable(function(id, val)
-						if val then
-							authorIdsAvailable[id] = true
-						else
-							authorIdsUnavailable[id] = true
-						end
 
-						dialogPanel:FireEventTree("refreshModule")
-					end)
+                    if moduleInstance.authorid == "codex" and dmhub.isAdminAccount then
+                        authorIdsAvailable["codex"] = true
+                        dialogPanel:FireEventTree("refreshModule")
+                    else
+                        moduleInstance:CheckAuthorIDAvailable(function(id, val)
+                            if val then
+                                authorIdsAvailable[id] = true
+                            else
+                                authorIdsUnavailable[id] = true
+                            end
+
+                            dialogPanel:FireEventTree("refreshModule")
+                        end)
+                    end
 				elseif authorIdsUnavailable[moduleInstance.authorid] then
 					element.text = "The author name you chose has already been used by another user. Please choose a different name."
 				elseif moduleInstance.idvalid and moduleIdsAvailable[moduleInstance.fullid] == nil and moduleIdsUnavailable[moduleInstance.fullid] == nil then

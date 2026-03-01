@@ -1818,6 +1818,9 @@ function ActivatedAbility:Render(options, params)
             width = 33 * 0.8,
             bgimage = mod.images.tabbg,
             bgcolor = 'white',
+            embedRollDialog = function(element)
+                element:SetClass("collapsed", true)
+            end,
             showAbilitySection = function(element, options)
                 element:SetClass("collapsed", true)
             end,

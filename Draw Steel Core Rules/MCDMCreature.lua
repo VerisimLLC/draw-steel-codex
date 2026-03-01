@@ -3483,10 +3483,10 @@ end
 --- @param info {type: string, amount: number, instances: number, aura: AuraInstance}
 function creature:AuraDamage(token, info)
     token:ModifyProperties {
-        description = info.aura.name,
+        description = info.aura.aura.name,
         execute = function()
             for i = 1, info.instances do
-                self:InflictDamageInstance(info.amount, info.type, {}, info.aura.name, { damagesound = "Attack.Enviro" })
+                self:InflictDamageInstance(info.amount, info.type, {}, info.aura.aura.name, { damagesound = "Attack.Enviro" })
             end
         end,
     }

@@ -34,7 +34,7 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
 
     -- Load saved routines from token properties and make a copy
     local selectedRoutines = {}
-    local savedRoutines = caster.routinesSelected or {}
+    local savedRoutines = caster:try_get("routinesSelected", {})
     for guid, timestamp in pairs(savedRoutines) do
         -- Ensure timestamp is a number for comparison
         selectedRoutines[guid] = tonumber(timestamp) or ServerTimestamp()

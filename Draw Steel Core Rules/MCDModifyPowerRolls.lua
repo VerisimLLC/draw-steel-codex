@@ -1355,6 +1355,43 @@ CharacterModifier.TypeInfo.power = {
                 }
             end
 
+            local resistanceHelpSymbols = DeepCopy(g_powerRollSymbols)
+            resistanceHelpSymbols.resistance = {
+                name = "Resistance",
+                type = "number",
+                desc = "The target's base characteristic value for potency resistance.",
+            }
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "Modify Resistance:",
+                },
+
+                gui.GoblinScriptInput{
+                    value = modifier:try_get("resistanceFormula", ""),
+                    change = function(element)
+                        modifier.resistanceFormula = element.value
+                        Refresh()
+                    end,
+
+                    documentation = {
+                        domains = modifier:Domains(),
+                        help = "Formula for the target's effective characteristic value during potency resistance checks. Use 'resistance' to reference the base characteristic value. Leave blank for no modification.",
+                        output = "number",
+                        examples = {
+                            {script = "min(6, resistance + 1)", text = "Add 1 to the characteristic, capped at 6"},
+                            {script = "resistance + 2", text = "Add 2 to the characteristic (no cap)"},
+                            {script = "max(3, resistance)", text = "Characteristic is at least 3"},
+                        },
+                        subject = creature.helpSymbols,
+                        subjectDescription = "The creature affected by this modifier",
+                        symbols = modifier:HelpAdditionalSymbols(resistanceHelpSymbols),
+                    },
+                }
+            }
+
             if options.triggered then
                 children[#children+1] = gui.Check{
                     style = {

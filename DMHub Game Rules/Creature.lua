@@ -5139,10 +5139,9 @@ function creature:FillTemporalActiveModifiers(result)
 
 
     self._tmp_numberOfCreaturesGrabbed = 0
+    local conditionSourceBestows = {}
     if self:IsCasterOfConditions() then
         --apply slow down if we are grabbing.
-        --TODO: generalize this to make it so conditions can apply
-        --modifiers to the source of the condition.
         self:VisitConditionCasterSource(function(condid, targetToken)
             if condid == g_grabbedCondition then
 	            local ourSize = self:CalculateNamedCustomAttribute("SizeWhenGrabbing")
@@ -5162,6 +5161,23 @@ function creature:FillTemporalActiveModifiers(result)
                     end
                 end
             end
+
+            -- Check target's active modifiers for conditionsourcebestow.
+            -- This lets any modifier source (item, class, ancestry) on the condition
+            -- target bestow conditions on the condition source (the caster).
+            local targetMods = targetToken.properties:GetActiveModifiers()
+            local casterToken = dmhub.LookupToken(self)
+            for _, modEntry in ipairs(targetMods) do
+                if modEntry.mod.behavior == "conditionsourcebestow"
+                   and modEntry.mod.sourceConditionid == condid
+                   and modEntry.mod.conditionid ~= 'none' then
+                    local maxRange = modEntry.mod:try_get("maxRange", 0)
+                    if maxRange <= 0 or (casterToken ~= nil and casterToken:Distance(targetToken) <= maxRange) then
+                        conditionSourceBestows[modEntry.mod.conditionid] =
+                            (conditionSourceBestows[modEntry.mod.conditionid] or 0) + 1
+                    end
+                end
+            end
         end)
     end
 
@@ -5176,6 +5192,13 @@ function creature:FillTemporalActiveModifiers(result)
 		end
 	end
 
+	-- Merge conditions bestowed by condition targets' modifiers onto this creature (the caster).
+	for condid, stacks in pairs(conditionSourceBestows) do
+		local immunities = self:GetConditionImmunities()
+		if not immunities[condid] then
+			self._tmp_directConditions[condid] = (self._tmp_directConditions[condid] or 0) + stacks
+		end
+	end
 
 	for k,v in pairs(self._tmp_directConditions) do
 		conditions[k] = (conditions[k] or 0) + v

@@ -1205,19 +1205,48 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
 
 
         local attrid = GameSystem.AttributeByFirstLetter[string.lower(gateMatch.attr)] or "-"
-        local result = (targetToken.properties:AttributeForPotencyResistance(attrid) or 0) >= gate
-        print("GATE:: RESULT =", result, "from", targetToken.properties:AttributeForPotencyResistance(attrid) or 0, ">=", gate)
+        local resistanceValue = targetToken.properties:AttributeForPotencyResistance(attrid) or 0
+
+        -- Apply resistance modification formulas from active modifiers on caster and target
+        local resistanceSources = {
+            {creature = casterToken.properties, rollType = "ability_power_roll"},
+            {creature = targetToken.properties, rollType = "enemy_ability_power_roll"},
+        }
+        local filterOptions = {ability = ability, caster = casterToken.properties, target = targetToken.properties}
+        for _, source in ipairs(resistanceSources) do
+            for _, mod in ipairs(source.creature:GetActiveModifiers()) do
+                local rf = mod.mod:try_get("resistanceFormula", "")
+                if rf ~= "" then
+                    local desc = mod.mod:DescribeModifyPowerRoll(mod, source.creature, source.rollType, filterOptions)
+                    if desc ~= nil then
+                        local hint = mod.mod:HintModifyPowerRolls(mod, source.creature, source.rollType, filterOptions)
+                        if hint ~= nil and hint.result then
+                            local resistanceLookup = targetToken.properties:LookupSymbol({
+                                resistance = resistanceValue,
+                                caster = GenerateSymbols(casterToken.properties),
+                            })
+                            local newValue = ExecuteGoblinScript(rf, resistanceLookup, resistanceValue, "Resistance Modifier")
+                            if newValue ~= nil then
+                                resistanceValue = newValue
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        local result = resistanceValue >= gate
         if result then
 
             if options.powerRollPass == "target" then
-                ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), targetToken.properties:AttributeForPotencyResistance(attrid) or 0, gate))
+                ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
             end
 
             --resisted don't do the rest of it.
             rule = gateMatch.head
         else
             if options.powerRollPass == "target" then
-                ability.RecordTokenMessage(targetToken, options, string.format("Did not resist potency: %s(%d)<%d", string.upper(gateMatch.attr), targetToken.properties:AttributeForPotencyResistance(attrid) or 0, gate))
+                ability.RecordTokenMessage(targetToken, options, string.format("Did not resist potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
             end
             --did not resist.
             rule = gateMatch.head .. gateMatch.tail

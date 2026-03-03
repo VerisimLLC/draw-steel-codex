@@ -2774,6 +2774,12 @@ end
 function creature:NotifyConditionCaster(token, conditionid)
     local conditionCasterSource = self:get_or_add("_tmp_conditionCasterSource", {})
     conditionCasterSource[conditionid] = conditionCasterSource[conditionid] or {}
+    if conditionCasterSource[conditionid][token.charid] == nil then
+        -- New condition caster data; invalidate modifier cache so it
+        -- recalculates with the updated _tmp_conditionCasterSource.
+        self._tmp_modifiersRefresh = nil
+        self._tmp_modifiersRefreshExcludingAuras = nil
+    end
     conditionCasterSource[conditionid][token.charid] = dmhub.ngameupdate
 end
 

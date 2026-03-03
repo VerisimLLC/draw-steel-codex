@@ -3919,7 +3919,7 @@ function gui.FancyInput(options)
 end
 
 gui.ImplementationStatusValues = {
-	[0] = "Wont Implement",
+	[0] = "Narrative",
 	[1] = "Unimplemented",
 	[2] = "Bronze",
 	[3] = "Silver",

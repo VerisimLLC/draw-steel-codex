@@ -909,13 +909,13 @@ CreateEditor = function(panelArgs)
             end
             if not mod.hasLocalChanges then
                 element:SetClass("collapsed", false)
-                element.text = "No changes to check in."
+                element.text = "No changes to deploy."
                 return
             end
 
             if changenotesInput.text == "" then
                 element:SetClass("collapsed", false)
-                element.text = "Please enter a changelist comment to check-in."
+                element.text = "Please enter a change comment to deploy changes."
                 return
             end
 

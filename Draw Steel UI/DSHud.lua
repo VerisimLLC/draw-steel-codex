@@ -150,7 +150,7 @@ function GameHud.TokenMoving(self, token, path)
                 local found = false
 
                 for _,existing in ipairs(damageHazards) do
-                    if existing.type == hazard.damageType and existing.name == hazard.aura.name then
+                    if existing.type == hazard.damageType and existing.name == hazard.aura.aura.name then
                         existing.damage = existing.damage + hazard.damageAmount
                         found = true
                         break
@@ -158,13 +158,13 @@ function GameHud.TokenMoving(self, token, path)
                 end
 
                 if not found then
-                    damageHazards[#damageHazards+1] = {damage = hazard.damageAmount, type = hazard.damageType, name = hazard.aura.name}
+                    damageHazards[#damageHazards+1] = {damage = hazard.damageAmount, type = hazard.damageType, name = hazard.aura.aura.name}
                 end
             end
         end
 
         for _,hazard in ipairs(damageHazards) do
-            if hazard.type == "normal" then
+            if hazard.type == "normal" or hazard.type == "untyped" then
                 text = string.format("%s\n<color=#ff6666>%d damage from %s</color>", text, hazard.damage, hazard.name)
             else
                 text = string.format("%s\n<color=#ff6666>%d %s damage from %s</color>", text, hazard.damage, hazard.type, hazard.name)

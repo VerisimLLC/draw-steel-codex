@@ -17,6 +17,13 @@ function SettingMatchesSearch(settingid, str)
 end
 
 setting{
+    id = "lookup",
+    description = "Creature is Lookiong Up",
+    storage = "transient",
+    default = false,
+}
+
+setting{
     id = "disableparallax",
     description = "Disable Parallax",
     storage = "preference",

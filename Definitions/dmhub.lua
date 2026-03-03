@@ -92,6 +92,8 @@
 --- @field editorMode boolean (Read-only) returns true if the user is doing some kind of map/game editing, rather than in normal play mode.
 --- @field undoState table (Read-only) Returns a table describing the current undo/redo state for user editing actions.
 --- @field connectionErrorStatus any The current connection error status, if any. Used to display connection issues to the user.
+--- @field writeErrors any A list of failed and unconfirmed write receipts that haven't been acknowledged. Each entry is a WriteReceipt with path, method, failureReason, isFailed, isUnconfirmed, and acknowledged fields.
+--- @field pendingWriteCount number The number of writes currently pending (in-flight to the cloud).
 --- @field patronTier number The Patreon tier level of the current user. 0 means not a patron.
 --- @field subscriptionTier number The subscription tier level of the current user. 0 means no subscription.
 --- @field isAdminAccount boolean True if the current user has admin privileges on their account.
@@ -987,6 +989,12 @@ end
 --- Redo: Redo the last user editing action.
 --- @return nil
 function dmhub.Redo()
+	-- dummy implementation for documentation purposes only
+end
+
+--- AcknowledgeAllWriteErrors: Acknowledges all current write errors so they are no longer returned by writeErrors.
+--- @return nil
+function dmhub:AcknowledgeAllWriteErrors()
 	-- dummy implementation for documentation purposes only
 end
 

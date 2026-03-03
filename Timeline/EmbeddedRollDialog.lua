@@ -4,7 +4,6 @@ local mod = dmhub.GetModLoading()
 
 local g_holdingRollOpen = false
 dmhub.HoldAmendableRollOpen = function()
-    print("ROLL:: HOLD OPEN:", g_holdingRollOpen)
     return g_holdingRollOpen
 end
 
@@ -1363,15 +1362,23 @@ function GameHud.CreateEmbeddedRollDialog()
                 children[i] = panel
             end
 
+            local visibleCount = 0
             for i = 1, #children do
-                children[i]:SetClass("collapsed", i > #maintarget.triggers)
+                local hidden = i > #maintarget.triggers
+                if not hidden and maintarget.triggers[i] and maintarget.triggers[i].failsRequirement then
+                    hidden = true
+                end
+                children[i]:SetClass("collapsed", hidden)
+                if not hidden then
+                    visibleCount = visibleCount + 1
+                end
                 children[i]:FireEvent("cleartrigger")
             end
 
             element.children = children
 
-            triggersTab:SetClass("hasTriggers", #children > 0)
-            m_rollResultsTab:SetClass("hasTriggers", #children > 0)
+            triggersTab:SetClass("hasTriggers", visibleCount > 0)
+            m_rollResultsTab:SetClass("hasTriggers", visibleCount > 0)
         end,
 
         monitorGameEvent = "charactersUpdated",
@@ -1404,6 +1411,28 @@ function GameHud.CreateEmbeddedRollDialog()
                     local key = trigger.modifier.guid
                     if not targetAll then
                         key = key .. target.token.charid
+                    end
+
+                    -- Skip triggers that fail roll requirements
+                    if trigger.failsRequirement then
+                        if m_openedTriggers[key] ~= nil then
+                            local activeTrigger = m_openedTriggers[key]
+                            if not activeTrigger:try_get("_tmp_failsRequirement") then
+                                activeTrigger.dismissed = true
+                                activeTrigger._tmp_failsRequirement = true
+                                activeTrigger._tmp_refreshTime = 0
+                            end
+                        end
+                        goto continueTriggerThink
+                    end
+
+                    -- Restore triggers that previously failed requirements but now pass
+                    if m_openedTriggers[key] ~= nil and m_openedTriggers[key]:try_get("_tmp_failsRequirement") then
+                        local activeTrigger = m_openedTriggers[key]
+                        activeTrigger._tmp_failsRequirement = nil
+                        activeTrigger.dismissed = false
+                        activeTrigger.triggered = trigger.triggered or false
+                        activeTrigger._tmp_refreshTime = 0
                     end
 
                     if m_openedTriggers[key] == nil then
@@ -1460,6 +1489,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         activeTrigger.dismissed = trigger.dismissed
                         trigger._tmp_refreshTime = 0
                     end
+                    ::continueTriggerThink::
                 end
             end
 
@@ -2071,7 +2101,6 @@ function GameHud.CreateEmbeddedRollDialog()
                 local surgesAvailable = 0
                 if creature ~= nil then
                     surgesAvailable = creature:GetAvailableSurges()
-                    print("SURGES:: BASE =", surgesAvailable)
                 end
 
                 if rollProperties ~= nil then
@@ -2086,8 +2115,6 @@ function GameHud.CreateEmbeddedRollDialog()
                         end
                     end
                 end
-
-                print("SURGES:: HAVE SURGES", surgesAvailable)
 
                 m_lastCalculationOptions = calculationOptions
                 calculationOptions = calculationOptions or {}
@@ -2185,7 +2212,6 @@ function GameHud.CreateEmbeddedRollDialog()
                 local surgesAvailable = 0
                 if creature ~= nil then
                     surgesAvailable = creature:GetAvailableSurges()
-                    print("SURGES:: BASE =", surgesAvailable)
                 end
 
                 if rollProperties ~= nil then
@@ -2865,6 +2891,25 @@ function GameHud.CreateEmbeddedRollDialog()
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
             m_multitargets[index].banes = (rollInfo.banes or 0)
+
+            -- Check roll requirements for triggers so they hide/show dynamically.
+            -- If a trigger is already activated, skip the check -- its own effect
+            -- may change the roll state (e.g. turning a bane into an edge) which
+            -- would otherwise invalidate the requirement it already satisfied.
+            local enabledMods = GetEnabledModifiers()
+            for _, trigger in ipairs(m_multitargets[index].triggers) do
+                local powerMod = trigger.modifier.powerRollModifier
+                if powerMod ~= nil and powerMod:try_get("rollRequirement", "none") ~= "none" then
+                    if trigger.triggered then
+                        trigger.failsRequirement = nil
+                    else
+                        local passes = powerMod:CheckRollRequirement(rollInfo, enabledMods, rollProperties)
+                        trigger.failsRequirement = not passes
+                    end
+                else
+                    trigger.failsRequirement = nil
+                end
+            end
         end
 
         --make sure the rollProperties have the correct multitargets.

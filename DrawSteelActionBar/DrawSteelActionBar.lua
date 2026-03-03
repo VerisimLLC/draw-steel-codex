@@ -3256,6 +3256,36 @@ CreateAbilityController = function()
                 { cast = args.cast, mode = 1, charges = ability:DefaultCharges(), spellname = ability.name },
                 args.symbols or {})
 
+            --limit any pathfinding moves to the creature's current movement speed
+            local targetingType = ability:try_get("targeting", "direct")
+            if targetingType == "pathfind" then
+                local range = ability:GetRange(g_token.properties, g_currentSymbols)
+                local movementSpeed = g_token.properties:CurrentMovementSpeed()
+                if range > movementSpeed then
+                    ability = ability:MakeTemporaryClone()
+                    ability.range = movementSpeed
+                    g_currentAbility = ability
+                    if movementSpeed <= 0 then
+                        ability.castImmediately = true
+                        ability.targetType = "self"
+
+                        local token = g_token
+
+                        dmhub.Coroutine(function()
+                            coroutine.yield(0.01)
+                            local abilityBase = MCDMUtils.GetStandardAbility("Float Text")
+                            if abilityBase and token.valid then
+                                local abilityClone = DeepCopy(abilityBase)
+                                MCDMUtils.DeepReplace(abilityClone, "<<text>>", "Cannot Move")
+                                abilityClone.behaviors[1].color = "#FF0000"
+                                ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, abilityClone, token, "prompt", {}, {})
+                            end
+                        end)
+
+                    end
+                end
+            end
+
             local compelToward = g_token.properties:CalculateNamedCustomAttribute("Compel Movement Toward")
             if compelToward ~= 0 then
                 local tokens = dmhub.allTokens

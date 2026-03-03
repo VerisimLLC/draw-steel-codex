@@ -19,7 +19,7 @@ local function IsTokenOnCurrentTurn(token)
     end
 
     local currentId = q.currentTurn
-    if not currentId then
+    if type(currentId) ~= "string" then
         return false
     end
 
@@ -979,7 +979,7 @@ local function RefreshRemoteAbilityDisplay(displayPanel, shareData)
 
     -- Full rebuild: build the ability tooltip card.
     local tooltipAbility = ability
-    if casterToken ~= nil and casterToken.valid and ability.GetActiveVariation ~= nil then
+    if casterToken ~= nil and casterToken.valid and ability.typeName == "ActivatedAbility" then
         tooltipAbility = ability:GetActiveVariation(casterToken) or ability
     end
 

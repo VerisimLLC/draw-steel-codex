@@ -1263,6 +1263,10 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 		undoValues.blocksMovement = asset.blocksMovement
 	end
 
+	if undoValues.blocksForcedMovement == nil then
+		undoValues.blocksForcedMovement = asset.blocksForcedMovement
+	end
+
 	if undoValues.soundOcclusion == nil then
 		undoValues.soundOcclusion = asset.soundOcclusion
 	end
@@ -2015,9 +2019,6 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 			},
 
 
-
-
-
 			gui.Check{
 				id = "blocksMovementCheck",
 				text = "Blocks Movement",
@@ -2027,6 +2028,19 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 				value = asset.blocksMovement,
 				change = function(element)
 					asset.blocksMovement = element.value
+					RefreshAssets()
+				end,
+			},
+
+			gui.Check{
+				id = "blocksForcedMovementCheck",
+				text = "Blocks Forced Movement",
+				width = "auto",
+				height = 30,
+				borderWidth = 0,
+				value = asset.blocksForcedMovement,
+				change = function(element)
+					asset.blocksForcedMovement = element.value
 					RefreshAssets()
 				end,
 			},

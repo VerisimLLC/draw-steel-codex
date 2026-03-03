@@ -204,11 +204,19 @@ local function CreateStatusBar()
                     element.text = ""
                     return
                 end
+                local writeCount = dmhub.pendingWriteCount
                 local undoState = dmhub.undoState
+                local text
                 if undoState.undoPending then
-                    element.text = "Syncing..."
+                    text = "Syncing..."
                 else
-                    element.text = "Synced"
+                    text = "Synced"
+                end
+
+                if writeCount > 0 then
+                    element.text = string.format("%s (%d)", text, writeCount)
+                else
+                    element.text = text
                 end
             end,
         },

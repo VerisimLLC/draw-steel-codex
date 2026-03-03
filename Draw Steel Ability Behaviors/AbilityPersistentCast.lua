@@ -30,11 +30,8 @@ RegisterGoblinScriptSymbol(creature, {
 
         local results = {}
         for _, ability in pairs(persistentAbilities) do
-            print("Ability::", json(ability))
             results[#results+1] = ability.abilityName
         end
-
-        print("results::", results)
 
         return StringSet.new {
             strings = results,

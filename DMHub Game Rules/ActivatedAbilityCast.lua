@@ -321,7 +321,7 @@ ActivatedAbilityCast.lookupSymbols = {
 
 			if type(target) == "table" then
 				local tok = dmhub.LookupToken(target)
-				if tok ~= nil then
+				if tok ~= nil and c:has_key("damageTable") then
 					local entry = c.damageTable[tok.charid]
 					if entry ~= nil then
 						return entry.dealt
@@ -340,7 +340,7 @@ ActivatedAbilityCast.lookupSymbols = {
 
 			if type(target) == "table" and target.typeName == "creature" then
 				local tok = dmhub.LookupToken(target)
-				if tok ~= nil then
+				if tok ~= nil and c:has_key("damageTable") then
 					local entry = c.damageTable[tok.charid]
 					if entry ~= nil then
 						return entry.raw

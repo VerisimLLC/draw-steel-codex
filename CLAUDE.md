@@ -49,6 +49,8 @@ CharacterCondition.tableName = "charConditions"
 function CharacterCondition:SoundEvent() ... end
 ```
 
+Fields prefixed with `_tmp_` are **transient** -- the engine skips them during serialization. Use `_tmp_` fields for ephemeral runtime state that should not be saved to the database or sent over the network. Reading a `_tmp_` field that was never set will error; use `obj:try_get("_tmp_foo")` for safe access.
+
 Extending a type from another file (common in `Draw Steel Core Rules/`):
 ```lua
 -- Extend creature with Draw Steel fields

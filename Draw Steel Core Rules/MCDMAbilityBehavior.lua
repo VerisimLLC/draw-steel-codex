@@ -731,7 +731,6 @@ local g_rulePatterns = {
             end
 
 
-
             local shift = MCDMUtils.GetStandardAbility("Shift")
 			local abilityClone = DeepCopy(shift)
             AbilityUtils.DeepReplaceAbility(abilityClone, "<<targetfilter>>", "")

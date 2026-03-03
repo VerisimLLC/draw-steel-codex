@@ -1127,6 +1127,9 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         end,
 
         completeRoll = function(rollInfo)
+            if rollInfo == nil then
+                return
+            end
             m_rollInfo = rollInfo
             m_result = {
                 total = rollInfo.total,

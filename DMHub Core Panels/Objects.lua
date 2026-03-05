@@ -899,12 +899,12 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 		local searchInput = gui.Input{
 			id = 'ObjectSearch',
 			placeholderText = 'Search Objects...',
+			halign = 'left',
+			valign = 'center',
 			style = {
 				fontSize = '50%',
 				width = '80%',
 				height = '100%',
-				halign = 'left',
-				valign = 'center',
 			},
 
 			editlag = 0.25,
@@ -936,7 +936,8 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 		rootPanel =
 		gui.Panel{
 			id = 'RootUIPanel',
-			x = 10,
+			x = 3,
+			halign = 'left',
 			style = {
 				height = 'auto',
 				width = '90%',
@@ -954,56 +955,50 @@ local function CreateObjectFolder(nodeid, parentElement, options)
 					children = {
 						searchInput,
 						clearSearchButton,
-					},
-				},
-
-				gui.Panel{
-					id = 'AddNodesPanel',
-					style = {
-						height = 30,
-						width = '100%',
-						flow = 'horizontal',
-					},
-					children = {
-
 						gui.Panel{
-							classes = {"clickableIcon"},
-							width = 24,
-							height = 24,
+							floating = true,
 							halign = "right",
-							bgimage = "game-icons/open-folder.png",
-							linger = gui.Tooltip("Create a new folder"),
-							press = function(element)
-								dmhub.AddObjectFolder()
-							end,
-						},
-
-						gui.Panel{
-							classes = {"clickableIcon"},
-							width = 24,
+							valign = "center",
+							width = "auto",
+							x = 18,
 							height = 24,
-							halign = "right",
-							id = "ImportMapObjectButton",
-							bgimage = 'game-icons/treasure-map.png',
-							linger = gui.Tooltip('Import a new map object from an image'),
-							press = function(element)
-								mod.shared.ImportMap{ imagesOnly = true }
-							end,
+							flow = "horizontal",
+							children = {
+								gui.Panel{
+									classes = {"clickableIcon"},
+									width = 24,
+									height = 24,
+									bgimage = "game-icons/open-folder.png",
+									linger = gui.Tooltip("Create a new folder"),
+									press = function(element)
+										dmhub.AddObjectFolder()
+									end,
+								},
+								gui.Panel{
+									classes = {"clickableIcon"},
+									width = 24,
+									height = 24,
+									id = "ImportMapObjectButton",
+									bgimage = 'game-icons/treasure-map.png',
+									linger = gui.Tooltip('Import a new map object from an image'),
+									press = function(element)
+										mod.shared.ImportMap{ imagesOnly = true }
+									end,
+								},
+								gui.AddButton{
+									width = 24,
+									height = 24,
+									valign = "center",
+									events = {
+										linger = gui.Tooltip("Import new objects from an image"),
+										click = function(element)
+											mod.shared.ImportObjects()
+										end,
+									}
+								},
+							},
 						},
-
-						gui.AddButton{
-							height = '100%',
-							width = '100% height',
-							halign = 'right',
-							events = {
-								linger = gui.Tooltip("Import new objects from an image"),
-								click = function(element)
-									mod.shared.ImportObjects()
-									--dmhub.ImportObjects()
-								end,
-							}
-						},
-					}
+					},
 				},
 			},
 		}

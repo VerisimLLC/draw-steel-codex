@@ -764,10 +764,16 @@ CharacterModifier.TypeInfo.power = {
         end
 
         if self.modtype == "suppresseffects" then
+            local damageMultiplier = self:try_get("damageMultiplier", "full")
             for i,tier in ipairs(rollProperties.tiers) do
                 local m = regex.MatchGroups(tier, "^(?<prefix>.*?)(?<damage>\\d+\\s+[^0-9]*damage)(?<suffix>.*)$")
                 if m ~= nil then
                     tier = m.damage
+                    if damageMultiplier == "half" then
+                        tier = tier .. " (half)"
+                    elseif damageMultiplier ~= "full" then
+                        tier = tier .. " (no damage)"
+                    end
                 else
                     tier = "No effect"
                 end

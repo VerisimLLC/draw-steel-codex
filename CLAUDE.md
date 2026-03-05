@@ -111,6 +111,8 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 
 See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
 
+See **[DRAW_STEEL_SYSTEMS.md](DRAW_STEEL_SYSTEMS.md)** for deep-dive reference on the initiative queue, triggered abilities, action bar targeting pipeline, and roll dialog system.
+
 ### GoblinScript
 GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`.
 

@@ -2486,6 +2486,25 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self.targetType ~= 'target' or (not self.proximityTargeting) or tonumber(self.numTargets) == 1, 'collapsed-anim')},
+			text = "Chain Proximity",
+			value = self:try_get("proximityChain", false),
+			refreshAbility = function(element)
+				element:SetClass("collapsed-anim", self.targetType ~= 'target' or (not self.proximityTargeting) or tonumber(self.numTargets) == 1)
+			end,
+			updateProximityTargeting = function(element)
+				element:FireEvent("refreshAbility")
+			end,
+			linger = function(element)
+				return gui.Tooltip("If checked, every target must be in a certain proximity of the previous target.")(element)
+			end,
+			change = function(element)
+				self.proximityChain = element.value
+				element:FireEvent("refreshAbility")
+			end,
+		},
+
 		gui.Panel{
 			classes = {"formPanel", cond(self.targetType ~= 'target' or (not self.proximityTargeting) or tonumber(self.numTargets) == 1, 'collapsed-anim')},
 			refreshAbility = function(element)
@@ -2525,7 +2544,6 @@ function ActivatedAbility:TargetTypeEditor()
 				},
 
 			},
-
 		},
 
         gui.Panel{

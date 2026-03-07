@@ -4717,9 +4717,17 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 local loc = g_currentAbility:try_get("casterLocOverride")
 
                 if g_currentAbility.proximityTargeting and g_firstTarget ~= nil then
-                    local firstTargetToken = dmhub.GetTokenById(g_firstTarget)
-                    if firstTargetToken ~= nil then
-                        loc = firstTargetToken.locsOccupying
+                    local targetToken = nil
+                    if g_currentAbility.proximityChain and #g_targetsChosen > 0 then
+                        -- For proximity chain, use the last target
+                        targetToken = dmhub.GetTokenById(g_targetsChosen[#g_targetsChosen])
+                    else
+                        -- For normal proximity, use the first target
+                        targetToken = dmhub.GetTokenById(g_firstTarget)
+                    end
+                    
+                    if targetToken ~= nil then
+                        loc = targetToken.locsOccupying
                         range = ExecuteGoblinScript(g_currentAbility.proximityRange,
                             g_token.properties:LookupSymbol(), dmhub.unitsPerSquare,
                             "Calculate proximity")
@@ -4735,7 +4743,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
 
-                print("MovementRadius:: MARK", range)
+                    print("MovementRadius:: MARK", range)
                     AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token,

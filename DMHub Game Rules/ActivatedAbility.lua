@@ -1172,15 +1172,26 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
             return false
         end
 
-        if self.targetAllegiance == "none" and (not targetToken.isObject) then
+        ---Treat creature as an object
+        local treatAsObject = (not targetToken.isObject) and targetToken.properties ~= nil and targetToken.properties:try_get("treatAsObject", false)
+
+        -- Block creature-objects from non-objectTarget abilities.
+        if self.objectTarget ~= true and treatAsObject then
             return false
         end
 
-        if self.targetAllegiance == 'enemy' and casterToken:IsFriend(targetToken) and (not targetToken.isObject) then
+        -- Allegiance checks: objects and creature-objects bypass allegiance filters.
+        local isAnyObject = targetToken.isObject or treatAsObject
+
+        if self.targetAllegiance == "none" and (not isAnyObject) then
             return false
         end
 
-        if self.targetAllegiance == 'ally' and (not casterToken:IsFriend(targetToken)) and (not targetToken.isObject) then
+        if self.targetAllegiance == 'enemy' and casterToken:IsFriend(targetToken) and (not isAnyObject) then
+            return false
+        end
+
+        if self.targetAllegiance == 'ally' and (not casterToken:IsFriend(targetToken)) and (not isAnyObject) then
             return false
         end
     end

@@ -1442,7 +1442,6 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 halign = "center",
             },
 
-
             --Followers only
             gui.Dropdown {
                 classes = { "followeronly" },
@@ -1566,6 +1565,35 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                 halign = "center",
 
 
+            },
+
+            --Monsters can be treated as objects
+            gui.Dropdown {
+                classes = { "monsterorfolloweronly" },
+                options = {
+                    { id = "creature", text = "Creature" },
+                    { id = "object",   text = "Object" },
+                },
+                refreshToken = function(element, info)
+                    local c = info.token.properties
+                    element.idChosen = cond(c:try_get("treatAsObject", false), "object", "creature")
+                end,
+                change = function(element)
+                    local c = CharacterSheet.instance.data.info.token.properties
+                    c.treatAsObject = (element.idChosen == "object")
+                    CharacterSheet.instance:FireEvent('refreshAll')
+                end,
+            },
+
+            gui.Label {
+                classes = { "monsterorfolloweronly" },
+                text = "Treat as",
+                color = border_color,
+                fontSize = 12,
+                textAlignment = "center",
+                width = "100%",
+                height = "auto",
+                halign = "center",
             },
 
             -- Titles

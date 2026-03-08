@@ -36,7 +36,7 @@ function ActivatedAbilityChangeElevationBehavior:Cast(ability, casterToken, targ
         }
 
     else
-        if options.targetArea ~= nil and #targets <= 1 then
+        if options.targetArea ~= nil and (#targets <= 1 or options.targetArea.shape == "Line") then
             print("TARGET::", options.targetArea, "->", #options.targetArea.perimeter, "/", #targets)
             game.currentFloor:ChangeElevation{
                 type = "polygon",

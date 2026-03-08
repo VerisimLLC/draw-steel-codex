@@ -22,7 +22,7 @@ function ActivatedAbilityChangeTerrainBehavior:Cast(ability, casterToken, target
         return
     end
 
-    if options.targetArea ~= nil and #targets <= 1 then
+    if options.targetArea ~= nil and (#targets <= 1 or options.targetArea.shape == "Cube" or options.targetArea.shape == "Line") then
         local points = {}
         local perim = options.targetArea.perimeter
         for i=1,#perim do

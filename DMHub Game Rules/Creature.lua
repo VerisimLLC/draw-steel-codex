@@ -209,6 +209,7 @@ creature.sizes = {
 creature.sizeToNumber = {}
 
 creature.proficientWithAllWeapons = false
+creature.treatAsObject = false
 
 dmhub.SetTokenSize = function(tok, sizeid)
 	if tok.properties == nil then
@@ -5834,6 +5835,14 @@ function creature:OnMove(path)
     local ourCharid = dmhub.LookupTokenId(self)
 
     local previousAdjacent = {}
+    
+    --Create temp table of creatures we move through
+    if not rawget(self, "_tmp_movedThroughTokens") or self:try_get("_tmp_movedThroughRoundId") ~= (dmhub.initiativeQueue and dmhub.initiativeQueue:GetRoundId() or "") then
+        self._tmp_movedThroughTokens = {}
+        self._tmp_movedThroughRoundId = dmhub.initiativeQueue and dmhub.initiativeQueue:GetRoundId() or ""
+    end
+    
+    local movedThroughTokens = rawget(self, "_tmp_movedThroughTokens")
 
     for i,step in ipairs(steps) do
         local adjacentTokens = {}
@@ -5847,14 +5856,25 @@ function creature:OnMove(path)
 
                 --see if we move through a token.
                 if otherToken.charid ~= ourToken.charid then
+					--make sure that we're not still overlapping this token
+                    local overlapping = false
                     local occupying = occupyingLocationMap[j]
                     for _,adjLoc in ipairs(occupying) do
                         for _,loc in ipairs(locs) do
                             if adjLoc.x == loc.x and adjLoc.y == loc.y and adjLoc.floor == loc.floor then
-                                --we moved through this token.
-                                ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties })
+                                overlapping = true
+                                break
                             end
                         end
+                        if overlapping then
+                            break
+                        end
+                    end
+                    
+                    if overlapping and not movedThroughTokens[otherToken.charid] then
+                        --we moved through this token for the first time this turn.
+                        ourToken.properties:DispatchEvent("movethrough", { target = otherToken.properties })
+                        movedThroughTokens[otherToken.charid] = true
                     end
                 end
 
@@ -5892,6 +5912,35 @@ function creature:OnMove(path)
         end
 
         previousAdjacent = adjacentTokens
+    end
+    
+    -- Check what tokens we're overlapping at our final position
+    local finalOverlapping = {}
+    if #steps > 0 then
+        local finalLocs = ourToken:LocsOccupyingWhenAt(steps[#steps])
+        for j,otherToken in ipairs(allTokens) do
+            if otherToken.charid ~= ourToken.charid then
+                local occupying = occupyingLocationMap[j]
+                for _,adjLoc in ipairs(occupying) do
+                    for _,loc in ipairs(finalLocs) do
+                        if adjLoc.x == loc.x and adjLoc.y == loc.y and adjLoc.floor == loc.floor then
+                            finalOverlapping[otherToken.charid] = true
+                            break
+                        end
+                    end
+                    if finalOverlapping[otherToken.charid] then
+                        break
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Clear tracking for any tokens we're no longer overlapping, so we can retrigger if we move back through them
+    for charid,_ in pairs(movedThroughTokens) do
+        if not finalOverlapping[charid] then
+            movedThroughTokens[charid] = nil
+        end
     end
 end
 
@@ -6191,7 +6240,30 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 	end
 
 	local found = false
-	if not ongoingEffect.stackable then
+	if ongoingEffect.casterTracking == "multiple" then
+		--each caster gets their own independent instance; replace if the same caster already has one.
+		if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+			for i,cond in ipairs(ongoingEffects) do
+				if found == false and cond.ongoingEffectid == ongoingEffectid then
+					local condCasterInfo = cond:try_get("casterInfo")
+					if condCasterInfo ~= nil and condCasterInfo.tokenid == casterInfo.tokenid then
+						cond.stolenAbility = stolenAbility
+						cond.endAbility = ongoingEffect:GetEndAbility()
+						cond.casterInfo = casterInfo
+						cond.seq = highestSeq + 1
+						if options.stacks == nil then
+							cond.stacks = 1
+						else
+							cond.stacks = options.stacks
+						end
+						cond:Refresh(duration)
+						result = cond
+						found = true
+					end
+				end
+			end
+		end
+	elseif not ongoingEffect.stackable then
 		for i,cond in ipairs(ongoingEffects) do
 			if found == false and cond.ongoingEffectid == ongoingEffectid then
 
@@ -6217,7 +6289,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 				found = true
 			end
 		end
-	else
+	else --stackable
 		for i,cond in ipairs(ongoingEffects) do
 			if found == false and cond.ongoingEffectid == ongoingEffectid then
                 if casterSet ~= nil and cond:has_key("casterInfo") and type(cond.casterInfo.tokenid) == "string" then
@@ -6343,6 +6415,19 @@ function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
 	self.ongoingEffects = newOngoingEffects
 
 	return numStacks
+end
+
+--- Removes the specific ongoing effect instance identified by seq.
+--- @param seq number
+function creature:RemoveOngoingEffectBySeq(seq)
+	local ongoingEffects = self:get_or_add('ongoingEffects', {})
+	local newOngoingEffects = {}
+	for i,cond in ipairs(ongoingEffects) do
+		if cond.seq ~= seq then
+			newOngoingEffects[#newOngoingEffects+1] = cond
+		end
+	end
+	self.ongoingEffects = newOngoingEffects
 end
 
 --- @param excluteTemporary nil|boolean

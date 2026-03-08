@@ -53,7 +53,7 @@ function CharacterResource.SetGlobalResource(resourceid, amount, note)
 
     doc.data = doc.data or {}
     local entry = doc.data[resourceid] or CharacterResource.new{}
-    entry.unbounded = math.max(0, amount)
+    entry.unbounded = amount
     entry.history = entry.history or StatHistory.Create()
     entry.history:Append{
         note = note or "Set manually",
@@ -495,7 +495,8 @@ function CharacterResource:RefreshDescription()
 end
 
 function CharacterResource:AllowResourceBelowZero(caster)
-    if self.usageLimit == "unbounded" and self.mayBeNegative then
+	--Allow unbound and global resources to go negative, if the creature allows it
+    if (self.usageLimit == "unbounded" or self.usageLimit == "global") and self.mayBeNegative then
         return caster:AllowNegativeResources()
     end
     return 0
@@ -681,8 +682,13 @@ function creature:ConsumeResource(key, refreshType, quantity, note)
 
 
     if refreshType == "global" then
-        print("GLOBAL::", note)
-        CharacterResource.SetGlobalResource(key, math.max(0, CharacterResource.GetGlobalResource(key) - quantity), note)
+        local newAmount = CharacterResource.GetGlobalResource(key) - quantity
+        if resourceInfo ~= nil and resourceInfo.mayBeNegative and self:AllowNegativeResources() > 0 then
+            -- Allow negative values for resources that support it and creature allows it
+            CharacterResource.SetGlobalResource(key, newAmount, note)
+        else
+            CharacterResource.SetGlobalResource(key, math.max(0, newAmount), note)
+        end
 
         if resourceInfo ~= nil and quantity > 0 then
             self:DispatchEvent("useresource", {

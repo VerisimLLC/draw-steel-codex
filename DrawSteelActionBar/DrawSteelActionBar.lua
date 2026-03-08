@@ -1060,6 +1060,13 @@ local function CreateActionBar()
 
             g_creature = g_token.properties
 
+            if g_creature:try_get("treatAsObject", false) then
+                element:SetClass("hidden", true)
+                element:HaltEventPropagation()
+                element:FireEventTree("closemenu")
+                return
+            end
+
             element:SetClass("hidden", false)
 
             if g_prevCharid ~= g_token.charid then
@@ -4444,14 +4451,16 @@ local function CalculateSpellTargetFocusing(symbols)
         elseif g_currentAbility.objectTarget == false then
             allTokens = dmhub.allTokens
         elseif g_currentAbility.targetAllegiance == "none" then
-            allTokens = dmhub.allObjectTokens
+            allTokens = dmhub.allTokensIncludingObjects
         else
             if targeting == "all" or g_currentAbility.objectTarget == "conditional" then
                 allTokens = dmhub.allTokensIncludingObjects
             elseif targeting == false then
                 allTokens = dmhub.allTokens
             else
-                allTokens = dmhub.allObjectTokens
+                -- targeting == true (Objects): use allTokensIncludingObjects so that
+                -- creatures tagged treatAsObject appear as valid targets.
+                allTokens = dmhub.allTokensIncludingObjects
             end
         end
 
@@ -4462,6 +4471,21 @@ local function CalculateSpellTargetFocusing(symbols)
                 end
 
                 local canTarget = true
+
+                -- For objectTarget abilities, respect the Creatures/Objects/Both setting.
+                if g_currentAbility.objectTarget == true then
+                    local treatAsObject = (not targetToken.isObject) and
+                                          targetToken.properties ~= nil and
+                                          targetToken.properties:try_get("treatAsObject", false)
+                    if targeting == false and treatAsObject then
+                        -- "Creatures" mode: exclude creature-objects.
+                        canTarget = false
+                    elseif targeting == true and (not treatAsObject) and (not targetToken.isObject) then
+                        -- "Objects" mode: exclude regular creatures.
+                        canTarget = false
+                    end
+                end
+
                 if (spell.targetType == 'self' or spell.targetType == 'all') and targetToken.charid ~= g_token.charid then
                     canTarget = false
                 end
@@ -4717,9 +4741,17 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 local loc = g_currentAbility:try_get("casterLocOverride")
 
                 if g_currentAbility.proximityTargeting and g_firstTarget ~= nil then
-                    local firstTargetToken = dmhub.GetTokenById(g_firstTarget)
-                    if firstTargetToken ~= nil then
-                        loc = firstTargetToken.locsOccupying
+                    local targetToken = nil
+                    if g_currentAbility.proximityChain and #g_targetsChosen > 0 then
+                        -- For proximity chain, use the last target
+                        targetToken = dmhub.GetTokenById(g_targetsChosen[#g_targetsChosen])
+                    else
+                        -- For normal proximity, use the first target
+                        targetToken = dmhub.GetTokenById(g_firstTarget)
+                    end
+                    
+                    if targetToken ~= nil then
+                        loc = targetToken.locsOccupying
                         range = ExecuteGoblinScript(g_currentAbility.proximityRange,
                             g_token.properties:LookupSymbol(), dmhub.unitsPerSquare,
                             "Calculate proximity")
@@ -4735,7 +4767,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     local filterTargetPredicate = g_currentAbility:TargetLocPassesFilterPredicate(g_token,
                         g_currentSymbols)
 
-                print("MovementRadius:: MARK", range)
+                    print("MovementRadius:: MARK", range)
                     AddRadiusMarker(loc, range, 'white', filterTargetPredicate)
 
                     m_allowedAltitudeCalculator = g_currentAbility:TargetLocMaxElevationChangeFunction(g_token,

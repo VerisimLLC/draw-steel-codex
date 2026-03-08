@@ -6240,7 +6240,30 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 	end
 
 	local found = false
-	if not ongoingEffect.stackable then
+	if ongoingEffect.casterTracking == "multiple" then
+		--each caster gets their own independent instance; replace if the same caster already has one.
+		if casterInfo ~= nil and type(casterInfo.tokenid) == "string" then
+			for i,cond in ipairs(ongoingEffects) do
+				if found == false and cond.ongoingEffectid == ongoingEffectid then
+					local condCasterInfo = cond:try_get("casterInfo")
+					if condCasterInfo ~= nil and condCasterInfo.tokenid == casterInfo.tokenid then
+						cond.stolenAbility = stolenAbility
+						cond.endAbility = ongoingEffect:GetEndAbility()
+						cond.casterInfo = casterInfo
+						cond.seq = highestSeq + 1
+						if options.stacks == nil then
+							cond.stacks = 1
+						else
+							cond.stacks = options.stacks
+						end
+						cond:Refresh(duration)
+						result = cond
+						found = true
+					end
+				end
+			end
+		end
+	elseif not ongoingEffect.stackable then
 		for i,cond in ipairs(ongoingEffects) do
 			if found == false and cond.ongoingEffectid == ongoingEffectid then
 
@@ -6266,7 +6289,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 				found = true
 			end
 		end
-	else
+	else --stackable
 		for i,cond in ipairs(ongoingEffects) do
 			if found == false and cond.ongoingEffectid == ongoingEffectid then
                 if casterSet ~= nil and cond:has_key("casterInfo") and type(cond.casterInfo.tokenid) == "string" then
@@ -6392,6 +6415,19 @@ function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
 	self.ongoingEffects = newOngoingEffects
 
 	return numStacks
+end
+
+--- Removes the specific ongoing effect instance identified by seq.
+--- @param seq number
+function creature:RemoveOngoingEffectBySeq(seq)
+	local ongoingEffects = self:get_or_add('ongoingEffects', {})
+	local newOngoingEffects = {}
+	for i,cond in ipairs(ongoingEffects) do
+		if cond.seq ~= seq then
+			newOngoingEffects[#newOngoingEffects+1] = cond
+		end
+	end
+	self.ongoingEffects = newOngoingEffects
 end
 
 --- @param excluteTemporary nil|boolean

@@ -2531,6 +2531,7 @@ creature.RegisterSymbol {
 --- Inflict a condition on a creature. (Or purge the condition using the 'purge' argument.)
 --- @param conditionid string
 --- @param args {duration:string, force: nil|boolean, purge: nil|boolean, riders: nil|(string[]), sourceDescription: string, casterInfo:nil|{tokenid:string, timestamp: string|number|nil}, cast: ActivatedAbilityCast}
+--- When purge=true and casterInfo is provided, only removes the condition if it was inflicted by that caster.
 function creature:InflictCondition(conditionid, args)
     local immunities = self:GetConditionImmunities()
 
@@ -2617,6 +2618,13 @@ function creature:InflictCondition(conditionid, args)
                     entry.duration = "eoe"
                     return
                 end
+            end
+        end
+        --if a caster filter is provided, only purge if the condition was inflicted by that caster.
+        if args.casterInfo ~= nil then
+            local entryCasterInfo = entry and entry.casterInfo
+            if entryCasterInfo == nil or entryCasterInfo.tokenid ~= args.casterInfo.tokenid then
+                return
             end
         end
         if inflictedConditions[conditionid] ~= nil then
@@ -2906,6 +2914,63 @@ function creature:ConditionDuration(conditionid)
 
     return entry.duration
 end
+
+creature.RegisterSymbol {
+    symbol = "effectcaster",
+    lookup = function(c)
+        return function(condName, caster)
+            if caster == nil then
+                return 0
+            end
+            
+            -- Get the caster's token ID for comparison
+            local casterTokenId = dmhub.LookupTokenId(caster)
+            if casterTokenId == nil then
+                return 0
+            end
+            
+            local result = 0
+            
+            -- Check inflicted conditions
+            local inflictedConditions = c:try_get("inflictedConditions", {})
+            local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+            for k, v in pairs(conditionsTable) do
+                if not v:try_get("hidden", false) and string.lower(v.name) == string.lower(condName) then
+                    local entry = inflictedConditions[k]
+                    if entry ~= nil and entry.casterInfo ~= nil then
+                        if entry.casterInfo.tokenid == casterTokenId then
+                            result = result + (entry.stacks or 1)
+                        end
+                    end
+                end
+            end
+
+            -- Check ongoing effects
+            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+            local ongoingEffects = c:ActiveOngoingEffects()
+            for _, effect in ipairs(ongoingEffects) do
+                local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                if effectInfo ~= nil and string.lower(effectInfo.name) == string.lower(condName) then
+                    if effect.casterInfo ~= nil and effect.casterInfo.tokenid == casterTokenId then
+                        result = result + (effect.stacks or 1)
+                    end
+                end
+            end
+
+            return result > 0
+        end
+    end,
+
+    help = {
+        name = "Effect Caster",
+        type = "function",
+        desc = "Given the name of a condition or ongoing effect and a creature, returns the total stacks of that effect/condition that were cast by the given caster.",
+        seealso = {},
+        examples = {
+            'Effect Caster("Carefully Observed", Caster)',
+        },
+    },
+}
 
 creature.RegisterSymbol {
     symbol = "conditionstacks",

@@ -42,6 +42,10 @@ CharacterOngoingEffect.CasterTrackingOptions = {
         id = 'bond',
         text = 'Bonded Set',
     },
+	{
+		id = 'multiple',
+		text = 'Multiple Casters',
+	},
 }
 
 CharacterOngoingEffect.durationOptions = {

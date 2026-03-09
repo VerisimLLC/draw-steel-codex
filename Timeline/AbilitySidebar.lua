@@ -1147,7 +1147,9 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                     needParent = false
                     panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
                         { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
-                    panel:MakeNonInteractiveRecursive()
+                    --Shwayguy: Entire panel cannot be made non-interactive
+                    --Implementation chip hover requires it                    
+                    --panel:MakeNonInteractiveRecursive()
                 end
             end
 

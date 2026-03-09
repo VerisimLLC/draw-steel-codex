@@ -1219,6 +1219,18 @@ function ActivatedAbility:Render(options, params)
                                 flow = "horizontal",
                                 lmargin = 10,
 
+                                hover = function(element)
+                                    if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
+                                        element.tooltip = gui.TooltipFrame(gui.Label {
+                                            text = self:try_get("implementationDetails"),
+                                            width = 300,
+                                            height = "auto",
+                                            wrap = true,
+                                            fontSize = 14,
+                                        }, {})
+                                    end
+                                end,
+
                                 gui.Panel {
 
                                     classes = { "implementationDiamond" },
@@ -1268,18 +1280,7 @@ function ActivatedAbility:Render(options, params)
                                         else
                                             element:SetClass("unimplemented", true)
                                         end
-                                    end,
-                                    hover = function(element)
-                                        if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
-                                            element.tooltip = gui.TooltipFrame(gui.Label {
-                                                text = self:try_get("implementationDetails"),
-                                                width = 300,
-                                                height = "auto",
-                                                wrap = true,
-                                                fontSize = 14,
-                                            }, {})
-                                        end
-                                    end,
+                                    end
                                 },
 
                             },

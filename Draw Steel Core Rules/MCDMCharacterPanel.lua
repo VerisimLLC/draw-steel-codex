@@ -1,5 +1,1598 @@
 local mod = dmhub.GetModLoading()
 
+local TacPanelConstants = {
+    COLORS = {
+        BLACK = "#000000",
+        BLACK02 = "#10110F",
+        BLACK03 = "#191A18",
+        BLACK04 = "#040807",
+        CREAM = "#BC9B7B",
+        CREAM03 = "#DFCFC0",
+        GOLD = "#966D4B",
+        GOLD03 = "#F1D3A5",
+        GOLD04 = "#E9B86F",
+        GRAY02 = "#666663",
+        BACKGROUNDS = {
+            GREEN01 = "#05715a44",
+            GREEN02 = "#1f493744",
+            RED01 = "#95232444",
+            TEMP = "#6666d244",
+        },
+        BORDERS = {
+            GRAY02 = "#666663",
+            GREEN01 = "#05715a",
+            GREEN02 = "#1f4937",
+            RED01 = "#952324",
+            TEMP = "#6666d2",
+        },
+        HEALTH = {
+            DYING = "#6b2020",
+            WINDED = "#7a4a18",
+            HEALTHY = "#2d6a4f",
+            TEMP = "#6666d2",
+        },
+        TEXT = {
+            GREEN01 = "#05715a",
+            GREEN02 = "#1f4937",
+            RED01 = "#952324",
+        },
+    },
+    SIZES = {
+        HEALTH = {
+            BAR_HEIGHT = 16,
+            DIAMOND = 24,
+        }
+    }
+}
+
+local TacPanelStyles = {
+    -- Panels
+    {
+        selectors = {"panel", "tacpanel"},
+        width = "100%-24",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+    },
+    {
+        selectors = {"panel", "tacpanel", "container"},
+        width = "100%",
+        hpad = 4,
+        vpad = 8,
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        borderColor = TacPanelConstants.COLORS.BORDERS.GRAY02,
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+    },
+
+    -- Summary Panel
+    {
+        selectors = {"panel", "portrait-frame"},
+        bgimage = "panels/square.png",
+        height = 140,
+        width = string.format("%f%% height", Styles.portraitWidthPercentOfHeight),
+        valign = "top",
+        halign = "left",
+        lmargin = 4,
+        bgcolor = "white",
+        borderColor = TacPanelConstants.COLORS.BORDERS.GRAY02,
+        borderWidth = 2,
+        cornerRadius = 10,
+    },
+    {
+        selectors = {"panel", "portrait-body"},
+        width = "100%-2",
+        height = "100%-2",
+        valign = "center",
+        halign = "center",
+        bgcolor = "white",
+        cornerRadius = 10,
+    },
+    {
+        selectors = {"panel", "summary-detail"},
+        width = "auto",
+        height = 140,
+        valign = "top",
+        halign = "left",
+        lmargin = 4,
+        flow = "vertical",
+    },
+    {
+        selectors = {"label", "summary"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        fontSize = 24,
+    },    
+    {
+        selectors = {"label", "summary", "name"},
+        fontSize = 36,
+        color = "white",
+    },
+    {
+        selectors = {"label", "summary", "level"},
+        color = TacPanelConstants.COLORS.GRAY02,
+    },
+    {
+        selectors = {"label", "summary", "class"},
+        color = TacPanelConstants.COLORS.GOLD,
+    },
+    {
+        selectors = {"label", "summary", "subclass"},
+        fontSize = 22,
+        color = TacPanelConstants.COLORS.CREAM03,
+    },
+
+    -- Health panel
+    {
+        selectors = {"panel", "health-segment"},
+        height = "100%",
+        bgimage = "panels/square.png",
+    },
+    {
+        selectors = {"panel", "health-segment", "dying"},
+        bgcolor = TacPanelConstants.COLORS.HEALTH.DYING,
+    },
+    {
+        selectors = {"panel", "health-segment", "winded"},
+        bgcolor = TacPanelConstants.COLORS.HEALTH.WINDED,
+    },
+    {
+        selectors = {"panel", "health-segment", "healthy"},
+        bgcolor = TacPanelConstants.COLORS.HEALTH.HEALTHY,
+    },
+    {
+        selectors = {"panel", "health-segment", "temp"},
+        bgcolor = TacPanelConstants.COLORS.HEALTH.TEMP,
+    },
+    {
+        selectors = {"panel", "health-diamond"},
+        height = 24,
+        width = 24,
+        halign = "right",
+        valign = "center",
+        bgimage = "panels/square.bg",
+        bgcolor = "white",
+        x = 12,
+    },
+    {
+        selectors = {"panel", "health-positioner"},
+        halign = "left",
+        valign = "top",
+        width = "50%",
+        height = "auto",
+        flow = "none",
+    },
+    {
+        selectors = {"label", "health-diamond"},
+        width = "auto",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        fontSize = 16,
+        color = "#000000",
+        textAlignment = "center",
+        bold = true,
+    },
+    {
+        selectors = {"label", "health-label"},
+        fontSize = 14,
+        color = "white",
+        halign = "left",
+        valign = "top",
+        width = "auto",
+        height = "auto",
+    },
+    {
+        selectors = {"label", "health-label", "dying"},
+        color = TacPanelConstants.COLORS.HEALTH.DYING,
+    },
+    {
+        selectors = {"label", "health-label", "winded"},
+        color = TacPanelConstants.COLORS.HEALTH.WINDED,
+    },
+    {
+        selectors = {"label", "health-label", "healthy"},
+        color = TacPanelConstants.COLORS.HEALTH.HEALTHY,
+    },
+    {
+        selectors = {"label", "health-label", "temp"},
+        color = TacPanelConstants.COLORS.HEALTH.TEMP,
+    },
+
+    -- Health controls
+    {
+        selectors = {"health-control"},
+        width = "33%",
+        height = 28,
+        halign = "left",
+        rmargin = 4,
+        fontSize = 12,
+        textAlignment = "center",
+        bold = true,
+        cornerRadius = 4,
+        borderWidth = 1,
+        pad = 0,
+    },
+    {
+        selectors = {"health-control", "damage"},
+        bgcolor = TacPanelConstants.COLORS.BACKGROUNDS.RED01,
+        borderColor = TacPanelConstants.COLORS.BORDERS.RED01,
+        color = "white", --TacPanelConstants.COLORS.TEXT.RED01,
+    },
+    {
+        selectors = {"health-control", "heal"},
+        bgcolor = TacPanelConstants.COLORS.BACKGROUNDS.GREEN02,
+        borderColor = TacPanelConstants.COLORS.BORDERS.GREEN02,
+        color = "white", --TacPanelConstants.COLORS.TEXT.GREEN02,
+    },
+    {
+        selectors = {"health-control", "temp"},
+        bgcolor = TacPanelConstants.COLORS.BACKGROUNDS.TEMP,
+        borderColor = TacPanelConstants.COLORS.BORDERS.TEMP,
+        color = "white",
+    },
+    {
+        selectors = {"health-control", "recovery"},
+        bgimage = "panels/square.png",
+        bgcolor = TacPanelConstants.COLORS.BACKGROUNDS.GREEN01,
+        borderColor = TacPanelConstants.COLORS.BORDERS.GREEN01,
+        color = "#aaaaaa",
+        uppercase = true,
+    },
+    {
+        selectors = {"health-control", "recovery", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"health-control", "recovery", "press"},
+        brightness = 0.5,
+    },
+
+    -- Recovery pip control
+    {
+        selectors = {"recovery-pips-control"},
+        flow = "horizontal",
+        height = 28,
+        halign = "left",
+        valign = "center",
+        width = "auto",
+        tmargin = 4,
+        hmargin = 4,
+    },
+    {
+        selectors = {"recovery-adj-btn"},
+        bgimage = "panels/square.png",
+        width = 22,
+        height = 22,
+        fontSize = 14,
+        bold = true,
+        textAlignment = "center",
+        cornerRadius = 4,
+        borderWidth = 1,
+        bgcolor = TacPanelConstants.COLORS.BACKGROUNDS.GREEN02,
+        borderColor = TacPanelConstants.COLORS.BORDERS.GREEN02,
+        color = "white",
+        valign = "center",
+    },
+    {
+        selectors = {"recovery-adj-btn", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"recovery-adj-btn", "press"},
+        brightness = 0.5,
+    },
+    {
+        selectors = {"recovery-pip"},
+        bgimage = "panels/square.png",
+        width = 10,
+        height = 10,
+        hmargin = 1,
+        valign = "center",
+        bgcolor = "black",
+        borderWidth = 1,
+        borderColor = TacPanelConstants.COLORS.BORDERS.GREEN01,
+    },
+    {
+        selectors = {"recovery-pip", "filled"},
+        bgcolor = TacPanelConstants.COLORS.BORDERS.GREEN01,
+    },
+
+    -- Token resource tooltip
+    {
+        selectors = {"token-resource-tooltip"},
+        bgimage = "panels/square.png",
+        bgcolor = "#000000dd",
+        width = 360,
+        height = "auto",
+        pad = 4,
+        flow = "vertical",
+    },
+    {
+        selectors = {"token-resource-tooltip-text"},
+        width = "100%",
+        height = "auto",
+        fontSize = 16,
+    },
+
+    -- Token resource boxes
+    {
+        selectors = {"token-resource-box"},
+        bgimage = "panels/square.png",
+        bgcolor = "#000000aa",
+        cornerRadius = 6,
+        borderWidth = 1,
+        borderColor = TacPanelConstants.COLORS.BORDERS.GRAY02,
+        width = "25%-16",
+        height = "auto",
+        flow = "vertical",
+        pad = 4,
+        hmargin = 2,
+    },
+    {
+        selectors = {"token-resource-title"},
+        bgimage = "panels/square.png",
+        fontSize = 12,
+        bold = true,
+        uppercase = true,
+        color = "#aaaaaa",
+        width = "100%",
+        height = 24,
+        y = -2,
+        textAlignment = "center",
+        valign = "center",
+    },
+    {
+        selectors = {"token-resource-title", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"token-resource-title", "press"},
+        brightness = 0.5,
+    },
+    {
+        selectors = {"token-resource-value"},
+        fontSize = 22,
+        bold = true,
+        color = "white",
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    },
+
+    -- Movement stat boxes
+    {
+        selectors = {"movement-stat-box"},
+        cornerRadius = 6,
+        borderWidth = 0,
+        width = "25%-16",
+        height = "auto",
+        flow = "vertical",
+        pad = 4,
+        hmargin = 2,
+    },
+    {
+        selectors = {"movement-stat-title"},
+        fontSize = 12,
+        bold = true,
+        uppercase = true,
+        color = "#aaaaaa",
+        width = "100%",
+        height = 24,
+        y = -2,
+        textAlignment = "center",
+        valign = "center",
+    },
+    {
+        selectors = {"movement-stat-value"},
+        fontSize = 22,
+        bold = true,
+        color = "white",
+        width = "100%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+    },
+    {
+        selectors = {"movement-fly-row"},
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+    },
+    {
+        selectors = {"movement-fly-btn"},
+        bgimage = "panels/square.png",
+        width = 16,
+        height = 12,
+        fontSize = 10,
+        bold = true,
+        textAlignment = "center",
+        cornerRadius = 2,
+        borderWidth = 1,
+        bgcolor = "#ffffff22",
+        borderColor = TacPanelConstants.COLORS.BORDERS.GRAY02,
+        color = "white",
+    },
+    {
+        selectors = {"movement-fly-btn", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"movement-fly-btn", "press"},
+        brightness = 0.5,
+    },
+    {
+        selectors = {"movement-fly-btn-stack"},
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+}
+
+local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunction, DescribeModificationsFunction)
+    return function(element)
+        local m_token = tokenInfo.token
+        if m_token == nil or (not m_token.valid) then
+            return
+        end
+        local baseValue = GetBaseFunction(m_token.properties)
+        local modifications = DescribeModificationsFunction(m_token.properties)
+
+        local panels = {}
+        panels[#panels+1] = gui.Label{
+            text = string.format("Base %s: %d", name, baseValue),
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+        }
+        for _,modification in ipairs(modifications) do
+            local text = string.format("%s: %s", modification.key, modification.value)
+            panels[#panels+1] = gui.Label{
+                text = text,
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+            }
+        end
+
+        local container = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            children = panels,
+        }
+
+        element.tooltip = gui.TooltipFrame(container)
+    end
+end
+
+local function GenerateCustomAttributeCalculationTooltip(tokenInfo, name)
+    return GenerateAttributeCalculationTooltip(tokenInfo, name,
+        function(c) return c:BaseNamedCustomAttribute(name) end,
+        function(c) return c:DescribeModificationsToNamedCustomAttribute(name) end)
+end
+
+--- display the portrait
+--- @return Panel
+local function _tacPanelPortrait()
+    return gui.Panel{
+        id = "LeftPanel",
+        classes = {"panel", "portrait-frame"},
+        refreshCharacter = function(element, token)
+            local bg = token.portraitBackground
+            if bg == nil or bg == "" then
+                element.selfStyle.bgcolor = "clear"
+            else
+                element.bgimage = bg
+                element.selfStyle.bgcolor = "white"
+            end
+        end,
+        gui.Panel{
+            classes = {"panel", "portrait-body"},
+            floating = true,
+            refreshCharacter = function(element, token)
+                local portrait = token.offTokenPortrait
+                element.bgimage = portrait
+
+                if portrait ~= token.portrait and not token.popoutPortrait then
+                    element.selfStyle.imageRect = nil
+                else
+                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                end
+            end,
+        }
+    }
+end
+
+--- display basic info
+--- @return Panel
+local function _tacPanelBasicInfo()
+    return gui.Panel{
+        id = "RightPanel",
+        classes = {"panel", "summary-detail"},
+        gui.Label{
+            classes = {"label", "summary", "name"},
+            refreshCharacter = function(element, token)
+                local n = token.name or "Unnamed token"
+                element.text = n
+                local len = #n
+                if len <= 12 then
+                    element.selfStyle.fontSize = 36
+                else
+                    element.selfStyle.fontSize = math.max(12, math.floor(36 * 12 / len))
+                end
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end
+        },
+        gui.Label{
+            classes = {"label", "summary", "level"},
+            refreshCharacter = function(element, token)
+                local level = token.properties:CharacterLevel()
+                if level == 1 then
+                    local extra = token.properties:ExtraLevelInfo()
+                    local encounter = type(extra) == "table" and extra.encounter or nil
+                    local mapping = {"FIRST ENCOUNTER", "SECOND ENCOUNTER", "THIRD ENCOUNTER", "FOURTH ENCOUNTER"}
+                    element.text = mapping[encounter] or "LEVEL 1"
+                else
+                    element.text = string.format("LEVEL %d", level)
+                end
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+        gui.Label{
+            classes = {"label", "summary", "class"},
+            refreshCharacter = function(element, token)
+                local classItem = token.properties:GetClass()
+                element.text = classItem ~= nil and string.upper(classItem.name) or ""
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+        gui.Label{
+            classes = {"label", "summary", "subclass"},
+            refreshCharacter = function(element, token)
+                local classItem = token.properties:GetClass()
+                local subclass = classItem ~= nil and token.properties:GetSubClass(classItem) or nil
+                element.text = subclass ~= nil and string.upper(subclass.name) or ""
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        }
+    }
+end
+
+--- Display the summary panel
+--- @return Panel
+local function _tacPanelSummaryPanel()
+    return gui.Panel{
+        id = "sidebar",
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel", "container"},
+        flow = "horizontal",
+
+        _tacPanelPortrait(),
+        _tacPanelBasicInfo(),
+    }
+end
+
+--- display the health bar
+--- @return Panel
+local function _tacPanelHealthBar()
+    -- pre-create segment panels
+    local deadSegment = gui.Panel{
+        classes = {"panel", "health-segment", "dying"},
+    }
+    local windedSegment = gui.Panel{
+        classes = {"panel", "health-segment", "winded"},
+    }
+    local healthySegment = gui.Panel{
+        classes = {"panel", "health-segment", "healthy"},
+    }
+    local tempSegment = gui.Panel{
+        classes = {"panel", "health-segment", "temp"},
+    }
+
+    -- diamond position wrapper: width controls horizontal position
+    local diamondLabel = gui.Label{
+        classes = {"label", "health-diamond"},
+        rotate = -45,
+    }
+    local diamond = gui.Panel{
+        classes = {"panel, health-diamond"},
+        width = TacPanelConstants.SIZES.HEALTH.DIAMOND,
+        height = TacPanelConstants.SIZES.HEALTH.DIAMOND,
+        rotate = 45,
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        halign = "right",
+        valign = "center",
+        x = TacPanelConstants.SIZES.HEALTH.DIAMOND / 2,
+        linger = function(element)
+            local token = element.parent.parent.data.token
+            if token ~= nil and token.valid and token.properties ~= nil then
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "Stamina",
+                    entries = token.properties:GetStatHistory("stamina"):GetHistory(),
+                }
+            end
+        end,
+        diamondLabel,
+    }
+    local diamondPositioner = gui.Panel{
+        classes = {"panel", "health-positioner"},
+        floating = true,
+        height = TacPanelConstants.SIZES.HEALTH.BAR_HEIGHT,
+        diamond,
+    }
+
+    -- labels beneath the bar
+    local labelLeft = gui.Label{
+        classes = {"label", "health-label"},
+        text = "",
+    }
+    local labelWinded = gui.Label{
+        classes = {"label", "health-label", "winded"},
+        text = "",
+        halign = "right",
+    }
+    local labelWindedPositioner = gui.Panel{
+        classes = {"panel", "health-positioner"},
+        floating = true,
+        labelWinded,
+    }
+    local labelMax = gui.Label{
+        classes = {"label", "health-label"},
+        text = "",
+        halign = "right",
+    }
+    local labelMaxPositioner = gui.Panel{
+        classes = {"panel", "health-positioner"},
+        floating = true,
+        labelMax,
+    }
+    local labelMaxHP = gui.Label{
+        classes = {"label", "health-label", "healthy"},
+        text = "",
+        halign = "right",
+    }
+    local labelMaxHPPositioner = gui.Panel{
+        classes = {"panel", "health-positioner"},
+        floating = true,
+        labelMaxHP,
+    }
+    local labelRight = gui.Label{
+        classes = {"label", "health-label"},
+        text = "",
+        halign = "right",
+    }
+
+    local barRow = gui.Panel{
+        width = "100%",
+        height = TacPanelConstants.SIZES.HEALTH.BAR_HEIGHT,
+        flow = "horizontal",
+        deadSegment,
+        windedSegment,
+        healthySegment,
+        tempSegment,
+    }
+
+    local labelRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "none",
+        labelLeft,
+        labelWindedPositioner,
+        labelMaxPositioner,
+        labelMaxHPPositioner,
+        labelRight,
+    }
+
+    local function pct(value)
+        return string.format("%f%%", value)
+    end
+
+    return gui.Panel{
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel"},
+        flow = "vertical",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                return
+            end
+
+            local props = token.properties
+            local currentHP = props:CurrentHitpoints()
+            local maxHP = props:MaxHitpoints()
+            local tempHP = props:TemporaryHitpoints() or 0
+            local bloodied = props:BloodiedThreshold()
+            local isHero = props:IsHero()
+            local windedVal = math.floor(maxHP / 2)
+
+            -- dead threshold: heroes die at -bloodied, monsters at 0
+            local deadVal = isHero and -bloodied or 0
+
+            -- total range of the bar
+            local totalRange = maxHP + (isHero and bloodied or 0) + tempHP
+            if totalRange <= 0 then
+                totalRange = 1
+            end
+
+            -- segment widths as percentages
+            local deadPct = isHero and (bloodied / totalRange * 100) or 0
+            local windedPct = windedVal / totalRange * 100
+            local healthyPct = (maxHP - windedVal) / totalRange * 100
+            local tempPct = tempHP > 0 and (tempHP / totalRange * 100) or 0
+
+            -- dead segment (heroes only)
+            if isHero then
+                deadSegment.selfStyle.width = pct(deadPct)
+                deadSegment.selfStyle.lmargin = 0
+            end
+            deadSegment:SetClass("collapsed", not isHero)
+
+            -- winded segment
+            windedSegment.selfStyle.width = pct(windedPct)
+            windedSegment.selfStyle.lmargin = isHero and 1 or 0
+
+            -- healthy segment
+            healthySegment.selfStyle.width = pct(healthyPct)
+            healthySegment.selfStyle.lmargin = 1
+
+            -- temp HP segment
+            if tempHP > 0 then
+                tempSegment.selfStyle.width = pct(tempPct)
+                tempSegment.selfStyle.lmargin = 1
+            end
+            tempSegment:SetClass("collapsed", tempHP <= 0)
+
+            -- diamond position: percentage from left
+            local diamondPct
+            if isHero then
+                diamondPct = (currentHP + bloodied) / totalRange * 100
+            else
+                diamondPct = currentHP / totalRange * 100
+            end
+            diamondPct = math.max(0, math.min(100, diamondPct))
+            diamondPositioner.selfStyle.width = pct(diamondPct)
+            diamondLabel.text = tostring(math.floor(currentHP))
+
+            -- labels beneath the bar
+            -- heroes:   deadVal | 0 | windedVal | maxHP | maxHP+tempHP
+            -- monsters: 0 | windedVal | maxHP | maxHP+tempHP
+            if isHero then
+                labelLeft.text = tostring(deadVal)
+                labelLeft:SetClass("dying", true)
+
+                labelWinded.text = "0"
+                labelWinded:SetClass("winded", false)
+                labelWinded:SetClass("dying", true)
+                labelWindedPositioner.selfStyle.width = pct(bloodied / totalRange * 100)
+
+                labelMax.text = tostring(windedVal)
+                labelMax:SetClass("winded", true)
+                labelMaxPositioner.selfStyle.width = pct((bloodied + windedVal) / totalRange * 100)
+
+                if tempHP > 0 then
+                    labelMaxHP.text = tostring(maxHP)
+                    labelMaxHPPositioner.selfStyle.width = pct((bloodied + maxHP) / totalRange * 100)
+                end
+                labelRight.text = tostring(maxHP + tempHP)
+                labelMaxHPPositioner:SetClass("collapsed", tempHP <= 0)
+                labelRight:SetClass("healthy", tempHP <= 0)
+                labelRight:SetClass("temp", tempHP > 0)
+                labelRight:SetClass("collapsed", false)
+            else
+                labelLeft.text = "0"
+                labelLeft.selfStyle.color = TacPanelConstants.COLORS.HEALTH.WINDED
+
+                labelWinded.text = tostring(windedVal)
+                labelWinded:SetClass("dying", false)
+                labelWinded:SetClass("winded", true)
+                labelWindedPositioner.selfStyle.width = pct(windedVal / totalRange * 100)
+
+                labelMax.text = tostring(maxHP)
+                labelMax.selfStyle.color = TacPanelConstants.COLORS.HEALTH.HEALTHY
+                labelMaxPositioner.selfStyle.width = pct(maxHP / totalRange * 100)
+
+                labelMaxHPPositioner:SetClass("collapsed", true)
+
+                if tempHP > 0 then
+                    labelRight.text = tostring(maxHP + tempHP)
+                    labelRight.selfStyle.color = TacPanelConstants.COLORS.HEALTH.TEMP
+                end
+                labelRight:SetClass("collapsed", tempHP <= 0)
+            end
+        end,
+
+        barRow,
+        labelRow,
+        diamondPositioner,
+    }
+end
+
+--- Display the health controls
+--- @return Panel
+local function _tacPanelHealthControls()
+    local recoveryid = nil
+    local recoveryInfo = nil
+    local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
+    for k,v in pairs(resourcesTable) do
+        if v.name == "Recovery" then
+            recoveryid = k
+            recoveryInfo = v
+            break
+        end
+    end
+
+    local damageInput = gui.Input{
+        classes = {"health-control", "damage"},
+        text = "",
+        characterLimit = 8,
+        placeholderText = "DAMAGE",
+        data = {
+            token = nil,
+        },
+        change = function(element)
+            if element.data.token ~= nil and element.data.token.properties ~= nil then
+                element.data.token:ModifyProperties{
+                    description = "Apply Damage",
+                    execute = function()
+                        element.data.token.properties:TakeDamage(element.text)
+                        element.text = ""
+                    end,
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    local healInput = gui.Input{
+        classes = {"health-control", "heal"},
+        text = "",
+        characterLimit = 8,
+        placeholderText = "HEAL",
+        data = {
+            token = nil,
+        },
+        change = function(element)
+            if element.data.token ~= nil and element.data.token.properties ~= nil then
+                element.data.token:ModifyProperties{
+                    description = "Apply Healing",
+                    execute = function()
+                        local num = tonumber(element.text)
+                        if num ~= nil then
+                            element.data.token.properties:Heal(round(num))
+                            element.text = ""
+                        end
+                    end,
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    local tempInput = gui.Input{
+        classes = {"health-control", "temp"},
+        text = "",
+        characterLimit = 8,
+        placeholderText = "TEMP",
+        data = {
+            token = nil,
+        },
+        change = function(element)
+            if element.data.token ~= nil and element.data.token.properties ~= nil then
+                element.data.token:ModifyProperties{
+                    description = "Change Temporary Hitpoints",
+                    execute = function()
+                        local before = tonumber(element.data.token.properties:TemporaryHitpointsStr()) or 0
+                        local after = tonumber(element.text) or 0
+                        element.data.token.properties:SetTemporaryHitpoints(element.text)
+                        if after > before then
+                            element.data.token.properties:DispatchEvent("gaintempstamina", {})
+                        end
+                        element.text = ""
+                    end,
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    local recoveryButton = gui.Label{
+        classes = {"health-control", "recovery"},
+        text = "Use Recovery",
+        data = {
+            token = nil,
+        },
+        press = function(element)
+            local token = element.data.token
+            if token == nil then
+                return
+            end
+
+            local useHeroTokens = false
+            local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+            if quantity <= 0 then
+                if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                    return
+                end
+                useHeroTokens = true
+            end
+
+            if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                return
+            end
+
+            token:ModifyProperties{
+                description = "Use Recovery",
+                execute = function()
+                    token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
+                    if useHeroTokens then
+                        token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
+                    else
+                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                    end
+                end,
+            }
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token ~= nil and token.valid and token.properties ~= nil then
+                element.text = string.format("Use Recovery +%d", token.properties:RecoveryAmount())
+            end
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    local recoveryPipsControl = gui.Panel{
+        classes = {"recovery-pips-control"},
+        styles = TacPanelStyles,
+        data = {
+            token = nil,
+        },
+
+        gui.Label{
+            classes = {"recovery-adj-btn"},
+            text = "-",
+            press = function(element)
+                local token = element.parent.data.token
+                if token == nil then return end
+                local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                local maxRec = token.properties:GetResources()[recoveryid] or 0
+                local current = max(0, maxRec - usage)
+                if current <= 0 then return end
+                token:ModifyProperties{
+                    description = "Spend Recovery",
+                    execute = function()
+                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Spend Recovery")
+                    end,
+                }
+            end,
+        },
+
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            hmargin = 2,
+            refreshCharacter = function(element, token)
+                local maxRec = token.properties:GetResources()[recoveryid] or 0
+                local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                local current = max(0, maxRec - usage)
+
+                for i = #element.children + 1, maxRec do
+                    element:AddChild(gui.Panel{
+                        classes = {"recovery-pip"},
+                        styles = TacPanelStyles,
+                    })
+                end
+
+                for i, child in ipairs(element.children) do
+                    child:SetClass("collapsed", i > maxRec)
+                    child:SetClass("filled", i <= current)
+                end
+            end,
+        },
+
+        gui.Label{
+            classes = {"recovery-adj-btn"},
+            text = "+",
+            press = function(element)
+                local token = element.parent.data.token
+                if token == nil then return end
+                local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                local maxRec = token.properties:GetResources()[recoveryid] or 0
+                local current = max(0, maxRec - usage)
+                if current >= maxRec then return end
+                token:ModifyProperties{
+                    description = "Restore Recovery",
+                    execute = function()
+                        token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, 1, "Restore Recovery")
+                    end,
+                }
+            end,
+        },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+
+    return gui.Panel{
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel"},
+        flow = "vertical",
+
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+
+            damageInput,
+            healInput,
+            tempInput,
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            tmargin = 4,
+            classes = {"collapsed"},
+            data = {
+                token = nil,
+            },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+                if token == nil or not token.valid or token.properties == nil then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+                local showRecovery = recoveryid ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
+                element:SetClass("collapsed", not showRecovery)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+
+            recoveryButton,
+            recoveryPipsControl,
+        },
+    }
+end
+
+--- display the health panel
+--- @return Panel
+local function _tacPanelHealthPanel()
+    return gui.Panel{
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel", "container"},
+
+        _tacPanelHealthBar(),
+        _tacPanelHealthControls(),
+    }
+end
+
+--- Create a tooltip panel for token resource boxes
+--- @param text string
+--- @return Panel
+local function _tacPanelTooltip(text)
+    return gui.Panel{
+        classes = {"token-resource-tooltip"},
+        styles = TacPanelStyles,
+        gui.Label{
+            classes = {"token-resource-tooltip-text"},
+            text = text,
+            markdown = true,
+        },
+    }
+end
+
+--- Create a resource box with title and value
+--- @param opts table {title, getValue, change, hover, titleButton, monitorGame, visCheck}
+--- @return Panel
+local function _tacPanelResourceBox(opts)
+    local titleLabel = gui.Label{
+        classes = {"token-resource-title"},
+        text = type(opts.title) == "string" and opts.title or "",
+        hover = opts.hover and function(element)
+            opts.hover(element, element.parent.data.token)
+        end or nil,
+    }
+
+    local valueLabel = gui.Label{
+        classes = {"token-resource-value"},
+        text = "0",
+        editable = true,
+        numeric = true,
+        characterLimit = 2,
+        change = opts.change and function(element)
+            local token = element.parent.data.token
+            if token ~= nil then
+                opts.change(element, token)
+            end
+        end or nil,
+    }
+
+    return gui.Panel{
+        classes = {"token-resource-box", "collapsed"},
+        styles = TacPanelStyles,
+        data = {
+            token = nil,
+        },
+        monitorGame = opts.monitorGame or nil,
+        refreshGame = opts.monitorGame and function(element)
+            if element.data.token ~= nil then
+                element:FireEvent("refreshCharacter", element.data.token)
+            end
+        end or nil,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local visible = true
+            if opts.visCheck then
+                visible = opts.visCheck(token)
+            else
+                visible = token.properties:IsHero() or token.properties:IsCompanion()
+            end
+            element:SetClass("collapsed", not visible)
+            if visible then
+                valueLabel.text = opts.getValue(token)
+                if type(opts.title) == "function" then
+                    titleLabel.text = opts.title(token)
+                end
+            end
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        titleLabel,
+        opts.titleButton or nil,
+        valueLabel,
+    }
+end
+
+--- display the tokens panel
+--- @return Panel
+local function _tacPanelTokensPanel()
+    local victoriesBox = _tacPanelResourceBox{
+        title = "VICTORIES",
+        getValue = function(token)
+            return tostring(token.properties:GetVictories())
+        end,
+        change = function(element, token)
+            local n = tonumber(element.text)
+            if n ~= nil and round(n) == n then
+                n = math.max(0, n)
+                token:ModifyProperties{
+                    description = "Set Victories",
+                    execute = function()
+                        token.properties:SetVictories(n)
+                    end,
+                }
+            end
+            element.text = string.format("%d", token.properties:GetVictories())
+        end,
+        visCheck = function(token)
+            return token.properties.typeName == "character"
+        end,
+    }
+
+    local heroTokensBox = _tacPanelResourceBox{
+        title = "TOKENS",
+        getValue = function(token)
+            return tostring(token.properties:GetHeroTokens())
+        end,
+        change = function(element, token)
+            local n = tonumber(element.text)
+            if n ~= nil and round(n) == n then
+                n = math.max(0, n)
+                token.properties:SetHeroTokens(n, "Set manually")
+            end
+            element.text = string.format("%d", token.properties:GetHeroTokens())
+        end,
+        hover = function(element, token)
+            local text = [[<b>Hero Tokens</b>
+* You can spend a hero token to gain two surges.
+* You can spend a hero token when you fail a saving throw to succeed instead.
+* You can reroll the result of a test. You must use the new result.
+* You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.
+]]
+            local history = token.properties:GetHeroTokenHistory()
+            if history ~= nil and #history > 0 then
+                text = text .. "\n<b>Recent Changes:</b>"
+                for _,entry in ipairs(history) do
+                    text = string.format("%s\n%s: %d by %s %s", text, entry.note, entry.value, entry.who, entry.when)
+                end
+            end
+            element.tooltip = _tacPanelTooltip(text)
+        end,
+        titleButton = gui.EnhIconButton{
+            bgimage = "icons/standard/Icon_App_Undo.png",
+            width = 12,
+            height = 12,
+            floating = true,
+            halign = "right",
+            valign = "top",
+            borderWidth = 0,
+            press = function(element)
+                local token = element.parent.data.token
+                if token ~= nil then
+                    local n = dmhub.GetSettingValue("numheroes")
+                    token:ModifyProperties{
+                        description = "Reset Hero Tokens",
+                        execute = function()
+                            token.properties:SetHeroTokens(n, "Session Reset")
+                        end,
+                    }
+                end
+            end,
+            linger = function(element)
+                local n = dmhub.GetSettingValue("numheroes")
+                element.tooltip = _tacPanelTooltip(string.format("Reset Hero Tokens For Session (%d heroes)", n))
+            end,
+        },
+        monitorGame = CharacterResource.GlobalResourcePath(),
+    }
+
+    local surgesBox = _tacPanelResourceBox{
+        title = "SURGES",
+        getValue = function(token)
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then return "--" end
+            return tostring(token.properties:GetAvailableSurges())
+        end,
+        change = function(element, token)
+            local amount = tonumber(element.text)
+            if amount == nil then
+                element.text = tostring(token.properties:GetAvailableSurges())
+                return
+            end
+            amount = math.max(0, round(amount))
+            local diff = amount - token.properties:GetAvailableSurges()
+            if diff ~= 0 then
+                token:ModifyProperties{
+                    description = "Change Surges",
+                    execute = function()
+                        token.properties:ConsumeSurges(-diff, "Manually Set")
+                    end,
+                }
+            end
+            element.text = tostring(token.properties:GetAvailableSurges())
+        end,
+        hover = function(element, token)
+            element.tooltip = gui.StatsHistoryTooltip{
+                description = "Surges",
+                entries = token.properties:GetStatHistory(CharacterResource.surgeResourceId):GetHistory(),
+            }
+        end,
+    }
+
+    local heroicResourceBox = _tacPanelResourceBox{
+        title = function(token)
+            return token.properties:GetHeroicResourceName()
+        end,
+        getValue = function(token)
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then return "--" end
+            return tostring(token.properties:GetHeroicOrMaliceResources())
+        end,
+        change = function(element, token)
+            local amount = tonumber(element.text)
+            if amount == nil then
+                element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+                return
+            end
+            local creature = token.properties
+            if not creature:IsHero() and not creature:IsCompanion() then
+                CharacterResource.SetMalice(math.max(0, amount), "Manually set")
+                return
+            end
+            local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
+            amount = resource:ClampQuantity(token.properties, amount)
+            local diff = amount - token.properties:GetHeroicOrMaliceResources()
+            if diff ~= 0 then
+                token:ModifyProperties{
+                    description = "Change Heroic Resource",
+                    execute = function()
+                        if diff > 0 then
+                            token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                        else
+                            token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                        end
+                    end,
+                }
+            end
+            element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+        end,
+        hover = function(element, token)
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then
+                element.tooltip = _tacPanelTooltip(string.format("No %s while not in combat.", token.properties:GetHeroicResourceName()))
+                return
+            end
+            local desc = token.properties:GetHeroicResourceName()
+            local negativeValue = token.properties:CalculateNamedCustomAttribute("Negative Heroic Resource")
+            local text = nil
+            if negativeValue > 0 then
+                text = string.format("%s may go as low as -%d", desc, negativeValue)
+            end
+            element.tooltip = gui.StatsHistoryTooltip{
+                text = text,
+                description = desc,
+                entries = token.properties:GetStatHistory(CharacterResource.heroicResourceId):GetHistory(),
+            }
+        end,
+    }
+
+    return gui.Panel{
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel", "container"},
+        tmargin = -26,
+        flow = "horizontal",
+
+        victoriesBox,
+        heroTokensBox,
+        surgesBox,
+        heroicResourceBox,
+    }
+end
+
+--- Create a movement stat box with title and value
+--- @param opts table {title, getValue, hover, press, tokenInfo}
+--- @return Panel
+local function _tacPanelMovementBox(opts)
+    local valueLabel = gui.Label{
+        classes = {"movement-stat-value"},
+        text = "0",
+    }
+
+    return gui.Panel{
+        classes = {"movement-stat-box"},
+        styles = TacPanelStyles,
+        data = { token = nil },
+        hover = opts.hover or nil,
+        press = opts.press and function(element)
+            local token = element.data.token
+            if token ~= nil then
+                opts.press(element, token)
+            end
+        end or nil,
+        gui.Label{
+            classes = {"movement-stat-title"},
+            text = opts.title,
+        },
+        valueLabel,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if opts.tokenInfo then
+                opts.tokenInfo.token = token
+            end
+            if token == nil or not token.valid or token.properties == nil then return end
+            valueLabel.text = opts.getValue(token)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
+--- Create the flying/climb stat box with +/- altitude buttons
+--- @return Panel
+local function _tacPanelFlyingBox()
+    local flyingValueLabel = gui.Label{
+        classes = {"movement-stat-value"},
+        text = "0",
+    }
+
+    return gui.Panel{
+        classes = {"movement-stat-box", "collapsed"},
+        styles = TacPanelStyles,
+        data = { token = nil },
+        gui.Label{
+            classes = {"movement-stat-title"},
+            text = "FLYING",
+        },
+        gui.Panel{
+            classes = {"movement-fly-row"},
+            flyingValueLabel,
+            gui.Panel{
+                classes = {"movement-fly-btn-stack"},
+                floating = true,
+                halign = "right",
+                gui.Label{
+                    classes = {"movement-fly-btn"},
+                    text = "+",
+                    press = function(element)
+                        local token = element.parent.parent.parent.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.properties:CanClimb() then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            end
+                            token:MoveVertical(token.floorAltitude + 1)
+                        end
+                    end,
+                },
+                gui.Label{
+                    classes = {"movement-fly-btn"},
+                    text = "-",
+                    press = function(element)
+                        local token = element.parent.parent.parent.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.properties:CanClimb() then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            end
+                            token:MoveVertical(token.floorAltitude - 1)
+                        end
+                    end,
+                },
+            },
+        },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local canFly = token.properties:CanFly()
+            local canClimb = token.canCurrentlyClimb
+            if not canFly and not canClimb then
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", false)
+            local titleLabel = element.children[1]
+            if canFly then
+                titleLabel.text = "FLYING"
+            else
+                titleLabel.text = "CLIMB"
+            end
+            flyingValueLabel.text = tostring(token.floorAltitude)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
+--- display the movement panel
+--- @return Panel
+local function _tacPanelMovementPanel()
+    local tokenInfo = { token = nil }
+
+    local speedBox = _tacPanelMovementBox{
+        title = "SPEED",
+        tokenInfo = tokenInfo,
+        getValue = function(token)
+            return tostring(token.properties:CurrentMovementSpeed())
+        end,
+        hover = GenerateAttributeCalculationTooltip(tokenInfo, "Speed", creature.GetBaseSpeed, creature.DescribeSpeedModifications),
+        press = function(element, token)
+            gui.PopupOverrideAttribute{
+                parentElement = element,
+                token = token,
+                attributeName = "Speed",
+                baseValue = token.properties:GetBaseSpeed(),
+                modifications = token.properties:DescribeSpeedModifications(),
+            }
+        end,
+    }
+
+    local disengageBox = _tacPanelMovementBox{
+        title = "DISENGAGE",
+        tokenInfo = tokenInfo,
+        getValue = function(token)
+            local customAttr = CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"]
+            if customAttr ~= nil then
+                return tostring(token.properties:GetCustomAttribute(customAttr))
+            end
+            return "0"
+        end,
+        hover = GenerateCustomAttributeCalculationTooltip(tokenInfo, "Disengage Speed"),
+        press = function(element, token)
+            gui.PopupOverrideAttribute{
+                parentElement = element,
+                token = token,
+                attributeName = "Disengage Speed",
+            }
+        end,
+    }
+
+    local stabilityBox = _tacPanelMovementBox{
+        title = "STABILITY",
+        tokenInfo = tokenInfo,
+        getValue = function(token)
+            return tostring(token.properties:Stability())
+        end,
+        hover = GenerateAttributeCalculationTooltip(tokenInfo, "Stability",
+            creature.BaseForcedMoveResistance,
+            function(c)
+                return c:DescribeModifications("forcedmoveresistance", c:BaseForcedMoveResistance())
+            end),
+        press = function(element, token)
+            local baseStability = token.properties:BaseForcedMoveResistance()
+            gui.PopupOverrideAttribute{
+                parentElement = element,
+                token = token,
+                attributeName = "Stability",
+                baseValue = baseStability,
+                modifications = token.properties:DescribeModifications("forcedmoveresistance", baseStability),
+            }
+        end,
+    }
+
+    local flyingBox = _tacPanelFlyingBox()
+
+    return gui.Panel{
+        styles = TacPanelStyles,
+        classes = {"panel", "tacpanel", "container"},
+        flow = "horizontal",
+
+        speedBox,
+        disengageBox,
+        stabilityBox,
+        flyingBox,
+    }
+end
+
 CharacterPanel.CreateConditionsPanel = function(token)
     return nil
 end
@@ -1701,6 +3294,9 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                 end
             end,
         },
+
+        _tacPanelTokensPanel(),
+        _tacPanelMovementPanel(),
 
         --heroic resource panel.
         gui.Panel{
@@ -4054,49 +5650,6 @@ function CharacterPanel.SkillsPanel(token)
 	return resultPanel
 end
 
-local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunction, DescribeModificationsFunction)
-    return function(element)
-        local m_token = tokenInfo.token
-        if m_token == nil or (not m_token.valid) then
-            return
-        end
-        local baseValue = GetBaseFunction(m_token.properties)
-        local modifications = DescribeModificationsFunction(m_token.properties)
-
-        local panels = {}
-        panels[#panels+1] = gui.Label{
-            text = string.format("Base %s: %d", name, baseValue),
-            width = "auto",
-            height = "auto",
-            fontSize = 14,
-        }
-        for _,modification in ipairs(modifications) do
-            local text = string.format("%s: %s", modification.key, modification.value)
-            panels[#panels+1] = gui.Label{
-                text = text,
-                width = "auto",
-                height = "auto",
-                fontSize = 14,
-            }
-        end
-
-        local container = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "vertical",
-            children = panels,
-        }
-
-        element.tooltip = gui.TooltipFrame(container)
-    end
-end
-
-local function GenerateCustomAttributeCalculationTooltip(tokenInfo, name)
-    return GenerateAttributeCalculationTooltip(tokenInfo, name,
-        function(c) return c:BaseNamedCustomAttribute(name) end,
-        function(c) return c:DescribeModificationsToNamedCustomAttribute(name) end)
-end
-
 --important attributes beyond characteristics
 --e.g. things like stability etc.
 function CharacterPanel.ImportantAttributesPanel(token)
@@ -4538,8 +6091,8 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 },
 			},
 		}),
-
 	}
+    local summaryPanel2 = _tacPanelSummaryPanel()
 
 	characterDisplaySidebar = gui.Panel{
 		id = 'sidebar',
@@ -4597,6 +6150,8 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
             end,
         },
 		summaryPanel,
+        summaryPanel2,
+        _tacPanelHealthPanel(),
 	}
 
 	return characterDisplaySidebar

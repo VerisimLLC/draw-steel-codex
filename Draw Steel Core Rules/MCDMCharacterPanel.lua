@@ -25,6 +25,7 @@ local HEALTHY_FILL = "#2D6A4F"
 local SURGE_BORDER = "#2E3F38"
 local DARKRED = "#140A0A"
 local TEMP_STAM = "#8B5CF6"
+local MOVE_HINDERED = "#E07070"
 
 local TacPanel = {}
 local TacPanelSizes = {}
@@ -55,6 +56,9 @@ TacPanelSizes.Fonts = {
     tempStamValue = 12,     -- Health bar: temp stam number
     tempStamLabel = 10,     -- Health bar: "TEMP" label
     tempStamClear = 8,      -- Health bar: clear button X
+
+    movePanelTitle = 14,
+    movePanelValue = 24,
 }
 TacPanelSizes.HealthBar = {
     segmentHeight = 10,
@@ -659,6 +663,95 @@ TacPanelStyles.Stamina = {
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.tempStamClear,
         color = TEMP_STAM,
+    },
+}
+TacPanelStyles.MovementPanel = {
+    {
+        selectors = {"panel", "movement-panel"},
+        height = "auto",
+        width = "100%",
+        valign = "top",
+        halign = "left",
+        flow = "horizontal",
+        vpad = 6,
+    },
+    {
+        selectors = {"panel", "movement-box"},
+        height = 38,
+        width = "20%",
+        valign = "top",
+        halign = "left",
+        tmargin = 4,
+        rmargin = 6,
+        pad = 4,
+        flow = "vertical",
+    },
+    {
+        selectors = {"label", "movebox-title"},
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        halign = "center",
+        color = "muted",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.movePanelTitle,
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "movebox-value"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "center",
+        fontFace = "Newzald",
+        color = "white",
+        fontSize = TacPanelSizes.Fonts.movePanelValue,
+    },
+    {
+        selectors = {"label", "movebox-value", "restricted"},
+        color = DIMMER,
+        strikethrough = true,
+    },
+    {
+        selectors = {"label", "movebox-value", "hindered"},
+        lmargin = 4,
+        color = MOVE_HINDERED,
+    },
+    {
+        selectors = {"panel", "altitude-row"},
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+    },
+    {
+        selectors = {"panel", "altitude-btn-stack"},
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+    {
+        selectors = {"label", "altitude-btn"},
+        bgimage = "panels/square.png",
+        width = 16,
+        height = 12,
+        fontSize = 10,
+        bold = true,
+        textAlignment = "center",
+        cornerRadius = 2,
+        borderWidth = 1,
+        bgcolor = "#ffffff22",
+        borderColor = GRAY02,
+        color = "white",
+    },
+    {
+        selectors = {"label", "altitude-btn", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "altitude-btn", "press"},
+        brightness = 0.5,
     },
 }
 
@@ -2375,6 +2468,362 @@ function TacPanel.Stamina()
             TacPanel.TempStamBox(),
         },
         TacPanel.HealthBar(),
+        -- TODO: Immunities & Weaknesses
+    }
+end
+
+--- Display the Speed box
+--- @return Panel
+function TacPanel.SpeedBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateAttributeCalculationTooltip(tokenInfo, "Speed", creature.GetBaseSpeed, creature.DescribeSpeedModifications),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Speed",
+                    baseValue = token.properties:GetBaseSpeed(),
+                    modifications = token.properties:DescribeSpeedModifications(),
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Speed",
+        },
+        gui.Panel{
+            classes = {"container"},
+            width = "auto",
+            valign = "top",
+            halign = "center",
+            flow = "horizontal",
+            gui.Label{
+                classes = {"movebox-value"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid or token.properties == nil then return end
+                    local maxMove = token.properties:GetBaseSpeed()
+                    local curMove = token.properties:CurrentMovementSpeed()
+                    element.text = tostring(maxMove)
+                    element:SetClass("restricted", curMove < maxMove)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+            gui.Label{
+                classes = {"movebox-value", "hindered", "collapsed"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid or token.properties == nil then return end
+                    local maxMove = token.properties:GetBaseSpeed()
+                    local curMove = token.properties:CurrentMovementSpeed()
+                    element.text = tostring(curMove)
+                    element:SetClass("collapsed", curMove >= maxMove)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+        },
+    }
+end
+
+--- Display the Disengage box
+--- @return Panel
+function TacPanel.DisengageBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateCustomAttributeCalculationTooltip(tokenInfo, "Disengage Speed"),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Disengage Speed",
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Disengage",
+        },
+        gui.Label{
+            classes = {"movebox-value"},
+            text = "0",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                local customAttr = CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"]
+                if customAttr ~= nil then
+                    element.text = tostring(token.properties:GetCustomAttribute(customAttr))
+                else
+                    element.text = "0"
+                end
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the Stability box
+--- @return Panel
+function TacPanel.StabilityBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateAttributeCalculationTooltip(tokenInfo, "Stability",
+            creature.BaseForcedMoveResistance,
+            function(c)
+                return c:DescribeModifications("forcedmoveresistance", c:BaseForcedMoveResistance())
+            end),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                local baseStability = token.properties:BaseForcedMoveResistance()
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Stability",
+                    baseValue = baseStability,
+                    modifications = token.properties:DescribeModifications("forcedmoveresistance", baseStability),
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Stability",
+        },
+        gui.Label{
+            classes = {"movebox-value"},
+            text = "0",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                element.text = tostring(token.properties:Stability())
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the altitude box
+--- @return Panel
+function TacPanel.AltitudeBox()
+    return gui.Panel{
+        classes = {"movement-box", "collapsed"},
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local canFly = token.properties:CanFly()
+            local canClimb = token.canCurrentlyClimb
+            local canBurrow = token.properties:CanBurrow()
+            local visible = canFly or canClimb or canBurrow
+            element:SetClass("collapsed", not visible)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Flying",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                local moveType = token.properties:CurrentMoveType()
+                if moveType == "fly" then
+                    element.text = "Flying"
+                elseif moveType == "burrow" then
+                    element.text = "Burrowing"
+                elseif moveType == "climb" then
+                    element.text = "Climbing"
+                else
+                    element.text = "On Ground"
+                end
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+        gui.Panel{
+            classes = {"altitude-row"},
+            gui.Label{
+                classes = {"movebox-value"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid then return end
+                    element.text = tostring(token.floorAltitude)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+            gui.Panel{
+                classes = {"altitude-btn-stack"},
+                floating = true,
+                halign = "right",
+                gui.Label{
+                    classes = {"altitude-btn"},
+                    text = "+",
+                    data = { token = nil },
+                    press = function(element)
+                        local token = element.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.canCurrentlyClimb then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            elseif token.properties:CanBurrow() then
+                                token.properties:SetAndUploadCurrentMoveType("burrow")
+                            end
+                            token:MoveVertical(token.floorAltitude + 1)
+                        end
+                    end,
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+                gui.Label{
+                    classes = {"altitude-btn"},
+                    text = "-",
+                    data = { token = nil },
+                    press = function(element)
+                        local token = element.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.canCurrentlyClimb then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            elseif token.properties:CanBurrow() then
+                                token.properties:SetAndUploadCurrentMoveType("burrow")
+                            end
+                            token:MoveVertical(token.floorAltitude - 1)
+                        end
+                    end,
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+            },
+        },
+    }
+end
+
+--- Display the movement panel
+--- @return Panel
+function TacPanel.MovementPanel()
+    return gui.Panel{
+        styles = TacPanelStyles.MovementPanel,
+        classes = {"movement-panel"},
+        TacPanel.SpeedBox(),
+        TacPanel.DisengageBox(),
+        TacPanel.StabilityBox(),
+        TacPanel.AltitudeBox(),
+    }
+end
+
+--- Display the statistics panel
+--- @return Panel
+function TacPanel.Statistics()
+    return gui.Panel{
+        styles = TacPanelStyles.TacPanel,
+        classes = {"tacpanel"},
+        tmargin = -26,
+        gui.Label{
+            classes = {"panel-title"},
+            text = "STATISTICS",
+        },
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            valign = "top",
+            halign = "left",
+            pad = 4,
+            flow = "vertical",
+            -- TODO: Characteristics panel
+            gui.MCDMDivider{ width = "94%", bgcolor = SURGE_BORDER },
+            TacPanel.MovementPanel(),
+        }
     }
 end
 
@@ -2384,7 +2833,6 @@ function TacPanel.HeroicResources()
     return gui.Panel{
         styles = TacPanelStyles.TacPanel,
         classes = {"tacpanel", "alt-bg", "collapsed"},
-        tmargin = -26,
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
                 element:SetClass("collapsed", true)
@@ -2417,8 +2865,10 @@ function TacPanel.HeroicResources()
                 flow = "vertical",
                 TacPanel.VictoriesBox(),
                 TacPanel.HeroicResourcesBox(),
-            }
-        }
+            },
+            -- TODO: HR Gains
+        },
+        -- TODO: Epic Resources?
     }
 end
 
@@ -5288,6 +5738,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
         -- _tacPanelTokensPanel(),
         -- _tacPanelMovementPanel(),
+        TacPanel.Statistics(),
         TacPanel.HeroicResources(),
 
         --heroic resource panel.

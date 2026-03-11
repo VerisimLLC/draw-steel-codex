@@ -8821,7 +8821,7 @@ function creature:Rest(restType)
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
-			self:Heal(self.damage_taken, "Long rest")
+			self:Heal(self.damage_taken, "Respite")
 		end
 
 		local victories = self:try_get("victories", 0)

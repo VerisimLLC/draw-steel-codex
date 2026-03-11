@@ -2113,6 +2113,19 @@ function character:GetHeroicResourceName()
     return "Heroic Resource"
 end
 
+function creature:GetEpicResourceName()
+    return "Epic Resource"
+end
+
+function character:GetEpicResourceName()
+    local classInfo = self:GetClass()
+    if classInfo ~= nil then
+        return classInfo.epicResourceName
+    end
+
+    return "Epic Resource"
+end
+
 function creature:GetHeroicOrMaliceId()
     return CharacterResource.heroicResourceId
 end

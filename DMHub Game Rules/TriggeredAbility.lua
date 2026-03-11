@@ -567,7 +567,13 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "endrespite",
     text = "End Respite",
-    symbols = {}
+    symbols = {
+        {
+            name = "XP Gained",
+            type = "number",
+            desc = "The amount of experience gained from this respite.",
+        },
+    }
 }
 
 table.sort(TriggeredAbility.triggers, function(a,b) return a.text < b.text end)

@@ -3527,10 +3527,12 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 	end
 
 	table.sort(ongoingEffectsChoices, function(a,b) return a.text < b.text end)
+	table.insert(ongoingEffectsChoices, 1, {id = "formula", text = "From a Formula..."})
 
 	local editEffectButton = nil
 
-	if (not self:try_get("ongoingEffect")) or (self.ongoingEffect == self:try_get("ongoingEffectCustom")) or (not self:has_key("ongoingEffectCustom")) then
+	if self:try_get("ongoingEffectSource", "specific") ~= "formula" and
+		((not self:try_get("ongoingEffect")) or (self.ongoingEffect == self:try_get("ongoingEffectCustom")) or (not self:has_key("ongoingEffectCustom"))) then
 		editEffectButton = gui.Button{
 			width = 120,
 			height = 28,
@@ -3573,9 +3575,13 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 			classes = "formDropdown",
 			options = ongoingEffectsChoices,
 			hasSearch = true,
-			idChosen = self:try_get("ongoingEffect", "none"),
+			idChosen = (self:try_get("ongoingEffectSource", "specific") == "formula") and "formula" or self:try_get("ongoingEffect", "none"),
 			change = function(element)
-				if element.idChosen ~= "none" then
+				if element.idChosen == "formula" then
+					self.ongoingEffectSource = "formula"
+					parentPanel:FireEvent('refreshBehavior')
+				elseif element.idChosen ~= "none" then
+					self.ongoingEffectSource = "specific"
 					self.ongoingEffect = element.idChosen
 					if not self:has_key("ongoingEffectCustom") then
 						self.ongoingEffectCustom = false
@@ -3587,6 +3593,44 @@ function ActivatedAbilityBehavior:OngoingEffectEditor(parentPanel, list, options
 
 		editEffectButton
 	}
+
+	if self:try_get("ongoingEffectSource", "specific") == "formula" then
+		list[#list+1] = gui.Panel{
+			classes = "formPanel",
+			gui.Label{
+				classes = "formLabel",
+				text = "Formula:",
+			},
+			gui.GoblinScriptInput{
+				value = self:try_get("ongoingEffectFormula", ""),
+				change = function(element)
+					self.ongoingEffectFormula = element.value
+				end,
+				documentation = {
+					domains = parentPanel.data.parentAbility.domains,
+					help = "GoblinScript formula that returns an ongoing effect ID or a table of ongoing effect IDs to apply. Use Cast.OngoingEffectsPurgedChosen to apply effects the player chose to purge earlier in this cast.",
+					output = "table",
+					examples = {
+						{
+							script = "Cast.OngoingEffectsPurgedChosen",
+							text = "Apply all ongoing effects the player chose to purge during this cast.",
+						},
+					},
+					subject = creature.helpSymbols,
+					subjectDescription = "The creature casting the ability.",
+					symbols = ActivatedAbility.helpCasting,
+				},
+			},
+		}
+		list[#list+1] = gui.Check{
+			text = "Inherit Duration",
+			value = self:try_get("inheritDuration", false),
+			change = function(element)
+				self.inheritDuration = element.value
+				parentPanel:FireEvent('refreshBehavior')
+			end,
+		}
+	end
 
     local ongoingEffect = dmhub.GetTable("characterOngoingEffects")[self:try_get("ongoingEffect", "none")]
 

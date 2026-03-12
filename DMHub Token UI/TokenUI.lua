@@ -264,8 +264,8 @@ local CalculateStatusIcons = function(token)
 
 					result[#result+1] = {
 						id = cond.ongoingEffectid,
-						icon = ongoingEffectInfo.iconid,
-						style = ongoingEffectInfo.display,
+						icon = ongoingEffectInfo:GetDisplayIcon(),
+						style = ongoingEffectInfo:GetDisplayDisplay(),
                         statusText = statusText,
 						hoverText = hoverText,
 						statusIcon = true,

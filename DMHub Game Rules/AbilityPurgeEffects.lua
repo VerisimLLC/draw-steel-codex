@@ -168,6 +168,8 @@ ActivatedAbilityPurgeEffectsBehavior.useStacks = false
 ActivatedAbilityPurgeEffectsBehavior.stacksFormula = "1"
 ActivatedAbilityPurgeEffectsBehavior.damageToSelf = ""
 ActivatedAbilityPurgeEffectsBehavior.chatMessage = ""
+ActivatedAbilityPurgeEffectsBehavior.reminderText = ""
+ActivatedAbilityPurgeEffectsBehavior.includeOngoingEffects = false
 
 ActivatedAbilityPurgeEffectsBehavior.modeOptions = {
     {
@@ -267,7 +269,76 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
 
     local result = {}
 
-    if self.mode == "conditions" and targetCreature:has_key("inflictedConditions") then
+    -- Combined mode: merge conditions from inflictedConditions into filteredEffects so a
+    -- single ShowSelectionDialog handles both.  Conditions already represented by an ongoing
+    -- effect instance in filteredEffects are skipped to avoid duplicates.
+    if self.mode == "conditions" and self:try_get("includeOngoingEffects", false) and targetCreature:has_key("inflictedConditions") then
+        local targetDuration = self:try_get("targetDuration", "all")
+        local durationTable = string.split(targetDuration, "|")
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+        local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+
+        -- Build set of condition IDs already covered by a filteredEffects entry
+        local coveredConditions = {}
+        for _, effect in ipairs(filteredEffects) do
+            local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+            if effectInfo ~= nil and effectInfo:try_get("condition", "none") ~= "none" then
+                coveredConditions[effectInfo.condition] = true
+            end
+        end
+
+        for key, conditionInfo in pairs(targetCreature.inflictedConditions) do
+            if not coveredConditions[key] then
+                if #self.conditions == 0 or table.contains(self.conditions, key) then
+                    local passFilter = false
+                    for _, durationEntry in ipairs(durationTable) do
+                        if durationEntry == "all" or string.lower(durationEntry) == string.lower(conditionInfo.duration or "") then
+                            passFilter = true
+                            break
+                        end
+                    end
+
+                    if passFilter then
+                        local casterOk = limitToCasterid == nil
+                        if not casterOk then
+                            local ci = conditionInfo.casterInfo
+                            casterOk = (ci ~= nil and ci.tokenid == limitToCasterid)
+                        end
+
+                        if casterOk then
+                            -- Find an ongoing effect definition that wraps this condition so the
+                            -- apply step (CastFromFormula) can use ApplyOngoingEffect with its ID.
+                            local defId = nil
+                            local defIconid = conditionsTable[key] and conditionsTable[key].iconid or nil
+                            local defDisplay = conditionsTable[key] and conditionsTable[key].display or nil
+                            local defName = conditionsTable[key] and conditionsTable[key].name or key
+
+                            for k, def in pairs(ongoingEffectsTable) do
+                                if def:try_get("condition", "none") == key then
+                                    defId = k
+                                    break
+                                end
+                            end
+
+                            filteredEffects[#filteredEffects+1] = {
+                                ongoingEffectid = defId,
+                                seq = nil,
+                                _condid = key,
+                                _isConditionOnly = true,
+                                _iconid = defIconid,
+                                _display = defDisplay,
+                                _name = defName,
+                                _limitToCasterid = limitToCasterid,
+                                _conditionDuration = conditionInfo.duration,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if self.mode == "conditions" and not self:try_get("includeOngoingEffects", false) and targetCreature:has_key("inflictedConditions") then
         local conditions = {}
         local targetDuration = self:try_get("targetDuration", "all")
         local durationTable = string.split(targetDuration, "|")
@@ -346,8 +417,16 @@ function ActivatedAbilityPurgeEffectsBehavior:CastOnTarget(casterToken, targetTo
             description = "Purge Effects",
             execute = function()
                 for _,effect in ipairs(filteredEffects) do
-                    targetCreature:RemoveOngoingEffectBySeq(effect.seq)
-                    result[#result+1] = effect.ongoingEffectid
+                    if rawget(effect, "_isConditionOnly") then
+                        local purgeArgs = {purge = true}
+                        if rawget(effect, "_limitToCasterid") ~= nil then
+                            purgeArgs.casterInfo = {tokenid = rawget(effect, "_limitToCasterid")}
+                        end
+                        targetCreature:InflictCondition(rawget(effect, "_condid"), purgeArgs)
+                    else
+                        targetCreature:RemoveOngoingEffectBySeq(effect.seq)
+                        result[#result+1] = effect.ongoingEffectid
+                    end
                 end
             end,
         }
@@ -363,6 +442,29 @@ end
 function ActivatedAbilityPurgeEffectsBehavior:AppliesToEffect(effect)
 	local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
     if self.mode == "conditions" then
+        if self:try_get("includeOngoingEffects", false) then
+            -- Filter ongoing effects by targetDuration using the effect definition
+            local targetDuration = self:try_get("targetDuration", "all")
+            if targetDuration == "all" then
+                return true
+            end
+            local durationTable = string.split(targetDuration, "|")
+            for _, durationEntry in ipairs(durationTable) do
+                if durationEntry == "all" then
+                    return true
+                elseif durationEntry == "save" then
+                    if effect:try_get("removeOnSave", false) then
+                        return true
+                    end
+                elseif durationEntry == "eot" then
+                    if effect:try_get("removeAtNextTurnEnd", false) then
+                        return true
+                    end
+                end
+            end
+            return false
+        end
+
         local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
         if effectInfo == nil or effectInfo.condition == "none" then
             return false
@@ -456,6 +558,30 @@ function ActivatedAbilityBehavior:ShowOptionsDialog(options)
 
     end
 
+    local dialogContent = {}
+    if options.reminderText and options.reminderText ~= "" then
+        dialogContent[#dialogContent+1] = gui.Label{
+            text = options.reminderText,
+            fontSize = 14,
+            color = "white",
+            textWrap = true,
+            width = 600,
+            height = "auto",
+            halign = "center",
+            textAlignment = "center",
+            vmargin = 8,
+        }
+    end
+    dialogContent[#dialogContent+1] = gui.Panel{
+        flow = "vertical",
+        vscroll = true,
+        width = 600,
+        height = 500,
+        halign = "center",
+        valign = "center",
+        children = optionPanels,
+    }
+
     gamehud:ModalDialog{
         title = options.title,
         buttons = {
@@ -520,15 +646,7 @@ function ActivatedAbilityBehavior:ShowOptionsDialog(options)
 
 		flow = "vertical",
 
-        gui.Panel{
-            flow = "vertical",
-            vscroll = true,
-            width = 600,
-            height = 500,
-            halign = "center",
-            valign = "center",
-            children = optionPanels,
-        }
+        children = dialogContent,
     }
 
     while finished == false do
@@ -545,6 +663,7 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowConditionsSelection(casterToke
     local args = {
         title = "Purge Effects",
         multiselect = self.purgeType ~= "one",
+        reminderText = self:try_get("reminderText", ""),
         options = {},
     }
 
@@ -603,21 +722,55 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowSelectionDialog(casterToken, t
     local args = {
         title = "Purge Effects",
         multiselect = self.purgeType ~= "one",
+        reminderText = self:try_get("reminderText", ""),
         options = {},
     }
 
 	local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
 
     for i,effect in ipairs(effectsList) do
-        local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+        -- Use rawget for underscore-prefixed fields: plain-table synthetic entries have them,
+        -- but CharacterOngoingEffectInstance is a strict game type that throws on unknown fields.
+        local isConditionOnly = rawget(effect, "_isConditionOnly") or false
+        local iconid, display, text
+        if isConditionOnly then
+            iconid = rawget(effect, "_iconid")
+            display = rawget(effect, "_display")
+            text = rawget(effect, "_name")
+        else
+            local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+            iconid = effectInfo.iconid
+            display = effectInfo.display
+            text = effectInfo.name
+        end
+
+        local inheritedDuration = nil
+        if isConditionOnly then
+            local d = string.lower(rawget(effect, "_conditionDuration") or "")
+            if d == "eot" then
+                inheritedDuration = "end_of_next_turn"
+            elseif d == "save" then
+                inheritedDuration = "save_ends"
+            end
+        else
+            if effect:try_get("removeOnSave", false) then
+                inheritedDuration = "save_ends"
+            elseif effect:try_get("removeAtNextTurnEnd", false) then
+                inheritedDuration = "end_of_next_turn"
+            end
+        end
 
         local option = {
             id = effect.ongoingEffectid,
             seq = effect.seq,
+            condid = rawget(effect, "_condid"),
+            isConditionOnly = isConditionOnly,
+            limitToCasterid = rawget(effect, "_limitToCasterid"),
+            inheritedDuration = inheritedDuration,
             selected = self.purgeType ~= "one" or i == 1,
-            iconid = effectInfo.iconid,
-            display = effectInfo.display,
-            text = effectInfo.name,
+            iconid = iconid,
+            display = display,
+            text = text,
         }
 
         args.options[#args.options+1] = option
@@ -627,11 +780,34 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowSelectionDialog(casterToken, t
     if complete then
         ability:CommitToPaying(casterToken, options)
 
+        -- Track purged IDs and durations outside ModifyProperties (correct pattern)
+        local purgedList = options.symbols.cast:get_or_add("purgedOngoingEffectsChosen", {})
+        local durationsMap = options.symbols.cast:get_or_add("purgedOngoingEffectDurations", {})
+        local selectedOptions = {}
+        for i, option in ipairs(args.options) do
+            if option.selected then
+                if option.id ~= nil then
+                    purgedList[#purgedList+1] = option.id
+                    if option.inheritedDuration ~= nil then
+                        durationsMap[option.id] = {duration = option.inheritedDuration, untilEndOfTurn = false}
+                    end
+                end
+                selectedOptions[#selectedOptions+1] = option
+            end
+        end
+
+        -- Only token property mutation belongs inside ModifyProperties
         targetToken:ModifyProperties{
             description = "Purge Effects",
             execute = function()
-                for i,option in ipairs(args.options) do
-                    if option.selected then
+                for _, option in ipairs(selectedOptions) do
+                    if option.isConditionOnly then
+                        local purgeArgs = {purge = true}
+                        if option.limitToCasterid ~= nil then
+                            purgeArgs.casterInfo = {tokenid = option.limitToCasterid}
+                        end
+                        targetToken.properties:InflictCondition(option.condid, purgeArgs)
+                    else
                         targetToken.properties:RemoveOngoingEffectBySeq(option.seq)
                     end
                 end
@@ -847,6 +1023,17 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
         },
     }
 
+    if self.mode == "conditions" then
+        result[#result+1] = gui.Check{
+            text = "Include Ongoing Effects",
+            value = self:try_get("includeOngoingEffects", false),
+            change = function(element)
+                self.includeOngoingEffects = element.value
+                parentPanel:FireEvent("refreshBehavior")
+            end,
+        }
+    end
+
     --Future support Shwayguy
     result[#result+1] = gui.Panel{
         classes = {"formPanel"},
@@ -912,6 +1099,22 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
                     self.chatMessage = element.text
                 end
             }
+        },
+    }
+
+    result[#result+1] = gui.Panel{
+        classes = {"formPanel"},
+        gui.Label{
+            classes = {"formLabel"},
+            text = "Reminder Text:",
+        },
+        gui.Input{
+            classes = {"formInput"},
+            placeholderText = "Enter text...",
+            text = self:try_get("reminderText", ""),
+            change = function(element)
+                self.reminderText = element.text
+            end,
         },
     }
 

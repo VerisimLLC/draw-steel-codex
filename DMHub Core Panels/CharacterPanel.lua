@@ -1085,8 +1085,8 @@ CharacterPanel.CreateConditionsPanel = function(token)
 
                                 local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects")
                                 local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-                                element:FireEvent("icon", ongoingEffectInfo.iconid)
-                                element:FireEvent("display", ongoingEffectInfo.display)
+                                element:FireEvent("icon", ongoingEffectInfo:GetDisplayIcon())
+                                element:FireEvent("display", ongoingEffectInfo:GetDisplayDisplay())
                             end,
 
                             linger = function(element)

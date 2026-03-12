@@ -132,6 +132,26 @@ function CharacterOngoingEffect:GetCondition()
 	return dataTable[self.condition]
 end
 
+function CharacterOngoingEffect:GetDisplayIcon()
+	if self.condition ~= "none" then
+		local cond = self:GetCondition()
+		if cond ~= nil then
+			return cond.iconid
+		end
+	end
+	return self.iconid
+end
+
+function CharacterOngoingEffect:GetDisplayDisplay()
+	if self.condition ~= "none" then
+		local cond = self:GetCondition()
+		if cond ~= nil then
+			return cond.display
+		end
+	end
+	return self.display
+end
+
 function CharacterOngoingEffect:GetEndAbility()
 	if self.canEndWithAction then
 		local resourceid = self.endActionType

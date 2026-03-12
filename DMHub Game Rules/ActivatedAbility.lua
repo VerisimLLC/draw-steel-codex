@@ -151,6 +151,9 @@ ActivatedAbilityApplyOngoingEffectBehavior.repeatSave = false
 ActivatedAbilityApplyOngoingEffectBehavior.hasTemporaryHitpoints = false
 ActivatedAbilityApplyOngoingEffectBehavior.temporaryHitpoints = "5"
 ActivatedAbilityApplyOngoingEffectBehavior.stacks = "1"
+ActivatedAbilityApplyOngoingEffectBehavior.ongoingEffectSource = "specific"
+ActivatedAbilityApplyOngoingEffectBehavior.ongoingEffectFormula = ""
+ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
@@ -3866,6 +3869,11 @@ end
 
 function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, targets, options)
 
+    if self:try_get("ongoingEffectSource", "specific") == "formula" then
+        self:CastFromFormula(ability, casterToken, targets, options)
+        return
+    end
+
     local count = 0
     for _,target in ipairs(targets) do
         if target.token ~= nil then
@@ -4154,6 +4162,105 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	end
 
     --force the game to refresh with the new game status so later effects take it into consideration.
+    game.Refresh{
+        tokens = tokenids,
+    }
+end
+
+function ActivatedAbilityApplyOngoingEffectBehavior:CastFromFormula(ability, casterToken, targets, options)
+    local formula = self:try_get("ongoingEffectFormula", "")
+    if formula == "" then return end
+
+    local formulaResult = dmhub.EvalGoblinScriptToObject(formula, casterToken.properties:LookupSymbol(options.symbols), string.format("Ongoing effect formula for %s", ability.name))
+    local effectIds = {}
+    if type(formulaResult) == "table" then
+        for _, v in ipairs(formulaResult) do
+            if type(v) == "string" then
+                effectIds[#effectIds+1] = v
+            end
+        end
+    elseif type(formulaResult) == "string" then
+        effectIds = {formulaResult}
+    end
+
+    if #effectIds == 0 then return end
+
+    local characterOngoingEffectsTable = dmhub.GetTable("characterOngoingEffects")
+    local tokenids = ActivatedAbility.GetTokenIds(targets)
+
+    local casterInfo = {
+        tokenid = casterToken.id,
+        abilityName = ability.name,
+    }
+    if casterToken.properties.minion then
+        casterInfo.minionSquad = casterToken.properties:MinionSquad()
+    end
+    if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+        casterInfo.concentrationid = casterToken.properties:MostRecentConcentrationId()
+    end
+
+    for _, effectId in ipairs(effectIds) do
+        local ongoingEffectInfo = characterOngoingEffectsTable[effectId]
+        if ongoingEffectInfo ~= nil then
+            for i,target in ipairs(targets) do
+                if target.token ~= nil then
+                    local stacks = nil
+                    local finished = false
+
+                    gamehud.rollDialog.data.ShowDialog{
+                        title = string.format("Roll for Stacks of %s Effect", ongoingEffectInfo.name),
+                        description = string.format("%s Stacks", ability.name),
+                        roll = dmhub.EvalGoblinScript(self.stacks, casterToken.properties:LookupSymbol(options.symbols), string.format("Number of stacks for %s", ability.name)),
+                        creature = casterToken.properties,
+                        skipDeterministic = true,
+                        type = 'effect_stacks',
+                        cancelRoll = function()
+                            finished = true
+                        end,
+                        completeRoll = function(rollInfo)
+                            finished = true
+                            ability:CommitToPaying(casterToken, options)
+                            stacks = rollInfo.total
+                        end
+                    }
+
+                    while not finished do
+                        coroutine.yield(0.1)
+                    end
+
+                    if stacks == nil then return end
+
+                    local targetCreature = target.token.properties
+                    local sourceDescription = string.format("Applied by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name)
+                    ability.RecordTokenMessage(target.token, options, string.format("Apply %s", ongoingEffectInfo.name))
+
+                    local applyDuration = self:try_get("duration")
+                    local applyUntilEot = self.durationUntilEndOfTurn
+                    if self:try_get("inheritDuration", false) then
+                        local durations = options.symbols.cast:try_get("purgedOngoingEffectDurations") or {}
+                        local durationInfo = durations[effectId]
+                        if durationInfo ~= nil then
+                            applyDuration = durationInfo.duration
+                            applyUntilEot = durationInfo.untilEndOfTurn
+                        end
+                    end
+
+                    target.token:ModifyProperties{
+                        description = "Applied Ongoing Effect",
+                        execute = function()
+                            targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
+                                guid = dmhub.GenerateGuid(),
+                                untilEndOfTurn = applyUntilEot,
+                                stacks = stacks,
+                                sourceDescription = sourceDescription,
+                            })
+                        end
+                    }
+                end
+            end
+        end
+    end
+
     game.Refresh{
         tokens = tokenids,
     }

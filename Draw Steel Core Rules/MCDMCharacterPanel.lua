@@ -2455,10 +2455,10 @@ function TacPanel.SpeedBox()
                 text = "0",
                 refreshCharacter = function(element, token)
                     if token == nil or not token.valid or token.properties == nil then return end
-                    local maxMove = token.properties:GetBaseSpeed()
+                    local baseMove = token.properties:GetBaseSpeed()
                     local curMove = token.properties:CurrentMovementSpeed()
-                    element.text = tostring(maxMove)
-                    element:SetClass("restricted", curMove < maxMove)
+                    element.text = tostring(curMove >= baseMove and curMove or baseMove)
+                    element:SetClass("restricted", curMove < baseMove)
                 end,
                 refreshToken = function(element, token)
                     element:FireEvent("refreshCharacter", token)
@@ -2472,10 +2472,10 @@ function TacPanel.SpeedBox()
                 text = "0",
                 refreshCharacter = function(element, token)
                     if token == nil or not token.valid or token.properties == nil then return end
-                    local maxMove = token.properties:GetBaseSpeed()
+                    local baseMove = token.properties:GetBaseSpeed()
                     local curMove = token.properties:CurrentMovementSpeed()
                     element.text = tostring(curMove)
-                    element:SetClass("collapsed", curMove >= maxMove)
+                    element:SetClass("collapsed", curMove >= baseMove)
                 end,
                 refreshToken = function(element, token)
                     element:FireEvent("refreshCharacter", token)

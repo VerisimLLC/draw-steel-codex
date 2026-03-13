@@ -98,6 +98,9 @@ TacPanelSizes.Fonts = {
     menuOption = 14,
     menuSuboption = 11,
     menuSearch = 14,
+
+    resHeading = 12,            -- Weakness/Immunity headings
+    resEntry = 12,              -- Weakness/Immunity entries
 }
 TacPanelSizes.VisionBtn = {
     size = 20,
@@ -1339,6 +1342,29 @@ TacPanelStyles.AddConditionMenu = {
         bgcolor = DIM,
         vmargin = 6,
     },
+}
+
+TacPanelStyles.Resistances = {
+    -- Container: side-by-side
+    { selectors = {"panel", "res-container"},
+      width = "100%", height = "auto", flow = "horizontal",
+      halign = "center", tmargin = 4 },
+
+    -- Weakness box
+    { selectors = {"label", "res-box", "weakness"},
+      width = "47%", height = "auto", halign = "center",
+      fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
+      bold = true, color = RED, bgimage = "panels/square.png",
+      bgcolor = RED .. "04", border = 1, borderColor = RED,
+      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
+
+    -- Immunity box
+    { selectors = {"label", "res-box", "immunity"},
+      width = "47%", height = "auto", halign = "center",
+      fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
+      bold = true, color = TEAL, bgimage = "panels/square.png",
+      bgcolor = TEAL_HEAL .. "04", border = 1, borderColor = TEAL_HEAL,
+      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 }
 
 -- Big text
@@ -2672,6 +2698,125 @@ function TacPanel.HealthBar()
     }
 end
 
+--- Clean up resistance/immunity text for compact display.
+--- Strips " Damage ", " weakness N.", " immunity N.", "Immune to ", trailing ".".
+--- e.g. "Fire Damage weakness 5." -> "Fire 5"
+---      "Damage immunity 3." -> "All 3"
+---      "Immune to Frightened, Slowed." -> "Frightened, Slowed"
+--- @param text string
+--- @return string
+function TacPanel.CleanResistanceText(text)
+    local txt = text
+    -- Strip "Immune to " prefix
+    txt = string.gsub(txt, "^Immune to ", "")
+    -- Strip trailing period
+    txt = string.gsub(txt, "%.$", "")
+    -- Strip " weakness N" or " immunity N" suffix
+    txt = string.gsub(txt, " weakness %d+$", "")
+    txt = string.gsub(txt, " immunity %d+$", "")
+    -- Strip " Damage" (keep damage type prefix)
+    txt = string.gsub(txt, " Damage", "")
+    -- If text is now empty (was "Damage immunity 3"), show "All"
+    if txt == "" then
+        txt = "All"
+    end
+    return txt
+end
+
+--- Display weaknesses and immunities below the health bar
+--- @return Panel
+function TacPanel.Resistances()
+    return gui.Panel{
+        styles = TacPanelStyles.Resistances,
+        classes = {"res-container", "collapsed"},
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local creature = token.properties
+            local entries = creature:ResistanceEntries()
+
+            -- Separate into weaknesses (dr < 0) and immunities (dr > 0)
+            local weaknesses = {}
+            local immunities = {}
+            for _, e in ipairs(entries) do
+                if (e.entry:try_get("dr", 0)) < 0 then
+                    weaknesses[#weaknesses+1] = e
+                else
+                    immunities[#immunities+1] = e
+                end
+            end
+
+            -- Sort each list alphabetically by text
+            table.sort(weaknesses, function(a, b) return a.text < b.text end)
+            table.sort(immunities, function(a, b) return a.text < b.text end)
+
+            -- Condition immunities
+            local condImmDesc = creature:ConditionImmunityDescription()
+
+            -- Build comma-separated weakness string
+            local weakParts = {}
+            for _, e in ipairs(weaknesses) do
+                local dr = math.abs(e.entry:try_get("dr", 0))
+                weakParts[#weakParts+1] = TacPanel.CleanResistanceText(e.text) .. " " .. dr
+            end
+            local weakText = table.concat(weakParts, ", ")
+
+            -- Build comma-separated immunity string
+            local immuneParts = {}
+            for _, e in ipairs(immunities) do
+                local dr = math.abs(e.entry:try_get("dr", 0))
+                immuneParts[#immuneParts+1] = TacPanel.CleanResistanceText(e.text) .. " " .. dr
+            end
+            if condImmDesc ~= "" then
+                immuneParts[#immuneParts+1] = TacPanel.CleanResistanceText(condImmDesc)
+            end
+            local immuneText = table.concat(immuneParts, ", ")
+
+            -- Collapse entire section if nothing to show
+            local hasWeak = #weakParts > 0
+            local hasImmune = #immuneParts > 0
+            local hasContent = hasWeak or hasImmune
+            element:SetClass("collapsed", not hasContent)
+
+            if hasContent then
+                local boxWidth = (hasWeak and hasImmune) and "47%" or "94%"
+                local children = {}
+                if hasWeak then
+                    local weakTitle = #weakParts > 1 and "WEAKNESSES" or "WEAKNESS"
+                    children[#children+1] = gui.Label{
+                        classes = {"res-box", "weakness"},
+                        width = boxWidth,
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format("**<color=%s>%s:</color>** %s", DIM, weakTitle, weakText),
+                    }
+                end
+                if hasImmune then
+                    local immuneTitle = #immuneParts > 1 and "IMMUNITIES" or "IMMUNITY"
+                    children[#children+1] = gui.Label{
+                        classes = {"res-box", "immunity"},
+                        width = boxWidth,
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format("**<color=%s>%s:</color>** %s", DIM, immuneTitle, immuneText),
+                    }
+                end
+                element.children = children
+            end
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
 --- Display the stamina controls
 --- @return Panel
 function TacPanel.Stamina()
@@ -2692,7 +2837,7 @@ function TacPanel.Stamina()
             TacPanel.TempStamBox(),
         },
         TacPanel.HealthBar(),
-        -- TODO: Immunities & Weaknesses
+        TacPanel.Resistances(),
     }
 end
 
@@ -6560,7 +6705,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 		oldTacPanel and CharacterPanel.CharacteristicsPanel(m_token) or nil,
 		oldTacPanel and CharacterPanel.ImportantAttributesPanel(m_token) or nil,
 
-		gui.Panel{
+		oldTacPanel and gui.Panel{
 			width = "100%",
 			height = "auto",
             flow = "vertical",
@@ -6598,7 +6743,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
                 element.children = children
 			end,
-		},
+		} or nil,
 
 		oldTacPanel and CharacterPanel.SkillsPanel(m_token) or nil,
 		oldTacPanel and CharacterPanel.LanguagesPanel(m_token) or nil,

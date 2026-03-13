@@ -1084,6 +1084,32 @@ TacPanelStyles.SkillsLanguages = {
         color = CREAM,
     },
 }
+TacPanelStyles.Notes = {
+    -- Title bar (clickable to collapse/expand)
+    { selectors = {"panel", "notes-title"},
+      width = "100%", height = "auto",
+      halign = "left", valign = "top",
+      flow = "horizontal", vpad = 2 },
+
+    -- Collapse arrow
+    { 
+        selectors = {"notes-expando"},
+        hmargin = 8,
+        halign = "right",
+        valign = "center",
+        color = DIM,
+        bgcolor = DIM
+    },
+
+    -- Individual note label (markdown, same pattern as skillslangs)
+    { selectors = {"label", "note-entry"},
+      width = "94%", height = "auto",
+      halign = "left", valign = "top",
+      tmargin = 4, lmargin = 6,
+      fontFace = "Berling",
+      fontSize = TacPanelSizes.Fonts.skillsLangs,
+      color = CREAM },
+}
 TacPanelStyles.Conditions = {
     {
         selectors = {"panel", "conditions"},
@@ -3620,6 +3646,100 @@ function TacPanel.SkillLanguages()
     }
 end
 
+--- Display the Notes panel (collapsible)
+--- @return Panel
+function TacPanel.Notes()
+    return gui.Panel{
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.Notes},
+        classes = {"tacpanel", "alt-bg", "collapsed"},
+        data = { collapsed = true, token = nil },
+
+        setCollapse = function(element)
+            if element.data.token then
+                element:FireEvent("refreshCharacter", element.data.token)
+            end
+        end,
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local creature = token.properties
+            local notes = creature:try_get("notes")
+            if notes == nil or #notes == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            -- Check if any note has text
+            local hasContent = false
+            for _, note in ipairs(notes) do
+                if note.text ~= nil and note.text ~= "" then
+                    hasContent = true
+                    break
+                end
+            end
+            if not hasContent then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            -- Title bar is always child[1]; rebuild note labels
+            local children = { element.children[1] }
+            if not element.data.collapsed then
+                for _, note in ipairs(notes) do
+                    if note.text ~= nil and note.text ~= "" then
+                        children[#children+1] = gui.Label{
+                            classes = {"note-entry"},
+                            textWrap = true,
+                            markdown = true,
+                            text = string.format(
+                                "**<color=%s>%s:</color>** %s",
+                                MUTED, note.title, note.text
+                            ),
+                        }
+                    end
+                end
+            end
+            element.children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        -- Title bar with collapse toggle
+        gui.Panel{
+            classes = {"notes-title"},
+            press = function(element)
+                local outer = element.parent
+                outer.data.collapsed = not outer.data.collapsed
+                outer:FireEventTree("setCollapse", outer.data.collapsed)
+            end,
+            gui.Label{
+                classes = {"panel-title"},
+                text = "NOTES",
+            },
+            gui.CollapseArrow{
+                classes = {"notes-expando"},
+                floating = true,
+                width = 10,
+                height = 10,
+                setCollapse = function(element, collapsed)
+                    element:SetClass("collapseSet", collapsed)
+                end,
+            },
+        },
+    }
+end
+
 --- Format a condition's duration for display
 --- @param duration string raw duration value
 --- @return string formatted duration text
@@ -5971,6 +6091,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         newTacPanel and TacPanel.HeroicResources() or nil,
         newTacPanel and TacPanel.Conditions() or nil,
         newTacPanel and TacPanel.SkillLanguages() or nil,
+        newTacPanel and TacPanel.Notes() or nil,
 
         --heroic resource panel.
         oldTacPanel and gui.Panel{
@@ -6748,7 +6869,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 		oldTacPanel and CharacterPanel.SkillsPanel(m_token) or nil,
 		oldTacPanel and CharacterPanel.LanguagesPanel(m_token) or nil,
         CharacterPanel.AbilitiesPanel(m_token),
-        CharacterPanel.NotesPanel(m_token),
+        oldTacPanel and CharacterPanel.NotesPanel(m_token) or nil,
     }
 
     return resultPanel

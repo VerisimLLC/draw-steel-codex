@@ -2953,6 +2953,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
             m_multitargets[index].banes = (rollInfo.banes or 0)
+            m_multitargets[index].tiersDelta = (rollInfo.tiers or 0)
 
             -- Check roll requirements for triggers so they hide/show dynamically.
             -- If a trigger is already activated, skip the check -- its own effect
@@ -2987,16 +2988,20 @@ function GameHud.CreateEmbeddedRollDialog()
         --a multitarget's "boons" is relative to the boons for the roll.
         local normalizedBoons = m_multitargets[index].boons
         local normalizedBanes = m_multitargets[index].banes
+        local normalizedTiers = m_multitargets[index].tiersDelta or 0
         if m_rollInfo ~= nil then
             --if the roll has already started then the roll defines the normalized boons.
             normalizedBoons = (m_rollInfo.boons or 0)
             normalizedBanes = (m_rollInfo.banes or 0)
+            normalizedTiers = (m_rollInfo.tiers or 0)
         end
         for i = 1, #m_multitargets do
             m_multitargets[i].boons = m_multitargets[i].boons - normalizedBoons
             m_multitargets[i].banes = m_multitargets[i].banes - normalizedBanes
+            m_multitargets[i].tiersDelta = (m_multitargets[i].tiersDelta or 0) - normalizedTiers
             rollProperties.multitargets[i].boons = m_multitargets[i].boons
             rollProperties.multitargets[i].banes = m_multitargets[i].banes
+            rollProperties.multitargets[i].tiersDelta = m_multitargets[i].tiersDelta
         end
 
         resultPanel:FireEventTree("recalculatedMultiTargets", m_multitargets, rollProperties)

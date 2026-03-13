@@ -250,6 +250,10 @@ local function CalculateMultitargetsFromRollProperties(rollMessage, rollResult)
                 rollInfo.total = rollInfo.total + (targetBonusFromBoonsAndBanes - baseBonusFromBoonsAndBanes)
             end
 
+            if (target.tiersDelta or 0) ~= 0 then
+                rollInfo.tiers = (rollInfo.tiers or 0) + target.tiersDelta
+            end
+
             local tier = rollMessage.properties:try_get("overrideTier") or DiceResultToTier(rollInfo)
 
             multitargets[#multitargets+1] = {

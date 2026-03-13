@@ -1075,22 +1075,6 @@ TacPanelStyles.SkillsLanguages = {
         fontSize = TacPanelSizes.Fonts.skillsLangs,
         color = CREAM,
     },
-    {
-        selectors = {"input", "cond-custom-input"},
-        width = "94%",
-        height = "auto",
-        halign = "left",
-        lmargin = 6,
-        tmargin = 6,
-        fontFace = "Berling",
-        fontSize = TacPanelSizes.Fonts.condInput,
-        color = CREAM,
-        border = 1,
-        borderColor = DIM,
-        cornerRadius = 4,
-        hpad = 6,
-        vpad = 4,
-    },
 }
 TacPanelStyles.Conditions = {
     {
@@ -1240,6 +1224,22 @@ TacPanelStyles.Conditions = {
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.condAdd,
         color = DIM,
+    },
+    {   -- Custom condition input
+        selectors = {"input", "cond-custom-input"},
+        width = "94%",
+        height = "auto",
+        halign = "left",
+        lmargin = 6,
+        tmargin = 6,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condInput,
+        color = CREAM,
+        border = 1,
+        borderColor = DIM,
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 4,
     },
 }
 
@@ -3374,34 +3374,6 @@ function TacPanel.SkillLanguages()
             refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
             setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
         },
-        gui.Input{
-            classes = {"input", "cond-custom-input"},
-            styles = TacPanelStyles.SkillsLanguages,
-            characterLimit = 60,
-            placeholderText = "Add Custom Condition...",
-            data = { token = nil },
-            refreshCharacter = function(element, token)
-                element.data.token = token
-            end,
-            refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
-            setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
-            change = function(element)
-                local text = trim(element.text)
-                if text ~= "" and element.data.token ~= nil then
-                    element.data.token:ModifyProperties{
-                        description = "Add Custom Condition",
-                        execute = function()
-                            local cc = element.data.token.properties:get_or_add("customConditions", {})
-                            cc[dmhub.GenerateGuid()] = {
-                                text = text,
-                                timestamp = dmhub.serverTimeMilliseconds,
-                            }
-                        end,
-                    }
-                end
-                element.text = ""
-            end,
-        },
     }
 end
 
@@ -3817,6 +3789,33 @@ function TacPanel.Conditions()
         gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
+        },
+        gui.Input{
+            classes = {"input", "cond-custom-input"},
+            characterLimit = 60,
+            placeholderText = "Add Custom Condition...",
+            data = { token = nil },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+            setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+            change = function(element)
+                local text = trim(element.text)
+                if text ~= "" and element.data.token ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Add Custom Condition",
+                        execute = function()
+                            local cc = element.data.token.properties:get_or_add("customConditions", {})
+                            cc[dmhub.GenerateGuid()] = {
+                                text = text,
+                                timestamp = dmhub.serverTimeMilliseconds,
+                            }
+                        end,
+                    }
+                end
+                element.text = ""
+            end,
         },
     }
 end

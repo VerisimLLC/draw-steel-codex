@@ -121,6 +121,14 @@ TacPanelSizes.Portrait = {
     height = 120,
 }
 
+local g_edsSetting = setting{
+    id = "eds",
+    default = 50,
+    min = 10,
+    max = 1000,
+    storage = "game",
+}
+
 TacPanelStyles.TacPanel = {
     {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
         selectors = {"panel", "tacpanel"},
@@ -156,7 +164,16 @@ TacPanelStyles.TacPanel = {
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.panelTitle,
         color = DIM,
-    }
+    },
+    -- Collapsible title bar
+    { selectors = {"panel", "tp-title-bar"},
+      width = "100%", height = "auto",
+      halign = "left", valign = "top",
+      flow = "horizontal", vpad = 2 },
+    -- Collapse arrow
+    { selectors = {"tp-expando"},
+      hmargin = 8, halign = "right", valign = "center",
+      color = DIM },
 }
 TacPanelStyles.Tooltip = {
     {
@@ -1085,22 +1102,6 @@ TacPanelStyles.SkillsLanguages = {
     },
 }
 TacPanelStyles.Notes = {
-    -- Title bar (clickable to collapse/expand)
-    { selectors = {"panel", "notes-title"},
-      width = "100%", height = "auto",
-      halign = "left", valign = "top",
-      flow = "horizontal", vpad = 2 },
-
-    -- Collapse arrow
-    { 
-        selectors = {"notes-expando"},
-        hmargin = 8,
-        halign = "right",
-        valign = "center",
-        color = DIM,
-        bgcolor = DIM
-    },
-
     -- Individual note label (markdown, same pattern as skillslangs)
     { selectors = {"label", "note-entry"},
       width = "94%", height = "auto",
@@ -1109,6 +1110,116 @@ TacPanelStyles.Notes = {
       fontFace = "Berling",
       fontSize = TacPanelSizes.Fonts.skillsLangs,
       color = CREAM },
+}
+TacPanelStyles.MultiEdit = {
+    -- Row containers
+    { selectors = {"panel", "me-actions"},
+      width = "100%", height = "auto",
+      flow = "horizontal", halign = "center", tmargin = 4 },
+    { selectors = {"panel", "me-icon-row"},
+      width = "auto", height = "auto",
+      flow = "horizontal", halign = "left", lmargin = 6, tmargin = 4 },
+
+    -- Heal/Damage input boxes
+    { selectors = {"panel", "me-input-box"},
+      width = "30%", height = 28, halign = "center", valign = "center",
+      bgimage = "panels/square.png",
+      border = 1, cornerRadius = 4, hmargin = 2 },
+    { selectors = {"panel", "me-input-box", "heal"},
+      bgcolor = TEAL_HEAL .. "1A", borderColor = TEAL_HEAL },
+    { selectors = {"panel", "me-input-box", "damage"},
+      bgcolor = RED .. "1A", borderColor = RED },
+    { selectors = {"input", "me-input"},
+      width = "100%", height = "100%",
+      bgcolor = "clear", borderWidth = 0, borderColor = "clear",
+      pad = 0, margin = 0,
+      fontFace = "Berling", fontSize = 12, color = CREAM,
+      bold = true, textAlignment = "center" },
+
+    -- Add Condition button
+    { selectors = {"panel", "me-condition-btn"},
+      width = "30%", height = 28, halign = "center", valign = "center",
+      bgimage = "panels/square.png",
+      bgcolor = DIM .. "1A", border = 1, borderColor = DIM,
+      cornerRadius = 4, hmargin = 2 },
+    { selectors = {"panel", "me-condition-btn", "hover"},
+      brightness = 1.3, transitionTime = 0.2 },
+    { selectors = {"label", "me-condition-btn"},
+      width = "100%", height = "100%",
+      halign = "center", valign = "center", textAlignment = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM, bold = true },
+
+    -- Icon button outline wrapper
+    { selectors = {"panel", "me-icon-wrap"},
+      width = "auto", height = "auto",
+      halign = "left", valign = "top",
+      lmargin = 4, pad = 4,
+      bgimage = true, bgcolor = "clear",
+      border = 1, borderColor = DIMMER, cornerRadius = 4 },
+
+    -- Squad chip
+    { selectors = {"panel", "me-squad-row"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      tmargin = 4, lmargin = 6, hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-squad-label"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+
+    -- EDS chip
+    { selectors = {"panel", "me-eds-chip"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-eds-label"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+    { selectors = {"label", "me-eds-input"},
+      width = 50, height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM },
+
+    -- EV result chip
+    { selectors = {"panel", "me-ev-chip"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      lmargin = 4, hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-ev-result"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM },
+}
+TacPanelStyles.Routines = {
+    -- Container for routine chips
+    { selectors = {"panel", "rt-container"},
+      width = "100%", height = "auto",
+      flow = "horizontal", halign = "left" },
+
+    -- Routine chip (unselected = dim)
+    { selectors = {"panel", "rt-chip"},
+      width = "auto", height = 28,
+      flow = "horizontal", hpad = 8, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4, lmargin = 6, tmargin = 4 },
+    { selectors = {"panel", "rt-chip", "hover"},
+      brightness = 1.3, transitionTime = 0.2 },
+    { selectors = {"panel", "rt-chip", "selected"},
+      bgcolor = GOLD .. "1A", borderColor = GOLD },
+
+    -- Routine chip label
+    { selectors = {"label", "rt-chip"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+    { selectors = {"label", "rt-chip", "selected"},
+      color = GOLD_LIGHT },
 }
 TacPanelStyles.Conditions = {
     {
@@ -2244,6 +2355,16 @@ function TacPanel.StaminaBox()
         halign = "center",
         valign = "center",
         data = { token = nil },
+
+        linger = function(element)
+            local token = element.data.token
+            if token ~= nil and token.properties ~= nil then
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "stamina",
+                    entries = token.properties:GetStatHistory("stamina"):GetHistory()
+                }
+            end
+        end,
 
         refreshCharacter = function(element, token)
             element.data.token = token
@@ -3483,12 +3604,319 @@ function TacPanel.GrowingHRTable()
     }
 end
 
+--- Build a collapsible TacPanel section with a title bar and collapse arrow.
+--- @param args table {title, styles, classes, data, ...} plus array children
+--- @return Panel
+function TacPanel.CollapsiblePanel(args)
+    local title = args.title or ""
+    local extraStyles = args.styles or {}
+    local extraClasses = args.classes or {}
+    local extraData = args.data or {}
+    args.title = nil
+    args.styles = nil
+    args.classes = nil
+    args.data = nil
+
+    -- Build merged data with collapsed default
+    local data = { collapsed = false }
+    for k,v in pairs(extraData) do
+        data[k] = v
+    end
+
+    -- Build merged classes
+    local classes = {"tacpanel", "alt-bg"}
+    for _,c in ipairs(extraClasses) do
+        classes[#classes+1] = c
+    end
+
+    -- Build merged styles
+    local allStyles = {TacPanelStyles.TacPanel}
+    for _,s in ipairs(extraStyles) do
+        allStyles[#allStyles+1] = s
+    end
+
+    -- Title bar (always child[1])
+    local titleBar = gui.Panel{
+        classes = {"tp-title-bar"},
+        press = function(element)
+            local outer = element.parent
+            outer.data.collapsed = not outer.data.collapsed
+            outer:FireEventTree("setCollapse", outer.data.collapsed)
+        end,
+        gui.Label{
+            classes = {"panel-title"},
+            text = title,
+        },
+        gui.CollapseArrow{
+            classes = {"tp-expando"},
+            floating = true,
+            width = 10,
+            height = 10,
+            setCollapse = function(element, collapsed)
+                element:SetClass("collapseSet", collapsed)
+            end,
+        },
+    }
+
+    -- Collect content children from array entries
+    local contentChildren = {}
+    for i,child in ipairs(args) do
+        contentChildren[#contentChildren+1] = child
+        args[i] = nil
+    end
+
+    -- Build the outer panel args
+    local panelArgs = {
+        styles = TacPanel.MergeStyles(allStyles),
+        classes = classes,
+        data = data,
+        titleBar,
+    }
+
+    -- Add content children
+    for _,child in ipairs(contentChildren) do
+        panelArgs[#panelArgs+1] = child
+    end
+
+    -- Default setCollapse: hide/show children 2+
+    if args.setCollapse == nil then
+        panelArgs.setCollapse = function(element)
+            for i = 2, #element.children do
+                element.children[i]:SetClass("collapsed", element.data.collapsed)
+            end
+        end
+    end
+
+    -- Pass through all remaining args properties
+    for k,v in pairs(args) do
+        panelArgs[k] = v
+    end
+
+    return gui.Panel(panelArgs)
+end
+
+--- Display the Routines panel
+--- @return Panel
+function TacPanel.Routines()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Routines},
+        classes = {"collapsed"},
+        title = "ROUTINES",
+        data = { routinePanels = {} },
+        setCollapse = function(element)
+            element:FireEvent("refreshCharacter", element.data.token)
+        end,
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local routines = token.properties:GetRoutines()
+            if routines == nil or #routines == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            if element.data.collapsed then
+                element.children[2].children = {}
+                return
+            end
+
+            local routinesSelected = token.properties:try_get("routinesSelected") or {}
+            local newPanels = {}
+            local children = {}
+
+            -- "None" chip
+            local noneSelected = (token.properties:try_get("routinesSelected") == nil)
+            children[#children+1] = gui.Panel{
+                classes = {"rt-chip"},
+                press = function(el)
+                    token:ModifyProperties{
+                        description = tr("Select Routine"),
+                        execute = function()
+                            token.properties.routinesSelected = nil
+                        end,
+                    }
+                end,
+                gui.Label{
+                    classes = {"rt-chip"},
+                    text = "None",
+                    selfStyle = noneSelected and {color = GOLD_LIGHT} or nil,
+                },
+                selfStyle = noneSelected and {bgcolor = GOLD .. "1A", borderColor = GOLD} or nil,
+            }
+
+            for _,routine in ipairs(routines) do
+                local selected = (routinesSelected[routine.guid] ~= nil)
+                local panel = element.data.routinePanels[routine.guid] or gui.Panel{
+                    data = { selected = false },
+                    classes = {"rt-chip"},
+                    flow = "horizontal",
+
+                    gui.Label{
+                        classes = {"rt-chip"},
+                        text = routine.name,
+                        popupPositioning = "panel",
+                        hover = function(el)
+                            el.tooltip = gui.TooltipFrame(routine:Render{}, {
+                                halign = "left",
+                                valign = "top",
+                            })
+                        end,
+                        press = function(el)
+                            token:ModifyProperties{
+                                description = tr("Select Routine"),
+                                execute = function()
+                                    local sel = token.properties:get_or_add("routinesSelected", {})
+                                    if sel[routine.guid] then
+                                        sel[routine.guid] = nil
+                                    else
+                                        sel[routine.guid] = ServerTimestamp()
+                                    end
+                                    token.properties.routinesSelected = sel
+                                end,
+                            }
+                        end,
+                    },
+
+                    selectionChanged = function(el, sel)
+                        el:SetClass("selected", sel)
+                        local labelChild = el.children[1]
+                        labelChild:SetClass("selected", sel)
+
+                        if not sel then
+                            el.children = {labelChild}
+                            return
+                        end
+
+                        el.children = {
+                            labelChild,
+                            gui.Panel{
+                                valign = "center",
+                                halign = "right",
+                                width = "auto", height = "auto",
+                                bgimage = "panels/square.png",
+                                bgcolor = "clear",
+                                border = 1,
+                                borderColor = GOLD_LIGHT,
+                                cornerRadius = 3,
+                                pad = 3, lmargin = 4,
+                                gui.VisibilityPanel{
+                                    opacity = 1,
+                                    visible = true,
+                                    bgcolor = GOLD_LIGHT,
+                                    width = 12,
+                                    height = 12,
+                                    press = function(element)
+                                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                        settings.hide = not settings.hide
+
+                                        token:ModifyProperties{
+                                            description = tr("Set Aura Display Settings"),
+                                            undoable = false,
+                                            execute = function()
+                                                token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                            end,
+                                        }
+                                    end,
+                                    refresh = function(element)
+                                        if token == nil or not token.valid then
+                                            return
+                                        end
+
+                                        element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(routine.name).hide)
+                                    end,
+                                },
+                            },
+                            gui.PercentSlider{
+                                valign = "center",
+                                halign = "right",
+                                hmargin = 6,
+                                selfStyle = {borderColor = GOLD_LIGHT},
+                                styles = {
+                                    {selectors = {"percentSlider"},
+                                     borderWidth = 1, borderColor = GOLD_LIGHT,
+                                     cornerRadius = 2, bgimage = "panels/square.png",
+                                     bgcolor = "black", height = 14, flow = "none"},
+                                    {selectors = {"percentSliderLabel"},
+                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
+                                     halign = "left", valign = "center",
+                                     width = 40, textAlignment = "center", height = "auto"},
+                                    {selectors = {"percentSliderLabel", "fill"},
+                                     color = "black"},
+                                    {selectors = {"percentFill"},
+                                     bgcolor = GOLD_LIGHT, height = "100%",
+                                     width = "0%", halign = "left", cornerRadius = 2},
+                                },
+                                value = token.properties:GetAuraDisplaySetting(routine.name).opacity,
+                                refresh = function(element)
+                                    if token == nil or not token.valid then
+                                        return
+                                    end
+
+                                    element.value = token.properties:GetAuraDisplaySetting(routine.name).opacity
+                                end,
+                                preview = function(element)
+                                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                    settings.opacity = element.value
+                                    token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                    token:UpdateAuras()
+                                end,
+                                confirm = function(element)
+                                    --set it to off to force upload.
+                                    token.properties:SetAuraDisplaySetting(routine.name, nil)
+
+                                    token:ModifyProperties{
+                                        description = tr("Set Aura Display Settings"),
+                                        undoable = false,
+                                        execute = function()
+                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                            settings.opacity = element.value
+                                            token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                        end,
+                                    }
+                                end,
+                            }
+                        }
+                    end,
+                }
+
+                if selected ~= panel.data.selected then
+                    panel.data.selected = selected
+                    panel:FireEvent("selectionChanged", selected)
+                end
+
+                children[#children+1] = panel
+                newPanels[routine.guid] = panel
+            end
+
+            element.data.routinePanels = newPanels
+            element.children[2].children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"rt-container"},
+            wrap = true,
+        },
+    }
+end
+
 --- Display the heroic resources info
 --- @return Panel
 function TacPanel.HeroicResources()
-    return gui.Panel{
-        styles = TacPanelStyles.TacPanel,
-        classes = {"tacpanel", "alt-bg", "collapsed"},
+    return TacPanel.CollapsiblePanel{
+        classes = {"collapsed"},
+        title = "HEROIC RESOURCES",
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
                 element:SetClass("collapsed", true)
@@ -3502,10 +3930,6 @@ function TacPanel.HeroicResources()
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
         end,
-        gui.Label{
-            classes = {"panel-title"},
-            text = "HEROIC RESOURCES",
-        },
         gui.Panel{
             classes = {"container"},
             width = "100%",
@@ -3576,13 +4000,8 @@ end
 --- Display the Skills & Languages panel
 --- @return Panel
 function TacPanel.SkillLanguages()
-    return gui.Panel{
-        styles = TacPanelStyles.TacPanel,
-        classes = {"tacpanel", "alt-bg"},
-        gui.Label{
-            classes = {"panel-title"},
-            text = "SKILLS & LANGUAGES",
-        },
+    return TacPanel.CollapsiblePanel{
+        title = "SKILLS & LANGUAGES",
         gui.Panel{
             styles = TacPanelStyles.SkillsLanguages,
             width = "100%",
@@ -3649,16 +4068,11 @@ end
 --- Display the Notes panel (collapsible)
 --- @return Panel
 function TacPanel.Notes()
-    return gui.Panel{
-        styles = {TacPanelStyles.TacPanel, TacPanelStyles.Notes},
-        classes = {"tacpanel", "alt-bg", "collapsed"},
-        data = { collapsed = true, token = nil },
-
-        setCollapse = function(element)
-            if element.data.token then
-                element:FireEvent("refreshCharacter", element.data.token)
-            end
-        end,
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Notes},
+        classes = {"collapsed"},
+        title = "NOTES",
+        data = { token = nil },
 
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
@@ -3689,24 +4103,22 @@ function TacPanel.Notes()
 
             element:SetClass("collapsed", false)
 
-            -- Title bar is always child[1]; rebuild note labels
-            local children = { element.children[1] }
-            if not element.data.collapsed then
-                for _, note in ipairs(notes) do
-                    if note.text ~= nil and note.text ~= "" then
-                        children[#children+1] = gui.Label{
-                            classes = {"note-entry"},
-                            textWrap = true,
-                            markdown = true,
-                            text = string.format(
-                                "**<color=%s>%s:</color>** %s",
-                                MUTED, note.title, note.text
-                            ),
-                        }
-                    end
+            -- Rebuild note labels into the content container (child[2])
+            local noteLabels = {}
+            for _, note in ipairs(notes) do
+                if note.text ~= nil and note.text ~= "" then
+                    noteLabels[#noteLabels+1] = gui.Label{
+                        classes = {"note-entry"},
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format(
+                            "**<color=%s>%s:</color>** %s",
+                            MUTED, note.title, note.text
+                        ),
+                    }
                 end
             end
-            element.children = children
+            element.children[2].children = noteLabels
         end,
         refreshToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
@@ -3715,27 +4127,633 @@ function TacPanel.Notes()
             element:FireEvent("refreshCharacter", token)
         end,
 
-        -- Title bar with collapse toggle
+        -- Content container (child[2]), collapsed/expanded by default handler
         gui.Panel{
-            classes = {"notes-title"},
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+        },
+    }
+end
+
+--- Multi-token selection panel (styled)
+--- @return Panel
+function TacPanel.MultiEdit()
+    local m_tokens = {}
+    local m_selectedSquadId = nil
+
+    -- Squad name input
+    local monsterSquadInput = gui.Input{
+        classes = {"me-input"},
+        placeholderText = "Enter name...",
+        characterLimit = 24,
+        selectAllOnFocus = true,
+        width = 140,
+        height = "auto",
+        valign = "center",
+        change = function(element)
+            local squadid = trim(element.text)
+            if squadid ~= "" then
+                for _,tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Set Squad",
+                        execute = function()
+                            tok.properties.minionSquad = squadid
+                        end,
+                    }
+                end
+            end
+        end,
+    }
+
+    -- Squad color picker
+    local monsterSquadColorPicker = gui.ColorPicker{
+        width = 20,
+        height = 20,
+        cornerRadius = 10,
+        halign = "center",
+        valign = "center",
+        color = "white",
+        confirm = function(element)
+            local color = element.value.tostring
+            for _,tok in ipairs(m_tokens) do
+                tok:ModifyProperties{
+                    description = "Set Color",
+                    execute = function()
+                        DrawSteelMinion.SetSquadColor(m_selectedSquadId, color)
+                    end,
+                }
+            end
+
+            local monsterTokens = dmhub.GetTokens{
+                unaffiliated = true,
+            }
+
+            local squadTokens = {}
+            for _,tok in ipairs(monsterTokens) do
+                if tok.properties.minion and tok.properties:MinionSquad() == m_selectedSquadId then
+                    squadTokens[#squadTokens+1] = tok.id
+                end
+            end
+
+            if #squadTokens > 0 then
+                game.Refresh{
+                    tokens = squadTokens,
+                }
+            end
+        end,
+    }
+
+    -- Add to Combat icon button
+    local addToCombatBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local hasNonCombatant = false
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties:try_get("_tmp_initiativeStatus") == "NonCombatant" then
+                    hasNonCombatant = true
+                end
+            end
+
+            element:SetClass("collapsed", hasNonCombatant == false)
+        end,
+        gui.EnhIconButton{
+            classes = {"vision-btn"},
+            bgimage = "panels/initiative/initiative-icon.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = RED,
+            press = function(element)
+                Commands.rollinitiative()
+            end,
+            linger = function(element)
+                gui.Tooltip("Add to Combat")(element)
+            end,
+        },
+    }
+
+    -- Group Initiative icon button
+    local groupInitBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local initiativeid = false
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
+                    element:SetClass("collapsed", false)
+                    return
+                end
+                initiativeid = tok.properties.initiativeGrouping
+            end
+            element:SetClass("collapsed", true)
+        end,
+        gui.EnhIconButton{
+            classes = {"vision-btn"},
+            bgimage = "icons/icon_app/icon_app_18.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = TEAL,
+            press = function(element)
+                local guid = dmhub.GenerateGuid()
+
+                local hasPlayers = false
+                local existingInitiative = {}
+                local info = gamehud.initiativeInterface
+
+                for _,tok in ipairs(m_tokens) do
+                    if tok.playerControlled then
+                        hasPlayers = true
+                    end
+                end
+
+                if hasPlayers then
+                    guid = "PLAYERS-" .. guid
+                end
+
+                local tokens = DrawSteelMinion.GrowTokensToIncludeSquads(m_tokens)
+
+                for _,tok in ipairs(tokens) do
+                    local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+                    existingInitiative[initiativeid] = true
+                    tok:ModifyProperties{
+                        description = "Set Initiative",
+                        execute = function()
+                            tok.properties.initiativeGrouping = guid
+                        end,
+                    }
+                end
+
+                if info.initiativeQueue ~= nil and not info.initiativeQueue.hidden then
+                    for initiativeid,_ in pairs(existingInitiative) do
+                        info.initiativeQueue:RemoveInitiative(initiativeid)
+                    end
+
+                    info.initiativeQueue:SetInitiative(guid, 0, 0)
+                    if hasPlayers then
+                        local entry = info.initiativeQueue.entries[guid]
+                        if entry ~= nil and entry:try_get("player") ~= true then
+                            entry.player = true
+                        end
+                    end
+
+                    info.UploadInitiative()
+                end
+            end,
+            linger = function(element)
+                gui.Tooltip("Group Initiative")(element)
+            end,
+        },
+    }
+
+    -- Ungroup Initiative icon button
+    local ungroupInitBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local tokens = dmhub.allTokens
+            local haveInitiativeGrouping = false
+
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties.initiativeGrouping then
+                    local squadsSeen = {}
+                    local count = 0
+                    for _,token in ipairs(tokens) do
+                        if token.properties.initiativeGrouping == tok.properties.initiativeGrouping and (token.properties:MinionSquad() == nil or squadsSeen[token.properties:MinionSquad()] == nil) then
+                            count = count+1
+                            if token.properties:MinionSquad() ~= nil then
+                                squadsSeen[token.properties:MinionSquad()] = true
+                            end
+                        end
+                    end
+
+                    if count > 1 then
+                        haveInitiativeGrouping = true
+                    end
+                end
+            end
+
+            element:SetClass("collapsed", not haveInitiativeGrouping)
+        end,
+        gui.EnhIconButton{
+            classes = {"vision-btn"},
+            bgimage = "icons/icon_app/icon_app_13.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
+            press = function(element)
+                local q = dmhub.initiativeQueue
+
+                local needsInitiativeRefresh = false
+                for _,tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Set Initiative",
+                        execute = function()
+                            local haveInitiative = q ~= nil and (not q.hidden) and q:HasInitiative(InitiativeQueue.GetInitiativeId(tok))
+                            tok.properties.initiativeGrouping = dmhub.GenerateGuid()
+                            if haveInitiative then
+                                needsInitiativeRefresh = true
+                            end
+                        end,
+                    }
+                end
+
+                if needsInitiativeRefresh then
+                    Commands.rollinitiative()
+                end
+            end,
+            linger = function(element)
+                gui.Tooltip("Ungroup Initiative")(element)
+            end,
+        },
+    }
+
+    -- Make Captain icon button
+    local makeCaptainBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        data = { mode = "Make Captain" },
+        gui.EnhIconButton{
+            classes = {"vision-btn"},
+            bgimage = "panels/hud/crown.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
             press = function(element)
                 local outer = element.parent
-                outer.data.collapsed = not outer.data.collapsed
-                outer:FireEventTree("setCollapse", outer.data.collapsed)
+                local isMakeCaptain = outer.data.mode == "Make Captain"
+                local initiativeGrouping = nil
+                local allTokens = dmhub.allTokens
+
+                local charids = {}
+                for _,tok in ipairs(m_tokens) do
+                    charids[tok.charid] = true
+                end
+                local initiativeGroupingsSeen = {}
+
+                for _,tok in ipairs(m_tokens) do
+                    if tok.properties.initiativeGrouping and not initiativeGroupingsSeen[tok.properties.initiativeGrouping] then
+                        local grouping = tok.properties.initiativeGrouping
+                        local used = false
+                        for _,otherTok in ipairs(allTokens) do
+                            if otherTok.properties.initiativeGrouping == grouping and (not charids[otherTok.charid]) then
+                                used = true
+                                break
+                            end
+                        end
+
+                        if not used then
+                            initiativeGrouping = grouping
+                            break
+                        end
+                    end
+                end
+
+                if initiativeGrouping == false or not isMakeCaptain then
+                    initiativeGrouping = dmhub.GenerateGuid()
+                end
+
+                local groupid = dmhub.GenerateGuid()
+                local captainid = nil
+                for _,tok in ipairs(m_tokens) do
+                    if (not tok.properties.minion) then
+                        captainid = tok.id
+                        tok:ModifyProperties{
+                            groupid = groupid,
+                            description = "Set Squad",
+                            execute = function()
+                                tok.properties.initiativeGrouping = initiativeGrouping
+                                if isMakeCaptain then
+                                    tok.properties.minionSquad = m_selectedSquadId
+                                else
+                                    tok.properties.minionSquad = nil
+                                end
+                            end,
+                        }
+                    elseif tok.properties.initiativeGrouping ~= initiativeGrouping and isMakeCaptain then
+                        tok:ModifyProperties{
+                            groupid = groupid,
+                            description = "Set Squad",
+                            execute = function()
+                                tok.properties.initiativeGrouping = initiativeGrouping
+                            end,
+                        }
+                    end
+                end
+
+                if captainid ~= nil then
+                    local monsterTokens = dmhub.GetTokens{}
+                    for _,tok in ipairs(monsterTokens) do
+                        if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == m_selectedSquadId then
+                            tok:ModifyProperties{
+                                description = "Set Squad",
+                                execute = function()
+                                    tok.properties.minionSquad = nil
+                                end,
+                            }
+                        end
+                    end
+                end
             end,
-            gui.Label{
-                classes = {"panel-title"},
-                text = "NOTES",
+            linger = function(element)
+                gui.Tooltip(element.parent.data.mode)(element)
+            end,
+        },
+    }
+
+    -- Form Squad icon button
+    local formSquadBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        gui.EnhIconButton{
+            classes = {"vision-btn"},
+            bgimage = "icons/icon_app/icon_app_2.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
+            press = function(element)
+                DrawSteelMinion.FormSquad(dmhub.selectedOrPrimaryTokens)
+            end,
+            linger = function(element)
+                gui.Tooltip("Form Squad")(element)
+            end,
+        },
+    }
+
+    -- Monster squad row
+    local monsterSquadPanel = gui.Panel{
+        classes = {"me-squad-row", "collapsed"},
+        tokens = function(element, tokens)
+            local nminions = 0
+            local monsterType = nil
+            local squadid = nil
+            local minionParty = nil
+            local potentialCaptain = nil
+            for _,tok in ipairs(tokens) do
+                if (not tok.properties.minion) then
+                    potentialCaptain = tok
+                end
+                if tok.properties.minion and tok.properties:has_key("monster_type") and (monsterType == nil or tok.properties.monster_type == monsterType) then
+                    nminions = nminions + 1
+                    monsterType = tok.properties.monster_type
+                    if squadid == nil then
+                        squadid = tok.properties:MinionSquad()
+                    elseif squadid ~= tok.properties:MinionSquad() then
+                        squadid = false
+                    end
+
+                    if minionParty == nil then
+                        minionParty = tok.ownerId
+                    elseif minionParty ~= tok.ownerId then
+                        minionParty = false
+                    end
+                end
+            end
+
+            local showCaptainButton = false
+
+            if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
+                showCaptainButton = true
+                if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
+                    nminions = nminions + 1
+                    makeCaptainBtn.data.mode = "Remove Captain"
+                else
+                    makeCaptainBtn.data.mode = "Make Captain"
+                    m_selectedSquadId = squadid
+                end
+            end
+
+            makeCaptainBtn:SetClass("collapsed", not showCaptainButton)
+
+            local shouldCollapse = nminions < #tokens
+            local haveFormSquad = false
+
+            if nminions == #tokens and squadid ~= nil then
+                if squadid == false then
+                    haveFormSquad = true
+                    shouldCollapse = true
+                else
+                    monsterSquadInput.text = squadid
+                    monsterSquadColorPicker:SetClass("hidden", false)
+                    monsterSquadColorPicker.value = DrawSteelMinion.GetSquadColor(squadid)
+                    m_selectedSquadId = squadid
+                end
+            end
+
+            element:SetClass("collapsed", shouldCollapse)
+            formSquadBtn:SetClass("collapsed", not haveFormSquad)
+        end,
+        monsterSquadColorPicker,
+        gui.Label{
+            classes = {"me-squad-label"},
+            text = "Squad:",
+            lmargin = 8,
+        },
+        monsterSquadInput,
+    }
+
+    -- EV result chip
+    local monsterEVChip = gui.Panel{
+        classes = {"me-ev-chip", "collapsed"},
+        gui.Label{
+            classes = {"me-ev-result"},
+            text = "",
+            markdown = true,
+
+            multimonitor = "eds",
+            monitor = function(element)
+                if m_tokens ~= nil then
+                    element:FireEvent("tokens", m_tokens)
+                end
+            end,
+
+            tokens = function(element, tokens)
+                local monsterTokens = {}
+                for _,tok in ipairs(tokens) do
+                    if tok.properties:IsMonster() then
+                        monsterTokens[#monsterTokens+1] = tok
+                    end
+                end
+
+                if #monsterTokens == 0 then
+                    element.text = ""
+                    element.parent:SetClass("collapsed", true)
+                    return
+                end
+
+                element.parent:SetClass("collapsed", false)
+
+            local ev = 0
+            for _,tok in ipairs(monsterTokens) do
+                if tok.properties.minion then
+                    ev = ev + tok.properties.ev/GameSystem.minionsPerSquad
+                else
+                    ev = ev + tok.properties.ev
+                end
+            end
+
+            ev = round(ev)
+
+            local edsDescription
+            local eds = g_edsSetting:Get()
+
+            if ev <= eds/2 then
+                edsDescription = "<color=#66ff66>Trivial</color>"
+            elseif ev <= eds then
+                local val = ev
+                while val % 5 ~= 0 do
+                    val = val + 1
+                end
+
+                if val - eds/2 >= eds - val then
+                    edsDescription = "<color=#ffff66>Standard</color>"
+                else
+                    edsDescription = "<color=#66ff66>Easy</color>"
+                end
+            elseif ev <= eds + 10 then
+                edsDescription = "<color=#ff6666>Hard</color>"
+            else
+                edsDescription = "<color=#990000>Extreme</color>"
+            end
+
+            element.text = string.format("%d monsters selected, EV: %d (<b>%s</b>)", #monsterTokens, ev, edsDescription)
+        end,
+    },
+    }
+
+    return gui.Panel{
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit},
+        classes = {"tacpanel", "alt-bg", "collapsed"},
+        tokens = function(element, tokens)
+            m_tokens = tokens
+            if #tokens <= 1 then
+                element:SetClass("collapsed", true)
+            else
+                element:SetClass("collapsed", false)
+                for _,child in ipairs(element.children) do
+                    child:FireEventTree("tokens", tokens)
+                end
+            end
+        end,
+
+        gui.Label{
+            classes = {"panel-title"},
+            text = "SELECTED TOKENS",
+        },
+
+        -- Row 1: Heal / Damage / Add Condition
+        gui.Panel{
+            classes = {"me-actions"},
+
+            -- Heal All
+            gui.Panel{
+                classes = {"me-input-box", "heal"},
+                gui.Input{
+                    classes = {"me-input"},
+                    placeholderText = "Heal All",
+                    placeholderAlpha = 0.6,
+                    change = function(element)
+                        for _,tok in ipairs(m_tokens) do
+                            tok:ModifyProperties{
+                                description = "Heal",
+                                execute = function()
+                                    tok.properties:Heal(element.text)
+                                end,
+                            }
+                        end
+                        element.text = ""
+                    end,
+                },
             },
-            gui.CollapseArrow{
-                classes = {"notes-expando"},
-                floating = true,
-                width = 10,
-                height = 10,
-                setCollapse = function(element, collapsed)
-                    element:SetClass("collapseSet", collapsed)
+
+            -- Damage All
+            gui.Panel{
+                classes = {"me-input-box", "damage"},
+                gui.Input{
+                    classes = {"me-input"},
+                    placeholderText = "Damage All",
+                    placeholderAlpha = 0.6,
+                    change = function(element)
+                        for _,tok in ipairs(m_tokens) do
+                            tok:ModifyProperties{
+                                description = "Damage",
+                                execute = function()
+                                    tok.properties:TakeDamage(element.text)
+                                end,
+                            }
+                        end
+                        element.text = ""
+                    end,
+                },
+            },
+
+            -- Add Condition
+            gui.Panel{
+                classes = {"me-condition-btn"},
+                press = function(element)
+                    TacPanel.AddConditionMenu{
+                        tokens = m_tokens,
+                        button = element,
+                    }
                 end,
+                gui.Label{
+                    classes = {"me-condition-btn"},
+                    text = "Add Condition",
+                },
             },
+        },
+
+        -- Row 2: Icon buttons
+        gui.Panel{
+            classes = {"me-icon-row"},
+            addToCombatBtn,
+            groupInitBtn,
+            ungroupInitBtn,
+            makeCaptainBtn,
+            formSquadBtn,
+        },
+
+        -- Squad row
+        monsterSquadPanel,
+
+        -- EDS + EV row
+        gui.Panel{
+            width = "100%", height = "auto",
+            flow = "horizontal", halign = "left",
+            tmargin = 4, lmargin = 6,
+
+            -- EDS chip
+            gui.Panel{
+                classes = {"me-eds-chip"},
+                lmargin = 0,
+                gui.Label{
+                    classes = {"me-eds-label"},
+                    text = "EDS:",
+                },
+                gui.Label{
+                    classes = {"me-eds-input"},
+                    editable = true,
+                    text = g_edsSetting:Get(),
+                    characterLimit = 3,
+                    multimonitor = "eds",
+                    monitor = function(element)
+                        element.text = tostring(g_edsSetting:Get())
+                    end,
+                    change = function(element)
+                        local n = tonumber(element.text)
+                        if n == nil or n < 10 or n > 1000 then
+                            element.text = tostring(g_edsSetting:Get())
+                            return
+                        end
+                        g_edsSetting:Set(n)
+                    end,
+                },
+            },
+
+            -- EV result
+            monsterEVChip,
         },
     }
 end
@@ -3814,6 +4832,84 @@ function TacPanel.ConditionTooltipText(condid, cond, creature)
         info.name, durationText, info.description, ridersText, cond.sourceDescription or "")
 end
 
+--- Shared helper for condition/effect chip panels.
+--- @param args table {token, tooltipText, label, removeDescription, onRemove, icon?, lingerExtra?, extraChildren?}
+--- @return Panel
+function TacPanel.EffectChip(args)
+    local children = {}
+
+    if args.icon then
+        children[#children+1] = gui.Panel{
+            classes = {"panel", "cond-icon"},
+            bgimage = args.icon.bgimage,
+            bgcolor = args.icon.bgcolor or "white",
+            hueshift = args.icon.hueshift or 0,
+        }
+    end
+
+    children[#children+1] = gui.Label{
+        classes = {"label", "cond-name"},
+        text = args.label,
+    }
+
+    if args.extraChildren then
+        for _,child in ipairs(args.extraChildren) do
+            children[#children+1] = child
+        end
+    end
+
+    if args.onRemove then
+        children[#children+1] = gui.Panel{
+            classes = {"panel", "cond-remove"},
+            press = function(element)
+                args.token:ModifyProperties{
+                    description = args.removeDescription,
+                    execute = function()
+                        args.onRemove(args.token)
+                    end,
+                }
+            end,
+            linger = function(element)
+                gui.Tooltip("Remove")(element)
+            end,
+            gui.Label{
+                classes = {"label", "cond-remove"},
+                text = "X",
+            },
+        }
+    end
+
+    local panelArgs = {
+        classes = {"panel", "cond-chip"},
+        data = { targetingMarkers = {} },
+        linger = function(element)
+            element:FireEvent("clearMarkers")
+            element.popupPositioning = "panel"
+            element.tooltip = gui.TooltipFrame(
+                TacPanel.Tooltip(args.tooltipText),
+                { halign = "left", valign = "top" }
+            )
+            if args.lingerExtra then
+                args.lingerExtra(element)
+            end
+        end,
+        dehover = function(element)
+            element:FireEvent("clearMarkers")
+        end,
+        clearMarkers = function(element)
+            for _, marker in ipairs(element.data.targetingMarkers) do
+                marker:Destroy()
+            end
+            element.data.targetingMarkers = {}
+        end,
+    }
+    for _,child in ipairs(children) do
+        panelArgs[#panelArgs+1] = child
+    end
+
+    return gui.Panel(panelArgs)
+end
+
 --- Create a single condition chip panel
 --- @param condid string condition id
 --- @param cond table inflicted condition entry
@@ -3826,90 +4922,47 @@ function TacPanel.ConditionChip(condid, cond, token)
     local display = info and info.display or {}
     local showSetCaster = info ~= nil and info.trackCaster and cond.casterInfo == nil
 
-    return gui.Panel{
-        classes = {"panel", "cond-chip"},
-        data = { condid = condid, targetingMarkers = {} },
-        linger = function(element)
-            -- Clear any previous markers
-            element:FireEvent("clearMarkers")
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = TacPanel.ConditionTooltipText(condid, cond, token.properties),
+        label = TacPanel.ConditionChipText(condid, cond, token.properties),
+        icon = { bgimage = iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        removeDescription = "Remove Condition",
+        onRemove = function(tok)
+            tok.properties:InflictCondition(condid, {purge = true})
+        end,
+        lingerExtra = function(element)
             local creature = token.properties
             local conditions = creature:try_get("inflictedConditions", {})
             local c = conditions[condid]
             if c == nil then return end
-
-            -- Show caster highlight line
             local caster = c.casterInfo
             if caster ~= nil and type(caster.tokenid) == "string" then
                 local casterToken = dmhub.GetTokenById(caster.tokenid)
                 if casterToken ~= nil then
-                    element.data.targetingMarkers[#element.data.targetingMarkers + 1] =
-                        dmhub.HighlightLine{ color = "red", a = casterToken.pos, b = token.pos }
+                    element.data.targetingMarkers[#element.data.targetingMarkers+1] =
+                        dmhub.HighlightLine{color = "red", a = casterToken.pos, b = token.pos}
                 end
             end
-
-            element.popupPositioning = "panel"
-            gui.Tooltip{halign = "left", valign = "center",
-                text = TacPanel.ConditionTooltipText(condid, c, creature)}(element)
         end,
-        dehover = function(element)
-            element:FireEvent("clearMarkers")
-        end,
-        clearMarkers = function(element)
-            for _, marker in ipairs(element.data.targetingMarkers) do
-                marker:Destroy()
-            end
-            element.data.targetingMarkers = {}
-        end,
-
-        -- Icon
-        gui.Panel{
-            classes = {"panel", "cond-icon"},
-            bgimage = iconid,
-            bgcolor = display.bgcolor or "white",
-            hueshift = display.hueshift or 0,
-        },
-        -- Name + duration
-        gui.Label{
-            classes = {"label", "cond-name"},
-            text = TacPanel.ConditionChipText(condid, cond, token.properties),
-        },
-        -- Set caster button (icon only)
-        gui.Panel{
-            classes = {"panel", "cond-setCaster", showSetCaster and "" or "collapsed"},
-            press = function(element)
-                local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
-                ability.behaviors[1].condid = condid
-                ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, ability, token, "prompt", {}, {})
-            end,
-            linger = function(element)
-                gui.Tooltip("Set Caster")(element)
-            end,
+        extraChildren = {
             gui.Panel{
-                bgimage = "icons/icon_app/icon_app_4.png",
-                width = 10,
-                height = 10,
-                valign = "center",
-                halign = "center",
-                bgcolor = GOLD,
-            },
-        },
-        -- X remove button
-        gui.Panel{
-            classes = {"panel", "cond-remove"},
-            press = function(element)
-                token:ModifyProperties{
-                    description = "Remove Condition",
-                    execute = function()
-                        token.properties:InflictCondition(condid, {purge = true})
-                    end,
-                }
-            end,
-            linger = function(element)
-                gui.Tooltip("Remove")(element)
-            end,
-            gui.Label{
-                classes = {"label", "cond-remove"},
-                text = "X",
+                classes = {"panel", "cond-setCaster", showSetCaster and "" or "collapsed"},
+                press = function(element)
+                    local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
+                    ability.behaviors[1].condid = condid
+                    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(
+                        token, ability, token, "prompt", {}, {})
+                end,
+                linger = function(element)
+                    gui.Tooltip("Set Caster")(element)
+                end,
+                gui.Panel{
+                    bgimage = "icons/icon_app/icon_app_4.png",
+                    width = 10, height = 10,
+                    valign = "center", halign = "center",
+                    bgcolor = GOLD,
+                },
             },
         },
     }
@@ -3967,68 +5020,26 @@ function TacPanel.StatusEffectChip(entry, info, token)
     local iconid = info:GetDisplayIcon()
     local display = info:GetDisplayDisplay() or {}
 
-    return gui.Panel{
-        classes = {"panel", "cond-chip"},
-        data = { entry = entry, targetingMarkers = {} },
-        linger = function(element)
-            element:FireEvent("clearMarkers")
-
-            element.popupPositioning = "panel"
-            gui.Tooltip{halign = "left", valign = "center",
-                text = TacPanel.StatusEffectTooltipText(entry, info, token.properties)}(element)
-
-            -- Bond highlight lines
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = TacPanel.StatusEffectTooltipText(entry, info, token.properties),
+        label = TacPanel.StatusEffectChipText(entry, info),
+        icon = { bgimage = iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        removeDescription = "Remove Status Effect",
+        onRemove = function(tok)
+            tok.properties:RemoveOngoingEffect(entry.ongoingEffectid)
+        end,
+        lingerExtra = function(element)
             if entry.bondid then
                 local tokens = creature.GetTokensWithBoundOngoingEffect(entry.bondid)
                 for i, _ in ipairs(tokens) do
                     for j = i + 1, #tokens do
-                        element.data.targetingMarkers[#element.data.targetingMarkers + 1] =
-                            dmhub.HighlightLine{ color = "red", a = tokens[i].pos, b = tokens[j].pos }
+                        element.data.targetingMarkers[#element.data.targetingMarkers+1] =
+                            dmhub.HighlightLine{color = "red", a = tokens[i].pos, b = tokens[j].pos}
                     end
                 end
             end
         end,
-        dehover = function(element)
-            element:FireEvent("clearMarkers")
-        end,
-        clearMarkers = function(element)
-            for _, marker in ipairs(element.data.targetingMarkers) do
-                marker:Destroy()
-            end
-            element.data.targetingMarkers = {}
-        end,
-
-        -- Icon
-        gui.Panel{
-            classes = {"panel", "cond-icon"},
-            bgimage = iconid,
-            bgcolor = display.bgcolor or "white",
-            hueshift = display.hueshift or 0,
-        },
-        -- Name + stacks + duration
-        gui.Label{
-            classes = {"label", "cond-name"},
-            text = TacPanel.StatusEffectChipText(entry, info),
-        },
-        -- X remove button
-        gui.Panel{
-            classes = {"panel", "cond-remove"},
-            press = function(element)
-                token:ModifyProperties{
-                    description = "Remove Status Effect",
-                    execute = function()
-                        token.properties:RemoveOngoingEffect(entry.ongoingEffectid)
-                    end,
-                }
-            end,
-            linger = function(element)
-                gui.Tooltip("Remove")(element)
-            end,
-            gui.Label{
-                classes = {"label", "cond-remove"},
-                text = "X",
-            },
-        },
     }
 end
 
@@ -4038,36 +5049,204 @@ end
 --- @param token CharacterToken
 --- @return Panel
 function TacPanel.CustomConditionChip(key, entry, token)
-    return gui.Panel{
-        classes = {"panel", "cond-chip"},
-        linger = function(element)
-            element.popupPositioning = "panel"
-            gui.Tooltip(entry.text)(element)
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = entry.text,
+        label = entry.text,
+        removeDescription = "Remove Custom Condition",
+        onRemove = function(tok)
+            local cc = tok.properties:get_or_add("customConditions", {})
+            cc[key] = nil
         end,
+    }
+end
 
-        gui.Label{
-            classes = {"label", "cond-name"},
-            text = entry.text,
-        },
-        -- X remove button
-        gui.Panel{
-            classes = {"panel", "cond-remove"},
-            press = function(element)
-                token:ModifyProperties{
-                    description = "Remove Custom Condition",
-                    execute = function()
-                        local cc = token.properties:get_or_add("customConditions", {})
-                        cc[key] = nil
+--- Create a single aura chip panel (no remove button)
+--- @param auraInstance table the aura instance from GetAurasAffecting
+--- @param token CharacterToken
+--- @return Panel
+function TacPanel.AuraChip(auraInstance, token)
+    local aura = auraInstance.aura
+    local display = aura.display or {}
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = string.format('<b>%s</b>: %s', aura.name, aura:GetDescription()),
+        label = string.format("%s (Aura)", aura.name),
+        icon = { bgimage = aura.iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        lingerExtra = function(element)
+            local area = auraInstance:GetArea()
+            if area ~= nil then
+                local marks = area:Mark{ color = "white", video = "divinationline.webm" }
+                element.data.targetingMarkers[#element.data.targetingMarkers+1] = marks
+            end
+        end,
+    }
+end
+
+function TacPanel.AurasEmitting()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        classes = {"collapsed"},
+        title = "AURAS EMITTING",
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local creature = token.properties
+            local chips = {}
+
+            -- Source 1: direct auras
+            local auras = creature:try_get("auras", {})
+            for _, auraInstance in ipairs(auras) do
+                local aura = auraInstance.aura
+                local display = aura.display or {}
+                local auraid = auraInstance.guid
+                local iconid = aura.iconid or ""
+                local iconbg = display.bgcolor or "white"
+                local iconhue = display.hueshift or 0
+
+                chips[#chips+1] = gui.Panel{
+                    classes = {"panel", "cond-chip"},
+                    data = { targetingMarkers = {} },
+                    popupPositioning = "panel",
+
+                    linger = function(el)
+                        el:FireEvent("clearMarkers")
+                        el.tooltip = gui.TooltipFrame(
+                            TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                            { halign = "left", valign = "top" }
+                        )
+                        local area = auraInstance:GetArea()
+                        if area ~= nil then
+                            local marks = area:Mark{ color = "white", video = "divinationline.webm" }
+                            el.data.targetingMarkers[#el.data.targetingMarkers+1] = marks
+                        end
                     end,
+                    dehover = function(el)
+                        el:FireEvent("clearMarkers")
+                    end,
+                    clearMarkers = function(el)
+                        for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                        el.data.targetingMarkers = {}
+                    end,
+
+                    iconid ~= "" and gui.Panel{
+                        classes = {"panel", "cond-icon"},
+                        bgimage = iconid,
+                        bgcolor = iconbg,
+                        hueshift = iconhue,
+                    } or nil,
+                    gui.Label{
+                        classes = {"label", "cond-name"},
+                        text = aura.name,
+                    },
+                    gui.Panel{
+                        classes = {"panel", "cond-remove"},
+                        press = function(el)
+                            token:ModifyProperties{
+                                description = "Remove Aura",
+                                execute = function()
+                                    token.properties:RemoveAura(auraid)
+                                end,
+                            }
+                        end,
+                        linger = function(el) gui.Tooltip("Remove")(el) end,
+                        gui.Label{
+                            classes = {"label", "cond-remove"},
+                            text = "X",
+                        },
+                    },
                 }
-            end,
-            linger = function(element)
-                gui.Tooltip("Remove")(element)
-            end,
-            gui.Label{
-                classes = {"label", "cond-remove"},
-                text = "X",
-            },
+            end
+
+            -- Source 2: ongoing effect modifier auras
+            local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
+            local ongoingEffects = creature:try_get("ongoingEffects", {})
+            for _, effect in ipairs(ongoingEffects) do
+                local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                if effectInfo ~= nil then
+                    for _, effmod in ipairs(effectInfo.modifiers) do
+                        if effmod:has_key("aura") then
+                            local aura = effmod.aura
+                            local display = aura.display or {}
+                            local auraid = aura.guid
+                            local iconid = aura.iconid or ""
+                            local iconbg = display.bgcolor or "white"
+                            local iconhue = display.hueshift or 0
+
+                            chips[#chips+1] = gui.Panel{
+                                classes = {"panel", "cond-chip"},
+                                data = { targetingMarkers = {} },
+                                popupPositioning = "panel",
+
+                                linger = function(el)
+                                    el:FireEvent("clearMarkers")
+                                    el.tooltip = gui.TooltipFrame(
+                                        TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                                        { halign = "left", valign = "top" }
+                                    )
+                                end,
+                                dehover = function(el)
+                                    el:FireEvent("clearMarkers")
+                                end,
+                                clearMarkers = function(el)
+                                    for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                                    el.data.targetingMarkers = {}
+                                end,
+
+                                iconid ~= "" and gui.Panel{
+                                    classes = {"panel", "cond-icon"},
+                                    bgimage = iconid,
+                                    bgcolor = iconbg,
+                                    hueshift = iconhue,
+                                } or nil,
+                                gui.Label{
+                                    classes = {"label", "cond-name"},
+                                    text = aura.name,
+                                },
+                                gui.Panel{
+                                    classes = {"panel", "cond-remove"},
+                                    press = function(el)
+                                        token:ModifyProperties{
+                                            description = "Remove Aura",
+                                            execute = function()
+                                                token.properties:RemoveAura(auraid)
+                                            end,
+                                        }
+                                    end,
+                                    linger = function(el) gui.Tooltip("Remove")(el) end,
+                                    gui.Label{
+                                        classes = {"label", "cond-remove"},
+                                        text = "X",
+                                    },
+                                },
+                            }
+                        end
+                    end
+                end
+            end
+
+            if #chips == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element.children[2].children = chips
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
         },
     }
 end
@@ -4272,12 +5451,150 @@ function TacPanel.AddConditionMenu(args)
         }
 end
 
+--- Display the Persistent Abilities panel
+--- @return Panel
+function TacPanel.PersistentAbilities()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        classes = {"collapsed"},
+        title = "PERSISTENT ABILITIES",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local persistentAbilities = token.properties:try_get("persistentAbilities")
+            local q = dmhub.initiativeQueue
+            if persistentAbilities == nil or #persistentAbilities == 0 or q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local abilities = token.properties:GetActivatedAbilities{excludeGlobal = true}
+            local totalCost = 0
+            local chips = {}
+
+            for _, entry in ipairs(persistentAbilities) do
+                if entry.combatid == q.guid then
+                    totalCost = totalCost + entry.cost
+
+                    local abilityRef = nil
+                    for _, ability in ipairs(abilities) do
+                        if ability.name == entry.abilityName then
+                            abilityRef = ability
+                            break
+                        end
+                    end
+
+                    local iconid = abilityRef and abilityRef.iconid or ""
+                    local display = abilityRef and abilityRef.display or {}
+                    local guid = entry.guid
+
+                    chips[#chips+1] = gui.Panel{
+                        classes = {"panel", "cond-chip"},
+                        data = { targetingMarkers = {} },
+                        popupPositioning = "panel",
+
+                        hover = function(el)
+                            el:FireEvent("clearMarkers")
+                            if abilityRef then
+                                el.tooltip = gui.TooltipFrame(
+                                    CreateAbilityTooltip(abilityRef, {width = 540, token = token}),
+                                    { halign = "left", valign = "top" }
+                                )
+                                if abilityRef:Persistence().mode == "recast_target" then
+                                    for _, targetid in ipairs(entry.targets or {}) do
+                                        local targetToken = dmhub.GetTokenById(targetid)
+                                        if targetToken ~= nil then
+                                            el.data.targetingMarkers[#el.data.targetingMarkers+1] =
+                                                dmhub.MarkLineOfSight(token, targetToken)
+                                        end
+                                    end
+                                end
+                            end
+                        end,
+                        dehover = function(el)
+                            el:FireEvent("clearMarkers")
+                        end,
+                        clearMarkers = function(el)
+                            for _, m in ipairs(el.data.targetingMarkers) do
+                                m:Destroy()
+                            end
+                            el.data.targetingMarkers = {}
+                        end,
+
+                        iconid ~= "" and gui.Panel{
+                            classes = {"panel", "cond-icon"},
+                            bgimage = iconid,
+                            bgcolor = display.bgcolor or "white",
+                            hueshift = display.hueshift or 0,
+                        } or nil,
+                        gui.Label{
+                            classes = {"label", "cond-name"},
+                            text = string.format("%s--%d", entry.abilityName, entry.cost),
+                        },
+                        gui.Panel{
+                            classes = {"panel", "cond-remove"},
+                            press = function(el)
+                                token.properties:EndPersistentAbilityById(guid)
+                            end,
+                            linger = function(el)
+                                gui.Tooltip("Stop")(el)
+                            end,
+                            gui.Label{
+                                classes = {"label", "cond-remove"},
+                                text = "X",
+                            },
+                        },
+                    }
+                end
+            end
+
+            if #chips == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            local children = {}
+            for _, chip in ipairs(chips) do
+                children[#children+1] = chip
+            end
+            if totalCost > 2 then
+                children[#children+1] = gui.Label{
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 12,
+                    color = RED,
+                    text = "Too many persistent abilities. You must end some.",
+                }
+            end
+            element.children[2].children = children
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
+        },
+    }
+end
+
 --- Display the Conditions panel
 --- @return Panel
 function TacPanel.Conditions()
-    return gui.Panel{
-        styles = TacPanel.MergeStyles({TacPanelStyles.TacPanel, TacPanelStyles.Conditions}),
-        classes = {"tacpanel", "alt-bg"},
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
@@ -4337,6 +5654,12 @@ function TacPanel.Conditions()
                 children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
             end
 
+            -- Aura chips
+            local aurasTouching = creature:GetAurasAffecting(token) or {}
+            for _, auraInfo in ipairs(aurasTouching) do
+                children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+            end
+
             element.children[2].children = children
         end,
         refreshToken = function(element, token)
@@ -4345,10 +5668,6 @@ function TacPanel.Conditions()
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
         end,
-        gui.Label{
-            classes = {"panel-title"},
-            text = "CONDITIONS & EFFECTS",
-        },
         gui.Panel{
             classes = {"panel", "cond-chips"},
             wrap = true,
@@ -6088,6 +7407,9 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         } or nil,
 
         newTacPanel and TacPanel.Statistics() or nil,
+        newTacPanel and TacPanel.Routines() or nil,
+        newTacPanel and TacPanel.AurasEmitting() or nil,
+        newTacPanel and TacPanel.PersistentAbilities() or nil,
         newTacPanel and TacPanel.HeroicResources() or nil,
         newTacPanel and TacPanel.Conditions() or nil,
         newTacPanel and TacPanel.SkillLanguages() or nil,
@@ -6521,8 +7843,8 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
             end,
         } or nil,
 
-        RoutinesPanel(m_token),
-        PersistencePanel(m_token),
+        oldTacPanel and RoutinesPanel(m_token) or nil,
+        oldTacPanel and PersistencePanel(m_token) or nil,
 
         --custom effects.
         oldTacPanel and gui.Panel{
@@ -6641,7 +7963,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         } or nil,
 
         --auras.
-        AurasEmittingPanel(m_token),
+        oldTacPanel and AurasEmittingPanel(m_token) or nil,
 
         --ongoing effects.
         oldTacPanel and gui.Panel{
@@ -6818,7 +8140,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
         } or nil,
 
-        AurasAffectingPanel(m_token),
+        oldTacPanel and AurasAffectingPanel(m_token) or nil,
 
         --inflicted conditions.
         oldTacPanel and InflictedConditionsPanel(m_token) or nil,
@@ -6870,6 +8192,12 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 		oldTacPanel and CharacterPanel.LanguagesPanel(m_token) or nil,
         CharacterPanel.AbilitiesPanel(m_token),
         oldTacPanel and CharacterPanel.NotesPanel(m_token) or nil,
+        gui.Panel{
+            styles = TacPanelStyles.TacPanel,
+            classes = {"tacpanel", "alt-bg"},
+            height = "40",
+            width = "100%",
+        }
     }
 
     return resultPanel
@@ -7525,14 +8853,6 @@ function CharacterPanel.DecoratePortraitPanel(token)
 	}
 end
 
-local g_edsSetting = setting{
-	id = "eds",
-	default = 50,
-	min = 10,
-	max = 1000,
-	storage = "game",
-}
-
 local multiEditBaseFunction = CharacterPanel.CreateMultiEdit
 
 local g_nseq = 0
@@ -7540,6 +8860,11 @@ local g_nseq = 0
 CharacterPanel.CreateMultiEdit = function()
 	if mod.unloaded then
 		return multiEditBaseFunction()
+	end
+
+	local newTacPanel = dmhub.GetSettingValue("newTacPanel") == true
+	if newTacPanel then
+		return TacPanel.MultiEdit()
 	end
 
 	g_nseq = g_nseq + 1

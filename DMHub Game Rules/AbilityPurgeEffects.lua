@@ -205,7 +205,7 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
         return
     end
 
-    --Check if there is a caster to limit effects to.
+    -- Resolve optional caster limit from GoblinScript (unchanged).
     local limitToCasterid
     if self:try_get("fromCaster", "") ~= "" then
         if options.symbols == nil then
@@ -219,23 +219,147 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
 
     local messages = {}
 
-    for _,target in ipairs(targets) do
-        if target.token ~= nil then
-            self:CastOnTarget(casterToken, target.token, ability, options, limitToCasterid)
+    if self.purgeType == "all" then
+        -- Unchanged: per-target CastOnTarget handles filtering and mutation.
+        for _,target in ipairs(targets) do
+            if target.token ~= nil then
+                self:CastOnTarget(casterToken, target.token, ability, options, limitToCasterid)
 
-            if self.chatMessage ~= "" then
-                local existingMessage = messages[#messages]
-                if existingMessage ~= nil and dmhub.DeepEqual(existingMessage.conditions, self.conditions) then
-                    existingMessage.targetids[#existingMessage.targetids+1] = target.token.charid
-                else
-                    local msg = ActivatedAbilityPurgeEffectsChatMessage.new{
-                        ability = ability,
-                        casterid = casterToken.charid,
-                        chatMessage = self.chatMessage,
-                        conditions = self.conditions,
-                        targetids = { target.token.charid },
-                    }
-                    messages[#messages+1] = msg
+                if self.chatMessage ~= "" then
+                    local existingMessage = messages[#messages]
+                    if existingMessage ~= nil and dmhub.DeepEqual(existingMessage.conditions, self.conditions) then
+                        existingMessage.targetids[#existingMessage.targetids+1] = target.token.charid
+                    else
+                        local msg = ActivatedAbilityPurgeEffectsChatMessage.new{
+                            ability = ability,
+                            casterid = casterToken.charid,
+                            chatMessage = self.chatMessage,
+                            conditions = self.conditions,
+                            targetids = { target.token.charid },
+                        }
+                        messages[#messages+1] = msg
+                    end
+                end
+            end
+        end
+
+    else
+        -- "chosen" / "one": show a single unified dialog for all targets.
+
+        -- numStacks is caster-based, so the same for every target.
+        local numStacks = nil
+        if self.useStacks then
+            numStacks = ExecuteGoblinScript(self.stacksFormula, GenerateSymbols(casterToken.properties), 0, "Number of stacks of effect to remove")
+        end
+
+        -- Phase 1: collect purgeable items per target.
+        local targetDataList = {}
+        for _,target in ipairs(targets) do
+            if target.token ~= nil then
+                local data = self:CollectPurgeItems(target.token, limitToCasterid)
+                if data ~= nil then
+                    targetDataList[#targetDataList+1] = data
+                end
+            end
+        end
+
+        if #targetDataList == 0 then
+            ability:CommitToPaying(casterToken, options)
+            return
+        end
+
+        -- Phase 2: show the new unified selection panel.
+        local confirmed, selections = self:ShowPurgeDialog(targetDataList, ability, casterToken)
+        if not confirmed then
+            return
+        end
+
+        -- CommitToPaying after confirm, matching the per-dialog call sites in the old flow.
+        ability:CommitToPaying(casterToken, options)
+
+        -- Phase 3: write downstream symbols then apply token mutations.
+        -- Symbol tables are obtained outside ModifyProperties (correct pattern, mirrors ShowSelectionDialog).
+        local purgedList = options.symbols.cast:get_or_add("purgedOngoingEffectsChosen", {})
+        local durationsMap = options.symbols.cast:get_or_add("purgedOngoingEffectDurations", {})
+
+        for _, data in ipairs(targetDataList) do
+            local selectedItems = selections[data.token.id] or {}
+            if #selectedItems > 0 then
+
+                -- Count purged conditions and populate symbol tables before ModifyProperties.
+                local purgedConditionsCount = 0
+                for _, item in ipairs(selectedItems) do
+                    if item.type == "condition" then
+                        purgedConditionsCount = purgedConditionsCount + 1
+                    elseif item.type == "conditionOnly" then
+                        if item.effectId ~= nil then
+                            purgedList[#purgedList+1] = item.effectId
+                            if item.inheritedDuration ~= nil then
+                                durationsMap[item.effectId] = {duration = item.inheritedDuration, untilEndOfTurn = false}
+                            end
+                        end
+                    else
+                        -- type == "effect"
+                        purgedList[#purgedList+1] = item.effectId
+                        if item.inheritedDuration ~= nil then
+                            durationsMap[item.effectId] = {duration = item.inheritedDuration, untilEndOfTurn = false}
+                        end
+                    end
+                end
+
+                -- purgedConditions: overwrite per-target, matching original line 383 behaviour.
+                if purgedConditionsCount > 0 then
+                    options.symbols.cast.purgedConditions = purgedConditionsCount
+                end
+
+                -- Token mutations belong inside ModifyProperties.
+                data.token:ModifyProperties{
+                    description = "Purge Effects",
+                    execute = function()
+                        for _, item in ipairs(selectedItems) do
+                            if item.type == "condition" then
+                                local purgeArgs = {purge = true}
+                                if limitToCasterid ~= nil then
+                                    purgeArgs.casterInfo = {tokenid = limitToCasterid}
+                                end
+                                data.token.properties:InflictCondition(item.conditionId, purgeArgs)
+                            elseif item.type == "conditionOnly" then
+                                local purgeArgs = {purge = true}
+                                if item.limitToCasterid ~= nil then
+                                    purgeArgs.casterInfo = {tokenid = item.limitToCasterid}
+                                end
+                                data.token.properties:InflictCondition(item.conditionId, purgeArgs)
+                            else
+                                -- type == "effect"
+                                data.token.properties:RemoveOngoingEffectBySeq(item.seq, numStacks)
+                            end
+                        end
+
+                        -- damageToSelf: applied once per target when conditions were selected,
+                        -- matching original behaviour (lines 397-400 in CastOnTarget).
+                        if purgedConditionsCount > 0 and self.damageToSelf ~= "" then
+                            local damage = tonumber(self.damageToSelf)
+                            if damage ~= nil and damage > 0 then
+                                data.token.properties:TakeDamage(damage, "Purged condition")
+                            end
+                        end
+                    end,
+                }
+
+                -- Chat message per target.
+                if self.chatMessage ~= "" then
+                    local existingMessage = messages[#messages]
+                    if existingMessage ~= nil and dmhub.DeepEqual(existingMessage.conditions, self.conditions) then
+                        existingMessage.targetids[#existingMessage.targetids+1] = data.token.charid
+                    else
+                        messages[#messages+1] = ActivatedAbilityPurgeEffectsChatMessage.new{
+                            ability = ability,
+                            casterid = casterToken.charid,
+                            chatMessage = self.chatMessage,
+                            conditions = self.conditions,
+                            targetids = { data.token.charid },
+                        }
+                    end
                 end
             end
         end
@@ -482,6 +606,222 @@ function ActivatedAbilityPurgeEffectsBehavior:AppliesToEffect(effect)
     end
 end
 
+-- Collects all purgeable items for a single target token into a flat list.
+-- Each item carries enough metadata for both display (chip) and mutation (apply purge).
+-- Mirrors the three filtering paths in CastOnTarget so behaviour is identical.
+-- Returns nil when there is nothing to purge for this token.
+-- item.type values: "condition" | "conditionOnly" | "effect"
+function ActivatedAbilityPurgeEffectsBehavior:CollectPurgeItems(targetToken, limitToCasterid)
+    local targetCreature = targetToken.properties
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+    local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+    local items = {}
+
+    if self.mode == "conditions" and not self:try_get("includeOngoingEffects", false) then
+        -- Path A: conditions-only mode.
+        -- Mirror CastOnTarget lines 341-403: if no conditions found, return nil (early-return preserved).
+        if not targetCreature:has_key("inflictedConditions") then
+            return nil
+        end
+
+        local targetDuration = self:try_get("targetDuration", "all")
+        local durationTable = string.split(targetDuration, "|")
+        local conditionFound = false
+
+        for key, conditionInfo in pairs(targetCreature.inflictedConditions) do
+            if #self.conditions == 0 or table.contains(self.conditions, key) then
+                local passFilter = false
+                for _, durationEntry in ipairs(durationTable) do
+                    if durationEntry == "all" or string.lower(durationEntry) == string.lower(conditionInfo.duration or "") then
+                        passFilter = true
+                        break
+                    end
+                end
+                local casterOk = limitToCasterid == nil
+                if not casterOk and conditionInfo.casterInfo ~= nil then
+                    casterOk = conditionInfo.casterInfo.tokenid == limitToCasterid
+                end
+                if passFilter and casterOk then
+                    conditionFound = true
+                    local condDef = conditionsTable[key]
+                    items[#items+1] = {
+                        type = "condition",
+                        conditionId = key,
+                        displayName = condDef and condDef.name or key,
+                        iconid = condDef and condDef.iconid or nil,
+                        display = condDef and condDef.display or nil,
+                    }
+                end
+            end
+        end
+
+        -- Honour the original early-return: if no matching conditions, nothing to show.
+        if not conditionFound then
+            return nil
+        end
+
+        -- Fall-through path (mirrors CastOnTarget lines 406+): also collect ongoing effects
+        -- whose effectInfo.condition matches the filter.
+        for _, effect in ipairs(targetCreature:ActiveOngoingEffects()) do
+            if self:AppliesToEffect(effect) then
+                local shouldAdd = limitToCasterid == nil
+                if not shouldAdd then
+                    local casterInfo = effect:try_get("casterInfo")
+                    shouldAdd = casterInfo ~= nil and casterInfo.tokenid == limitToCasterid
+                end
+                if shouldAdd then
+                    local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                    if effectInfo ~= nil then
+                        local inheritedDuration = nil
+                        if effect:try_get("removeOnSave", false) then
+                            inheritedDuration = "save_ends"
+                        elseif effect:try_get("removeAtNextTurnEnd", false) then
+                            inheritedDuration = "end_of_next_turn"
+                        end
+                        items[#items+1] = {
+                            type = "effect",
+                            effectId = effect.ongoingEffectid,
+                            seq = effect.seq,
+                            displayName = effectInfo.name,
+                            iconid = effectInfo.iconid,
+                            display = effectInfo.display,
+                            inheritedDuration = inheritedDuration,
+                        }
+                    end
+                end
+            end
+        end
+
+    elseif self.mode == "conditions" and self:try_get("includeOngoingEffects", false) then
+        -- Path B: combined mode -- mirrors CastOnTarget lines 271-339.
+        local targetDuration = self:try_get("targetDuration", "all")
+        local durationTable = string.split(targetDuration, "|")
+        local coveredConditions = {}
+
+        for _, effect in ipairs(targetCreature:ActiveOngoingEffects()) do
+            if self:AppliesToEffect(effect) then
+                local shouldAdd = limitToCasterid == nil
+                if not shouldAdd then
+                    local casterInfo = effect:try_get("casterInfo")
+                    shouldAdd = casterInfo ~= nil and casterInfo.tokenid == limitToCasterid
+                end
+                if shouldAdd then
+                    local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                    if effectInfo ~= nil then
+                        if effectInfo:try_get("condition", "none") ~= "none" then
+                            coveredConditions[effectInfo.condition] = true
+                        end
+                        local inheritedDuration = nil
+                        if effect:try_get("removeOnSave", false) then
+                            inheritedDuration = "save_ends"
+                        elseif effect:try_get("removeAtNextTurnEnd", false) then
+                            inheritedDuration = "end_of_next_turn"
+                        end
+                        items[#items+1] = {
+                            type = "effect",
+                            effectId = effect.ongoingEffectid,
+                            seq = effect.seq,
+                            displayName = effectInfo.name,
+                            iconid = effectInfo.iconid,
+                            display = effectInfo.display,
+                            inheritedDuration = inheritedDuration,
+                        }
+                    end
+                end
+            end
+        end
+
+        -- Merge inflictedConditions not already covered by an ongoing effect.
+        if targetCreature:has_key("inflictedConditions") then
+            for key, conditionInfo in pairs(targetCreature.inflictedConditions) do
+                if not coveredConditions[key] then
+                    if #self.conditions == 0 or table.contains(self.conditions, key) then
+                        local passFilter = false
+                        for _, durationEntry in ipairs(durationTable) do
+                            if durationEntry == "all" or string.lower(durationEntry) == string.lower(conditionInfo.duration or "") then
+                                passFilter = true
+                                break
+                            end
+                        end
+                        local casterOk = limitToCasterid == nil
+                        if not casterOk and conditionInfo.casterInfo ~= nil then
+                            casterOk = conditionInfo.casterInfo.tokenid == limitToCasterid
+                        end
+                        if passFilter and casterOk then
+                            -- Find the wrapping ongoing effect definition ID (may be nil).
+                            local defId = nil
+                            for k, def in pairs(ongoingEffectsTable) do
+                                if def:try_get("condition", "none") == key then
+                                    defId = k
+                                    break
+                                end
+                            end
+                            local condDef = conditionsTable[key]
+                            local d = string.lower(conditionInfo.duration or "")
+                            local inheritedDuration = nil
+                            if d == "eot" then
+                                inheritedDuration = "end_of_next_turn"
+                            elseif d == "save" then
+                                inheritedDuration = "save_ends"
+                            end
+                            items[#items+1] = {
+                                type = "conditionOnly",
+                                conditionId = key,
+                                effectId = defId,
+                                limitToCasterid = limitToCasterid,
+                                inheritedDuration = inheritedDuration,
+                                displayName = condDef and condDef.name or key,
+                                iconid = condDef and condDef.iconid or nil,
+                                display = condDef and condDef.display or nil,
+                            }
+                        end
+                    end
+                end
+            end
+        end
+
+    else
+        -- Path C: specific ongoing effect mode -- mirrors CastOnTarget lines 406+.
+        for _, effect in ipairs(targetCreature:ActiveOngoingEffects()) do
+            if self:AppliesToEffect(effect) then
+                local shouldAdd = limitToCasterid == nil
+                if not shouldAdd then
+                    local casterInfo = effect:try_get("casterInfo")
+                    shouldAdd = casterInfo ~= nil and casterInfo.tokenid == limitToCasterid
+                end
+                if shouldAdd then
+                    local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                    if effectInfo ~= nil then
+                        local inheritedDuration = nil
+                        if effect:try_get("removeOnSave", false) then
+                            inheritedDuration = "save_ends"
+                        elseif effect:try_get("removeAtNextTurnEnd", false) then
+                            inheritedDuration = "end_of_next_turn"
+                        end
+                        items[#items+1] = {
+                            type = "effect",
+                            effectId = effect.ongoingEffectid,
+                            seq = effect.seq,
+                            displayName = effectInfo.name,
+                            iconid = effectInfo.iconid,
+                            display = effectInfo.display,
+                            inheritedDuration = inheritedDuration,
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    if #items == 0 then
+        return nil
+    end
+    return {
+        token = targetToken,
+        items = items,
+    }
+end
+
 --options: {
 --  title: string,
 --  multiselect: boolean,
@@ -656,6 +996,350 @@ function ActivatedAbilityBehavior:ShowOptionsDialog(options)
     print("Purge:: Finishing canceled =", canceled, "/", #optionPanels)
 
     return not canceled
+end
+
+-- Shows the new styled purge-effects selection panel.
+-- targetDataList: list of {token, items} from CollectPurgeItems.
+-- Returns confirmed (bool), selections ({[tokenId] = {item, ...}}).
+-- Nothing is pre-selected (opt-in UX).  For purgeType "one", only one chip
+-- per token row can be selected at a time.
+function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ability, casterToken)
+    local finished = false
+    local canceled = false
+    local multiSelect = self.purgeType ~= "one"
+
+    -- selections[tokenId] = list of selected item references
+    local selections = {}
+    for _, data in ipairs(targetDataList) do
+        selections[data.token.id] = {}
+    end
+
+    -- Build one row per target token.
+    local tokenRows = {}
+    for _, data in ipairs(targetDataList) do
+        local tokenId = data.token.id
+        local chipPanels = {}
+
+        for _, item in ipairs(data.items) do
+            local capturedItem = item
+
+            local chipChildren = {}
+            if item.iconid ~= nil then
+                chipChildren[#chipChildren+1] = gui.Panel{
+                    classes = {"purge-chip-icon"},
+                    bgimage = item.iconid,
+                    selfStyle = item.display,
+                }
+            end
+            chipChildren[#chipChildren+1] = gui.Label{
+                classes = {"purge-chip-label"},
+                text = item.displayName,
+            }
+
+            chipPanels[#chipPanels+1] = gui.Panel{
+                classes = {"purge-chip"},
+                flow = "horizontal",
+
+                press = function(element)
+                    local tokenSelections = selections[tokenId]
+                    if multiSelect then
+                        local isSelected = element:HasClass("purge-chip-selected")
+                        element:SetClass("purge-chip-selected", not isSelected)
+                        if not isSelected then
+                            tokenSelections[#tokenSelections+1] = capturedItem
+                        else
+                            for i, sel in ipairs(tokenSelections) do
+                                if sel == capturedItem then
+                                    table.remove(tokenSelections, i)
+                                    break
+                                end
+                            end
+                        end
+                    else
+                        -- Single-select: clear all sibling chips first.
+                        for _, sibling in ipairs(element.parent.children) do
+                            sibling:SetClass("purge-chip-selected", false)
+                        end
+                        element:SetClass("purge-chip-selected", true)
+                        selections[tokenId] = {capturedItem}
+                    end
+                end,
+
+                children = chipChildren,
+            }
+        end
+
+        tokenRows[#tokenRows+1] = gui.Panel{
+            classes = {"purge-token-row"},
+            gui.Panel{
+                classes = {"purge-token-header"},
+                gui.CreateTokenImage(data.token, {
+                    classes = {"purge-token-image"},
+                    width = 40,
+                    height = 40,
+                    valign = "center",
+                }),
+                gui.Label{
+                    classes = {"purge-token-name"},
+                    text = data.token.name,
+                },
+            },
+            gui.Panel{
+                classes = {"purge-chips-wrap"},
+                children = chipPanels,
+            },
+        }
+    end
+
+    -- Assemble panel contents.
+    local mainChildren = {}
+
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"purge-title"},
+        text = "PURGE EFFECTS",
+    }
+
+    local reminderText = self:try_get("reminderText", "")
+    if reminderText ~= "" then
+        mainChildren[#mainChildren+1] = gui.Label{
+            classes = {"purge-reminder"},
+            text = reminderText,
+        }
+    end
+
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        maxHeight = 420,
+        vscroll = true,
+        children = tokenRows,
+    }
+
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        classes = {"purge-button-row"},
+        gui.Panel{
+            classes = {"purge-submit"},
+            press = function(element)
+                finished = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"purge-button-label"},
+                text = "Submit",
+            },
+        },
+        gui.Panel{
+            classes = {"purge-cancel"},
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            press = function(element)
+                finished = true
+                canceled = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"purge-button-label"},
+                text = "Cancel",
+            },
+        },
+    }
+
+    local resultPanel = gui.Panel{
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#040807",
+        border = 1,
+        borderColor = "#5C3D10",
+        cornerRadius = 6,
+        width = 480,
+        height = "auto",
+        pad = 12,
+
+        styles = {
+            {
+                selectors = {"label", "purge-title"},
+                fontFace = "Berling",
+                fontSize = 18,
+                color = "#5C6860",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "purge-reminder"},
+                fontFace = "Berling",
+                fontSize = 12,
+                color = "#5C6860",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textWrap = true,
+                bmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-divider"},
+                width = "100%",
+                height = 1,
+                bgimage = "panels/square.png",
+                bgcolor = "#5C3D10",
+                vmargin = 8,
+            },
+            {
+                selectors = {"panel", "purge-token-row"},
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                vmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-token-header"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                bmargin = 6,
+                halign = "left",
+            },
+            {
+                selectors = {"panel", "purge-token-image"},
+                halign = "left",
+                valign = "center",
+                rmargin = 8,
+            },
+            {
+                selectors = {"label", "purge-token-name"},
+                fontFace = "Berling",
+                fontSize = 14,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            {
+                selectors = {"panel", "purge-chips-wrap"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                lmargin = 48,
+                bmargin = 2,
+            },
+            {
+                selectors = {"panel", "purge-chip"},
+                height = "auto",
+                minHeight = 22,
+                width = "auto",
+                halign = "left",
+                valign = "top",
+                hpad = 8,
+                vpad = 4,
+                margin = 3,
+                flow = "horizontal",
+                bgimage = "panels/square.png",
+                border = 1,
+                borderColor = "#5C6860",
+                bgcolor = "clear",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-chip", "hover"},
+                brightness = 1.3,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panel", "purge-chip", "purge-chip-selected"},
+                borderColor = "#966D4B",
+                bgcolor = "#5C3D10",
+            },
+            {
+                selectors = {"panel", "purge-chip-icon"},
+                width = 16,
+                height = 16,
+                valign = "center",
+                halign = "left",
+                rmargin = 4,
+            },
+            {
+                selectors = {"label", "purge-chip-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+            },
+            {
+                selectors = {"panel", "purge-button-row"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                tmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-submit"},
+                width = 130,
+                height = 30,
+                halign = "right",
+                rmargin = 8,
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#966D4B",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-submit", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "purge-cancel"},
+                width = 130,
+                height = 30,
+                halign = "right",
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#5C6860",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-cancel", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"label", "purge-button-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        },
+
+        children = mainChildren,
+    }
+
+    gui.ShowModal(resultPanel)
+
+    while not finished do
+        coroutine.yield(0.1)
+    end
+
+    if canceled then
+        return false, nil
+    end
+    return true, selections
 end
 
 function ActivatedAbilityPurgeEffectsBehavior:ShowConditionsSelection(casterToken, targetToken, ability, conditionsList, options)

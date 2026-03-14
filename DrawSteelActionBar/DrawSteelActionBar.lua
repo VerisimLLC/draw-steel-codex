@@ -1142,6 +1142,10 @@ local function CreateActionBar()
     return m_containerPanel
 end
 
+-- Ability Improvements: optional targeting bonuses toggled by the player in the ability sidebar.
+--- @type {mod: table, checked: boolean}[]
+local m_activeImprovements = {}
+
 local function AbilityHeading(args)
     local args = args or {}
 
@@ -1314,10 +1318,65 @@ local function AbilityHeading(args)
             end
 
                 print("MENU:: HIGHLIGHT")
+            -- Collect applicable ability improvements from the caster.
+            m_activeImprovements = {}
+            if g_token ~= nil then
+                for _, activeMod in ipairs(g_token.properties:GetActiveModifiers()) do
+                    if activeMod.mod.behavior == "abilityimprovement" then
+                        local improvMod = activeMod.mod
+                        local passes = true
+
+                        -- Keyword filter: if any keywords set, ability must have at least one match.
+                        local keywords = improvMod:try_get("keywords", {})
+                        local hasKeywords = false
+                        for _ in pairs(keywords) do hasKeywords = true; break end
+                        if hasKeywords then
+                            local abilityMatch = false
+                            for keyword, _ in pairs(keywords) do
+                                if m_ability.keywords ~= nil and m_ability.keywords[keyword] then
+                                    abilityMatch = true
+                                    break
+                                end
+                            end
+                            if not abilityMatch then passes = false end
+                        end
+
+                        -- Ability condition filter.
+                        if passes then
+                            local abilityFilter = improvMod:try_get("abilityFilter", "")
+                            if abilityFilter ~= "" then
+                                local symbols = g_token.properties:LookupSymbol{ability = m_ability}
+                                passes = GoblinScriptTrue(ExecuteGoblinScript(abilityFilter, symbols, 1, "Ability improvement filter"))
+                            end
+                        end
+
+                        -- Resource affordability filter.
+                        if passes then
+                            local costType = improvMod:try_get("resourceCostType", "none")
+                            if costType ~= "none" then
+                                local costAmt = tonumber(ExecuteGoblinScript(improvMod:try_get("resourceCostAmount", "1"), g_token.properties:LookupSymbol{}, 1)) or 1
+                                local resourceId = cond(costType == "epic", CharacterResource.epicResourceId, CharacterResource.heroicResourceId)
+                                local available = g_resources[resourceId] or 0
+                                if available < costAmt then
+                                    passes = false
+                                end
+                            end
+                        end
+
+                        if passes then
+                            m_activeImprovements[#m_activeImprovements + 1] = {
+                                mod = improvMod,
+                                checked = false,
+                            }
+                        end
+                    end
+                end
+            end
             CharacterPanel.HighlightAbilitySection{
                 ability = m_ability,
                 caster = g_token,
                 section = "target",
+                improvements = m_activeImprovements,
             }
 
             g_abilityController:FireEventTree("beginCasting", m_ability, { targets = args.targets, cast = args.cast, fromui = true })
@@ -2008,6 +2067,37 @@ end
 local m_castingTriggersCache = nil
 local m_castingTriggers = nil
 local m_castingTriggersOwnerPanel = nil
+
+
+--- Applies checked improvement params, re-runs CalculateSpellTargeting, then restores.
+--- Each param's registered apply() temporarily patches the ability and returns a restore fn.
+local ApplyImprovements = function()
+    if g_token == nil or g_currentAbility == nil then return end
+    local restores = {}
+    for _, entry in ipairs(m_activeImprovements) do
+        if entry.checked then
+            local looksym = g_token.properties:LookupSymbol{ability = g_currentAbility}
+            for _, param in ipairs(entry.mod:try_get("params", {})) do
+                local info = CharacterModifier.ImprovementParamsById[param.id]
+                if info ~= nil and info.apply ~= nil and param.value ~= nil and param.value ~= "" then
+                    local value = ExecuteGoblinScript(param.value, looksym, 0)
+                    if value ~= 0 then
+                        local restore = info.apply(g_currentAbility, value, g_token.properties, g_currentSymbols)
+                        if restore ~= nil then
+                            restores[#restores+1] = restore
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    CalculateSpellTargeting()
+
+    for _, restore in ipairs(restores) do
+        restore()
+    end
+end
 
 local ClearCastingTriggers = function()
     if m_castingTriggersOwnerPanel ~= nil and m_castingTriggersOwnerPanel.valid then
@@ -3188,6 +3278,10 @@ CreateAbilityController = function()
             element:FireEvent("cancelCasting")
         end,
 
+        applyImprovements = function(element)
+            ApplyImprovements()
+        end,
+
         beginCasting = function(element, ability, args)
             if g_invokerInfo ~= nil and g_invokerInfo.oncast ~= nil then
                 g_invokerInfo.oncast()
@@ -3460,6 +3554,9 @@ CreateAbilityController = function()
             end
 
             g_invokerInfo = nil
+
+            -- Clear improvement state so the sidebar can clean up.
+            m_activeImprovements = {}
 
             for k, token in pairs(dmhub.tokenInfo.tokens) do
                 if token.valid and token.sheet ~= nil and token.sheet.data.targetInfo ~= g_targetInfo then
@@ -4380,6 +4477,25 @@ CreateAbilityController = function()
                     caster = g_token,
                     section = "main",
                 }
+
+                -- Deduct resource costs for any checked improvements.
+                for _, entry in ipairs(m_activeImprovements) do
+                    if entry.checked and entry.mod.resourceCostType ~= "none" then
+                        local costAmt = tonumber(ExecuteGoblinScript(entry.mod.resourceCostAmount, g_token.properties:LookupSymbol(g_currentSymbols), 1)) or 1
+                        local costType = entry.mod.resourceCostType
+                        g_token:ModifyProperties{
+                            description = "Improvement Cost: " .. entry.mod.name,
+                            undoable = false,
+                            execute = function()
+                                if costType == "cost" then
+                                    g_token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", costAmt, "Improvement: " .. entry.mod.name)
+                                elseif costType == "epic" then
+                                    g_token.properties:ConsumeResource(CharacterResource.epicResourceId, "unbounded", costAmt, "Improvement: " .. entry.mod.name)
+                                end
+                            end,
+                        }
+                    end
+                end
 
                 local clearAbility = g_currentAbility
                 g_currentAbility:Cast(g_token, targets, {

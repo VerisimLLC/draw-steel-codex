@@ -145,7 +145,7 @@ CharacterModifier.RegisterTriggerModifier{
                 width = 300,
                 height = "auto",
                 minHeight = 28,
-                characterLimit = 300,
+                characterLimit = 1000,
                 text = entry.rules or "",
                 change = function(element)
                     entry.rules = element.text

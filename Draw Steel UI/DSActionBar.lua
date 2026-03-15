@@ -1557,6 +1557,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
 								if canTarget then
 									--give us an extra square of range to account for diagonals.
 									local valid = range+dmhub.unitsPerSquare > targetToken:Distance(casterLocOverride or token)
+									    or spell:IsTargetInRangeOfCastingOrigins(token, targetToken, range)
 
                                     if targetToken.sheet.data.targetInfo ~= nil then
                                         targetToken.sheet.data.targetInfo = nil

@@ -4640,7 +4640,9 @@ local function CalculateSpellTargetFocusing(symbols)
                 if canTarget then
                     --give us an extra square of range to account for diagonals.
                     if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) and not (range + dmhub.unitsPerSquare > targetToken:Distance(casterLocOverride or g_token)) then
-                        failReason = "Out of range"
+                        if not spell:IsTargetInRangeOfCastingOrigins(g_token, targetToken, range) then
+                            failReason = "Out of range"
+                        end
                     end
                     local valid = failReason == nil
 

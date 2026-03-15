@@ -200,6 +200,10 @@ ActivatedAbilityPurgeEffectsBehavior.purgeTypeOptions = {
         id = "one",
         text = "One Chosen Effect",
     },
+    {
+        id = "replace",
+        text = "Replace Effects",
+    },
 }
 
 
@@ -242,6 +246,87 @@ function ActivatedAbilityPurgeEffectsBehavior:Cast(ability, casterToken, targets
                             targetids = { target.token.charid },
                         }
                         messages[#messages+1] = msg
+                    end
+                end
+            end
+        end
+
+    elseif self.purgeType == "replace" then
+        -- "replace": change a condition to another from the pre-defined list,
+        -- preserving the original condition's duration and caster info.
+
+        -- Evaluate the optional GoblinScript value formula for a replacement cap.
+        local maxReplacements = nil
+        local valueFormula = self:try_get("value", "")
+        if valueFormula ~= "" then
+            if options.symbols == nil then
+                options.symbols = {}
+            end
+            local val = ExecuteGoblinScript(valueFormula, casterToken.properties:LookupSymbol(options.symbols), nil, "Max conditions to replace")
+            if type(val) == "number" then
+                maxReplacements = math.floor(val)
+            end
+        end
+
+        -- Phase 1: collect matching conditions per target.
+        local targetDataList = {}
+        for _, target in ipairs(targets) do
+            if target.token ~= nil then
+                local data = self:CollectPurgeItems(target.token, limitToCasterid)
+                if data ~= nil then
+                    targetDataList[#targetDataList+1] = data
+                end
+            end
+        end
+
+        if #targetDataList == 0 then
+            ability:CommitToPaying(casterToken, options)
+            return
+        end
+
+        -- Phase 2: show the replacement dialog.
+        local confirmed, replacements = self:ShowReplaceDialog(targetDataList, ability, casterToken, maxReplacements)
+        if not confirmed then
+            return
+        end
+
+        ability:CommitToPaying(casterToken, options)
+
+        -- Phase 3: apply mutations, preserving original duration and caster info.
+        local replacementCount = 0
+        for _, data in ipairs(targetDataList) do
+            local rep = replacements[data.token.id]
+            if rep ~= nil and rep.fromConditionId ~= nil and rep.toConditionId ~= nil then
+                if maxReplacements == nil or replacementCount < maxReplacements then
+                    replacementCount = replacementCount + 1
+                    data.token:ModifyProperties{
+                        description = "Replace Condition",
+                        execute = function()
+                            local origEntry = data.token.properties:try_get("inflictedConditions", {})[rep.fromConditionId]
+                            local origDuration = origEntry and origEntry.duration or nil
+                            local origCasterInfo = (origEntry and origEntry.casterInfo)
+                                and {tokenid = origEntry.casterInfo.tokenid} or nil
+                            data.token.properties:InflictCondition(rep.fromConditionId, {purge = true})
+                            data.token.properties:InflictCondition(rep.toConditionId, {
+                                duration = origDuration,
+                                casterInfo = origCasterInfo,
+                            })
+                        end,
+                    }
+
+                    if self.chatMessage ~= "" then
+                        local existingMessage = messages[#messages]
+                        if existingMessage ~= nil and dmhub.DeepEqual(existingMessage.conditions, self.conditions) then
+                            existingMessage.targetids[#existingMessage.targetids+1] = data.token.charid
+                        else
+                            messages[#messages+1] = ActivatedAbilityPurgeEffectsChatMessage.new{
+                                ability = ability,
+                                casterid = casterToken.charid,
+                                chatMessage = self.chatMessage,
+                                conditions = self.conditions,
+                                targetids = { data.token.charid },
+                            }
+                        end
                     end
                 end
             end
@@ -1128,16 +1213,32 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
         }
     end
 
-    if maxSelections ~= nil then
-        local countText
-        if maxSelections == 1 then
-            countText = "Select 1 effect"
+    -- Instruction label: always shown for "one" and "chosen" purge types.
+    local instructionText
+    if self.purgeType == "one" then
+        instructionText = "Select an effect to end"
+    elseif maxSelections ~= nil then
+        instructionText = string.format("Select up to %d effects", maxSelections)
+    else
+        instructionText = "Select effects to end"
+    end
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"purge-count"},
+        text = instructionText,
+    }
+
+    -- Damage-to-self warning: shown in red when a positive damage value is set.
+    local damageNum = tonumber(self:try_get("damageToSelf", ""))
+    if damageNum ~= nil and damageNum > 0 then
+        local damageText
+        if self.purgeType == "one" then
+            damageText = string.format("Take %d damage to end an effect", damageNum)
         else
-            countText = string.format("Select up to %d effects", maxSelections)
+            damageText = string.format("Take %d damage to end effects", damageNum)
         end
         mainChildren[#mainChildren+1] = gui.Label{
-            classes = {"purge-count"},
-            text = countText,
+            classes = {"purge-damage"},
+            text = damageText,
         }
     end
 
@@ -1210,6 +1311,16 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
                 fontFace = "Berling",
                 fontSize = 12,
                 color = "#C49A5A",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "purge-damage"},
+                fontFace = "Berling",
+                fontSize = 12,
+                color = "#D53031",
                 width = "100%",
                 height = "auto",
                 halign = "left",
@@ -1384,6 +1495,489 @@ function ActivatedAbilityPurgeEffectsBehavior:ShowPurgeDialog(targetDataList, ab
         return false, nil
     end
     return true, selections
+end
+
+-- Shows the replace-effects dialog.  The user selects one condition chip per target row
+-- and then picks a replacement from the dropdown on the right.
+-- targetDataList: list of {token, items} from CollectPurgeItems (conditions mode).
+-- Returns confirmed (bool), replacements ({[tokenId] = {fromConditionId, toConditionId}}).
+function ActivatedAbilityPurgeEffectsBehavior:ShowReplaceDialog(targetDataList, ability, casterToken, maxReplacements)
+    local finished = false
+    local canceled = false
+
+    -- replacements[tokenId] = {fromConditionId = string, toConditionId = string} or nil
+    local replacements = {}
+    for _, data in ipairs(targetDataList) do
+        replacements[data.token.id] = nil
+    end
+
+    -- Build the ordered list of conditions available as replacements.
+    -- Uses self.conditions when set, or all conditions when the list is empty.
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+    local replaceOptions = {}
+    if #self.conditions == 0 then
+        for k, v in unhidden_pairs(conditionsTable) do
+            replaceOptions[#replaceOptions+1] = {id = k, text = v.name}
+        end
+    else
+        for _, condId in ipairs(self.conditions) do
+            local v = conditionsTable[condId]
+            if v ~= nil then
+                replaceOptions[#replaceOptions+1] = {id = condId, text = v.name}
+            end
+        end
+    end
+    table.sort(replaceOptions, function(a, b) return a.text < b.text end)
+
+    local tokenRows = {}
+    for _, data in ipairs(targetDataList) do
+        local tokenId = data.token.id
+        -- Per-row selection state, closed over by chip press and dest-chip handlers.
+        local selectedItem = nil
+        local selectedDestItem = nil
+        local destWrapPanel = nil  -- set via create event on the dest chips wrap
+
+        local chipPanels = {}
+        for _, item in ipairs(data.items) do
+            local capturedItem = item
+            local chipChildren = {}
+            if item.iconid ~= nil then
+                chipChildren[#chipChildren+1] = gui.Panel{
+                    classes = {"purge-chip-icon"},
+                    bgimage = item.iconid,
+                    selfStyle = item.display,
+                }
+            end
+            chipChildren[#chipChildren+1] = gui.Label{
+                classes = {"purge-chip-label"},
+                text = item.displayName,
+            }
+
+            chipPanels[#chipPanels+1] = gui.Panel{
+                classes = {"purge-chip"},
+                flow = "horizontal",
+                press = function(element)
+                    -- Single-select: deselect all sibling chips first.
+                    for _, sibling in ipairs(element.parent.children) do
+                        sibling:SetClass("purge-chip-selected", false)
+                    end
+                    element:SetClass("purge-chip-selected", true)
+                    selectedItem = capturedItem
+                    replacements[tokenId] = nil
+                    -- Rebuild the "With:" dest chips for this row.
+                    if destWrapPanel ~= nil and destWrapPanel.valid then
+                        destWrapPanel:FireEvent("rebuildOptions")
+                    end
+                end,
+                children = chipChildren,
+            }
+        end
+
+        tokenRows[#tokenRows+1] = gui.Panel{
+            classes = {"purge-token-row"},
+            gui.Panel{
+                classes = {"purge-token-header"},
+                gui.CreateTokenImage(data.token, {
+                    classes = {"purge-token-image"},
+                    width = 40,
+                    height = 40,
+                    valign = "center",
+                }),
+                gui.Label{
+                    classes = {"purge-token-name"},
+                    text = data.token.name,
+                },
+            },
+            gui.Panel{
+                classes = {"purge-replace-section"},
+                -- Row 1: "Replace:" label + source condition chips.
+                gui.Panel{
+                    classes = {"purge-labeled-row"},
+                    gui.Label{
+                        classes = {"purge-row-label"},
+                        text = "Replace:",
+                    },
+                    gui.Panel{
+                        classes = {"purge-chips-wrap"},
+                        children = chipPanels,
+                    },
+                },
+                -- Row 2: "With:" label + destination condition chips (rebuilt dynamically).
+                gui.Panel{
+                    classes = {"purge-labeled-row"},
+                    gui.Label{
+                        classes = {"purge-row-label"},
+                        text = "With:",
+                    },
+                    gui.Panel{
+                        classes = {"purge-chips-wrap"},
+                        create = function(element)
+                            destWrapPanel = element
+                            element.children = {
+                                gui.Label{
+                                    classes = {"purge-placeholder"},
+                                    text = "Select a source condition above...",
+                                },
+                            }
+                        end,
+                        rebuildOptions = function(element)
+                            replacements[tokenId] = nil
+                            selectedDestItem = nil
+                            local newChildren = {}
+                            if selectedItem == nil then
+                                newChildren[#newChildren+1] = gui.Label{
+                                    classes = {"purge-placeholder"},
+                                    text = "Select a source condition above...",
+                                }
+                            else
+                                -- Filter: exclude the source condition and any condition
+                                -- the target token already has (other than the source).
+                                local existingConds = data.token.properties:try_get("inflictedConditions", {})
+                                for _, opt in ipairs(replaceOptions) do
+                                    local isSource = (opt.id == selectedItem.conditionId)
+                                    local alreadyPresent = (existingConds[opt.id] ~= nil) and (opt.id ~= selectedItem.conditionId)
+                                    if not isSource and not alreadyPresent then
+                                        local capturedOpt = opt
+                                        newChildren[#newChildren+1] = gui.Panel{
+                                            classes = {"purge-chip"},
+                                            flow = "horizontal",
+                                            press = function(chipEl)
+                                                -- Single-select among dest chips.
+                                                for _, sib in ipairs(chipEl.parent.children) do
+                                                    sib:SetClass("purge-chip-selected", false)
+                                                end
+                                                chipEl:SetClass("purge-chip-selected", true)
+                                                selectedDestItem = capturedOpt
+                                                replacements[tokenId] = {
+                                                    fromConditionId = selectedItem.conditionId,
+                                                    toConditionId   = capturedOpt.id,
+                                                }
+                                            end,
+                                            gui.Label{
+                                                classes = {"purge-chip-label"},
+                                                text = capturedOpt.text,
+                                            },
+                                        }
+                                    end
+                                end
+                                if #newChildren == 0 then
+                                    newChildren[#newChildren+1] = gui.Label{
+                                        classes = {"purge-placeholder"},
+                                        text = "No valid replacements available.",
+                                    }
+                                end
+                            end
+                            element.children = newChildren
+                        end,
+                    },
+                },
+            },
+        }
+    end
+
+    local mainChildren = {}
+
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"purge-title"},
+        text = "REPLACE EFFECTS",
+    }
+
+    local reminderText = self:try_get("reminderText", "")
+    if reminderText ~= "" then
+        mainChildren[#mainChildren+1] = gui.Label{
+            classes = {"purge-reminder"},
+            text = reminderText,
+        }
+    end
+
+    local instructionText
+    if maxReplacements ~= nil then
+        instructionText = string.format("Select up to %d condition(s) to replace", maxReplacements)
+    else
+        instructionText = "Select a condition to replace, then choose its replacement"
+    end
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"purge-count"},
+        text = instructionText,
+    }
+
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        maxHeight = 420,
+        vscroll = true,
+        children = tokenRows,
+    }
+
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"purge-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        classes = {"purge-button-row"},
+        gui.Panel{
+            classes = {"purge-submit"},
+            press = function(element)
+                finished = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"purge-button-label"},
+                text = "Submit",
+            },
+        },
+        gui.Panel{
+            classes = {"purge-cancel"},
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            press = function(element)
+                finished = true
+                canceled = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"purge-button-label"},
+                text = "Cancel",
+            },
+        },
+    }
+
+    local resultPanel = gui.Panel{
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#040807",
+        border = 1,
+        borderColor = "#5C3D10",
+        cornerRadius = 6,
+        width = 540,
+        height = "auto",
+        pad = 12,
+
+        styles = {
+            {
+                selectors = {"label", "purge-title"},
+                fontFace = "Berling",
+                fontSize = 18,
+                color = "#5C6860",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "purge-count"},
+                fontFace = "Berling",
+                fontSize = 12,
+                color = "#C49A5A",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "purge-reminder"},
+                fontFace = "Berling",
+                fontSize = 12,
+                color = "#5C6860",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textWrap = true,
+                bmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-divider"},
+                width = "100%",
+                height = 1,
+                bgimage = "panels/square.png",
+                bgcolor = "#5C3D10",
+                vmargin = 8,
+            },
+            {
+                selectors = {"panel", "purge-token-row"},
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                vmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-token-header"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                bmargin = 6,
+                halign = "left",
+            },
+            {
+                selectors = {"panel", "purge-token-image"},
+                halign = "left",
+                valign = "center",
+                rmargin = 8,
+            },
+            {
+                selectors = {"label", "purge-token-name"},
+                fontFace = "Berling",
+                fontSize = 14,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                halign = "left",
+                valign = "center",
+            },
+            -- Stacked layout below the token header: two labeled rows (Replace / With).
+            {
+                selectors = {"panel", "purge-replace-section"},
+                width = "100%",
+                height = "auto",
+                flow = "vertical",
+                lmargin = 48,
+            },
+            {
+                selectors = {"panel", "purge-labeled-row"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                bmargin = 6,
+            },
+            {
+                selectors = {"label", "purge-row-label"},
+                fontFace = "Berling",
+                fontSize = 11,
+                color = "#5C6860",
+                width = 65,
+                height = "auto",
+                valign = "top",
+                tmargin = 4,
+            },
+            -- Chips area: fills remaining width after the row label (65px).
+            {
+                selectors = {"panel", "purge-chips-wrap"},
+                width = "100%-65",
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+            },
+            {
+                selectors = {"label", "purge-placeholder"},
+                fontFace = "Berling",
+                fontSize = 11,
+                color = "#5C6860",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+                tmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-chip"},
+                height = "auto",
+                minHeight = 22,
+                width = "auto",
+                halign = "left",
+                valign = "top",
+                hpad = 8,
+                vpad = 4,
+                margin = 3,
+                flow = "horizontal",
+                bgimage = "panels/square.png",
+                border = 1,
+                borderColor = "#5C6860",
+                bgcolor = "clear",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-chip", "hover"},
+                brightness = 1.3,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panel", "purge-chip", "purge-chip-selected"},
+                borderColor = "#966D4B",
+                bgcolor = "#5C3D10",
+            },
+            {
+                selectors = {"panel", "purge-chip-icon"},
+                width = 16,
+                height = 16,
+                valign = "center",
+                halign = "left",
+                rmargin = 4,
+            },
+            {
+                selectors = {"label", "purge-chip-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+            },
+            {
+                selectors = {"panel", "purge-button-row"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                tmargin = 4,
+            },
+            {
+                selectors = {"panel", "purge-submit"},
+                width = 130,
+                height = 30,
+                halign = "right",
+                rmargin = 8,
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#966D4B",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-submit", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "purge-cancel"},
+                width = 130,
+                height = 30,
+                halign = "right",
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#5C6860",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "purge-cancel", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"label", "purge-button-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
+            },
+        },
+
+        children = mainChildren,
+    }
+
+    gui.ShowModal(resultPanel)
+
+    while not finished do
+        coroutine.yield(0.1)
+    end
+
+    if canceled then
+        return false, nil
+    end
+    return true, replacements
 end
 
 function ActivatedAbilityPurgeEffectsBehavior:ShowConditionsSelection(casterToken, targetToken, ability, conditionsList, options)
@@ -1721,12 +2315,12 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel", cond(self.purgeType ~= "chosen", "collapsed")},
+        classes = {"formPanel", cond(self.purgeType ~= "chosen" and self.purgeType ~= "replace", "collapsed")},
         create = function(element)
             element:FireEvent("refreshPurge")
         end,
         refreshPurge = function(element)
-            element:SetClass("collapsed", self.purgeType ~= "chosen")
+            element:SetClass("collapsed", self.purgeType ~= "chosen" and self.purgeType ~= "replace")
         end,
         gui.Label{
             classes = "formLabel",
@@ -1888,7 +2482,13 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Panel{
-        classes = {"formPanel"},
+        classes = {"formPanel", cond(self.purgeType == "replace", "collapsed")},
+        create = function(element)
+            element:FireEvent("refreshPurge")
+        end,
+        refreshPurge = function(element)
+            element:SetClass("collapsed", self.purgeType == "replace")
+        end,
         gui.Label{
             classes = {"formLabel"},
             text = "Damage to Self:",
@@ -1905,11 +2505,15 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
     }
 
     result[#result+1] = gui.Check{
+        classes = {cond(self.purgeType == "replace", "collapsed")},
         text = "Number of Stacks",
         value = self.useStacks,
         change = function(element)
             self.useStacks = element.value
             parentPanel:FireEventTree("refreshPurge")
+        end,
+        refreshPurge = function(element)
+            element:SetClass("collapsed", self.purgeType == "replace")
         end,
     }
 
@@ -1919,7 +2523,7 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
             element:FireEvent("refreshPurge")
         end,
         refreshPurge = function(element)
-            element:SetClass("collapsed", self.useStacks == false)
+            element:SetClass("collapsed", self.useStacks == false or self.purgeType == "replace")
         end,
         gui.Label{
             classes = "formLabel",

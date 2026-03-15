@@ -11,6 +11,86 @@
 --- @param list2 table Another flag list
 --- @return boolean listsIdentical True if the lists contain identical keys & values
 
+local chipColors = {
+    richBlack = "#040807",
+    gray = "#444444",
+    red = "#D53031",
+    bgTransparency = "0F",
+}
+
+local chipStyles = {
+    {
+        selectors = {"panel", "multiselect-chip"},
+        height = "auto",
+        width = "auto",
+        pad = 4,
+        margin = 4,
+        bgimage = "panels/square.png",
+        borderColor = Styles.textColor,
+        border = 1,
+        cornerRadius = 2,
+        bgcolor = chipColors.richBlack,
+        flow = "horizontal",
+    },
+    {
+        selectors = {"panel", "multiselect-chip", "hover"},
+        brightness = 1.2,
+    },
+    {
+        selectors = {"label", "multiselect-chip-text"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        fontFace = "Inter",
+        fontSize = 14,
+    },
+    {
+        selectors = {"panel", "multiselect-chip-remove"},
+        width = 14,
+        height = 14,
+        halign = "right",
+        valign = "center",
+        lmargin = 4,
+        bgimage = true,
+        bgcolor = chipColors.red .. chipColors.bgTransparency,
+        border = 1,
+        borderColor = chipColors.red,
+        bold = true,
+        cornerRadius = 2,
+        hidden = 1,
+    },
+    {
+        selectors = {"panel", "multiselect-chip-remove", "parent:hover"},
+        hidden = 0,
+    },
+    {
+        selectors = {"panel", "multiselect-chip-remove", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"label", "multiselect-chip-remove"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Inter",
+        fontSize = 8,
+        color = chipColors.red,
+    },
+    {
+        selectors = {"label", "multiselect-chip-remove", "parent:hover"},
+        brightness = 1.5,
+    },
+}
+
+local dropdownStyles = {
+    {
+        selectors = {"label", "dropdownLabel"},
+        fontFace = "Inter",
+    },
+}
+
 --- Creates a generic multiselect control for selecting multiple items from a list
 --- Displays selected items as removable chips with a dropdown to add more items
 --- @param args MultiselectArgs
@@ -78,6 +158,7 @@ local function _multiselect(args)
         dropdownOpts.width = dropdownOpts.width or flow == "vertical" and "100%" or "50%"
         dropdownOpts.textDefault = dropdownOpts.textDefault or addItemText or opts.textDefault or "Select an item..."
         dropdownOpts.sort = dropdownOpts.sort or opts.sort or nil
+        dropdownOpts.styles = dropdownOpts.styles or dropdownStyles
         dropdownOpts.options = shallow_copy_list(m_options)
         dropdownOpts.change = function(element)
             local controller = element:FindParentWithClass("multiselectController")
@@ -133,26 +214,7 @@ local function _multiselect(args)
     local dropdownPanel = buildDropdown()
 
     local function buildChips()
-        local chipsStylesBase = {
-            gui.Style {
-                selectors = {"multiselect-chip"},
-                height = "auto",
-                width = "auto",
-                pad = 4,
-                margin = 4,
-                fontSize = 14,
-                bgimage = "panels/square.png",
-                borderColor = Styles.textColor,
-                border = 1,
-                cornerRadius = 2,
-                bgcolor = "#444444",
-            },
-            gui.Style {
-                selectors = {"multiselect-chip", "hover"},
-                bgcolor = "#330000",
-                borderColor = "#990000",
-            },
-        }
+        local chipsStylesBase = DeepCopy(chipStyles)
 
         -- Calculate for individual chips
         local chipsOpts = opts.chips or {}
@@ -173,21 +235,36 @@ local function _multiselect(args)
         chipPanelOpts.borderColor = "#98F347"
         chipPanelOpts.addSelected = function(element, item)
             local baseClasses = { item.id, "multiselect-chip" }
-            local labelOpts = chipsOpts
-            labelOpts.id = item.id
-            labelOpts.data = { item = item }
-            labelOpts.text = item.text
-            labelOpts.classes = table.move(chipsClasses, 1, #chipsClasses, #baseClasses + 1, baseClasses)
-            labelOpts.click = function(element)
-                local controller = element:FindParentWithClass("multiselectController")
-                if controller then
-                    controller:FireEventTree("removeSelected", element.data.item)
-                    dmhub.Schedule(0.1, function()
-                        element:DestroySelf()
-                    end)
-                end
-            end
-            element:AddChild(gui.Label(labelOpts))
+            local chipClasses = table.move(chipsClasses, 1, #chipsClasses, #baseClasses + 1, baseClasses)
+
+            local chipPanel = gui.Panel{
+                styles = chipsOpts.styles or {},
+                classes = chipClasses,
+                id = item.id,
+                data = { item = item },
+                gui.Label{
+                    classes = {"label", "multiselect-chip-text"},
+                    text = item.text,
+                },
+                gui.Panel{
+                    classes = {"panel", "multiselect-chip-remove"},
+                    press = function(el)
+                        local controller = el:FindParentWithClass("multiselectController")
+                        if controller then
+                            local chipItem = el.parent.data.item
+                            controller:FireEventTree("removeSelected", chipItem)
+                            dmhub.Schedule(0.1, function()
+                                el.parent:DestroySelf()
+                            end)
+                        end
+                    end,
+                    gui.Label{
+                        classes = {"label", "multiselect-chip-remove"},
+                        text = "X",
+                    },
+                },
+            }
+            element:AddChild(chipPanel)
         end
         chipPanelOpts.repaint = function(element, valueDict)
             -- Remove children not in dictionary

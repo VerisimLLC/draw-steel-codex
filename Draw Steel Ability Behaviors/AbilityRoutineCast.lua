@@ -110,6 +110,28 @@ function ActivatedAbilityRoutineControlBehavior:Cast(ability, casterToken, targe
         }
     end
 
+    -- Add a "None" chip at the end to clear all selections.
+    chipPanels[#chipPanels+1] = gui.Panel{
+        classes = {"routine-chip"},
+        flow = "horizontal",
+
+        press = function(element)
+            -- Clear all selections.
+            for guid, _ in pairs(selectedRoutines) do
+                selectedRoutines[guid] = nil
+                local el = chipElements[guid]
+                if el ~= nil then
+                    el:SetClass("routine-chip-selected", false)
+                end
+            end
+        end,
+
+        gui.Label{
+            classes = {"routine-chip-label"},
+            text = "None",
+        },
+    }
+
     -- Assemble main content.
     local mainChildren = {}
 

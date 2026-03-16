@@ -27,8 +27,8 @@ local GOLD_BORDER = "#5C3D10"
 local GOLD_BORDER02 = "#3F2E1F"
 local CREAM = "#FFFEF8"
 local MUTED = "#8A8474"
-local DIM = "#5C6860"
-local DIMMER = "#3A4A44"
+local DIM = "#B4D1C6"
+local DIMMER = "#758B7D"
 local TEAL = "#009C7D"
 local TEAL_HEAL = "#2D6A4F"
 local RED = "#D53031"
@@ -259,13 +259,12 @@ TacPanelStyles.SummaryInfo = {
     -- Control buttons below portrait
     {
         selectors = {"vision-btn"},
-        bgcolor = TEAL_HEAL,
         halign = "left",
         valign = "top",
         pad = 4,
         border = 1,
         cornerRadius = 4,
-        borderColor = DIMMER,
+        borderColor = GRAY02,
     },
     {
         selectors = {"vision-btn", "on"},
@@ -451,19 +450,20 @@ TacPanelStyles.Stamina = {
         textAlignment = "center",
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.stamBoxTitle,
+        color = CREAM,
     },
     {
         selectors = {"label", "stambox-title", "harm"},
-        color = RED,
+        -- color = RED,
     },
     {
         selectors = {"label", "stambox-title", "heal"},
-        color = TEAL_HEAL,
+        -- color = TEAL_HEAL,
     },
     {
         selectors = {"label", "stambox-title", "temp"},
         fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
-        color = TEMP_STAM,
+        -- color = TEMP_STAM,
     },
     {
         selectors = {"input", "stambox-input"},
@@ -495,6 +495,7 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"stambox-input", "temp", "focus"},
         fontFace = "Newzald",
+        color = CREAM,
     },
     {
         selectors = {"label", "stambox-stam", "current"},
@@ -1017,7 +1018,7 @@ TacPanelStyles.HeroicResources = {
         lmargin = 8,
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.growHRTitle,
-        color = GOLD,
+        color = GOLD_LIGHT,
         bold = true,
     },
     {
@@ -1369,6 +1370,19 @@ TacPanelStyles.Conditions = {
         fontFace = "Berling",
         fontSize = TacPanelSizes.Fonts.condAdd,
         color = DIM,
+    },
+    {   -- "No conditions" placeholder
+        selectors = {"label", "cond-empty"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        fontFace = "Berling",
+        fontSize = 16,
+        color = DIM,
+        bold = false,
+        italics = true,
     },
     {   -- Custom condition input
         selectors = {"input", "cond-custom-input"},
@@ -2168,8 +2182,8 @@ function TacPanel.Summary()
                 height = TacPanelSizes.VisionBtn.size,
                 refreshCharacter = function(element, token)
                     local bgcolor = (token.properties.selectedLoadout == 1)
-                        and TEAL
-                        or DIM
+                        and GOLD_LIGHT
+                        or GRAY02
                     element.selfStyle.bgcolor = bgcolor
                 end,
                 setToken = function(element, token)
@@ -3573,7 +3587,7 @@ function TacPanel.GrowingHRTable()
             end
 
             for i = index, #rows do
-                rows[i]:SetClass("collapsed", true)
+                if rows[i] then rows[i]:SetClass("collapsed", true) end
             end
 
             element.data.rows = rows
@@ -5792,6 +5806,14 @@ function TacPanel.Conditions()
                 children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
             end
 
+            -- "No conditions" placeholder when nothing to show
+            if #children == 1 then
+                children[#children + 1] = gui.Label{
+                    classes = {"label", "cond-empty"},
+                    text = "No conditions",
+                }
+            end
+
             element:FireEventTree("setContent", children)
         end,
         refreshToken = function(element, token)
@@ -5865,7 +5887,7 @@ If you find an issue, plese let us know via a bug report in the DMHub Discord.mo
             fontSize = 14,
             textWrap = true,
             markdown = true,
-            color = MUTED,
+            color = CREAM,
             text = testInfo,
         },
     }

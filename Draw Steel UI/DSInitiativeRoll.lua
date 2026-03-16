@@ -1,5 +1,8 @@
 local mod = dmhub.GetModLoading()
 
+local g_selectedTokensOpenInitiative = nil
+local g_playerTokensOpenInitiative = nil
+local g_monsterTokensOpenInitiative = nil
 
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
@@ -23,6 +26,17 @@ local function createDrawSteelBanner(options)
 
     if options.immediateResult then
         m_heroesWin = cond(options.immediateResult == "heroes", true, false)
+    end
+
+    local m_initiativeThreshold = 6
+    for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            local t = tok.properties:CalculateNamedCustomAttribute("Initiative Threshold")
+            if type(t) == "number" and t > 0 and t < m_initiativeThreshold then
+                m_initiativeThreshold = t
+            end
+        end
     end
 
     local m_rollInfo = nil
@@ -223,7 +237,7 @@ local function createDrawSteelBanner(options)
         end,
 
         diceface = function(self, diceguid, num)
-            local heroesWin = (num >= 6)
+            local heroesWin = (num >= m_initiativeThreshold)
             m_heroesWin = heroesWin
             BannerPanel:SetClassTree("rolling", true)
             BannerPanel:SetClassTree("heroes", heroesWin)
@@ -812,10 +826,6 @@ local function SetTokenSurprised(tok, surprised)
         }
     end
 end
-
-local g_selectedTokensOpenInitiative = nil
-local g_playerTokensOpenInitiative = nil
-local g_monsterTokensOpenInitiative = nil
 
 local function ShowCombatSetupDialog(selectedTokens)
     local m_encounterStrength = 0

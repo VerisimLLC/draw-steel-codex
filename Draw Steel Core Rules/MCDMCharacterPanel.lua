@@ -1936,7 +1936,7 @@ function TacPanel.HeroicResourcesBox()
             gui.Panel{
                 classes = {"icon", "heroic-resources"},
                 refreshCharacter = function(element, token)
-                    local classInfo = token.properties:GetClass()
+                    local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
                     local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
                     element.bgimage = icon
                 end,

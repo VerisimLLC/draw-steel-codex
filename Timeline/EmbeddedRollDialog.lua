@@ -2397,6 +2397,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 local children = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
+                    if mod.isAfterRoll then
+                        goto continue
+                    end
                     if mod.modifier then
                         -- Skip modifiers that fail requirements
                         if mod.failsRequirement then
@@ -2582,6 +2585,117 @@ function GameHud.CreateEmbeddedRollDialog()
                     ::continue::
                 end
 
+                element.children = children
+            end,
+        },
+    }
+
+    local afterRollModifiersPanel = gui.Panel {
+        classes = { "hideWhenMinimized", "modifiers-panel" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        bmargin = 6,
+        events = {
+            prepare = function(element, options)
+                if creature == nil or options.modifiers == nil then
+                    element.children = {}
+                    element:SetClass('collapsed-anim', true)
+                    return
+                end
+
+                local children = {}
+
+                for modifierIndex, mod in ipairs(options.modifiers) do
+                    if not mod.isAfterRoll then
+                        goto continue
+                    end
+                    if mod.modifier then
+                        if mod.failsRequirement then
+                            goto continue
+                        end
+
+                        mod.context = mod.context or {}
+                        local ischecked = false
+                        local force = mod.modifier:try_get("force", false)
+                        if mod.override ~= nil then
+                            ischecked = mod.override
+                        elseif force then
+                            ischecked = true
+                        elseif mod.hint ~= nil then
+                            ischecked = mod.hint.result
+                        end
+
+                        local tooltip = mod.modifier:GetSummaryText()
+                        if creature ~= nil then
+                            tooltip = StringInterpolateGoblinScript(tooltip, creature)
+                        end
+                        for i, justification in ipairs(mod.hint.justification) do
+                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                                justification)
+                        end
+
+                        local text = mod.modifier.name
+                        if mod.modFromTarget then
+                            text = string.format("Target is %s", text)
+                        end
+
+                        local triggeredModifier = mod.modifier:try_get("_tmp_trigger")
+
+                        if triggeredModifier then
+                            local token = dmhub.GetTokenById(mod.modifier._tmp_triggerCharid)
+                            if token ~= nil then
+                                text = string.format("%s (%s)", text, token.name)
+                            end
+                        else
+                            local availability = mod.modifier:DescribeResourceAvailability(creature,
+                                mod.context.charges or 1, options.expectedCostOfCurrentCast)
+                            if availability then
+                                text = string.format("%s (%s)", text, availability)
+                            end
+                        end
+
+                        local classes = nil
+
+                        if force then
+                            classes = { "collapsed-anim" }
+                        end
+
+                        local check = ModifierPanel{
+                            classes = classes,
+                            text = text,
+                            value = ischecked,
+                            hmargin = 2,
+                            mod = mod,
+                            data = {
+                                mod = mod,
+                                modifierIndex = modifierIndex,
+                            },
+                            change = function(element)
+                                mod.override = element.value
+
+                                resultPanel:FireEventTree('prepare', m_options)
+                                CalculateRollText()
+                                RecalculateMultiTargets()
+                            end,
+                            linger = gui.Tooltip {
+                                text = tooltip,
+                                maxWidth = 600,
+                            },
+                        }
+
+                        children[#children + 1] = check
+                    end
+
+                    ::continue::
+                end
+
+                if #children > 0 then
+                    element:SetClass('collapsed-anim', false)
+                else
+                    element:SetClass('collapsed-anim', true)
+                end
                 element.children = children
             end,
         },
@@ -2856,6 +2970,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_tableContainer,
             rollInputContainer,
             m_rollTotalLabel,
+            afterRollModifiersPanel,
             m_rollResults,
             triggersWithTabContainer,
             rollDisabledLabel,
@@ -3051,6 +3166,7 @@ function GameHud.CreateEmbeddedRollDialog()
                         symbols  = m_symbols,
                     })
                     for _, mod in ipairs(creatureMods) do
+                        mod.isAfterRoll = true
                         recollected[#recollected + 1] = mod
                     end
                 end
@@ -3072,6 +3188,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                         modifier = modifier,
                                         context  = modContext,
                                         hint     = hint,
+                                        isAfterRoll = true,
                                     }
                                 end
                             end
@@ -3937,6 +4054,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                     symbols  = m_symbols,
                                 })
                                 for _, mod in ipairs(creatureMods) do
+                                    mod.isAfterRoll = true
                                     m_afterRollModifierEntries[#m_afterRollModifierEntries + 1] = mod
                                 end
                             end
@@ -3961,6 +4079,7 @@ function GameHud.CreateEmbeddedRollDialog()
                                                     modifier = modifier,
                                                     context  = modContext,
                                                     hint     = hint,
+                                                    isAfterRoll = true,
                                                 }
                                             end
                                         end

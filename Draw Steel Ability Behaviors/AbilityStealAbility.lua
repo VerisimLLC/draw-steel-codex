@@ -55,7 +55,15 @@ function ActivatedAbilityStealAbilityBehavior:EditorItems(parentPanel)
                             "Caster.Name = 'Bob'",
                             "Caster.Level > 5",
                         },
-                    }
+                    },
+                    usedability = {
+                        name = "Used Ability",
+                        type = "ability",
+                        desc = "The ability that triggered this steal, if fired from a triggered ability.",
+                        examples = {
+                            "Ability.Name = Used Ability.Name",
+                        },
+                    },
                 }
             }
         }
@@ -209,6 +217,7 @@ function ActivatedAbilityStealAbilityBehavior:Cast(ability, casterToken, targets
                 local symbols = {
                     ability = a,
                     caster = casterToken.properties,
+                    usedability = options ~= nil and options.symbols ~= nil and options.symbols.usedability or nil,
                 }
                 passesFilter = GoblinScriptTrue(ExecuteGoblinScript(filter, targetCreature:LookupSymbol(symbols), 0, "Steal Ability Filter"))
             end

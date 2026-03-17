@@ -1149,7 +1149,7 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                         { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
                     --Shwayguy: Entire panel cannot be made non-interactive
                     --Implementation chip hover requires it                    
-                    --panel:MakeNonInteractiveRecursive()
+                    panel:MakeNonInteractiveRecursive()
                 end
             end
 

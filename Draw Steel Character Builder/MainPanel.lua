@@ -132,6 +132,38 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        cacheTitle = function(element, hero)
+            local state = element.data.state
+            local titleFeature = CharacterTitleChoice.CreateNew(hero)
+            if titleFeature then
+                local levelChoices = hero:GetLevelChoices()
+                local features = {
+                    { feature = titleFeature }
+                }
+                local selected = titleFeature:GetSelected()
+                local items = dmhub.GetTableVisible(Title.tableName)
+                for _,id in ipairs(selected) do
+                    local item = items[id]
+                    if item then
+                        item:FillFeatureDetails(levelChoices, features)
+                    end
+                end
+                local featureCache = CBFeatureCache.CreateNew(hero, SEL.TITLE, "Title", features)
+                local selectionStatus = CBSelectionStatus.CreateNew{
+                    featureCache = featureCache,
+                    selectorName = SEL.TITLE,
+                    visible = true,
+                    suppressRow1 = true,
+                    displayName = "Title",
+                }
+                state:Set{ key = SEL.TITLE .. ".featureCache", value = featureCache }
+                state:Set{ key = SEL.TITLE .. ".selectionStatus", value = selectionStatus }
+            else
+                state:Set{ key = SEL.TITLE .. ".featureCache", value = nil }
+                state:Set{ key = SEL.TITLE .. ".selectionStatus", value = nil }
+            end
+        end,
+
         cacheCultures = function(element, hero)
             if hero == nil then hero = _getHero() end
             if hero == nil then error("HOW TF IS HERO NIL?") end
@@ -260,6 +292,8 @@ function CharacterBuilder.CreatePanel()
                     element:FireEvent("selectAncestry", hero:try_get("raceid"))
 
                     element:FireEvent("cacheComplication", hero)
+
+                    element:FireEvent("cacheTitle", hero)
 
                     element:FireEvent("cacheCultures", hero)
 

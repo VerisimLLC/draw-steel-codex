@@ -475,6 +475,24 @@ CharacterBuilder.RegisterSelector{
     detail = CBComplicationDetail.CreatePanel,
 }
 
+--- @return Panel Title selector button
+function CBSelectors._title()
+    return CBSelectors._makeButton{
+        text = "Title",
+        data = { selector = SEL.TITLE },
+        button = {
+            text = "Title",
+        }
+    }
+end
+
+CharacterBuilder.RegisterSelector{
+    id = SEL.TITLE,
+    ord = 9,
+    selector = CBSelectors._title,
+    detail = CBTitleDetail.CreatePanel,
+}
+
 --[[
     Sharing information about testing status
     TODO: Remove here to end of file before release

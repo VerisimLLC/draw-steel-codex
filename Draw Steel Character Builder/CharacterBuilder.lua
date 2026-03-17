@@ -95,6 +95,7 @@ CharacterBuilder.SELECTOR = {
     CLASS       = "class",
     KIT         = "kit",
     COMPLICATION = "complication",
+    TITLE       = "title",
 }
 CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
@@ -141,6 +142,12 @@ You should absolutely feel free to describe your equipment in a way that makes s
 CharacterBuilder.STRINGS.COMPLICATION = {}
 CharacterBuilder.STRINGS.COMPLICATION.INTRO = [[
 Beyond the abilities and features bestowed by ancestry and class, your hero might have something else that makes them ... unusual. Perhaps an earth elemental lives in your body. Maybe your eldritch blade devastates enemies but feeds on your own vitality. A complication is an optional feature you can select to enrich your hero's backstory, with any complication providing you both a positive benefit and a negative drawback.]]
+
+CharacterBuilder.STRINGS.TITLE = {}
+CharacterBuilder.STRINGS.TITLE.INTRO = [[
+Titles are special benefits earned by heroes through adventure and mighty deeds. Heroes must win titles - sometimes individually, sometimes as a group - by accomplishing heroic tasks. Titles are the record of a hero's accomplishments, forming the basis of the stories told of them in taverns or whispered in the halls of the mighty.
+
+Each title comes with a new ability or other special benefit. By earning titles, heroes gain a unique set of capabilities that sets them apart from other adventurers.]]
 
 --[[
     Ability to register selectors - controls down the left side of the window

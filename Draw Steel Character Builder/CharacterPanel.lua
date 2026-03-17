@@ -202,6 +202,7 @@ function CBCharPanel._builderPanel(tabId)
     local classStatusItem = CBCharPanel._statusItem(SEL.CLASS)
     local kitStatusItem = CBCharPanel._statusItem(SEL.KIT)
     local complicationStatusItem = CBCharPanel._statusItem(SEL.COMPLICATION)
+    local titleStatusItem = CBCharPanel._statusItem(SEL.TITLE)
 
     return gui.Panel {
         classes = {"builder-base", "panel-base", "charpanel", "tab-content"},
@@ -225,6 +226,7 @@ function CBCharPanel._builderPanel(tabId)
         classStatusItem,
         kitStatusItem,
         complicationStatusItem,
+        titleStatusItem,
     }
 end
 

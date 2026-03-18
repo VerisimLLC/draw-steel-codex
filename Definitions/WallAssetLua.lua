@@ -23,12 +23,12 @@
 --- @field shadowDistortion any 
 --- @field taper any 
 --- @field parallax any 
---- @field shadowGlowThickness any
---- @field solidity string "Unbreakable", "Thin", or "Solid"
---- @field breakStamina number stamina cost to break through this wall (0 = unbreakable)
---- @field rubbleKeyword string|nil keyword to search for rubble objects to spawn when broken
---- @field rubbleTerrainId string|nil terrain tile asset id to draw as rubble when broken
---- @field breakSound string|nil destruction sound type id to play when broken (from AudioObjectDestructionTypes)
+--- @field shadowGlowThickness any 
+--- @field solidity any 
+--- @field breakStamina any 
+--- @field rubbleKeyword any 
+--- @field rubbleTerrainId any 
+--- @field breakSound any 
 WallAssetLua = {}
 
 --- Upload

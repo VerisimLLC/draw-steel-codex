@@ -294,7 +294,7 @@ end
 
 --- Move
 --- @param loc Loc The location to move to.
---- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures: nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType, forcedMovementDistance: nil|number}
+--- @param options {maxCost: nil|number, straightline: nil|boolean, ignorecreatures = nil|boolean, moveThroughFriends: nil|boolean, ignoreFalling: nil|boolean, movementType: nil|MovementType}
 --- @return nil|LuaPath
 function CharacterToken:Move(loc, options)
 	-- dummy implementation for documentation purposes only

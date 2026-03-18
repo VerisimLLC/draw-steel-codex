@@ -457,7 +457,7 @@ function dmhub.UploadAllMonsters(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- ImportFile: Imports a single YAML file from the compendium/import/ directory. Detects whether the file contains a monster, a table entry, or a bundle and imports accordingly. Also uploads to the cloud.
+--- ImportFile: Imports a single YAML file from the compendium/import/ directory. Detects whether the file contains a monster (has 'info' key), a table entry (has '__typeName' key with '_table' metadata), or a bundle (has '_bundle' key) and imports accordingly. Also uploads imported data to the cloud.
 --- @param filename string The name of the YAML file to import from compendium/import/.
 --- @return { monstersImported: number, itemsImported: number, errors: string[] }
 function dmhub.ImportFile(filename)

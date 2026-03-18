@@ -1,4 +1,5 @@
 --- @class LuaPath 
+--- @field wallBreaks nil|table[] 
 --- @field movementType string 
 --- @field shifting boolean 
 --- @field forced boolean 
@@ -16,8 +17,7 @@
 --- @field destinationPosition any 
 --- @field destination any 
 --- @field origin any 
---- @field steps Loc[]
---- @field wallBreaks nil|table[] list of wall break records from forced movement through breakable walls
+--- @field steps Loc[] 
 LuaPath = {}
 
 --- DeepCopy

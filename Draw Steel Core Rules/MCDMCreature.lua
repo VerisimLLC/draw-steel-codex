@@ -1351,10 +1351,16 @@ creature.RegisterSymbol {
     lookup = function(c)
         if c:has_key("inflictedConditions") then
             local conditions = c.inflictedConditions
-            for _, cond in ipairs(conditions) do
+            for _, cond in pairs(conditions) do
                 if cond.duration == "save" then
                     return true
                 end
+            end
+        end
+
+        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+            if effectInstance.removeOnSave then
+                return true
             end
         end
 

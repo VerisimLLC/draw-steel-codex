@@ -566,8 +566,8 @@ TacPanelStyles.Stamina = {
     },
     {
         selectors = {"recovery-pip"},
-        width = 5,
-        height = 5,
+        width = 4,
+        height = 4,
         hmargin = 1,
         valign = "center",
         bgimage = "panels/square.png",
@@ -5063,10 +5063,8 @@ function TacPanel.EffectChip(args)
             end
             element.data.targetingMarkers = {}
         end,
+        children = children,
     }
-    for _,child in ipairs(children) do
-        panelArgs[#panelArgs+1] = child
-    end
 
     return gui.Panel(panelArgs)
 end
@@ -5289,11 +5287,100 @@ function TacPanel.AurasEmitting()
                 local iconbg = display.bgcolor or "white"
                 local iconhue = display.hueshift or 0
 
-                chips[#chips+1] = gui.Panel{
+                local chipChildren = {}
+                if iconid ~= "" then
+                    chipChildren[#chipChildren+1] = gui.Panel{
+                        classes = {"panel", "cond-icon"},
+                        bgimage = iconid,
+                        bgcolor = iconbg,
+                        hueshift = iconhue,
+                    }
+                end
+                chipChildren[#chipChildren+1] = gui.Label{
+                    classes = {"label", "cond-name"},
+                    text = aura.name,
+                }
+                chipChildren[#chipChildren+1] = gui.Panel{
+                    valign = "center",
+                    halign = "right",
+                    width = "auto", height = "auto",
+                    bgimage = "panels/square.png",
+                    bgcolor = "clear",
+                    border = 1,
+                    borderColor = GOLD_LIGHT,
+                    cornerRadius = 3,
+                    pad = 3, lmargin = 4,
+                    gui.VisibilityPanel{
+                        opacity = 1,
+                        visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                        bgcolor = GOLD_LIGHT,
+                        width = 12,
+                        height = 12,
+                        press = function(element)
+                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                            settings.hide = not settings.hide
+                            token:ModifyProperties{
+                                description = tr("Set Aura Display Settings"),
+                                undoable = false,
+                                execute = function()
+                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                end,
+                            }
+                        end,
+                        refresh = function(element)
+                            if token == nil or not token.valid then return end
+                            element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                        end,
+                    },
+                }
+                chipChildren[#chipChildren+1] = gui.PercentSlider{
+                    valign = "center",
+                    halign = "right",
+                    hmargin = 6,
+                    selfStyle = {borderColor = GOLD_LIGHT},
+                    styles = {
+                        {selectors = {"percentSlider"},
+                         borderWidth = 1, borderColor = GOLD_LIGHT,
+                         cornerRadius = 2, bgimage = "panels/square.png",
+                         bgcolor = "black", height = 14, flow = "none"},
+                        {selectors = {"percentSliderLabel"},
+                         color = GOLD_LIGHT, bold = true, fontSize = 10,
+                         halign = "left", valign = "center",
+                         width = 40, textAlignment = "center", height = "auto"},
+                        {selectors = {"percentSliderLabel", "fill"},
+                         color = "black"},
+                        {selectors = {"percentFill"},
+                         bgcolor = GOLD_LIGHT, height = "100%",
+                         width = "0%", halign = "left", cornerRadius = 2},
+                    },
+                    value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
+                    refresh = function(element)
+                        if token == nil or not token.valid then return end
+                        element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
+                    end,
+                    preview = function(element)
+                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                        settings.opacity = element.value
+                        token.properties:SetAuraDisplaySetting(aura.name, settings)
+                        token:UpdateAuras()
+                    end,
+                    confirm = function(element)
+                        token.properties:SetAuraDisplaySetting(aura.name, nil)
+                        token:ModifyProperties{
+                            description = tr("Set Aura Display Settings"),
+                            undoable = false,
+                            execute = function()
+                                local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                settings.opacity = element.value
+                                token.properties:SetAuraDisplaySetting(aura.name, settings)
+                            end,
+                        }
+                    end,
+                }
+                local chipArgs = {
                     classes = {"panel", "cond-chip"},
                     data = { targetingMarkers = {} },
                     popupPositioning = "panel",
-
                     linger = function(el)
                         el:FireEvent("clearMarkers")
                         el.tooltip = gui.TooltipFrame(
@@ -5313,34 +5400,11 @@ function TacPanel.AurasEmitting()
                         for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
                         el.data.targetingMarkers = {}
                     end,
-
-                    iconid ~= "" and gui.Panel{
-                        classes = {"panel", "cond-icon"},
-                        bgimage = iconid,
-                        bgcolor = iconbg,
-                        hueshift = iconhue,
-                    } or nil,
-                    gui.Label{
-                        classes = {"label", "cond-name"},
-                        text = aura.name,
-                    },
-                    gui.Panel{
-                        classes = {"panel", "cond-remove"},
-                        press = function(el)
-                            token:ModifyProperties{
-                                description = "Remove Aura",
-                                execute = function()
-                                    token.properties:RemoveAura(auraid)
-                                end,
-                            }
-                        end,
-                        linger = function(el) gui.Tooltip("Remove")(el) end,
-                        gui.Label{
-                            classes = {"label", "cond-remove"},
-                            text = "X",
-                        },
-                    },
                 }
+                for i, child in ipairs(chipChildren) do
+                    chipArgs[i] = child
+                end
+                chips[#chips+1] = gui.Panel(chipArgs)
             end
 
             -- Source 2: ongoing effect modifier auras
@@ -5358,11 +5422,100 @@ function TacPanel.AurasEmitting()
                             local iconbg = display.bgcolor or "white"
                             local iconhue = display.hueshift or 0
 
-                            chips[#chips+1] = gui.Panel{
+                            local effChildren = {}
+                            if iconid ~= "" then
+                                effChildren[#effChildren+1] = gui.Panel{
+                                    classes = {"panel", "cond-icon"},
+                                    bgimage = iconid,
+                                    bgcolor = iconbg,
+                                    hueshift = iconhue,
+                                }
+                            end
+                            effChildren[#effChildren+1] = gui.Label{
+                                classes = {"label", "cond-name"},
+                                text = aura.name,
+                            }
+                            effChildren[#effChildren+1] = gui.Panel{
+                                valign = "center",
+                                halign = "right",
+                                width = "auto", height = "auto",
+                                bgimage = "panels/square.png",
+                                bgcolor = "clear",
+                                border = 1,
+                                borderColor = GOLD_LIGHT,
+                                cornerRadius = 3,
+                                pad = 3, lmargin = 4,
+                                gui.VisibilityPanel{
+                                    opacity = 1,
+                                    visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                                    bgcolor = GOLD_LIGHT,
+                                    width = 12,
+                                    height = 12,
+                                    press = function(element)
+                                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                        settings.hide = not settings.hide
+                                        token:ModifyProperties{
+                                            description = tr("Set Aura Display Settings"),
+                                            undoable = false,
+                                            execute = function()
+                                                token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                            end,
+                                        }
+                                    end,
+                                    refresh = function(element)
+                                        if token == nil or not token.valid then return end
+                                        element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                                    end,
+                                },
+                            }
+                            effChildren[#effChildren+1] = gui.PercentSlider{
+                                valign = "center",
+                                halign = "right",
+                                hmargin = 6,
+                                selfStyle = {borderColor = GOLD_LIGHT},
+                                styles = {
+                                    {selectors = {"percentSlider"},
+                                     borderWidth = 1, borderColor = GOLD_LIGHT,
+                                     cornerRadius = 2, bgimage = "panels/square.png",
+                                     bgcolor = "black", height = 14, flow = "none"},
+                                    {selectors = {"percentSliderLabel"},
+                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
+                                     halign = "left", valign = "center",
+                                     width = 40, textAlignment = "center", height = "auto"},
+                                    {selectors = {"percentSliderLabel", "fill"},
+                                     color = "black"},
+                                    {selectors = {"percentFill"},
+                                     bgcolor = GOLD_LIGHT, height = "100%",
+                                     width = "0%", halign = "left", cornerRadius = 2},
+                                },
+                                value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
+                                refresh = function(element)
+                                    if token == nil or not token.valid then return end
+                                    element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
+                                end,
+                                preview = function(element)
+                                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                    settings.opacity = element.value
+                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                    token:UpdateAuras()
+                                end,
+                                confirm = function(element)
+                                    token.properties:SetAuraDisplaySetting(aura.name, nil)
+                                    token:ModifyProperties{
+                                        description = tr("Set Aura Display Settings"),
+                                        undoable = false,
+                                        execute = function()
+                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                            settings.opacity = element.value
+                                            token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                        end,
+                                    }
+                                end,
+                            }
+                            local effChipArgs = {
                                 classes = {"panel", "cond-chip"},
                                 data = { targetingMarkers = {} },
                                 popupPositioning = "panel",
-
                                 linger = function(el)
                                     el:FireEvent("clearMarkers")
                                     el.tooltip = gui.TooltipFrame(
@@ -5377,34 +5530,11 @@ function TacPanel.AurasEmitting()
                                     for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
                                     el.data.targetingMarkers = {}
                                 end,
-
-                                iconid ~= "" and gui.Panel{
-                                    classes = {"panel", "cond-icon"},
-                                    bgimage = iconid,
-                                    bgcolor = iconbg,
-                                    hueshift = iconhue,
-                                } or nil,
-                                gui.Label{
-                                    classes = {"label", "cond-name"},
-                                    text = aura.name,
-                                },
-                                gui.Panel{
-                                    classes = {"panel", "cond-remove"},
-                                    press = function(el)
-                                        token:ModifyProperties{
-                                            description = "Remove Aura",
-                                            execute = function()
-                                                token.properties:RemoveAura(auraid)
-                                            end,
-                                        }
-                                    end,
-                                    linger = function(el) gui.Tooltip("Remove")(el) end,
-                                    gui.Label{
-                                        classes = {"label", "cond-remove"},
-                                        text = "X",
-                                    },
-                                },
                             }
+                            for i, child in ipairs(effChildren) do
+                                effChipArgs[i] = child
+                            end
+                            chips[#chips+1] = gui.Panel(effChipArgs)
                         end
                     end
                 end
@@ -5871,10 +6001,10 @@ function TacPanel.Conditions()
                 children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
             end
 
-            -- Aura chips
+            -- Aura chips (DISABLED FOR DIAGNOSTIC)
             local aurasTouching = creature:GetAurasAffecting(token) or {}
             for _, auraInfo in ipairs(aurasTouching) do
-                children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+               children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
             end
 
             -- "No conditions" placeholder when nothing to show

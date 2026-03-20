@@ -164,6 +164,10 @@ local mySetting = setting{
 
 **ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0–127). Never use em dashes (`—`), curly quotes (`""`), ellipses (`…`), or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of `—`, `"` instead of curly quotes, `...` instead of `…`.
 
+## Monster Reference Documentation
+
+**[monster-reference.md](monster-reference.md)** contains the complete stat blocks for every monster in Draw Steel Book Two: Monsters. Use this as the authoritative source when implementing or auditing monster YAML files in `compendium/bestiary/`. It includes all abilities, traits, villain actions, malice features, power roll tiers, and stat tables for every creature.
+
 ## `Definitions/` Files
 
 These are **LuaLS stub files** (LSP type annotations) for the closed-source DMHub engine API. They define the types and signatures of engine globals but contain only dummy `-- dummy implementation` bodies. Do not add real logic here. When the engine API has a function you want to call, its signature will be in one of these files.

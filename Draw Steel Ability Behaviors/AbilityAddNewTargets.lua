@@ -26,6 +26,10 @@ ActivatedAbilityAddNewTargetsBehavior.promptText = ''
 ActivatedAbilityAddNewTargetsBehavior.targetMode = 'add'
 
 function ActivatedAbilityAddNewTargetsBehavior:Cast(ability, casterToken, targets, options)
+	if #targets == 0 then
+		return
+	end
+
 	ability:CommitToPaying(casterToken, options)
 
 	local symbols = options.symbols or {}

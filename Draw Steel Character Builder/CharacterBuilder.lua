@@ -278,6 +278,16 @@ function CharacterBuilder._fireControllerEvent(eventName, ...)
     if controller then controller:FireEvent(eventName, ...) end
 end
 
+--- Calculates font size based on length of text
+--- @param baseSize integer The largest size the font might be
+--- @param maxChars integer The number of characters the max size can fit
+--- @param len integer The length of the text to display
+--- @return integer fontSize
+function CharacterBuilder._fitFontSize(baseSize, maxChars, len)
+    if len <= maxChars then return baseSize end
+    return math.max(12, math.floor(baseSize * maxChars / len))
+end
+
 --- Format an order string for sorting
 --- @param n number|nil The numeric order value
 --- @param s string|nil The text portion
@@ -655,6 +665,8 @@ end
 --- @param options ButtonOptions
 --- @return SelectorButton|Panel
 function CharacterBuilder._makeCategoryButton(options)
+    local fontSize = options.fontSize or 22
+    options.fontSize = CharacterBuilder._fitFontSize(fontSize, 21, #options.text)
     options.width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH
     options.height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT
     options.valign = "top"

@@ -407,6 +407,17 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Strain",
+    type = "boolean",
+    desc = "Returns true if this ability can cause strain.",
+    seealso = { "action" },
+    calculate = function(c)
+        return c:try_get("strain", {}).enabled
+    end,
+
+})
+
 function ActivatedAbility:HasAttack()
     return self:HasKeyword("Strike")
 end
@@ -683,16 +694,25 @@ function ActivatedAbility:Render(options, params)
                             castTimeText = string.format("%d rounds ago", roundsSince)
                         end
                         if aura:try_get("duration") ~= "none" then
-                            local remainingRounds = aura.duration - roundsSince
-                            local expiresText = "this round"
-                            if remainingRounds == 1 then
-                                expiresText = "next round"
-                            elseif remainingRounds > 1 then
-                                expiresText = string.format("in %d rounds", remainingRounds)
-                            end
+                            local duration = aura.duration
+                            if type(duration) == "string" then
+                                if duration == "eoe" then
+                                    expiresText = "End of Encounter"
+                                elseif duration == "eot" then
+                                    expiresText = "End of Turn"
+                                end
+                            else
+                                local remainingRounds = aura.duration - roundsSince
+                                local expiresText = "this round"
+                                if remainingRounds == 1 then
+                                    expiresText = "next round"
+                                elseif remainingRounds > 1 then
+                                    expiresText = string.format("in %d rounds", remainingRounds)
+                                end
 
-                            element.text = string.format("Effect cast %s, expires %s%s", castTimeText, expiresText,
-                                concentrationText)
+                                element.text = string.format("Effect cast %s, expires %s%s", castTimeText, expiresText,
+                                    concentrationText)
+                            end
                         else
                             element.text = string.format("Effect cast %s, lasts indefinitely", castTimeText,
                                 concentrationText)

@@ -2592,6 +2592,18 @@ GameSystem.RegisterGoblinScriptField {
     end,
 }
 
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Stolen",
+    type = "boolean",
+    desc = "True if this ability was stolen from another creature.",
+    seealso = {},
+    examples = {"self.Stolen"},
+    calculate = function(c)
+        return c:has_key("stolenFrom") and c.stolenFrom ~= nil and c.stolenFrom ~= ""
+    end,
+}
+
 ActivatedAbility.meleeAndRanged = false
 
 function ActivatedAbility:GetTypeIconForActionBar()

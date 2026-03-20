@@ -849,6 +849,26 @@ function DataTables.tbl_Gear.GenerateEditor(document, options)
             },
 
             FormPanel {
+                text = "Replaces Prerequisite:",
+                collapse = function()
+                    return not EquipmentCategory.IsImbuement(document)
+                        or document:try_get("imbuePrereq", "none") == "none"
+                end,
+
+                child = gui.Check {
+                    text = "Replaces benefit of prerequisite",
+                    value = document:try_get("imbueReplacesPrereq", false),
+                    refresh = function(element)
+                        element.value = document:try_get("imbueReplacesPrereq", false)
+                    end,
+                    change = function(element)
+                        document.imbueReplacesPrereq = element.value
+                        Refresh()
+                    end,
+                },
+            },
+
+            FormPanel {
                 text = '',
                 dmOnly = true,
                 child = gui.Check {

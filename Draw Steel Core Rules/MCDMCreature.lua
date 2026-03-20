@@ -1097,7 +1097,7 @@ creature.RegisterSymbol{
         -- Count equipped magic items
         for _, itemid in ipairs(self:EquipmentInUse()) do
             local item = gearTable[itemid]
-            if item ~= nil and item.keywords["Magic"] then
+            if item ~= nil and item:try_get("keywords", {})["Magic"] then
                 count = count + 1
             end
         end
@@ -1105,7 +1105,7 @@ creature.RegisterSymbol{
         -- Count carried (inventory) magic items
         for itemid, info in pairs(self:try_get("inventory", {})) do
             local item = gearTable[itemid]
-            if item ~= nil and item.keywords["Magic"] then
+            if item ~= nil and item:try_get("keywords", {})["Magic"] then
                 count = count + (info.quantity or 1)
             end
         end

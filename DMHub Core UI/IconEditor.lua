@@ -57,6 +57,7 @@ function gui.IconEditor(args)
 	local resultPanel = nil
 
 	local category = ''
+	local useBuiltinIcons = false
 
 	local stretch = args.stretch
 	args.stretch = nil
@@ -453,7 +454,20 @@ function gui.IconEditor(args)
 
 					lastSearch = element.text
 
-					imageIds = dmhub.SearchImages((category or "") .. element.text, library)
+					if useBuiltinIcons then
+						local filter = string.lower(element.text or "")
+						imageIds = {}
+						for _, item in ipairs(assets.devOnlyBuiltinImagesList) do
+							if item.path and type(item.path) == "string" and #item.path > 0 then
+								if #filter == 0 or string.lower(item.path):find(filter, 1, true) then
+									imageIds[#imageIds + 1] = item.path
+								end
+							end
+						end
+						table.sort(imageIds)
+					else
+						imageIds = dmhub.SearchImages((category or "") .. element.text, library)
+					end
 					if allowNone and element.text == "" then
 						table.insert(imageIds, 1, '')
 					end
@@ -559,6 +573,13 @@ function gui.IconEditor(args)
 			},
 		}
 
+		options[#options+1] = {
+			text = "Built-in Icons",
+			id = "builtinIcons",
+			search = "",
+			builtinIcons = true,
+		}
+
 		if dmhub.GetSettingValue("popoutavatars") then
 			options[#options+1] = {
 				text = "Popout Avatars",
@@ -652,8 +673,10 @@ function gui.IconEditor(args)
 					events = {
 						change = function(element)
 							lastSearch = nil
-							library = optionMap[element.idChosen].library
-							category = optionMap[element.idChosen].search
+							local selected = optionMap[element.idChosen]
+							library = selected.library
+							category = selected.search
+							useBuiltinIcons = selected.builtinIcons == true
 							imageType = ImageTypeMapping[library]
 							searchInput:FireEvent('change')
 						end,
@@ -670,6 +693,9 @@ function gui.IconEditor(args)
 			fontSize = 20,
 			hmargin = 12,
 			events = {
+				refreshSearch = function(element)
+					element:SetClass("collapsed", useBuiltinIcons)
+				end,
 				click = function(element)
 					dmhub.Debug(string.format("IMAGETYPE:: Upload image with type = %s", json(imageType)))
 					dmhub.OpenFileDialog{
@@ -743,6 +769,9 @@ function gui.IconEditor(args)
 				classes = {cond(dmhub.HaveImageInClipboard(), nil, 'disabled')},
 				thinkTime = 0.2,
 				events = {
+					refreshSearch = function(element)
+						element:SetClass("collapsed", useBuiltinIcons)
+					end,
 					think = function(element)
 						element:SetClassTree("disabled", not dmhub.HaveImageInClipboard())
 					end,

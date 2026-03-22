@@ -1,0 +1,11 @@
+# importerAbilityEffects entry for Posthumous Promotion
+# Matches: "The target's loyalty collar detonates, killing them instantly."
+# Also matches Ground Commander variant with "selects any number"
+__typeName: ActivatedAbility
+_table: importerAbilityEffects
+id: 6839bf48-f87c-43cd-8f64-a0b35943a5c7
+name: "Posthumous Promotion - Loyalty Collar Kill"
+importMatchType: rules
+importMatch: "<<monster>> loyalty collar detonates, killing (them|the target) instantly"
+behaviors:
+- __typeName: ActivatedAbilityDestroyBehavior

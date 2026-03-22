@@ -428,6 +428,7 @@ local g_rulePatterns = {
                 description = description,
                 invoker = casterToken.properties,
                 promptOverride = description,
+                forcedMovementThroughCreatures = ability:try_get("forcedMovementThroughCreatures", false),
             }
 
             if stability > 0 then

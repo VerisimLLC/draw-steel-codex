@@ -2147,6 +2147,17 @@ function ActivatedAbility:TargetTypeEditor()
 			end,
 		},
 
+		gui.Check{
+			classes = {cond(self:try_get("targeting") ~= "straightline", "collapsed")},
+			text = "Through Creatures",
+			value = self:try_get("forcedMovementThroughCreatures", false),
+			change = function(element)
+				self.forcedMovementThroughCreatures = element.value
+			end,
+			refreshAbility = function(element)
+				element:SetClass("collapsed", self:try_get("targeting") ~= "straightline")
+			end,
+		},
 
         gui.Panel{
             classes = {"formPanel"},

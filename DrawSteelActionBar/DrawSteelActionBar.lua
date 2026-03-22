@@ -103,6 +103,12 @@ local function ClearPointTargeting()
         g_pointTargeting.radius:Destroy()
     end
 
+    if g_pointTargeting.labelsAtThroughCreatures ~= nil then
+        for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+            marker:Destroy()
+        end
+    end
+
     g_pointTargeting = {}
 end
 
@@ -3812,6 +3818,7 @@ CreateAbilityController = function()
                 g_pointTargeting.fallingShape = nil
             end
             local destroyLabelsBeforeReturning = g_pointTargeting.labelsAtPathEnd ~= nil
+            local destroyThroughCreatureLabels = g_pointTargeting.labelsAtThroughCreatures ~= nil
             local pathfinding = false
             if point ~= nil and g_currentAbility.targetType ~= "areatemplate" then
                 local radius = g_currentAbility:GetRadius(g_token.properties, g_currentSymbols)
@@ -3877,9 +3884,13 @@ CreateAbilityController = function()
 
                     g_currentSymbols.waypoints = waypoints
 
+                    local throughCreatures = g_currentAbility:try_get("forcedMovementThroughCreatures", false)
+                    local reboundOptions = g_token.properties:GetForcedPushOptions()
                     local movementInfo = g_token:MarkMovementArrow(loc, {
                         straightline = true,
-                        ignorecreatures = (targetingType == "straightpathignorecreatures"),
+                        ignorecreatures = (targetingType == "straightpathignorecreatures" or throughCreatures),
+                        rebound = reboundOptions.rebound,
+                        maxBounces = reboundOptions.maxBounces,
                     })
                     
                     if movementInfo ~= nil then
@@ -3995,6 +4006,144 @@ CreateAbilityController = function()
 
                                 for i, info in ipairs(textLabels) do
                                     g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
+                                        .CreateCanvasOnMap {
+                                            point = info.point,
+                                            sheet = gui.Label {
+                                                interactable = false,
+                                                halign = "center",
+                                                valign = "center",
+                                                color = "red",
+                                                width = "auto",
+                                                height = "auto",
+                                                fontSize = 0.5,
+                                                text = info.text,
+                                            }
+                                        }
+                                end
+                            end
+                        end
+
+                        --show damage indicators at each rebound bounce point.
+                        if movementInfo.bounceCollisions ~= nil and #movementInfo.bounceCollisions > 0 and (g_currentAbility:try_get("targeting", "direct") == "straightline") and g_token.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
+                            local prevPathEnd = g_pointTargeting.shapePathEnd
+                            destroyLabelsBeforeReturning = false
+                            g_pointTargeting.shapePathEnd = g_pointTargeting.shapePathEnd or {}
+                            local bounceTextLabels = {}
+
+                            for _, collision in ipairs(movementInfo.bounceCollisions) do
+                                local bounceCollideWith = collision.collideWith or {}
+                                local bounceDamage = collision.speed
+                                local bounceIsObject = #bounceCollideWith == 0
+                                if bounceIsObject then
+                                    bounceDamage = bounceDamage + 2
+                                end
+
+                                local bounceDestPoint = collision.destination.point3
+                                if g_token.creatureDimensions.x % 2 == 0 then
+                                    local offset = (g_token.creatureDimensions.x - 1) * 0.5
+                                    bounceDestPoint = core.Vector3(bounceDestPoint.x + offset, bounceDestPoint.y + offset, bounceDestPoint.z)
+                                end
+
+                                g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                    shape = cond(g_token.creatureDimensions.x % 2 == 1, "radius", "cylinder"),
+                                    token = g_currentAbility:GetRangeSource(g_token),
+                                    targetPoint = bounceDestPoint,
+                                    range = g_currentAbility:GetRange(g_token.properties, g_currentSymbols),
+                                    radius = g_token.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                }
+
+                                bounceTextLabels[#bounceTextLabels + 1] = {
+                                    point = bounceDestPoint,
+                                    text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                }
+
+                                for _, collideToken in ipairs(bounceCollideWith) do
+                                    g_pointTargeting.shapePathEnd[#g_pointTargeting.shapePathEnd + 1] = dmhub.CalculateShape {
+                                        shape = cond(collideToken.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+                                        token = collideToken,
+                                        targetPoint = collideToken:PosAtLoc(),
+                                        range = 0,
+                                        radius = collideToken.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                    }
+                                    bounceTextLabels[#bounceTextLabels + 1] = {
+                                        point = collideToken:PosAtLoc(),
+                                        text = string.format("-%d<color=#00000000>-</color>", bounceDamage),
+                                    }
+                                end
+                            end
+
+                            local needRedraw = prevPathEnd == nil or #prevPathEnd ~= #g_pointTargeting.shapePathEnd
+                            if needRedraw then
+                                if g_pointTargeting.labelsAtPathEnd ~= nil then
+                                    for _, marker in ipairs(g_pointTargeting.labelsAtPathEnd) do
+                                        marker:Destroy()
+                                    end
+                                    destroyLabelsBeforeReturning = false
+                                end
+
+                                g_pointTargeting.labelsAtPathEnd = g_pointTargeting.labelsAtPathEnd or {}
+                                for i, shape in ipairs(g_pointTargeting.shapePathEnd) do
+                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] =
+                                        shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+                                end
+                                for i, info in ipairs(bounceTextLabels) do
+                                    g_pointTargeting.labelsAtPathEnd[#g_pointTargeting.labelsAtPathEnd + 1] = dmhub
+                                        .CreateCanvasOnMap {
+                                            point = info.point,
+                                            sheet = gui.Label {
+                                                interactable = false,
+                                                halign = "center",
+                                                valign = "center",
+                                                color = "red",
+                                                width = "auto",
+                                                height = "auto",
+                                                fontSize = 0.5,
+                                                text = info.text,
+                                            }
+                                        }
+                                end
+                            end
+                        end
+
+                        --show damage indicators on creatures passed through.
+                        if throughCreatures and path.steps ~= nil then
+                            local throughTextLabels = {}
+                            local throughShapes = {}
+                            local hitIds = {}
+                            for _, step in ipairs(path.steps) do
+                                local tokensAtLoc = game.GetTokensAtLoc(step)
+                                for _, tok in ipairs(tokensAtLoc or {}) do
+                                    if tok.id ~= g_token.id and hitIds[tok.id] == nil then
+                                        hitIds[tok.id] = true
+                                        throughShapes[#throughShapes + 1] = dmhub.CalculateShape {
+                                            shape = cond(tok.creatureDimensions.x % 2 == 1, "radius", "radiusfromintersection"),
+                                            token = tok,
+                                            targetPoint = tok:PosAtLoc(),
+                                            range = 0,
+                                            radius = tok.creatureDimensions.x * dmhub.unitsPerSquare * 0.5,
+                                        }
+                                        throughTextLabels[#throughTextLabels + 1] = {
+                                            point = tok:PosAtLoc(),
+                                            text = string.format("-%d<color=#00000000>-</color>", 1),
+                                        }
+                                    end
+                                end
+                            end
+
+                            if #throughShapes > 0 then
+                                destroyThroughCreatureLabels = false
+                                if g_pointTargeting.labelsAtThroughCreatures ~= nil then
+                                    for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+                                        marker:Destroy()
+                                    end
+                                end
+                                g_pointTargeting.labelsAtThroughCreatures = {}
+                                for i, shape in ipairs(throughShapes) do
+                                    g_pointTargeting.labelsAtThroughCreatures[#g_pointTargeting.labelsAtThroughCreatures + 1] =
+                                        shape:Mark { color = "red", video = "divinationline.webm", showLocs = false }
+                                end
+                                for i, info in ipairs(throughTextLabels) do
+                                    g_pointTargeting.labelsAtThroughCreatures[#g_pointTargeting.labelsAtThroughCreatures + 1] = dmhub
                                         .CreateCanvasOnMap {
                                             point = info.point,
                                             sheet = gui.Label {
@@ -4284,6 +4433,13 @@ CreateAbilityController = function()
                 g_pointTargeting.fallingShape = nil
                 g_pointTargeting.labelsAtPathEnd = nil
                 g_pointTargeting.shapePathEnd = nil
+            end
+
+            if destroyThroughCreatureLabels and g_pointTargeting ~= nil and g_pointTargeting.labelsAtThroughCreatures ~= nil then
+                for _, marker in ipairs(g_pointTargeting.labelsAtThroughCreatures) do
+                    marker:Destroy()
+                end
+                g_pointTargeting.labelsAtThroughCreatures = nil
             end
         end,
 

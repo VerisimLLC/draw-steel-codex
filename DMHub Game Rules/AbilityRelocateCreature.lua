@@ -161,10 +161,12 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 
             local forcemoveEvent = nil
 			local collisionInfo = nil
+			local throughCreatures = ability:try_get("forcedMovementThroughCreatures", false)
+			local forcedPushOptions = casterToken.properties:GetForcedPushOptions()
 			local abilityDist = ability:GetRange(casterToken.properties)/dmhub.unitsPerSquare
 			if (ability.targeting == "straightline" or ability.targetType == "line") and casterToken.properties:CalculateNamedCustomAttribute("No Damage From Forced Movement") == 0 then
 				local abilityDistForArrow = abilityDist
-				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line"), forcedMovementDistance = abilityDistForArrow})
+				local movementInfo = casterToken:MarkMovementArrow(targets[1].loc, {waypoints = options.symbols.waypoints, straightline = true, ignorecreatures = (ability.targetType == "line" or throughCreatures), forcedMovementDistance = abilityDistForArrow, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces})
 				if movementInfo ~= nil then
 
 					local loc = targets[1].loc
@@ -241,7 +243,7 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
             end
 
 
-			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist })
+			local path = casterToken:Move(targets[#targets].loc, { waypoints = waypoints, straightline = (ability.targeting == "straightline" or ability.targeting == "straightpath" or ability.targeting == "straightpathignorecreatures" or ability.targetType == "line"), moveThroughFriends = (ability.targeting ~= "straightline"), ignorecreatures = (ability.targeting == "straightpathignorecreatures" or ability.targetType == "line" or throughCreatures), maxCost = 30000, movementType = movementType, forcedMovementDistance = abilityDist, rebound = forcedPushOptions.rebound, maxBounces = forcedPushOptions.maxBounces })
 
             --fire wallbreak events for any walls broken during the move
             --(wall erasure and rubble spawning are handled by the engine in TryStraightLineMove)
@@ -264,7 +266,53 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 				options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
 			end
 
-			if collisionInfo ~= nil then
+			--when moving through creatures, trigger collision on each creature in the path.
+			if throughCreatures and path ~= nil and path.steps ~= nil then
+				local forcedMovementType = ability:try_get("forcedMovement", "slide")
+				local hitCreatures = {}
+				for _,step in ipairs(path.steps) do
+					local tokensAtLoc = game.GetTokensAtLoc(step)
+					for _,tok in ipairs(tokensAtLoc or {}) do
+						if tok.id ~= casterToken.id and hitCreatures[tok.id] == nil then
+							hitCreatures[tok.id] = true
+							tok.properties._tmp_forcedMovementCast = options.symbols.cast
+							tok.properties:TriggerEvent("collide", {
+								speed = 1,
+								withobject = false,
+								withcreature = true,
+								pusher = options.symbols.invoker,
+								haspusher = options.symbols.invoker ~= nil,
+								movementtype = forcedMovementType,
+							})
+							casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
+							casterToken.properties:TriggerEvent("collide", {
+								speed = 1,
+								withobject = false,
+								withcreature = true,
+								pusher = options.symbols.invoker,
+								haspusher = options.symbols.invoker ~= nil,
+								movementtype = forcedMovementType,
+							})
+						end
+					end
+				end
+			end
+
+			--filter out passthrough creatures from collision.
+		if collisionInfo ~= nil and collisionInfo.collideWith ~= nil and #collisionInfo.collideWith > 0 then
+			local filtered = {}
+			for _,tok in ipairs(collisionInfo.collideWith) do
+				if tok.properties:CalculateNamedCustomAttribute("Passthrough") == 0 then
+					filtered[#filtered+1] = tok
+				end
+			end
+			collisionInfo.collideWith = filtered
+			if #filtered == 0 then
+				collisionInfo = nil
+			end
+		end
+
+		if collisionInfo ~= nil then
                 local forcedMovementType = ability:try_get("forcedMovement", "slide")
                 local withobject = #(collisionInfo.collideWith or {}) == 0
 
@@ -322,6 +370,46 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                         })
                     end
                 end
+			end
+
+			--handle collisions from rebound bounces.
+			if path ~= nil and path.bounceCollisions ~= nil then
+				local forcedMovementType = ability:try_get("forcedMovement", "slide")
+				for _,collision in ipairs(path.bounceCollisions) do
+					local collideWith = collision.collideWith or {}
+					local withobject = #collideWith == 0
+
+					if not withobject then
+						for _,tok in ipairs(collideWith) do
+							if tok.isObject then
+								withobject = true
+								break
+							end
+						end
+					end
+
+					casterToken.properties._tmp_forcedMovementCast = options.symbols.cast
+					casterToken.properties:TriggerEvent("collide", {
+						speed = collision.speed,
+						withobject = withobject,
+						withcreature = not withobject,
+						pusher = options.symbols.invoker,
+						haspusher = options.symbols.invoker ~= nil,
+						movementtype = forcedMovementType,
+					})
+
+					for _,tok in ipairs(collideWith) do
+						tok.properties._tmp_forcedMovementCast = options.symbols.cast
+						tok.properties:TriggerEvent("collide", {
+							speed = collision.speed,
+							withobject = withobject,
+							withcreature = not withobject,
+							pusher = options.symbols.invoker,
+							haspusher = options.symbols.invoker ~= nil,
+							movementtype = forcedMovementType,
+						})
+					end
+				end
 			end
 
             if path ~= nil and self.targetMoveVicinity then

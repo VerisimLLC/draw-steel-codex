@@ -256,6 +256,9 @@ ActivatedAbility.sequentialTargeting = false
 --for emptyspace targetType, this is the type of targeting used.
 ActivatedAbility.targeting = "direct"
 
+--when true, forced movement continues through creatures instead of stopping on collision.
+ActivatedAbility.forcedMovementThroughCreatures = false
+
 --for line type targeting.
 ActivatedAbility.canChooseLowerRange = false
 

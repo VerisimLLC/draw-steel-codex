@@ -120,6 +120,20 @@ function creature:CalculateNamedCustomAttribute(id)
     return result
 end
 
+function creature:IsPassthrough()
+    return self:CalculateNamedCustomAttribute("Passthrough") > 0
+end
+
+function creature:GetForcedPushOptions()
+    local options = {}
+    local rebound = self:CalculateNamedCustomAttribute("Rebound")
+    if rebound > 0 then
+        options.rebound = true
+        options.maxBounces = math.max(1, rebound)
+    end
+    return options
+end
+
 function creature:AllowNegativeResources()
     return self:CalculateNamedCustomAttribute("Negative Heroic Resource")
 end

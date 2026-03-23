@@ -407,6 +407,48 @@ RegisterGoblinScriptSymbol(ActivatedAbility, {
     end,
 })
 
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Strain",
+    type = "boolean",
+    desc = "Returns true if this ability can cause strain.",
+    calculate = function(c)
+        return c:try_get("strain", {}).enabled
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Strain Damage",
+    type = "number",
+    desc = "Returns the amount of damage this ability causes to the caster when strained.",
+    calculate = function(c)
+        local behaviors = c:try_get("behaviors", {})
+        for _, behavior in ipairs(behaviors) do
+            if behavior.typeName == "ActivatedAbilityDamageBehavior" and behavior:try_get("strainSelection", "") == "strained" then
+                return behavior:try_get("roll", 0)
+            end
+        end
+        return 0
+    end,
+
+})
+
+RegisterGoblinScriptSymbol(ActivatedAbility, {
+    name = "Strain Damage Type",
+    type = "string",
+    desc = "Returns the type of damage this ability causes to the caster when strained.",
+    calculate = function(c)
+        local behaviors = c:try_get("behaviors", {})
+        for _, behavior in ipairs(behaviors) do
+            if behavior.typeName == "ActivatedAbilityDamageBehavior" and behavior:try_get("strainSelection", "") == "strained" then
+                return behavior:try_get("damageType", "untyped")
+            end
+        end
+        return "untyped"
+    end,
+
+})
+
 function ActivatedAbility:HasAttack()
     return self:HasKeyword("Strike")
 end
@@ -683,16 +725,25 @@ function ActivatedAbility:Render(options, params)
                             castTimeText = string.format("%d rounds ago", roundsSince)
                         end
                         if aura:try_get("duration") ~= "none" then
-                            local remainingRounds = aura.duration - roundsSince
-                            local expiresText = "this round"
-                            if remainingRounds == 1 then
-                                expiresText = "next round"
-                            elseif remainingRounds > 1 then
-                                expiresText = string.format("in %d rounds", remainingRounds)
-                            end
+                            local duration = aura.duration
+                            if type(duration) == "string" then
+                                if duration == "eoe" then
+                                    expiresText = "End of Encounter"
+                                elseif duration == "eot" then
+                                    expiresText = "End of Turn"
+                                end
+                            else
+                                local remainingRounds = aura.duration - roundsSince
+                                local expiresText = "this round"
+                                if remainingRounds == 1 then
+                                    expiresText = "next round"
+                                elseif remainingRounds > 1 then
+                                    expiresText = string.format("in %d rounds", remainingRounds)
+                                end
 
-                            element.text = string.format("Effect cast %s, expires %s%s", castTimeText, expiresText,
-                                concentrationText)
+                                element.text = string.format("Effect cast %s, expires %s%s", castTimeText, expiresText,
+                                    concentrationText)
+                            end
                         else
                             element.text = string.format("Effect cast %s, lasts indefinitely", castTimeText,
                                 concentrationText)

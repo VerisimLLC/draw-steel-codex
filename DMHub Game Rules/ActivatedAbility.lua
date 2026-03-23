@@ -1151,9 +1151,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken) <= 0 then
+    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         return false
-    elseif symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin) <= 0 then
+    elseif symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end
 

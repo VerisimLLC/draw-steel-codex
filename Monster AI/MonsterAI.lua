@@ -289,7 +289,7 @@ function MonsterAI:FindValidTargetsOfStrike(token, ability, loc, range)
             end
 
             if dist <= range then
-                local los = token:GetLineOfSight(enemy)
+                local los = token:GetLineOfSight(enemy, token.properties:GetPierceWalls())
                 if los > 0 then
 
                     local edges = 0
@@ -420,7 +420,7 @@ function MonsterAI:ExecuteSquadStrike(ability)
 
             if toka ~= nil and toka.valid and (not toka.properties:IsDead()) and tokb ~= nil and tokb.valid then
                 dmhub.Schedule(0.8, function()
-                    rays[#rays+1] = dmhub.MarkLineOfSight(toka, tokb)
+                    rays[#rays+1] = dmhub.MarkLineOfSight(toka, tokb, toka.properties:GetPierceWalls())
                 end)
                 targetPairs[#targetPairs+1] = {a = squadMember.token.charid, b = bestOption.token.charid}
             end
@@ -726,7 +726,7 @@ function MonsterAI:ExecuteAbility(casterToken, ability, targets, options)
     if symbols.targetPairs == nil then
         for _,target in ipairs(targets) do
             if target.token ~= nil then
-                rays[#rays+1] = dmhub.MarkLineOfSight(casterToken, target.token)
+                rays[#rays+1] = dmhub.MarkLineOfSight(casterToken, target.token, casterToken.properties:GetPierceWalls())
             end
         end
     end

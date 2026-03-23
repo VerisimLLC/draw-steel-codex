@@ -677,7 +677,7 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            local ray = dmhub.MarkLineOfSight(g_token, target)
+                                            local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end

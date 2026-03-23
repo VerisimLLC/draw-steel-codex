@@ -181,7 +181,8 @@ BuiltinGoblinScriptFunctions = {
         if toka == nil or tokb == nil then
             return 1
         end
-        local coverInfo = dmhub.GetCoverInfo(toka, tokb)
+        local pierceWalls = (toka.properties ~= nil) and toka.properties:GetPierceWalls() or 0
+        local coverInfo = dmhub.GetCoverInfo(toka, tokb, pierceWalls)
         if coverInfo == nil then
             return 1
         end

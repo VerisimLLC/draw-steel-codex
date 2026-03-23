@@ -1994,7 +1994,7 @@ local function ReplaceTargetLineOfSightRays(rays)
     local t = {}
     for i, ray in ipairs(rays) do
         local key = string.format("%s-%s", ray.a.id, ray.b.id)
-        t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b)
+        t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
         m_targetLineOfSightRays[key] = nil
     end
 
@@ -3744,7 +3744,7 @@ CreateAbilityController = function()
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
                     if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
                         m_markLineOfSightToken = targetToken
                         m_markLineOfSightSourceToken = g_token
                         break
@@ -3752,7 +3752,7 @@ CreateAbilityController = function()
                 end
             else
                 --we just target from the source to the target.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken)
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls())
                 if m_markLineOfSight ~= nil then
                     m_markLineOfSightToken = targetToken
                     m_markLineOfSightSourceToken = g_token

@@ -64,7 +64,8 @@ end
 --- @return number rolls The number of available rolls for this follower
 function DTInfo:GetFollowerRolls(followerId)
     if followerId == nil or followerId == "" then return 0 end
-    return self:GetFollowerRollsMap()[followerId] or 0
+    local map = self:GetFollowerRollsMap()
+    return map[followerId] or 0
 end
 
 --- Sets the number of available rolls for a specific follower

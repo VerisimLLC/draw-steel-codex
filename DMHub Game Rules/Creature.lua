@@ -2187,7 +2187,7 @@ function creature:GetModifiersForSavingThrowRoll(saveid, options)
 		local coverAmount = "none"
 
 		if casterToken ~= nil and ourToken ~= nil then
-			local coverInfo = dmhub.GetCoverInfo(casterToken, ourToken)
+			local coverInfo = dmhub.GetCoverInfo(casterToken, ourToken, casterToken.properties:GetPierceWalls())
 			if coverInfo ~= nil then
 				if coverInfo.cover == 1 then
 					coverTooltip = string.format("%s\n<color=#aaffaaff>There is a %s in the way, providing Half Cover.", coverTooltip, coverInfo.description)
@@ -4341,6 +4341,7 @@ end
 function creature:GetCustomVisionSenses()
 	local result = {}
 	local darkvision = self:GetDarkvision()
+	local pierceWalls = self:GetPierceWalls() > 0
 
 	if darkvision ~= nil then
 		result[#result+1] = {
@@ -4348,7 +4349,7 @@ function creature:GetCustomVisionSenses()
 			radius = darkvision,
 			light = false,
 			dark = true,
-			penetrateWalls = false,
+			penetrateWalls = pierceWalls,
 			fieldOfView = true,
 		}
 	end
@@ -4363,7 +4364,7 @@ function creature:GetCustomVisionSenses()
 					radius = radius,
 					light = true,
 					dark = (v.type == "dark"),
-					penetrateWalls = v.penetrateWalls,
+					penetrateWalls = v.penetrateWalls or pierceWalls,
 					fieldOfView = v.fieldOfView,
 				}
 			end
@@ -5507,7 +5508,7 @@ function creature:GetModifiersForAttackAgainstUs(attacker, attack)
 		local coverTooltip = "The amount of cover the target has affects chance to hit."
 
 		if ourToken ~= nil and attackerToken ~= nil then
-			local coverInfo = dmhub.GetCoverInfo(attackerToken, ourToken)
+			local coverInfo = dmhub.GetCoverInfo(attackerToken, ourToken, attackerToken.properties:GetPierceWalls())
 			if coverInfo ~= nil then
 				if coverInfo.cover == 1 then
 					coverTooltip = string.format("%s\n<color=#ffaaaaff>There is a %s in the way, providing the target Half Cover.", coverTooltip, coverInfo.description)

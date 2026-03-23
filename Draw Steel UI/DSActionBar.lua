@@ -349,7 +349,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
         for i,ray in ipairs(rays) do
             local key = string.format("%s-%s", ray.a.id, ray.b.id)
                                             print("MARK:: BBB")
-            t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b)
+            t[key] = m_targetLineOfSightRays[key] or dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
             m_targetLineOfSightRays[key] = nil
         end
 
@@ -1826,7 +1826,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                         for _,ray in ipairs(rays) do
                             if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
                                 print("MARK:: CCC")
-                                m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b)
+                                m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
                                 m_markLineOfSightToken = targetToken
                                 m_markLineOfSightSourceToken = token
                                 break
@@ -1835,7 +1835,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                     else
                         --we just target from the source to the target.
                                 print("MARK:: DDD")
-                        m_markLineOfSight = dmhub.MarkLineOfSight(token, targetToken)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(token, targetToken, token.properties:GetPierceWalls())
                         if m_markLineOfSight ~= nil then
                             m_markLineOfSightToken = targetToken
                             m_markLineOfSightSourceToken = token
@@ -4905,7 +4905,7 @@ function GameHud.CreateActionBar(self, dialog, tokenInfo)
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
                                             print("MARK:: AAA")
-                                            local ray = dmhub.MarkLineOfSight(token, target)
+                                            local ray = dmhub.MarkLineOfSight(token, target, token.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end

@@ -1351,10 +1351,16 @@ creature.RegisterSymbol {
     lookup = function(c)
         if c:has_key("inflictedConditions") then
             local conditions = c.inflictedConditions
-            for _, cond in ipairs(conditions) do
+            for _, cond in pairs(conditions) do
                 if cond.duration == "save" then
                     return true
                 end
+            end
+        end
+
+        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+            if effectInstance.removeOnSave then
+                return true
             end
         end
 
@@ -1463,7 +1469,7 @@ local function GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token) > 0 and (not otherTok.properties:IsDead()) then
+            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls()) > 0 and (not otherTok.properties:IsDead()) then
                 local alreadyFound = false
                 for _, existing in ipairs(result) do
                     if existing.charid == otherTok.charid then
@@ -1609,7 +1615,7 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --remove any enemies that we don't have line of sight to or that can't grant flanking.
     for i = #adjacentEnemies, 1, -1 do
-        local los = adjacentEnemies[i]:GetLineOfSight(token)
+        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls())
         if los <= 0 or not adjacentEnemies[i].properties:CanGrantFlanking() then
             table.remove(adjacentEnemies, i)
         end
@@ -1724,6 +1730,10 @@ end
 
 function creature:GrantFlankingToAllies()
     return self:CalculateNamedCustomAttribute("Grant Flanking to Allies") > 0
+end
+
+function creature:GetPierceWalls()
+    return self:CalculateNamedCustomAttribute("Pierce Walls")
 end
 
 function creature:Echelon()

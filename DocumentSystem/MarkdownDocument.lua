@@ -1421,7 +1421,41 @@ function MarkdownDocument.DisplayPanel(self, args)
                         dehoverLink = function(element, link)
                             element.tooltip = nil
                         end,
+                        rightClick = function(element)
+                            if element.linkHovered == nil then return end
+                            local link = element.linkHovered
+                            if string.starts_with(link, "spoiler:") then return end
+                            local doc = CustomDocument.ResolveLink(link)
+                            if doc == nil then return end
+
+                            -- Only show context menu for navigable document types
+                            local isNavigable = false
+                            if type(doc) == "table" or type(doc) == "userdata" then
+                                if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                    isNavigable = true
+                                elseif MarkdownRender.IsRenderable(doc) then
+                                    isNavigable = true
+                                end
+                            end
+                            if not isNavigable then return end
+
+                            element.popup = gui.ContextMenu {
+                                entries = {
+                                    {
+                                        text = "Open in New Window",
+                                        click = function()
+                                            element.popup = nil
+                                            CustomDocument.OpenContent(doc)
+                                        end,
+                                    },
+                                },
+                            }
+                        end,
                         press = function(element)
+                            if element.popup then
+                                element.popup = nil
+                                return
+                            end
                             if element.linkHovered ~= nil then
                                 local link = element.linkHovered
                                 print("LINK::", element.linkHovered)
@@ -1457,6 +1491,29 @@ function MarkdownDocument.DisplayPanel(self, args)
 
                                 local doc = CustomDocument.ResolveLink(element.linkHovered)
                                 if doc ~= nil then
+                                    -- Try in-place navigation for document types
+                                    local navigableDocId = nil
+                                    if type(doc) == "table" or type(doc) == "userdata" then
+                                        if doc.IsDerivedFrom and doc.IsDerivedFrom("CustomDocument") and doc:try_get("id") then
+                                            navigableDocId = doc.id
+                                        elseif MarkdownRender.IsRenderable(doc) then
+                                            -- Wrap renderable content into a MarkdownDocument and upload so it has an ID
+                                            local wrappedDoc = MarkdownRender.RenderToMarkdown(doc, { noninteractive = false })
+                                            if wrappedDoc and wrappedDoc.id then
+                                                navigableDocId = wrappedDoc.id
+                                            end
+                                        end
+                                    end
+
+                                    if navigableDocId then
+                                        local dialogPanel = element:FindParentWithClass("framedPanel")
+                                        if dialogPanel and dialogPanel.data and dialogPanel.data.history then
+                                            dialogPanel:FireEvent("navigateToDocument", navigableDocId)
+                                            return
+                                        end
+                                    end
+
+                                    -- Fall back to opening in new window
                                     CustomDocument.OpenContent(doc)
                                 else
                                     local guid = dmhub.GenerateGuid()

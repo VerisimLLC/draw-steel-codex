@@ -779,7 +779,13 @@ CharacterModifier.TypeInfo.power = {
                     local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
                     local value = safe_toint(match.value)
                     local newValue = math.max(0, value + (adj or 0))
-                    rollProperties.tiers[j] = string.format("%s%s %d%s", match.prefix, match.type, newValue, match.postfix)
+                    local prefix = match.prefix
+                    local typeOutput = match.type
+                    if self:try_get("vertical", false) and adjustment.type ~= "jump" then
+                        prefix = regex.ReplaceAll(prefix, "vertical\\s+$", "")
+                        typeOutput = "vertical " .. adjustment.type
+                    end
+                    rollProperties.tiers[j] = string.format("%s%s %d%s", prefix, typeOutput, newValue, match.postfix)
                 end
             end
         end
@@ -2060,6 +2066,35 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            local hasVerticalAdjustment = false
+            for _,adj in ipairs(modifier:try_get("adjustments", {})) do
+                if adj.type == "push" or adj.type == "pull" or adj.type == "slide" then
+                    hasVerticalAdjustment = true
+                    break
+                end
+            end
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(not hasVerticalAdjustment, "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "",
+                },
+                gui.Check{
+                    style = {
+                        height = 30,
+                        width = 160,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Add Vertical",
+                    value = modifier:try_get("vertical", false),
+                    change = function(element)
+                        modifier.vertical = element.value
+                        Refresh()
+                    end,
+                },
+            }
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},

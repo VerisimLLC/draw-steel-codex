@@ -82,6 +82,15 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 end
 
 local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken, abilityAttr, options)
+
+    local symbols = table.shallow_copy(options.symbols or {})
+
+    --make sure symbols don't have any recursive symbols.
+    symbols.cast = nil
+    symbols.caster = nil
+    symbols.target = nil
+    symbols.targets = nil
+
     local invocation = AbilityInvocation.new{
         timestamp = ServerTimestamp(),
         userid = casterToken.activeControllerId,
@@ -90,9 +99,15 @@ local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken
         targeting = "prompt",
         invokerid = casterToken.charid,
         casterid = targetToken.charid,
-        symbols = options.symbols,
+        symbols = symbols,
         abilityAttr = abilityAttr,
     }
+
+    --local debugInfo = DebugCheckTableSelfReference(invocation)
+    --if debugInfo then
+    --    print("InvokeAbilityRemote:: Detected self reference in invocation table:", debugInfo)
+    --    return
+    --end
 
     targetToken:ModifyProperties{
         description = "Invoke Ability",

@@ -1002,7 +1002,7 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "1",
+                    text = "!",
                     fontFace = "DrawSteelGlyphs",
                     fontSize = 34,
                     halign = "left",
@@ -1045,7 +1045,7 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "2",
+                    text = "@",
                     fontFace = "DrawSteelGlyphs",
                     fontSize = 34,
                     halign = "left",
@@ -1085,7 +1085,7 @@ function ActivatedAbility:Render(options, params)
                     width = "auto",
                     height = "auto",
                     maxHeight = 22,
-                    text = "3",
+                    text = "#",
                     fontFace = "DrawSteelGlyphs",
                     fontSize = 34,
                     halign = "left",
@@ -2620,6 +2620,18 @@ GameSystem.RegisterGoblinScriptField {
         return StringSet.new {
             strings = strings,
         }
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Stolen",
+    type = "boolean",
+    desc = "True if this ability was stolen from another creature.",
+    seealso = {},
+    examples = {"self.Stolen"},
+    calculate = function(c)
+        return c:has_key("stolenFrom") and c.stolenFrom ~= nil and c.stolenFrom ~= ""
     end,
 }
 

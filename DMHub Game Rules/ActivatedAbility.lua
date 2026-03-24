@@ -2589,7 +2589,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 	options.targets = targets
 
 	for i,behavior in ipairs(self.behaviors) do
-		print("CastCoroutine:: behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
+		print("CastCoroutine::", self.name, "behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
 		if not behavior.instant and (not behavior:IsFiltered(self, casterToken, options)) then
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 CharacterPanel.HighlightAbilitySection{
@@ -2612,6 +2612,8 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
             end
 		end
 	end
+
+	print("CastCoroutine::", self.name, "end behaviors")
 
     if restoreTargets ~= nil then
         options.symbols.cast.targets = restoreTargets
@@ -2665,6 +2667,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 			end
 		end
 		
+	print("CastCoroutine::", self.name, "end with invoke")
 		gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, self, options.symbols)
 		return
 	end
@@ -2689,6 +2692,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		end
 	end
 
+	print("CastCoroutine::", self.name, "FinishCast()")
 	self:FinishCast(casterToken, options)
 end
 
@@ -3256,7 +3260,7 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 
 		for i,item in ipairs(result) do
-            if item.token ~= nil then
+            if item.token ~= nil and item.token.properties ~= nil and casterToken.properties ~= nil then
                 symbols.target = item.token.properties
                 symbols.caster = casterToken.properties
                 symbols.targetnumber = i

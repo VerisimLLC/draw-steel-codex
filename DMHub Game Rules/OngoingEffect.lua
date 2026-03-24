@@ -296,7 +296,7 @@ end
 --- @field ongoingEffectid string
 --- @field duration nil|number time in rounds
 --- @field time TimePoint time when effect was added.
---- @field endAbility nil|ActivatedAbility which ends the action
+--- @field _tmp_endAbility nil|ActivatedAbility which ends the action (transient, never serialized)
 --- @field countdowns nil|table<string,number> a map of string -> count which is a trigger id -> number of triggers left. Used to keep track of triggers
 ---                        which will expire this effect when they hit their limit. If any are 0 then this effect expires.
 --- @field casterInfo nil|{tokenid: string, concentrationid: nil|string}

@@ -295,7 +295,10 @@ local CreateListItem = function(options)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
                         if libraryPanel ~= nil then
-                            libraryPanel:FireEventTree("searchCompendium", m_search)
+                            local contentPanels = libraryPanel:GetChildrenWithClass('content-panel')
+                            for _,cp in ipairs(contentPanels) do
+                                cp:FireEventTree("searchCompendium", m_search)
+                            end
                         end
                     end
                 end,
@@ -311,7 +314,7 @@ local CreateListItem = function(options)
                     else
                         element:SetClass("searching", true)
                         if options.contentType ~= nil then
-                            element:SetClass("matchSearch", #SearchTableForText(dmhub.GetTable(options.contentType), text, options.contentType == "charConditions") > 0)
+                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
 
 	                    elseif options.tableName ~= nil and options.key ~= nil then
 		                    local table = dmhub.GetTable(options.tableName)

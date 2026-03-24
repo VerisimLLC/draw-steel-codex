@@ -224,7 +224,7 @@ function ActivatedAbilityStealAbilityBehavior:Cast(ability, casterToken, targets
 
             if passesFilter then
                 local synth = DeepCopy(a)
-                synth.stolenFrom = target.guid
+                synth.stolenFrom = target.token.id
 
                 results[#results+1] = synth
             end

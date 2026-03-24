@@ -173,16 +173,21 @@ mod.shared.InventoryCompendiumEditor = function(categories)
 							end
 
 							local match = true
+							local cat = catsTable[item:try_get("equipmentCategory", "")]
+							local catName = cat ~= nil and string.lower(cat.name) or ""
 							for _,term in ipairs(searchTerms) do
 								if match then
 									match = false
-									if TextSearch(item.name, term) then
+									if TextSearch(item.name, term) or TextSearch(catName, term) then
 										match = true
 									end
 								end
 							end
-						
+
 							element:SetClass("collapsed", not match)
+							if match and element.data.init == false then
+								element:FireEvent("expose")
+							end
 						end,
 
 						expose = function(element)

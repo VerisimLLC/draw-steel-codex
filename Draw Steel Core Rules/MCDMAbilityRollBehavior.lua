@@ -1,14 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-local g_settingTimeline = setting{
-    id = "rolltimelinedialog",
-    description = "Timeline Dialog",
-    default = true,
-    editor = "check",
-    --section = "General",
-    storage = "preference",
-}
-
 local g_animateTiers = setting{
     id = "animate_tiers",
     description = "Animate Power Table During Rolls",
@@ -512,7 +503,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                         element:SetClass("selectable", true)
                     end
                 end,
-                gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = string.format("%d", i), width = "16%", fontSize = 34, height = 20, valign = "center", },
+                gui.Label{ hpad = 0, textAlignment = "left", fontFace = "DrawSteelGlyphs", text = cond(i == 1, '!', cond(i == 2, '@', '#')), width = "16%", fontSize = 34, height = 20, valign = "center", },
                 gui.Panel{
                     vpad = 2,
                     width = "54%",
@@ -1056,36 +1047,41 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
     local dialog = GameHud.instance.rollDialog
 
-    if g_settingTimeline:Get() then
 
-        local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
-        print("Timeline:: Displaying:", displaying)
+    --timeline roll dialog
+    local displaying = CharacterPanel.DisplayAbility(casterToken, ability, options.symbols, {lock = true})
+    print("Timeline:: Displaying:", displaying)
 
-        if displaying then
-            print("Timeline:: INSTALL HANDLER")
-            options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
-            options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
-            print("Timeline:: RUN HANDLER")
-                CharacterPanel.HideAbility(ability)
-            end
+    if displaying then
+        print("Timeline:: INSTALL HANDLER")
+        options.OnFinishCastHandlers = options.OnFinishCastHandlers or {}
+        options.OnFinishCastHandlers[#options.OnFinishCastHandlers+1] = function()
+        print("Timeline:: RUN HANDLER")
+            CharacterPanel.HideAbility(ability)
         end
+    end
 
-        -- EmbedDialogInAbility returns nil when the sidebar is not available
-        -- (e.g. triggered ability context). Only overwrite dialog if successful
-        -- so the fallback GameHud.instance.rollDialog is preserved.
-        local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
-        if embeddedDialog ~= nil then
-            dialog = embeddedDialog
+    -- EmbedDialogInAbility returns nil when the sidebar is not available
+    -- (e.g. triggered ability context). Only overwrite dialog if successful
+    -- so the fallback GameHud.instance.rollDialog is preserved.
+    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+    if embeddedDialog ~= nil then
+        dialog = embeddedDialog
 
-            --give a few cycles for the dialog to init.
-            for i=1,4 do
-                coroutine.yield(0.01)
-            end
+        --give a few cycles for the dialog to init.
+        for i=1,4 do
+            coroutine.yield(0.01)
         end
     end
 
 
     local rollKey
+    if not dialog.valid then
+        dialog = GameHud.instance.rollDialog
+    end
+    if not dialog.valid then
+        return
+    end
     rollKey = dialog.data.ShowDialog{
         description = ability.name .. ": Power Roll",
         title = ability.name,
@@ -1433,6 +1429,8 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
     triggerInfo.lowroll = options.symbols.cast.lowRoll
 
     triggerInfo.ability = ability
+
+    if casterToken.properties == nil then return end
 
     casterToken.properties:DispatchEvent("rollpower", triggerInfo)
 

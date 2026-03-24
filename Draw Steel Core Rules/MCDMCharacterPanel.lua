@@ -1,8 +1,8 @@
 local mod = dmhub.GetModLoading()
 
 setting{
-    id = "newTacPanel",
-    description = "Use the new tactical panel",
+    id = "oldTacPanel",
+    description = "Use the old tactical panel",
     editor = "check",
     default = false,
     storage = "preference",
@@ -7753,8 +7753,8 @@ end
 
 CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
-    local newTacPanel = dmhub.GetSettingValue("newTacPanel") == true
-    local oldTacPanel = not newTacPanel
+    local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+    local newTacPanel = not oldTacPanel
 
     local m_effectEntryPanels = {}
     local m_customConditionPanels = {}
@@ -9277,8 +9277,8 @@ CharacterPanel.CreateMultiEdit = function()
 		return multiEditBaseFunction()
 	end
 
-	local newTacPanel = dmhub.GetSettingValue("newTacPanel") == true
-	if newTacPanel then
+	local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+	if not oldTacPanel then
 		return TacPanel.MultiEdit()
 	end
 
@@ -10424,8 +10424,8 @@ end
 
 function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 
-    local newTacPanel = dmhub.GetSettingValue("newTacPanel") == true
-    local oldTacPanel = not newTacPanel
+    local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+    local newTacPanel = not oldTacPanel
 
 	local characterDisplaySidebar
 

@@ -417,6 +417,36 @@ function GameHud:CreateDocumentDialog()
     }
 
 
+    local dialogPanel
+
+    local function createDocInterfaceArgs(docId)
+        return {
+            dialogPanel = dialogPanel,
+            close = function(element)
+                closeButton:FireEvent("click")
+            end,
+            titlePanel = gui.Panel {
+                selfStyle = {
+                    flow = 'horizontal',
+                    width = 'auto',
+                    height = 'auto',
+                    pad = 0,
+                    tmargin = 4,
+                    lmargin = 20,
+                    halign = "left",
+                    valign = 'top',
+                },
+                children = {
+                    title,
+                    gui.Panel { width = 8, height = 8 },
+                    bubbleIcon,
+                    gui.Panel { width = 30, height = 8 },
+                    lockIcon,
+                }
+            }
+        }
+    end
+
     local customDocPanel = gui.Panel {
         data = {
             docid = false,
@@ -429,42 +459,14 @@ function GameHud:CreateDocumentDialog()
             if info.document.docid then
                 local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[info.document.docid]
                 if doc ~= nil then
-                    element.data.interfacePanel = doc:CreateInterface {
-                        close = function(element)
-                            closeButton:FireEvent("click")
-                        end,
+                    -- Reset history when switching entries
+                    if dialogPanel then
+                        dialogPanel.data.history = {}
+                        dialogPanel.data.forwardHistory = {}
+                        dialogPanel.data.currentDocId = info.document.docid
+                    end
 
-                        titlePanel = gui.Panel {
-                            selfStyle = {
-                                flow = 'horizontal',
-                                width = 'auto',
-                                height = 'auto',
-                                pad = 0,
-                                tmargin = 4,
-                                lmargin = 20,
-                                halign = "left",
-                                valign = 'top',
-                            },
-                            children = {
-                                title,
-                                --padding.
-                                gui.Panel {
-                                    width = 8,
-                                    height = 8,
-                                },
-                                bubbleIcon,
-                                --padding.
-                                gui.Panel {
-                                    width = 30,
-                                    height = 8,
-                                },
-                                lockIcon,
-                            }
-                        }
-
-
-                    }
-
+                    element.data.interfacePanel = doc:CreateInterface(createDocInterfaceArgs(info.document.docid))
                     element.children = { element.data.interfacePanel }
                     element.data.docid = info.document.docid
                 end
@@ -492,7 +494,7 @@ function GameHud:CreateDocumentDialog()
         end,
     }
 
-    local dialogPanel = gui.Panel {
+    dialogPanel = gui.Panel {
         classes = { "framedPanel" },
         valign = 'top',
         halign = 'left',
@@ -500,6 +502,80 @@ function GameHud:CreateDocumentDialog()
         opacity = 0.98,
         width = dialogWidth,
         height = dialogHeight,
+
+        data = {
+            history = {},
+            forwardHistory = {},
+            currentDocId = false,
+        },
+
+        navigateToDocument = function(element, docId)
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local newDoc = docs[docId]
+            if newDoc == nil then return end
+
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.forwardHistory = {}
+            element.data.currentDocId = docId
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = newDoc:CreateInterface(createDocInterfaceArgs(docId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = docId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateBack = function(element)
+            local history = element.data.history
+            if #history == 0 then return end
+
+            local prevDocId = history[#history]
+            history[#history] = nil
+
+            element.data.forwardHistory[#element.data.forwardHistory + 1] = element.data.currentDocId
+            element.data.currentDocId = prevDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local prevDoc = docs[prevDocId]
+            if prevDoc == nil then return end
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = prevDoc:CreateInterface(createDocInterfaceArgs(prevDocId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = prevDocId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
+        navigateForward = function(element)
+            local forwardHistory = element.data.forwardHistory
+            if #forwardHistory == 0 then return end
+
+            local nextDocId = forwardHistory[#forwardHistory]
+            forwardHistory[#forwardHistory] = nil
+
+            element.data.history[#element.data.history + 1] = element.data.currentDocId
+            element.data.currentDocId = nextDocId
+
+            local docs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local nextDoc = docs[nextDocId]
+            if nextDoc == nil then return end
+
+            if customDocPanel.data.interfacePanel then
+                customDocPanel.data.interfacePanel:DestroySelf()
+            end
+            customDocPanel.data.interfacePanel = nextDoc:CreateInterface(createDocInterfaceArgs(nextDocId))
+            customDocPanel.children = { customDocPanel.data.interfacePanel }
+            customDocPanel.data.docid = nextDocId
+
+            element:FireEventTree("refreshNavButtons")
+        end,
+
         children = {
             leftPanel,
             mainPanel,

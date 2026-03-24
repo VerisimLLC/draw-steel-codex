@@ -6,9 +6,12 @@
 --- @field imbueTargetType string The equipment type this imbuement applies to: "armor", "implement", or "weapon".
 --- @field imbueLevel number Imbuement tier level (1, 5, or 9 correspond to kit tiers).
 --- @field imbuePrereq nil|string Id of a prerequisite imbuement that must already be applied.
+--- @field imbueReplacesPrereq boolean If true, applying this imbuement removes the prerequisite's features from the target item.
 --- @field features table[] Features/modifiers applied to the target item when imbued.
 --- Represents an imbuement: a magical enhancement that can be applied to a mundane item.
 DSImbuement = RegisterGameType("DSImbuement")
+
+DSImbuement.imbueReplacesPrereq = false
 
 --- Create a unique mundane item to be imbued
 --- @param itemType "armor"|"implement"|"weapon"
@@ -40,6 +43,33 @@ function DSImbuement.CreateMundaneItem(itemType)
     dmhub.SetAndUploadTableItem(equipment.tableName, item)
 
     return item
+end
+
+--- Remove features contributed by a specific imbuement from targetItem,
+--- and clean up the imbuements tracking table entry.
+--- @param targetItem equipment
+--- @param imbueId string
+--- @param imbuements table
+local function _removeImbuementFromItem(targetItem, imbueId, imbuements)
+    local imbueObj = dmhub.GetTable(equipment.tableName)[imbueId]
+    if imbueObj then
+        for _,oldFeature in ipairs(imbueObj:try_get("features", {})) do
+            for i,itemFeature in ipairs(targetItem:try_get("features", {})) do
+                if itemFeature.guid == oldFeature.guid then
+                    table.remove(targetItem.features, i)
+                    break
+                end
+            end
+        end
+    end
+    imbuements[imbueId] = nil
+    local byLevel = imbuements.byLevel or {}
+    for level, id in pairs(byLevel) do
+        if id == imbueId then
+            byLevel[level] = nil
+            break
+        end
+    end
 end
 
 --- Determine whether the imbuement can be applied to the target
@@ -104,6 +134,21 @@ function DSImbuement.ImbueItem(imbueItem, targetItem)
                 end
             end
         end
+    end
+
+    -- If this imbuement replaces its prereq, recursively remove
+    -- the prereq and any imbuements it also replaced.
+    if imbueItem:try_get("imbueReplacesPrereq", false) and prereq and prereq ~= "none" then
+        local function removeChain(chainId)
+            if chainId == nil or chainId == "none" then return end
+            if imbuements[chainId] ~= true then return end
+            local chainObj = dmhub.GetTable(equipment.tableName)[chainId]
+            if chainObj and chainObj:try_get("imbueReplacesPrereq", false) then
+                removeChain(chainObj:try_get("imbuePrereq"))
+            end
+            _removeImbuementFromItem(targetItem, chainId, imbuements)
+        end
+        removeChain(prereq)
     end
 
     -- Apply the imbuement's features

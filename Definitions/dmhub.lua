@@ -311,6 +311,20 @@ function dmhub.ParseDocxFile(path, errorCallback)
 	-- dummy implementation for documentation purposes only
 end
 
+--- GetTileRulesAtLoc: Returns the tile game rules at the given location, or nil if the location has no terrain. This includes rules from auras with forced game rules.
+--- @param loc Loc The location to query.
+--- @return nil|TileGameRules
+function dmhub.GetTileRulesAtLoc(loc)
+	-- dummy implementation for documentation purposes only
+end
+
+--- IsLocDifficultTerrain: Returns true if the given location is difficult terrain. Checks both tile rules and auras.
+--- @param loc Loc The location to query.
+--- @return boolean
+function dmhub.IsLocDifficultTerrain(loc)
+	-- dummy implementation for documentation purposes only
+end
+
 --- FillTerrain: Sets the terrain background of the current map. Passing in nil will clear the background.
 --- @param terrainid: string|nil
 function dmhub.FillTerrain(terrainid)

@@ -237,16 +237,23 @@ function ActivatedAbilityRemoveCreatureBehavior:Cast(ability, casterToken, targe
 
             castInfo.activity = nil
 
-            --make sure we still pass the filter.
-            local filterTarget = trim(self.filterTarget)
-            if filterTarget ~= "" then
-                local symbols = table.shallow_copy(options.symbols or {})
-                symbols.target = target.token.properties
-                symbols.caster = casterToken.properties
-                symbols.targetnumber = i
-                symbols.numberoftargets = #targets
+            --guard against token being destroyed/despawned during the coroutine yield.
+            if not target.token.valid or target.token.properties == nil then
+                targetPasses = false
+            end
 
-                targetPasses = GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
+            --make sure we still pass the filter.
+            if targetPasses then
+                local filterTarget = trim(self.filterTarget)
+                if filterTarget ~= "" then
+                    local symbols = table.shallow_copy(options.symbols or {})
+                    symbols.target = target.token.properties
+                    symbols.caster = casterToken.properties
+                    symbols.targetnumber = i
+                    symbols.numberoftargets = #targets
+
+                    targetPasses = GoblinScriptTrue(ExecuteGoblinScript(filterTarget, target.token.properties:LookupSymbol(symbols), 1, "Filter remove creature"))
+                end
             end
         end
 

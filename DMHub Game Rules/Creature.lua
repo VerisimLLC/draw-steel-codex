@@ -3703,8 +3703,8 @@ function creature:GetActivatedAbilities(options)
 
 	if self:has_key("ongoingEffects") then
 		for i,cond in ipairs(self.ongoingEffects) do
-			if cond:try_get('endAbility') ~= nil and not cond:Expired() then
-				result[#result+1] = cond.endAbility
+			if cond:try_get('_tmp_endAbility') ~= nil and not cond:Expired() then
+				result[#result+1] = cond._tmp_endAbility
 			end
 		end
 	end
@@ -6267,7 +6267,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 					local condCasterInfo = cond:try_get("casterInfo")
 					if condCasterInfo ~= nil and condCasterInfo.tokenid == casterInfo.tokenid then
 						cond.stolenAbility = stolenAbility
-						cond.endAbility = ongoingEffect:GetEndAbility()
+						cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 						cond.casterInfo = casterInfo
 						cond.seq = highestSeq + 1
 						if options.stacks == nil then
@@ -6295,7 +6295,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
                 end
 
 				cond.stolenAbility = stolenAbility
-				cond.endAbility = ongoingEffect:GetEndAbility()
+				cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 				cond.casterInfo = casterInfo
 				cond.seq = highestSeq + 1
 				if options.stacks == nil then
@@ -6322,7 +6322,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
                 end
 
 				cond.stolenAbility = stolenAbility
-				cond.endAbility = ongoingEffect:GetEndAbility()
+				cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 				cond.casterInfo = casterInfo
                 cond.bondid = bondid
 				cond.seq = highestSeq + 1
@@ -6338,7 +6338,6 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 			ongoingEffectid = ongoingEffectid,
 			duration = duration,
 			stolenAbility = stolenAbility,
-			endAbility = ongoingEffect:GetEndAbility(),
 			casterInfo = casterInfo,
 			stacks = cond(options.stacks == nil, 1, options.stacks),
 			seq = highestSeq + 1,
@@ -6348,6 +6347,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		}
 
 		result = ongoingEffects[#ongoingEffects]
+		result._tmp_endAbility = ongoingEffect:GetEndAbility()
 	end
 
     result.casterSet = casterSet

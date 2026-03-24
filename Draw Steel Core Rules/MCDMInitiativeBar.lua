@@ -327,7 +327,7 @@ local function CreateDrawSteelBubble()
                 },
 
                 {
-                    text = cond(playersGoFirst, "Set Enemies to Go First Each Round", "Set Players to Go First Each Round"),
+                    text = cond(playersGoFirst, "Set Monsters to Go First Each Round", "Set Players to Go First Each Round"),
                     click = function()
                         self.popup = nil
 					    dmhub.initiativeQueue.playersGoFirst = not playersGoFirst

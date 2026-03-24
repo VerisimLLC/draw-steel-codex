@@ -281,7 +281,7 @@ function math.clamp01(x)
 end
 
 function DebugMatchesSearchRecursive(obj, search, depth, path)
-    if depth > 16 then
+    if depth > 6 then
         return false
     end
     if type(obj) == "table" then
@@ -304,7 +304,7 @@ end
 
 function MatchesSearchRecursive(obj, search, depth)
     depth = depth or 0
-    if depth > 16 then
+    if depth > 6 then
         return false
     end
     if type(obj) == "table" then
@@ -320,6 +320,15 @@ function MatchesSearchRecursive(obj, search, depth)
         end
     end
 
+    return false
+end
+
+function SearchTableHasMatch(t, search)
+    for k,v in unhidden_pairs(t) do
+        if MatchesSearchRecursive(k, search) or MatchesSearchRecursive(v, search) then
+            return true
+        end
+    end
     return false
 end
 
@@ -811,4 +820,40 @@ function DeepCopy(t)
     local result = DeepCopyInternal(t, {})
     local _ = g_profileDeepCopy.End
     return result
+end
+
+-- Checks whether a table contains any circular references.
+-- Returns nil if no self-references are found.
+-- Returns a string tracing the path of keys that form the cycle otherwise.
+function DebugCheckTableSelfReference(t)
+    local visited = {}
+
+    local function check(obj, path)
+        if type(obj) ~= "table" then
+            return nil
+        end
+
+        if visited[obj] then
+            return path .. " -> " .. visited[obj] .. " (cycle)"
+        end
+
+        visited[obj] = path
+
+        for k, v in pairs(obj) do
+            if type(k) == "string" and string.sub(k, 1, 5) == "_tmp_" then
+                -- skip transient fields
+            elseif type(v) == "table" then
+                local key_str = tostring(k)
+                local child_path = path .. "." .. key_str
+                local result = check(v, child_path)
+                if result then
+                    return result
+                end
+            end
+        end
+
+        return nil
+    end
+
+    return check(t, "root")
 end

@@ -152,7 +152,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
         if promptWhenResolving and #targetChoices > 0 then
 
-            print("ChooseTarget:: prompting...")
+            print("INVOKE:: ChooseTarget:: prompting...")
             targets = nil
             GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
                 sourceToken = casterToken,
@@ -330,9 +330,11 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
     local snapshot = ActivatedAbility.GetActiveCastSnapshot()
-    while gamehud.rollDialog.data.IsShown() or gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
+    while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()) or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell()) or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
         coroutine.safe_sleep_while(function()
-
+            if not gamehud.actionBarPanel.valid then
+                return false
+            end
             return gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
         end)
 
@@ -468,6 +470,9 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
+            if not gamehud.actionBarPanel.valid then
+                return false
+            end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
 
             local result = isCasting or isPreparing

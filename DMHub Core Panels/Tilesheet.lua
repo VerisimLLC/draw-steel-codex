@@ -2261,6 +2261,58 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 							RefreshAssets()
 						end,
 					},
+
+					gui.Panel{
+						classes = {cond((asset.solidity or "Unbreakable") ~= "Solid", "collapsed-anim")},
+						refreshAssets = function(element)
+							element:SetClass('collapsed-anim', (asset.solidity or "Unbreakable") ~= "Solid")
+						end,
+						flow = "vertical",
+						width = "100%",
+						height = "auto",
+						children = {
+							gui.Label{
+								text = "Replacement Wall:",
+								classes = {"formLabel"},
+							},
+
+							gui.Dropdown{
+								id = "replacementWallDropdown",
+								hasSearch = true,
+								idChosen = asset.replacementWallId or "__default__",
+								options = (function()
+									local result = {
+										{
+											id = "__default__",
+											text = "Same as original",
+										},
+									}
+									for id, wall in pairs(assets.walls) do
+										if not wall.hidden then
+											result[#result+1] = {
+												id = id,
+												text = wall.description or id,
+											}
+										end
+									end
+									table.sort(result, function(a, b)
+										if a.id == "__default__" then return true end
+										if b.id == "__default__" then return false end
+										return a.text < b.text
+									end)
+									return result
+								end)(),
+								change = function(element)
+									if element.idChosen == "__default__" then
+										asset.replacementWallId = nil
+									else
+										asset.replacementWallId = element.idChosen
+									end
+									RefreshAssets()
+								end,
+							},
+						},
+					},
 				},
 			},
 

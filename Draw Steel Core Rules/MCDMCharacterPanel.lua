@@ -2208,7 +2208,7 @@ function TacPanel.Summary()
                 bgimage = "ui-icons/eye.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
-                data = { token = nil },
+                data = { token = nil, maxLookup = 0 },
                 monitor = "lookup",
                 events = {
                     monitor = function(element)
@@ -2227,6 +2227,19 @@ function TacPanel.Summary()
                         return
                     end
                     element:SetClass("collapsed", false)
+
+                    local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+                    local maxLookup
+                    if canLookup == "always" then
+                        maxLookup = token.countFloorsAbove
+                    else
+                        maxLookup = token.countFloorsWithVisionAbove
+                    end
+                    if maxLookupSetting >= 0 then
+                        maxLookup = math.min(maxLookup, maxLookupSetting)
+                    end
+                    element.data.maxLookup = maxLookup
+
                     local cur = dmhub.GetSettingValue("lookup")
                     element.selfStyle.bgcolor = (cur >= 1) and TEAL or DIM
                 end,
@@ -2238,11 +2251,51 @@ function TacPanel.Summary()
                 end,
                 press = function(element)
                     local cur = dmhub.GetSettingValue("lookup")
-                    dmhub.SetSettingValue("lookup", (cur >= 1) and 0 or 1)
+                    local maxLookup = element.data.maxLookup or 1
+
+                    if maxLookup <= 1 then
+                        dmhub.SetSettingValue("lookup", (cur >= 1) and 0 or 1)
+                        return
+                    end
+
+                    if element.popup ~= nil then
+                        element.popup = nil
+                        return
+                    end
+
+                    local items = {}
+                    items[#items+1] = {
+                        text = "Forward",
+                        click = function()
+                            dmhub.SetSettingValue("lookup", 0)
+                            element.popup = nil
+                        end,
+                    }
+                    for i = 1, maxLookup do
+                        items[#items+1] = {
+                            text = "Up " .. tostring(i),
+                            click = function()
+                                dmhub.SetSettingValue("lookup", i)
+                                element.popup = nil
+                            end,
+                        }
+                    end
+
+                    element.popup = gui.ContextMenu{
+                        entries = items,
+                    }
                 end,
                 linger = function(element)
                     local cur = dmhub.GetSettingValue("lookup")
-                    local text = (cur >= 1) and "Look forward" or "Look up"
+                    local maxLookup = element.data.maxLookup or 1
+                    local text
+                    if cur <= 0 then
+                        text = "Look up"
+                    elseif maxLookup <= 1 then
+                        text = "Look forward"
+                    else
+                        text = string.format("Up %d / %d (click to cycle)", cur, maxLookup)
+                    end
                     gui.Tooltip(text)(element)
                 end,
             }),

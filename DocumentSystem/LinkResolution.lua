@@ -226,8 +226,11 @@ function CustomDocument.SearchLinks(search)
     end
 
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+    local accessibleRoots = CustomDocument.GetAccessibleRoots()
     for k,doc in unhidden_pairs(customDocs) do
-        if string.find(string.lower(doc.description), search, 1, true) or doc:MatchesSearch(search) then
+        if (isDM or not doc.hiddenFromPlayers)
+            and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
+            and (string.find(string.lower(doc.description), search, 1, true) or doc:MatchesSearch(search)) then
             local link = "document:" .. k
             results[#results+1] = {
                 link = link,

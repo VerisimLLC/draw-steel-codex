@@ -79,12 +79,12 @@ TacPanelSizes.Fonts = {
     charTitle = 12,
     charValue = 30,
 
-    hrChipValue = 14,
-    hrChipEvent = 12,
-    hrChipFreq = 12,
-    growHRTitle = 14,
-    grValue = 16,
-    grText = 14,
+    hrChipValue = 12,
+    hrChipEvent = 10,
+    hrChipFreq = 10,
+    growHRTitle = 12,
+    grValue = 14,
+    grText = 12,
 
     skillsLangs = 14,
 
@@ -174,6 +174,15 @@ TacPanelStyles.TacPanel = {
     { selectors = {"tp-expando"},
       hmargin = 8, halign = "right", valign = "center",
       color = DIM },
+    -- Drag handle
+    { selectors = {"tp-drag-handle"},
+      bgimage = "icons/icon_common/icon_common_4.png",
+      bgcolor = DIM,
+      width = 14, height = 14,
+      halign = "left", valign = "center",
+      hmargin = 4 },
+    { selectors = {"tp-drag-handle", "drag-target"},
+      bgcolor = TEAL },
 }
 TacPanelStyles.Tooltip = {
     {
@@ -258,7 +267,7 @@ TacPanelStyles.SummaryInfo = {
 
     -- Control buttons below portrait
     {
-        selectors = {"vision-btn"},
+        selectors = {"toggle-btn"},
         halign = "left",
         valign = "top",
         pad = 4,
@@ -267,17 +276,23 @@ TacPanelStyles.SummaryInfo = {
         borderColor = GRAY02,
     },
     {
-        selectors = {"vision-btn", "on"},
-        bgcolor = TEAL,
-    },
-    {
-        selectors = {"vision-btn", "hover"},
+        selectors = {"toggle-btn", "hover"},
         brightness = 1.5,
         transitionTime = 0.2,
     },
     {
-        selectors = {"vision-btn", "press"},
+        selectors = {"toggle-btn", "press"},
         brightness = 0.5,
+    },
+    -- Light toggle button
+    {
+        selectors = {"light-btn"},
+        bgimage = "drawsteel/light-off.png",
+        bgcolor = "white",
+    },
+    {
+        selectors = {"light-btn", "light-on"},
+        bgcolor = GOLD_LIGHT,
     },
 }
 TacPanelStyles.TokenBox = {
@@ -322,7 +337,7 @@ TacPanelStyles.TokenBox = {
         height = "auto",
         valign = "top",
         halign = "center",
-        vmargin = 4,
+        tmargin = 4,
         fontFace = "Berling",
         fontSize = 12,
         textAlignment = "center",
@@ -370,6 +385,7 @@ TacPanelStyles.TokenBox = {
         width = "auto",
         height = "auto",
         valign = "top",
+        tmargin = -4,
         hmargin = 6,
         fontFace = "Newzald",
         fontSize = 30,
@@ -386,8 +402,8 @@ TacPanelStyles.TokenBox = {
         selectors = {"refresh-icon"},
         halign = "right",
         valign = "bottom",
-        hmargin = 6,
-        vmargin = 6,
+        hmargin = 4,
+        vmargin = 4,
     }
 }
 TacPanelStyles.Stamina = {
@@ -805,7 +821,7 @@ TacPanelStyles.CharacteristicsPanel = {
         height = "auto",
         halign = "center",
         valign = "top",
-        tmargin = 4,
+        -- tmargin = 4,
         color = MUTED,
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.charValue,
@@ -1694,6 +1710,7 @@ function TacPanel.HeroTokenBox()
         gui.Panel{
             classes = {"container"},
             halign = "center",
+            valign = "top",
             flow = "horizontal",
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
@@ -2079,7 +2096,7 @@ function TacPanel.Summary()
                         else
                             text = string.format("LEVEL %d", level)
                         end
-                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 14, #text)
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 12, #text)
                         element.text = text
                     end,
                     setToken = function(element, token)
@@ -2146,7 +2163,7 @@ function TacPanel.Summary()
             classes = {"container"},
             flow = "horizontal",
             outlineButton(gui.EnhIconButton{
-                classes = {"vision-btn"},
+                classes = {"toggle-btn"},
                 bgimage = "panels/initiative/initiative-icon.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2176,15 +2193,14 @@ function TacPanel.Summary()
                 end,
             }),
             outlineButton(gui.Panel{
-                classes = {"vision-btn"},
-                bgimage = "icons/icon_weather/icon_weather_1.png",
+                classes = {"toggle-btn", "light-btn"},
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
+                bgimage = "drawsteel/light-off.png",
                 refreshCharacter = function(element, token)
-                    local bgcolor = (token.properties.selectedLoadout == 1)
-                        and GOLD_LIGHT
-                        or GRAY02
-                    element.selfStyle.bgcolor = bgcolor
+                    local lightOn = token.properties.selectedLoadout == 1
+                    element.selfStyle.bgimage = lightOn and "drawsteel/light-on.png" or "drawsteel/light-off.png"
+                    element.selfStyle.bgcolor = lightOn and GOLD_LIGHT or GRAY02
                 end,
                 setToken = function(element, token)
                     element:FireEvent("refreshCharacter", token)
@@ -2197,11 +2213,11 @@ function TacPanel.Summary()
                 end,
             }),
             outlineButton(gui.Panel{
-                classes = {"vision-btn", "collapsed"},
+                classes = {"toggle-btn", "collapsed"},
                 bgimage = "ui-icons/eye.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
-                data = { token = nil },
+                data = { token = nil, maxLookup = 0 },
                 monitor = "lookup",
                 events = {
                     monitor = function(element)
@@ -2220,6 +2236,19 @@ function TacPanel.Summary()
                         return
                     end
                     element:SetClass("collapsed", false)
+
+                    local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+                    local maxLookup
+                    if canLookup == "always" then
+                        maxLookup = token.countFloorsAbove
+                    else
+                        maxLookup = token.countFloorsWithVisionAbove
+                    end
+                    if maxLookupSetting >= 0 then
+                        maxLookup = math.min(maxLookup, maxLookupSetting)
+                    end
+                    element.data.maxLookup = maxLookup
+
                     local cur = dmhub.GetSettingValue("lookup")
                     element.selfStyle.bgcolor = (cur >= 1) and TEAL or DIM
                 end,
@@ -2231,11 +2260,51 @@ function TacPanel.Summary()
                 end,
                 press = function(element)
                     local cur = dmhub.GetSettingValue("lookup")
-                    dmhub.SetSettingValue("lookup", (cur >= 1) and 0 or 1)
+                    local maxLookup = element.data.maxLookup or 1
+
+                    if maxLookup <= 1 then
+                        dmhub.SetSettingValue("lookup", (cur >= 1) and 0 or 1)
+                        return
+                    end
+
+                    if element.popup ~= nil then
+                        element.popup = nil
+                        return
+                    end
+
+                    local items = {}
+                    items[#items+1] = {
+                        text = "Forward",
+                        click = function()
+                            dmhub.SetSettingValue("lookup", 0)
+                            element.popup = nil
+                        end,
+                    }
+                    for i = 1, maxLookup do
+                        items[#items+1] = {
+                            text = "Up " .. tostring(i),
+                            click = function()
+                                dmhub.SetSettingValue("lookup", i)
+                                element.popup = nil
+                            end,
+                        }
+                    end
+
+                    element.popup = gui.ContextMenu{
+                        entries = items,
+                    }
                 end,
                 linger = function(element)
                     local cur = dmhub.GetSettingValue("lookup")
-                    local text = (cur >= 1) and "Look forward" or "Look up"
+                    local maxLookup = element.data.maxLookup or 1
+                    local text
+                    if cur <= 0 then
+                        text = "Look up"
+                    elseif maxLookup <= 1 then
+                        text = "Look forward"
+                    else
+                        text = string.format("Up %d / %d (click to cycle)", cur, maxLookup)
+                    end
                     gui.Tooltip(text)(element)
                 end,
             }),
@@ -2324,7 +2393,7 @@ end
 --- Display the temp stamina box
 --- @return Panel
 function TacPanel.TempStamBox()
-    local placeholder = "p"
+    local placeholder = "b"
     return gui.Panel{
         classes = {"stamina-box", "temp"},
         gui.Label{
@@ -3433,9 +3502,9 @@ end
 --- @return Panel
 function TacPanel.Statistics()
     return TacPanel.CollapsiblePanel{
+        sectionId = "statistics",
         title = "STATISTICS",
         altBg = false,
-        tmargin = -26,
         gui.Panel{
             classes = {"container"},
             width = "100%",
@@ -3665,14 +3734,16 @@ function TacPanel.CollapsiblePanel(args)
     local extraClasses = args.classes or {}
     local extraData = args.data or {}
     local altBg = args.altBg ~= false
+    local sectionId = args.sectionId
     args.title = nil
     args.styles = nil
     args.classes = nil
     args.data = nil
     args.altBg = nil
+    args.sectionId = nil
 
     -- Build merged data with collapsed default
-    local data = { collapsed = false }
+    local data = { collapsed = false, sectionId = sectionId }
     for k,v in pairs(extraData) do
         data[k] = v
     end
@@ -3690,11 +3761,41 @@ function TacPanel.CollapsiblePanel(args)
         allStyles[#allStyles+1] = s
     end
 
-    -- Title bar (always child[1])
-    local titleBar = gui.Panel{
-        classes = {"tp-title-bar"},
+    -- Drag handle for reorderable sections
+    -- Drag handle for reorderable sections
+    local dragHandle = sectionId and gui.Panel{
+        classes = {"tp-drag-handle"},
+        draggable = true,
+        dragTarget = true,
+        canDragOnto = function(element, target)
+            return target:HasClass("tp-drag-handle")
+        end,
+        drag = function(element, target)
+            if target == nil then return end
+            local draggedSection = element.parent.parent
+            local targetSection = target.parent.parent
+            if draggedSection == nil or targetSection == nil then return end
+            if draggedSection.data == nil or targetSection.data == nil then return end
+            local container = draggedSection.parent
+            if container ~= nil then
+                container:FireEvent("reorderSections",
+                    draggedSection.data.sectionId,
+                    targetSection.data.sectionId)
+            end
+        end,
+        linger = function(element)
+            gui.Tooltip("Drag to reorder sections")(element)
+        end,
+    } or nil
+
+    -- Collapse bar: title + expando arrow, handles expand/collapse on click
+    local collapseBar = gui.Panel{
+        classes = {"tp-collapse-bar"},
+        width = dragHandle and "100%-22" or "100%",
+        height = "auto",
+        halign = "right",
         press = function(element)
-            local outer = element.parent
+            local outer = element.parent.parent
             outer.data.collapsed = not outer.data.collapsed
             outer:FireEventTree("setCollapse", outer.data.collapsed)
         end,
@@ -3711,6 +3812,13 @@ function TacPanel.CollapsiblePanel(args)
                 element:SetClass("collapseSet", collapsed)
             end,
         },
+    }
+
+    -- Title bar (always child[1])
+    local titleBar = gui.Panel{
+        classes = {"tp-title-bar"},
+        dragHandle,
+        collapseBar,
     }
 
     -- Collect content children from array entries into a single wrapper
@@ -3756,6 +3864,7 @@ end
 --- @return Panel
 function TacPanel.Routines()
     return TacPanel.CollapsiblePanel{
+        sectionId = "routines",
         styles = {TacPanelStyles.Routines},
         classes = {"collapsed"},
         title = "ROUTINES",
@@ -3981,6 +4090,7 @@ end
 --- @return Panel
 function TacPanel.HeroicResources()
     return TacPanel.CollapsiblePanel{
+        sectionId = "heroicresources",
         classes = {"collapsed"},
         title = "HEROIC RESOURCES",
         refreshCharacter = function(element, token)
@@ -4067,6 +4177,7 @@ end
 --- @return Panel
 function TacPanel.SkillLanguages()
     return TacPanel.CollapsiblePanel{
+        sectionId = "skilllanguages",
         title = "SKILLS & LANGUAGES",
         gui.Panel{
             styles = TacPanelStyles.SkillsLanguages,
@@ -4135,6 +4246,7 @@ end
 --- @return Panel
 function TacPanel.Features()
     return TacPanel.CollapsiblePanel{
+        sectionId = "features",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
         title = "FEATURES",
@@ -4225,6 +4337,7 @@ end
 --- @return Panel
 function TacPanel.Notes()
     return TacPanel.CollapsiblePanel{
+        sectionId = "notes",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
         title = "NOTES",
@@ -4383,7 +4496,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", hasNonCombatant == false)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "panels/initiative/initiative-icon.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4412,7 +4525,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", true)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_18.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4498,7 +4611,7 @@ function TacPanel.MultiEdit()
             element:SetClass("collapsed", not haveInitiativeGrouping)
         end,
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_13.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4535,7 +4648,7 @@ function TacPanel.MultiEdit()
         classes = {"me-icon-wrap", "collapsed"},
         data = { mode = "Make Captain" },
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "panels/hud/crown.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -4626,7 +4739,7 @@ function TacPanel.MultiEdit()
     local formSquadBtn = gui.Panel{
         classes = {"me-icon-wrap", "collapsed"},
         gui.EnhIconButton{
-            classes = {"vision-btn"},
+            classes = {"toggle-btn"},
             bgimage = "icons/icon_app/icon_app_2.png",
             width = TacPanelSizes.VisionBtn.size,
             height = TacPanelSizes.VisionBtn.size,
@@ -5260,6 +5373,7 @@ end
 --- @return Panel
 function TacPanel.AurasEmitting()
     return TacPanel.CollapsiblePanel{
+        sectionId = "aurasemitting",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
         title = "AURAS EMITTING",
@@ -5796,6 +5910,7 @@ end
 --- @return Panel
 function TacPanel.PersistentAbilities()
     return TacPanel.CollapsiblePanel{
+        sectionId = "persistentabilities",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
         title = "PERSISTENT ABILITIES",
@@ -5937,6 +6052,7 @@ end
 --- @return Panel
 function TacPanel.Conditions()
     return TacPanel.CollapsiblePanel{
+        sectionId = "conditions",
         styles = {TacPanelStyles.Conditions},
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
@@ -7751,6 +7867,131 @@ local function InflictedConditionsPanel(m_token)
     return resultPanel
 end
 
+local TACPANEL_DEFAULT_ORDER = {
+    "statistics",
+    "routines",
+    "aurasemitting",
+    "persistentabilities",
+    "heroicresources",
+    "conditions",
+    "skilllanguages",
+    "features",
+    "notes",
+}
+
+local TACPANEL_FACTORIES = {
+    statistics = TacPanel.Statistics,
+    routines = TacPanel.Routines,
+    aurasemitting = TacPanel.AurasEmitting,
+    persistentabilities = TacPanel.PersistentAbilities,
+    heroicresources = TacPanel.HeroicResources,
+    conditions = TacPanel.Conditions,
+    skilllanguages = TacPanel.SkillLanguages,
+    features = TacPanel.Features,
+    notes = TacPanel.Notes,
+}
+
+function TacPanel.KeyName()
+    return string.format("tacpanel_order:%s", dmhub.userid or "default")
+end
+
+function TacPanel.GetOrder()
+    local saved = dmhub.GetPref(TacPanel.KeyName())
+    if saved == nil or type(saved) ~= "string" then
+        local copy = {}
+        for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+            copy[#copy+1] = id
+        end
+        return copy
+    end
+    local order = {}
+    for id in string.gmatch(saved, "[^,]+") do
+        if TACPANEL_FACTORIES[id] ~= nil then
+            order[#order+1] = id
+        end
+    end
+    -- Append any sections missing from the saved order (e.g. newly added)
+    local present = {}
+    for _, id in ipairs(order) do present[id] = true end
+    for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+        if not present[id] then
+            order[#order+1] = id
+        end
+    end
+    return order
+end
+
+function TacPanel.SaveOrder(order)
+    local key = TacPanel.KeyName()
+    dmhub.SetPref(key, table.concat(order, ","))
+end
+
+function TacPanel.SectionsContainer()
+    local sectionPanels = {}
+    for _, id in ipairs(TACPANEL_DEFAULT_ORDER) do
+        sectionPanels[id] = TACPANEL_FACTORIES[id]()
+    end
+
+    local function sortChildren(element, order)
+        local orderMap = {}
+        for i, id in ipairs(order) do
+            orderMap[id] = i
+        end
+        local sorted = {}
+        for _, child in ipairs(element.children) do
+            sorted[#sorted+1] = child
+        end
+        table.sort(sorted, function(a, b)
+            local ia = orderMap[a.data.sectionId] or 999
+            local ib = orderMap[b.data.sectionId] or 999
+            return ia < ib
+        end)
+        element.children = {}
+        element.children = sorted
+    end
+
+    local container = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        tmargin = -26,
+        monitor = GetDockablePanelsSetting(),
+        events = {
+            monitor = function(element)
+                dmhub.SetPref(TacPanel.KeyName(), nil)
+                sortChildren(element, TACPANEL_DEFAULT_ORDER)
+            end,
+        },
+
+        reorderSections = function(element, draggedId, targetId)
+            if draggedId == targetId then return end
+            local order = TacPanel.GetOrder()
+            local draggedIndex = nil
+            for i, id in ipairs(order) do
+                if id == draggedId then draggedIndex = i break end
+            end
+            if draggedIndex == nil then return end
+            table.remove(order, draggedIndex)
+            local targetIndex = nil
+            for i, id in ipairs(order) do
+                if id == targetId then targetIndex = i break end
+            end
+            if targetIndex == nil then return end
+            table.insert(order, targetIndex, draggedId)
+            TacPanel.SaveOrder(order)
+            sortChildren(element, order)
+        end,
+    }
+
+    local initialOrder = TacPanel.GetOrder()
+    local initialChildren = {}
+    for _, id in ipairs(initialOrder) do
+        initialChildren[#initialChildren+1] = sectionPanels[id]
+    end
+    container.children = initialChildren
+    return container
+end
+
 CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
     local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
@@ -7825,16 +8066,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
             end,
         } or nil,
 
-        newTacPanel and TacPanel.Statistics() or nil,
-        newTacPanel and TacPanel.Testing() or nil,
-        newTacPanel and TacPanel.Routines() or nil,
-        newTacPanel and TacPanel.AurasEmitting() or nil,
-        newTacPanel and TacPanel.PersistentAbilities() or nil,
-        newTacPanel and TacPanel.HeroicResources() or nil,
-        newTacPanel and TacPanel.Conditions() or nil,
-        newTacPanel and TacPanel.SkillLanguages() or nil,
-        newTacPanel and TacPanel.Features() or nil,
-        newTacPanel and TacPanel.Notes() or nil,
+        newTacPanel and TacPanel.SectionsContainer() or nil,
 
         --heroic resource panel.
         oldTacPanel and gui.Panel{

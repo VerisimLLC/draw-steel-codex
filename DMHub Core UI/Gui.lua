@@ -2076,6 +2076,7 @@ gui.TriangleStyles = triangleStyles
 --- @field editable nil|boolean
 --- @field characterLimit nil|integer
 --- @field collapsedClass nil|string (Default="collapsed") set to make this use a different class to indicate collapsed.
+--- @field headerExtraClasses nil|string[] extra CSS classes to add to the header panel
 
 --- Create a node in a tree. When collapsed, its contentPanel will be hidden.
 --- @param args TreeNodeArgs
@@ -2104,6 +2105,9 @@ function gui.TreeNode(args)
 
 	local collapsedClass = options.collapsedClass or "collapsed"
 	options.collapsedClass = nil
+
+	local headerExtraClasses = options.headerExtraClasses or {}
+	options.headerExtraClasses = nil
 
 	if contentPanel == nil then
 		dmhub.Error('gui.TreeNode must have a contentPanel')
@@ -2149,9 +2153,14 @@ function gui.TreeNode(args)
 				},
 			})
 
+	local headerClasses = {"folder"}
+	for _, cls in ipairs(headerExtraClasses) do
+		headerClasses[#headerClasses+1] = cls
+	end
+
 	local headerPanel = gui.Panel({
-		
-		classes = {"folder"},
+
+		classes = headerClasses,
 		bgimage = 'panels/square.png',
 
 		dragTarget = dragTarget,

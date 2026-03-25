@@ -233,6 +233,37 @@ local function buildBreadcrumbText(doc)
     return table.concat(reversed, " > ")
 end
 
+function CustomDocument.GetAccessibleRoots()
+    local roots = {}
+    roots["public"] = true
+    if dmhub.isDM then
+        roots["private"] = true
+        roots["templates"] = true
+        if game and game.currentMapId then
+            roots[game.currentMapId] = true
+        end
+    else
+        if dmhub.loginUserid then
+            roots[dmhub.loginUserid] = true
+        end
+    end
+    return roots
+end
+
+function CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
+    local allFolders = assets.documentFoldersTable or {}
+    local pf = doc.parentFolder or "private"
+    local count = 0
+    while pf and pf ~= "" and count < 20 do
+        if accessibleRoots[pf] then return true end
+        local folder = allFolders[pf]
+        if folder == nil then break end
+        pf = folder.parentFolder or "private"
+        count = count + 1
+    end
+    return false
+end
+
 --- Builds a popup tree view of the journal hierarchy
 --- @param currentDocId string The ID of the currently displayed document
 --- @param dialogPanel Panel The dialog panel with navigation handlers
@@ -240,14 +271,17 @@ end
 local function buildJournalTree(currentDocId, dialogPanel)
     -- Built-in root folders
     local builtinRoots = {}
-    builtinRoots["private"] = { description = "Private Documents", parentFolder = "" }
     builtinRoots["public"] = { description = "Shared Documents", parentFolder = "" }
-    builtinRoots["templates"] = { description = "Templates", parentFolder = "" }
-    if game and game.currentMapId then
-        builtinRoots[game.currentMapId] = { description = "Map Documents", parentFolder = "" }
-    end
-    if dmhub and dmhub.loginUserid then
-        builtinRoots[dmhub.loginUserid] = { description = "My Private Documents", parentFolder = "" }
+    if dmhub.isDM then
+        builtinRoots["private"] = { description = "Private Documents", parentFolder = "" }
+        builtinRoots["templates"] = { description = "Templates", parentFolder = "" }
+        if game and game.currentMapId then
+            builtinRoots[game.currentMapId] = { description = "Map Documents", parentFolder = "" }
+        end
+    else
+        if dmhub.loginUserid then
+            builtinRoots[dmhub.loginUserid] = { description = "My Private Documents", parentFolder = "" }
+        end
     end
 
     -- Merge built-in + user folders
@@ -261,7 +295,7 @@ local function buildJournalTree(currentDocId, dialogPanel)
     local foldersToMembers = {}
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
     for k, doc in pairs(customDocs) do
-        if not doc.hidden then
+        if not doc.hidden and (dmhub.isDM or not doc.hiddenFromPlayers) then
             local pf = doc.parentFolder or "private"
             foldersToMembers[pf] = foldersToMembers[pf] or {}
             foldersToMembers[pf][k] = { type = "doc", id = k, description = doc.description or "Untitled" }
@@ -433,6 +467,10 @@ local function buildJournalTree(currentDocId, dialogPanel)
         end
     end
 
+    if #rootChildren == 0 then
+        return nil
+    end
+
     return gui.Panel {
         width = 0,
         height = 0,
@@ -468,6 +506,9 @@ local function buildJournalTree(currentDocId, dialogPanel)
 end
 
 function CustomDocument:CreateInterface(args)
+
+    local buttonSize = 20
+
     args = args or {}
     local readPanel = self:DisplayPanel()
     local writePanel = self:EditPanel(args)
@@ -477,32 +518,51 @@ function CustomDocument:CreateInterface(args)
     local m_presentButton
     local m_playerPreviewButton
 
-    local m_titlePanel = args.titlePanel or gui.Label {
-        lmargin = 6,
-        halign = "left",
-        minWidth = "40%",
-        maxWidth = "100%-240",
-        textAlignment = "left",
+    local m_titlePanel = args.titlePanel or gui.Panel {
+        classes = {cond(self:HaveEditPermissions(), "", "collapsed")},
+        halign = "right",
+        valign = "center",
         width = "auto",
         height = "auto",
-        fontSize = 18,
-        textOverflow = "ellipsis",
-        textWrap = false,
-        text = self.description,
-        bold = false,
-        editable = self:HaveEditPermissions(),
-        characterLimit = 48,
-        refreshDocument = function(element, doc)
-            self = doc or self
-        end,
-        change = function(element)
-            local original = DeepCopy(self)
-            self.description = element.text
-            if writePanel ~= nil and not writePanel:HasClass("collapsed") then
-                writePanel:FireEventTree("savedoc")
-            end
-            self:Upload(original)
-        end,
+        flow = "horizontal",
+        rmargin = 4,
+        gui.Label {
+            text = "Document Name:",
+            fontSize = 16,
+            fontFace = "Berling",
+            color = "#999999",
+            width = "auto",
+            height = "auto",
+            valign = "center",
+            rmargin = 12,
+            lmargin = 12,
+        },
+        gui.Input {
+            text = self.description,
+            fontSize = 14,
+            width = 200,
+            height = 18,
+            valign = "center",
+            characterLimit = 48,
+            editable = self:HaveEditPermissions(),
+            editlag = 1.0,
+            border = {x1 = 1, y1 = 1, x2 = 0, y2 = 0},
+            refreshDocument = function(element, doc)
+                self = doc or self
+            end,
+            edit = function(element)
+                if element.text ~= self.description then
+                    local original = DeepCopy(self)
+                    self.description = element.text
+                    if writePanel ~= nil and not writePanel:HasClass("collapsed") then
+                        writePanel:FireEventTree("savedoc")
+                    end
+                    self:Upload(original)
+                    local dialog = element:FindParentWithClass("journalViewer")
+                    if dialog then dialog:FireEventTree("refreshNavButtons") end
+                end
+            end,
+        },
     }
 
     local m_editingButton
@@ -515,8 +575,8 @@ function CustomDocument:CreateInterface(args)
     if dmhub.isDM and not args.presentationMode then
         m_presentButton = gui.SimpleIconButton {
             escapeActivates = false,
-            width = 16,
-            height = 16,
+            width = buttonSize,
+            height = buttonSize,
             bgimage = "icons/icon_app/icon_app_34.png",
             thinkTime = 0.2,
             think = function(element)
@@ -553,8 +613,8 @@ function CustomDocument:CreateInterface(args)
     if self:HaveEditPermissions() and not args.presentationMode then
         m_playerPreviewButton = gui.SimpleIconButton {
             escapeActivates = false,
-            width = 16,
-            height = 16,
+            width = buttonSize,
+            height = buttonSize,
             bgimage = "icons/icon_game/icon_game_193.png",
             press = function(element)
                 if m_editingButton ~= nil and m_editingButton:HasClass("active") then
@@ -575,8 +635,8 @@ function CustomDocument:CreateInterface(args)
         --editing button.
         m_editingButton = gui.SimpleIconButton {
             escapeActivates = false,
-            width = 16,
-            height = 16,
+            width = buttonSize,
+            height = buttonSize,
             hmargin = 0,
             bgimage = "icons/icon_tool/icon_tool_79.png",
             press = function(element)
@@ -615,8 +675,8 @@ function CustomDocument:CreateInterface(args)
     -- Back button
     m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
         escapeActivates = false,
-        width = 16,
-        height = 16,
+        width = buttonSize,
+        height = buttonSize,
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         rotate = 180,
         bgcolor = "#666666",
@@ -642,8 +702,8 @@ function CustomDocument:CreateInterface(args)
     -- Forward button
     m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
         escapeActivates = false,
-        width = 16,
-        height = 16,
+        width = buttonSize,
+        height = buttonSize,
         bgimage = "icons/icon_arrow/icon_arrow_28.png",
         bgcolor = "#666666",
         linger = function(element)
@@ -667,8 +727,8 @@ function CustomDocument:CreateInterface(args)
 
     m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
         escapeActivates = false,
-        width = 16,
-        height = 16,
+        width = buttonSize,
+        height = buttonSize,
         bgimage = "icons/icon_tool/icon_tool_41.png",
         linger = function(element)
             gui.Tooltip(string.format("Decrease Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -683,8 +743,8 @@ function CustomDocument:CreateInterface(args)
 
     m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
         escapeActivates = false,
-        width = 16,
-        height = 16,
+        width = buttonSize,
+        height = buttonSize,
         bgimage = "icons/icon_tool/icon_tool_40.png",
         linger = function(element)
             gui.Tooltip(string.format("Increase Font Size (Currently %d%%)", round(dmhub.GetSettingValue("journal:fontsize"))))(element)
@@ -704,8 +764,8 @@ function CustomDocument:CreateInterface(args)
         if self:HaveEditPermissions() then
             m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
                 escapeActivates = false,
-                width = 16,
-                height = 16,
+                width = buttonSize,
+                height = buttonSize,
                 bgimage = "ui-icons/icon-scale.png",
                 press = function(element)
                     if resultPanel.data.watcher ~= nil then
@@ -740,27 +800,29 @@ function CustomDocument:CreateInterface(args)
         end
 
         m_controlMenuButtons[#m_controlMenuButtons + 1] = m_editingButton
-
-        m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.CloseButton {
-            classes = { cond(args.dialog == nil and args.close == nil, "collapsed") },
-            width = 16,
-            height = 16,
-            hmargin = 4,
-            closedocuments = function(element)
-                element:FireEvent("press")
-            end,
-            press = function(element)
-                local function doClose()
-                    if args.close then
-                        args.close()
-                    else
-                        args.dialog:DestroySelf()
-                    end
-                end
-                checkUnsavedChanges(writePanel, resultPanel, self, doClose)
-            end,
-        }
     end
+
+    m_controlMenuButtons[#m_controlMenuButtons + 1] = m_titlePanel
+
+    local m_closeButton = gui.CloseButton {
+        classes = { cond(args.presentationMode or (args.dialog == nil and args.close == nil), "collapsed") },
+        width = buttonSize,
+        height = buttonSize,
+        hmargin = 4,
+        closedocuments = function(element)
+            element:FireEvent("press")
+        end,
+        press = function(element)
+            local function doClose()
+                if args.close then
+                    args.close()
+                else
+                    args.dialog:DestroySelf()
+                end
+            end
+            checkUnsavedChanges(writePanel, resultPanel, self, doClose)
+        end,
+    }
 
     local m_breadcrumb = gui.Label {
         text = buildBreadcrumbText(self),
@@ -769,7 +831,7 @@ function CustomDocument:CreateInterface(args)
         width = "auto",
         maxWidth = "60%",
         height = "auto",
-        fontSize = 13,
+        fontSize = 16,
         markdown = true,
         color = "#999999",
         lmargin = 8,
@@ -804,24 +866,124 @@ function CustomDocument:CreateInterface(args)
         end,
     }
 
+    local m_searchInput = gui.SearchInput {
+        width = 200,
+        height = 16,
+        halign = "right",
+        valign = "center",
+        fontSize = 12,
+        rmargin = 4,
+        border = 0,
+        bgcolor = "clear",
+        placeholderText = "Search journal...",
+        popupPositioning = "panel",
+        search = function(element, text)
+            if text == nil or text == "" then
+                element.popup = nil
+                return
+            end
+
+            local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+            local accessibleRoots = CustomDocument.GetAccessibleRoots()
+            local results = {}
+            for docId, doc in pairs(customDocs) do
+                if not doc.hidden and (dmhub.isDM or not doc.hiddenFromPlayers) and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots) then
+                    local titleMatch = string.find(string.lower(doc.description or ""), text, 1, true)
+                    local contentMatch = doc.MatchesSearch and doc:MatchesSearch(text)
+                    if titleMatch or contentMatch then
+                        local score = 0
+                        local name = doc.description or "Untitled"
+                        local nameLower = string.lower(name)
+                        if nameLower == text then
+                            score = 100
+                        elseif string.starts_with(nameLower, text) then
+                            score = 75
+                        elseif titleMatch then
+                            score = 50
+                        else
+                            score = 25
+                        end
+                        results[#results + 1] = {
+                            text = string.format("<b>%s</b>", name),
+                            score = score,
+                            click = function()
+                                element.popup = nil
+                                element.text = ""
+                                if args.dialogPanel and args.dialogPanel.data then
+                                    args.dialogPanel:FireEvent("navigateToDocument", docId)
+                                end
+                            end,
+                        }
+                    end
+                end
+            end
+
+            table.stable_sort(results, function(a, b) return a.score > b.score end)
+            while #results > 10 do
+                table.remove(results)
+            end
+
+            if #results == 0 then
+                element.popup = gui.Label {
+                    width = "auto",
+                    height = "auto",
+                    halign = "center",
+                    valign = "bottom",
+                    fontSize = 14,
+                    bgimage = true,
+                    bgcolor = "black",
+                    pad = 8,
+                    text = "No results found",
+                }
+                return
+            end
+
+            element.popup = gui.Panel {
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "bottom",
+                flow = "vertical",
+                gui.ContextMenu {
+                    width = 300,
+                    valign = "bottom",
+                    entries = results,
+                    click = function()
+                        element.popup = nil
+                    end,
+                },
+            }
+        end,
+    }
+
     local m_topBar = gui.Panel {
         bgimage = true,
         bgcolor = Styles.RichBlack02,
         width = "100%",
-        height = 24,
+        height = "auto",
         halign = "center",
         valign = "top",
-        flow = "horizontal",
+        flow = "vertical",
         cornerRadius = { x1 = 4, y1 = 4, x2 = 0, y2 = 0 },
 
-        m_breadcrumb,
-
+        -- Row 1: breadcrumb + search + close
         gui.Panel {
-            halign = "right",
-            valign = "center",
-            width = "auto",
-            height = "auto",
+            width = "100%",
+            height = 24,
             flow = "horizontal",
+
+            m_breadcrumb,
+            m_searchInput,
+            m_closeButton,
+        },
+
+        -- Row 2: tool buttons + document name
+        gui.Panel {
+            width = "auto",
+            height = 28,
+            flow = "horizontal",
+            halign = "left",
+            valign = "center",
             hmargin = 2,
             children = m_controlMenuButtons,
         },
@@ -902,11 +1064,9 @@ function CustomDocument:CreateInterface(args)
 
         m_topBar,
 
-        m_titlePanel,
-
         gui.Panel {
             width = "100%-24",
-            height = "100%-56",
+            height = "100% available",
             vscroll = self.vscroll,
             halign = "center",
             bmargin = 8,
@@ -1149,7 +1309,7 @@ function CustomDocument:PresentDocument(args)
                 opacity = 1,
             },
         },
-        classes = { "framedPanel" },
+        classes = { "framedPanel", "journalViewer" },
         bgimage = true,
         blurBackground = true,
         x = loc.x,

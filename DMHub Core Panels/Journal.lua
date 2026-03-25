@@ -264,6 +264,7 @@ local function CreateFolderPanel(journalPanel, folderid)
     local resultPanel
     resultPanel = gui.TreeNode {
         classes = cond(builtinFolder, { "documentFolder" }, { "documentFolder", "subfolder" }),
+        headerExtraClasses = cond(not builtinFolder, {"subfolder"}, {}),
         editable = not builtinFolder,
         width = "100%",
         dragTarget = true,

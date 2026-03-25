@@ -425,11 +425,16 @@ function TokenEffects.Register(entry)
     TokenEffects[entry.id] = entry
 end
 
-Commands.tokeneffect = function(id)
-    local tokens = dmhub.selectedOrPrimaryTokens
-    for i,token in ipairs(tokens) do
-        token.sheet.data.PlayEffect(id, false)
-    end
-end
+Commands.RegisterMacro{
+    name = "tokeneffect",
+    summary = "play token effect",
+    doc = "Usage: /tokeneffect <effect name>\nPlays a visual effect on selected or primary tokens.",
+    command = function(id)
+        local tokens = dmhub.selectedOrPrimaryTokens
+        for i,token in ipairs(tokens) do
+            token.sheet.data.PlayEffect(id, false)
+        end
+    end,
+}
 
 print("IMAGEXXX::", mod.images.doubleslashbw)

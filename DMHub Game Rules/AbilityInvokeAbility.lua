@@ -152,7 +152,7 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
 
         if promptWhenResolving and #targetChoices > 0 then
 
-            print("ChooseTarget:: prompting...")
+            print("INVOKE:: ChooseTarget:: prompting...")
             targets = nil
             GameHud.instance.actionBarPanel:FireEventTree("chooseTargetToken", {
                 sourceToken = casterToken,
@@ -330,9 +330,11 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
     --wait until we aren't casting on the action bar to invoke this. Also resolve
     --any new casts that may have started since we got here.
     local snapshot = ActivatedAbility.GetActiveCastSnapshot()
-    while gamehud.rollDialog.data.IsShown() or gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
+    while (gamehud.rollDialog.valid and gamehud.rollDialog.data.IsShown()) or (gamehud.actionBarPanel.valid and gamehud.actionBarPanel.data.IsCastingSpell()) or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot) do
         coroutine.safe_sleep_while(function()
-
+            if not gamehud.actionBarPanel.valid then
+                return false
+            end
             return gamehud.actionBarPanel.data.IsCastingSpell() or ActivatedAbility.HasCoroutinesNotInSnapshot(snapshot)
         end)
 
@@ -396,15 +398,27 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         }
 
         print("AI:: PUSH:: IN INVOKE token", creature.GetTokenDescription(invokerToken), "targeting =", targeting, "ai", invokerToken.properties._tmp_aicontrol, "promptCallback =", invokerToken.properties._tmp_aipromptCallback, "for", abilityClone.name, coroutine.running())
-        if targeting == "prompt" and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
+        if (targeting == "prompt" or targeting == "prompt_inherit") and invokerToken.properties._tmp_aicontrol > 0 and invokerToken.properties._tmp_aipromptCallback then
             print("PUSH:: INVOKING!!!!!")
             targeting = invokerToken.properties._tmp_aipromptCallback(invokerToken, casterToken, abilityClone, symbols, options)
         end
 
-        if targeting == "prompt" then
+        if targeting == "prompt" or targeting == "prompt_inherit" then
             print("INVOKE:: PROMPT CAST FOR", abilityClone.name, coroutine.running())
             abilityClone.countsAsCast = true
             abilityClone.skippable = true
+
+            if targeting == "prompt_inherit" then
+                local allowedtargets = {}
+                local inheritedTargets = options.targets or {}
+                for _, target in ipairs(inheritedTargets) do
+                    if target.token ~= nil then
+                        allowedtargets[target.token.charid] = true
+                    end
+                end
+                symbols.allowedtargets = allowedtargets
+            end
+
             gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, abilityClone, symbols, invokerCallback)
         else
             abilityClone.countsAsCast = options.countsAsCast or false
@@ -456,6 +470,9 @@ function ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(invokerToken, abili
         coroutine.safe_sleep_while(function()
 
             local isCasting = casting
+            if not gamehud.actionBarPanel.valid then
+                return false
+            end
             local isPreparing = gamehud.actionBarPanel.data.IsCastingSpell()
 
             local result = isCasting or isPreparing
@@ -715,6 +732,7 @@ function ActivatedAbilityInvokeAbilityBehavior:EditorItems(parentPanel)
             classes = {"formDropdown"},
 			options = {
 				{ text = "Prompt Player", id = "prompt" },
+				{ text = "Prompt Player (Inherit)", id = "prompt_inherit" },
 				{ text = "Self", id = "self" },
                 { text = "Inherit From This Ability", id = "inherit"},
                 { text = "Creatures Matching Formula", id = "formula"},

@@ -23,6 +23,18 @@ MarkdownRender = {
         return nil
     end,
 
+    -- Returns a list of {prefix, tableName} for all registered markdown tables.
+    GetRegisteredPrefixes = function()
+        local result = {}
+        for tableName, tableInfo in pairs(g_tableRegistry) do
+            result[#result+1] = {
+                prefix = tableInfo.prefix,
+                tableName = tableName,
+            }
+        end
+        return result
+    end,
+
     IsRenderable = function(obj)
         return type(obj) == "table" and g_registry[obj.typeName] == true
     end,

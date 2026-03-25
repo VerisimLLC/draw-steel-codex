@@ -241,8 +241,13 @@ function SendTitledChatMessage(text, title, titleColor, recipients)
 end
 
 if DEBUG_MODE then
-    Commands.corechattest = function(args)
-        WriteChatText("Chat Ext test message")
-        SendTitledChatMessage("test titled message", "chatext", "#cc0000")
-    end
+    Commands.RegisterMacro{
+        name = "corechattest",
+        summary = "test chat messages",
+        doc = "Usage: /corechattest\nSends test chat messages. Debug only.",
+        command = function(args)
+            WriteChatText("Chat Ext test message")
+            SendTitledChatMessage("test titled message", "chatext", "#cc0000")
+        end,
+    }
 end

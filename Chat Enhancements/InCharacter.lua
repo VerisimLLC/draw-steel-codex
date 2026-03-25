@@ -87,9 +87,11 @@ local function doInCharacter(args)
     end
 end
 
---- Chat command handler for `/ic`.
---- Sends the provided message as the user's in-character message using their primary character or narrator identity.
---- @param args string The message content to send.
-Commands.icdeprecated = function(args)
-    doInCharacter(args)
-end
+Commands.RegisterMacro{
+    name = "icdeprecated",
+    summary = "legacy IC chat",
+    doc = "Usage: /icdeprecated <message>\nDeprecated in-character chat. Use /ic instead.",
+    command = function(args)
+        doInCharacter(args)
+    end,
+}

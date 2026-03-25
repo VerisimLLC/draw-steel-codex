@@ -76,6 +76,7 @@ CharacterModifier.TypeInfo.triggerdisplay = {
         local Refresh
         Refresh = function()
             local children = {}
+            local isPassive = modifier.ability.type == "passive"
 
             children[#children+1] = modifier.ability:Render()
 
@@ -96,29 +97,31 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                 },
             }
 
-            children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
-                gui.Label{
-                    classes = {"formLabel"},
-                    text = "Cost:",
-                },
-                gui.Input{
-                    characterLimit = 32,
-                    classes = {"formInput"},
-                    text = modifier.ability.cost,
-                    change = function(element)
-                        modifier.ability.cost = element.text
+            if not isPassive then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Cost:",
+                    },
+                    gui.Input{
+                        characterLimit = 32,
+                        classes = {"formInput"},
+                        text = modifier.ability.cost,
+                        change = function(element)
+                            modifier.ability.cost = element.text
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.KeywordSelector{
+                    keywords = modifier.ability.keywords,
+                    change = function()
                         Refresh()
                     end,
-                },
-            }
-
-            children[#children+1] = gui.KeywordSelector{
-                keywords = modifier.ability.keywords,
-                change = function()
-                    Refresh()
-                end,
-            }
+                }
+            end
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
@@ -150,89 +153,91 @@ CharacterModifier.TypeInfo.triggerdisplay = {
                 },
             }
 
-            children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
-                gui.Label{
-                    classes = {"formLabel"},
-                    text = "Distance:",
-                },
-                gui.Input{
-                    characterLimit = 32,
-                    classes = {"formInput"},
-                    text = modifier.ability.distance,
-                    change = function(element)
-                        modifier.ability.distance = element.text
-                        Refresh()
-                    end,
-                },
-            }
+            if not isPassive then
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Distance:",
+                    },
+                    gui.Input{
+                        characterLimit = 32,
+                        classes = {"formInput"},
+                        text = modifier.ability.distance,
+                        change = function(element)
+                            modifier.ability.distance = element.text
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Target:",
+                    },
+                    gui.Input{
+                        characterLimit = 32,
+                        classes = {"formInput"},
+                        text = modifier.ability.target,
+                        change = function(element)
+                            modifier.ability.target = element.text
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Flavor:",
+                    },
+                    gui.Input{
+                        width = 320,
+                        characterLimit = 120,
+                        classes = {"formInput"},
+                        text = modifier.ability.flavor,
+                        multiline = true,
+                        height = "auto",
+                        minHeight = 14,
+                        maxHeight = 100,
+                        change = function(element)
+                            modifier.ability.flavor = element.text
+                            Refresh()
+                        end,
+                    },
+                }
+
+                children[#children+1] = gui.Panel{
+                    classes = {"formPanel"},
+                    gui.Label{
+                        classes = {"formLabel"},
+                        text = "Trigger:",
+                    },
+                    gui.Input{
+                        characterLimit = 240,
+                        classes = {"formInput"},
+                        text = modifier.ability.trigger,
+                        multiline = true,
+                        height = "auto",
+                        width = 320,
+                        minHeight = 14,
+                        maxHeight = 100,
+                        change = function(element)
+                            modifier.ability.trigger = element.text
+                            Refresh()
+                        end,
+                    },
+                }
+            end
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel"},
                 gui.Label{
                     classes = {"formLabel"},
-                    text = "Target:",
-                },
-                gui.Input{
-                    characterLimit = 32,
-                    classes = {"formInput"},
-                    text = modifier.ability.target,
-                    change = function(element)
-                        modifier.ability.target = element.text
-                        Refresh()
-                    end,
-                },
-            }
-
-            children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
-                gui.Label{
-                    classes = {"formLabel"},
-                    text = "Flavor:",
-                },
-                gui.Input{
-                    width = 320,
-                    characterLimit = 120,
-                    classes = {"formInput"},
-                    text = modifier.ability.flavor,
-                    multiline = true,
-                    height = "auto",
-                    minHeight = 14,
-                    maxHeight = 100,
-                    change = function(element)
-                        modifier.ability.flavor = element.text
-                        Refresh()
-                    end,
-                },
-            }
-
-            children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
-                gui.Label{
-                    classes = {"formLabel"},
-                    text = "Trigger:",
-                },
-                gui.Input{
-                    characterLimit = 240,
-                    classes = {"formInput"},
-                    text = modifier.ability.trigger,
-                    multiline = true,
-                    height = "auto",
-                    width = 320,
-                    minHeight = 14,
-                    maxHeight = 100,
-                    change = function(element)
-                        modifier.ability.trigger = element.text
-                        Refresh()
-                    end,
-                },
-            }
-
-            children[#children+1] = gui.Panel{
-                classes = {"formPanel"},
-                gui.Label{
-                    classes = {"formLabel"},
-                    text = "Effect:",
+                    text = cond(isPassive, "Description:", "Effect:"),
                 },
                 gui.Input{
                     characterLimit = 640,
@@ -325,29 +330,67 @@ function TriggeredAbilityDisplay:Render(args)
 
     local resultPanel
 
+    local commonStyles = {
+        {
+            classes = {"label"},
+            textAlignment = "Left",
+            width = "auto",
+            height = "auto",
+            maxWidth = width,
+            hpad = 2,
+            fontSize = 14,
+            color = Styles.textColor,
+            halign = "left",
+        },
+        {
+            classes = {"label", "highlight"},
+            color = Styles.backgroundColor,
+            inversion = 1,
+        },
+    }
+
+    if self.type == "passive" then
+        local panelOpts = {
+            classes = {"formPanel"},
+            width = width,
+            height = "auto",
+            flow = "vertical",
+            styles = commonStyles,
+            gui.Label{
+                width = "100%",
+                vpad = 2,
+                fontSize = 16,
+                bold = true,
+                text = self.name,
+                bgimage = true,
+                bgcolor = Styles.Triggers.passiveColorAgainstText,
+            },
+            gui.Label{
+                width = "100%",
+                italics = true,
+                text = GetTriggerInfo(self.type).text,
+            },
+            gui.Label{
+                markdown = true,
+                text = StringInterpolateGoblinScript(self.effect, caster),
+                vmargin = 2,
+            },
+            suppressPanel,
+        }
+
+        for k,o in pairs(args) do
+            panelOpts[k] = o
+        end
+
+        return gui.Panel(panelOpts)
+    end
+
     local panelOpts = {
         classes = {"formPanel"},
         width = width,
         height = "auto",
         flow = "vertical",
-        styles = {
-            {
-                classes = {"label"},
-                textAlignment = "Left",
-                width = "auto",
-                height = "auto",
-                maxWidth = width,
-                hpad = 2,
-                fontSize = 14,
-                color = Styles.textColor,
-                halign = "left",
-            },
-            {
-                classes = {"label", "highlight"},
-                color = Styles.backgroundColor,
-                inversion = 1,
-            },
-        },
+        styles = commonStyles,
         gui.Label{
             width = "100%",
             vpad = 2,

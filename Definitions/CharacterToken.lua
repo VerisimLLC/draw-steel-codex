@@ -91,6 +91,7 @@
 --- @field floorIndex number 
 --- @field initiativeStatus InitiativeStatus (Read-only) the initiative status of the token.
 --- @field countFloorsWithVisionAbove number The number of floors above this token that the token can 'look up' at. Generally this requires there being a hole directly above the token.
+--- @field countFloorsAbove number The number of floors above this token, regardless of whether there are holes above them.
 CharacterToken = {}
 
 --- IsPreviewToken: Returns true if this token id is not a 'real' in game token but instead a preview token shown to an in app camera.

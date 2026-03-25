@@ -172,6 +172,31 @@ function CustomDocument.SearchLinks(search)
 
     local isDM = dmhub.isDM
 
+    -- Check if search has a recognized table prefix (e.g. "item:blood" or "item:")
+    local prefixStr, rest = string.match(search, "^([^:]+):(.*)$")
+    if prefixStr ~= nil then
+        local tableName = MarkdownRender.FindTableFromPrefix(prefixStr)
+        if tableName ~= nil then
+            -- Hard lock: only return results from this table
+            local results = {}
+            local tableData = dmhub.GetTable(tableName) or {}
+            for k, v in unhidden_pairs(tableData) do
+                if MarkdownRender.IsRenderable(v) then
+                    local entryName = rawget(v, "name") or rawget(v, "description") or ""
+                    if #rest == 0 or string.find(string.lower(entryName), rest, 1, true) then
+                        results[#results+1] = {
+                            link = prefixStr .. ":" .. entryName,
+                            name = entryName,
+                            type = prefixStr,
+                        }
+                    end
+                end
+            end
+            return results
+        end
+    end
+
+    -- Normal search (no locked prefix)
     local results = {}
 
     local docs = assets.pdfDocumentsTable
@@ -201,8 +226,11 @@ function CustomDocument.SearchLinks(search)
     end
 
     local customDocs = dmhub.GetTable(CustomDocument.tableName) or {}
+    local accessibleRoots = CustomDocument.GetAccessibleRoots()
     for k,doc in unhidden_pairs(customDocs) do
-        if string.find(string.lower(doc.description), search, 1, true) or doc:MatchesSearch(search) then
+        if (isDM or not doc.hiddenFromPlayers)
+            and CustomDocument.IsDocInAccessibleRoot(doc, accessibleRoots)
+            and (string.find(string.lower(doc.description), search, 1, true) or doc:MatchesSearch(search)) then
             local link = "document:" .. k
             results[#results+1] = {
                 link = link,
@@ -223,7 +251,20 @@ function CustomDocument.SearchLinks(search)
                     type = "Map",
                 }
             end
-        end       
+        end
+    end
+
+    -- Suggest matching table prefixes (e.g. typing "it" suggests "item:")
+    local registeredPrefixes = MarkdownRender.GetRegisteredPrefixes()
+    for _, info in ipairs(registeredPrefixes) do
+        if string.find(info.prefix, search, 1, true) == 1 and info.prefix ~= search then
+            results[#results+1] = {
+                link = info.prefix .. ":",
+                name = info.prefix .. ":",
+                type = "Search " .. info.prefix .. "s...",
+                isPrefix = true,
+            }
+        end
     end
 
     return results

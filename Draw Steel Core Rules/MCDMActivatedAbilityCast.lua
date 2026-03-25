@@ -75,3 +75,15 @@ GameSystem.RegisterGoblinScriptField{
         end
     end,
 }
+
+GameSystem.RegisterGoblinScriptField{
+    target = ActivatedAbilityCast,
+    name = "OngoingEffectsPurgedChosen",
+    type = "table",
+    desc = "A list of ongoing effect IDs the player chose to purge ('Chosen Effects' or 'One Chosen Effect' purge type) during this ability cast.",
+    seealso = {},
+    examples = {"Cast.OngoingEffectsPurgedChosen"},
+    calculate = function(c)
+        return c:try_get("purgedOngoingEffectsChosen", {})
+    end,
+}

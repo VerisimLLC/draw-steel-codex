@@ -327,7 +327,7 @@ local function CreateDrawSteelBubble()
                 },
 
                 {
-                    text = cond(playersGoFirst, "Set Enemies to Go First Each Round", "Set Players to Go First Each Round"),
+                    text = cond(playersGoFirst, "Set Monsters to Go First Each Round", "Set Players to Go First Each Round"),
                     click = function()
                         self.popup = nil
 					    dmhub.initiativeQueue.playersGoFirst = not playersGoFirst
@@ -1855,8 +1855,13 @@ function GameHud.CreateRespiteBar(self, info)
 				if info.initiativeQueue ~= nil then
 					info.initiativeQueue.gameMode = "exploration"
 					info.UploadInitiative()
-					for _, token in pairs(dmhub.allTokens) do
-						token.properties:DispatchEvent("endrespite", {})
+					for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+						local currentXp = token.properties:try_get("xp", 0)
+						token.properties:Rest("long")
+						local newXp = token.properties:try_get("xp", 0)
+
+						token.properties:DispatchEvent("endrespite", {xpgained = newXp - currentXp})
+						
 					end
 				end
 			end,

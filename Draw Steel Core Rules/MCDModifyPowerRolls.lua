@@ -218,6 +218,13 @@ CharacterModifier.TypeInfo.power = {
     hintPowerRoll = function(self, creature, rollType, options)
         options = options or {}
 
+        if type(self:try_get("activationAfterRoll", false)) == "string" then
+            return {
+                result = false,
+                justification = {}
+            }
+        end
+
         if self:has_key("baseModifier") and (not self:try_get("overrideBase", false)) then
             local baseResult = CharacterModifier.TypeInfo.power.hintPowerRoll(self.baseModifier, creature, rollType, options)
             if baseResult.result == false then
@@ -293,6 +300,10 @@ CharacterModifier.TypeInfo.power = {
 
     shouldShowInPowerRollDialog = function(self, creature, rollType, roll, options)
 
+        if type(self:try_get("activationAfterRoll", false)) == "string" then
+            return false
+        end
+
         if self:has_key("baseModifier") and (not CharacterModifier.TypeInfo.power.shouldShowInPowerRollDialog(self.baseModifier, creature, rollType, roll, options)) then
             return false
         end
@@ -367,6 +378,57 @@ CharacterModifier.TypeInfo.power = {
         end
 
         return true
+    end,
+
+    shouldShowInPowerRollDialogAfterRoll = function(self, creature, rollType, roll, options)
+        if type(self:try_get("activationAfterRoll", false)) ~= "string" then
+            return false
+        end
+        if not RollTypeMatches(self, rollType) then
+            return false
+        end
+        if not self:PassesFilter(creature) then
+            return false
+        end
+        return true
+    end,
+
+    hintPowerRollAfter = function(self, creature, rollType, options)
+        options = options or {}
+
+        if not RollTypeMatches(self, rollType) then
+            return { result = false, justification = {} }
+        end
+
+        if self:HasResourcesAvailable(creature) == false then
+            return {
+                result = false,
+                justification = {"You have expended all uses of this ability."},
+            }
+        end
+
+        local lookupFunction = creature:LookupSymbol(self:AppendSymbols{
+            ability = GenerateSymbols(options.ability),
+            target  = GenerateSymbols(options.target),
+            caster  = GenerateSymbols(options.caster),
+            cast    = options.symbols and GenerateSymbols(options.symbols.cast),
+            title   = options.title or "",
+        })
+
+        if self:try_get("displayAfterRoll", "") ~= "" then
+            if not GoblinScriptTrue(ExecuteGoblinScript(self.displayAfterRoll, lookupFunction, 0, "Power Roll After Display Condition")) then
+                return nil
+            end
+        end
+
+        if self.activationAfterRoll == "" then
+            return { result = false, justification = {} }
+        end
+
+        return {
+            result = GoblinScriptTrue(ExecuteGoblinScript(self.activationAfterRoll, lookupFunction, 0, "Power Roll After Activation Condition")),
+            justification = {},
+        }
     end,
 
     modifyPowerRoll = function(self, creature, rollType, roll, options)
@@ -717,7 +779,13 @@ CharacterModifier.TypeInfo.power = {
                     local adj = ExecuteGoblinScript(adjustment.value, lookupFunction, 1, "Determine adjustment")
                     local value = safe_toint(match.value)
                     local newValue = math.max(0, value + (adj or 0))
-                    rollProperties.tiers[j] = string.format("%s%s %d%s", match.prefix, match.type, newValue, match.postfix)
+                    local prefix = match.prefix
+                    local typeOutput = match.type
+                    if self:try_get("vertical", false) and adjustment.type ~= "jump" then
+                        prefix = regex.ReplaceAll(prefix, "vertical\\s+$", "")
+                        typeOutput = "vertical " .. adjustment.type
+                    end
+                    rollProperties.tiers[j] = string.format("%s%s %d%s", prefix, typeOutput, newValue, match.postfix)
                 end
             end
         end
@@ -834,7 +902,11 @@ CharacterModifier.TypeInfo.power = {
 
             local conditionType = "condition"
             if modifier.activationCondition == false then
-                conditionType = "never"
+                if type(modifier:try_get("activationAfterRoll", false)) == "string" then
+                    conditionType = "condition_after_roll"
+                else
+                    conditionType = "never"
+                end
             elseif modifier.activationCondition == true then
                 conditionType = "always"
             end
@@ -997,6 +1069,10 @@ CharacterModifier.TypeInfo.power = {
 							id = "multicost",
 							text = "Malice/Heroic Resources+",
 						},
+                        {
+                            id = "epic",
+                            text = "Epic Resources",
+                        },
                         {
                             id = "surges",
                             text = "Surges",
@@ -1175,15 +1251,26 @@ CharacterModifier.TypeInfo.power = {
 							id = "condition",
 							text = "Condition",
 						},
+						{
+							id = "condition_after_roll",
+							text = "Conditional After Power Roll",
+						},
 					},
 					change = function(element)
 						if element.idChosen ~= conditionType then
 							if element.idChosen == "never" then
 								modifier.activationCondition = false
+								modifier.activationAfterRoll = false
 							elseif element.idChosen == "always" then
 								modifier.activationCondition = true
-							else
+								modifier.activationAfterRoll = false
+							elseif element.idChosen == "condition" then
 								modifier.activationCondition = ""
+								modifier.activationAfterRoll = false
+							else -- condition_after_roll
+								modifier.activationCondition = false
+								modifier.activationAfterRoll = ""
+								modifier.displayAfterRoll = ""
 							end
 							Refresh()
 						end
@@ -1251,6 +1338,64 @@ CharacterModifier.TypeInfo.power = {
 						symbols = modifier:HelpAdditionalSymbols(helpSymbols),
 					},
 				}
+            elseif conditionType == "condition_after_roll" then
+                local helpSymbols = CharacterModifier.defaultHelpSymbols
+                if modifier.rollType == "ability_power_roll" or modifier.rollType == "enemy_ability_power_roll" then
+                    helpSymbols = g_powerRollSymbols
+                end
+
+                helpSymbols = DeepCopy(helpSymbols)
+                helpSymbols.cast = {
+                    name = "Cast",
+                    type = "spellcast",
+                    desc = "The cast info for this ability. After the roll, cast.roll contains the dice total and cast.tier contains the tier result (1, 2, or 3).",
+                }
+                helpSymbols.title = {
+                    name = "Title",
+                    type = "text",
+                    desc = "The title of the roll",
+                    examples = "Recall Lore Test to Recall Location of Amulet",
+                }
+
+                children[#children+1] = gui.GoblinScriptInput{
+                    placeholderText = "Enter display criteria...",
+                    value = modifier:try_get("displayAfterRoll", ""),
+                    change = function(element)
+                        modifier.displayAfterRoll = element.value
+                        Refresh()
+                    end,
+
+                    documentation = {
+                        domains = modifier:Domains(),
+                        help = "This GoblinScript is evaluated after the dice are rolled to determine whether this modifier is shown as an option. Use cast.roll for the dice total and cast.tier for the tier (1, 2, or 3).",
+                        output = "boolean",
+                        examples = {
+                        },
+                        subject = creature.helpSymbols,
+                        subjectDescription = "The creature affected by this modifier",
+                        symbols = modifier:HelpAdditionalSymbols(helpSymbols),
+                    },
+                }
+
+                children[#children+1] = gui.GoblinScriptInput{
+                    placeholderText = "Enter after-roll activation criteria...",
+                    value = modifier:try_get("activationAfterRoll", ""),
+                    change = function(element)
+                        modifier.activationAfterRoll = element.value
+                        Refresh()
+                    end,
+
+                    documentation = {
+                        domains = modifier:Domains(),
+                        help = "This GoblinScript is evaluated after the dice are rolled to determine whether this modifier is applied. It sets the default checked state of the checkbox that appears in the post-roll window. Use cast.roll for the dice total and cast.tier for the tier (1, 2, or 3). The player can always override the value manually.",
+                        output = "boolean",
+                        examples = {
+                        },
+                        subject = creature.helpSymbols,
+                        subjectDescription = "The creature affected by this modifier",
+                        symbols = modifier:HelpAdditionalSymbols(helpSymbols),
+                    },
+                }
             end
 
 
@@ -1921,6 +2066,35 @@ CharacterModifier.TypeInfo.power = {
                 },
             }
 
+            local hasVerticalAdjustment = false
+            for _,adj in ipairs(modifier:try_get("adjustments", {})) do
+                if adj.type == "push" or adj.type == "pull" or adj.type == "slide" then
+                    hasVerticalAdjustment = true
+                    break
+                end
+            end
+
+            children[#children+1] = gui.Panel{
+                classes = {"formPanel", cond(not hasVerticalAdjustment, "collapsed-anim")},
+                gui.Label{
+                    classes = {"formLabel"},
+                    text = "",
+                },
+                gui.Check{
+                    style = {
+                        height = 30,
+                        width = 160,
+                        fontSize = 18,
+                        halign = "left",
+                    },
+                    text = "Add Vertical",
+                    value = modifier:try_get("vertical", false),
+                    change = function(element)
+                        modifier.vertical = element.value
+                        Refresh()
+                    end,
+                },
+            }
 
             children[#children+1] = gui.Panel{
                 classes = {"formPanel", cond(modifier.rollType == "project_roll", "collapsed-anim")},
@@ -2141,6 +2315,38 @@ function CharacterModifier:HintModifyPowerRolls(modContext, creature, rollType, 
         return result
     end
 
+    return nil
+end
+
+function CharacterModifier:ShouldShowInPowerRollDialogAfter(modContext, creature, rollType, options)
+    local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
+    local shouldShow = typeInfo.shouldShowInPowerRollDialogAfterRoll
+    if shouldShow ~= nil then
+        self:InstallSymbolsFromContext(modContext)
+        self:InstallSymbolsFromContext(options)
+        return shouldShow(self, creature, rollType, nil, options)
+    end
+    return false
+end
+
+function CharacterModifier:DescribeModifyPowerRollAfter(modContext, creature, rollType, options)
+    if self:ShouldShowInPowerRollDialogAfter(modContext, creature, rollType, options) then
+        return {
+            modifier = self,
+            context = modContext,
+        }
+    end
+    return nil
+end
+
+function CharacterModifier:HintModifyPowerRollsAfter(modContext, creature, rollType, options)
+    local typeInfo = CharacterModifier.TypeInfo[self.behavior] or {}
+    local hint = typeInfo.hintPowerRollAfter
+    if hint ~= nil then
+        self:InstallSymbolsFromContext(modContext)
+        self:InstallSymbolsFromContext(options)
+        return hint(self, creature, rollType, options)
+    end
     return nil
 end
 

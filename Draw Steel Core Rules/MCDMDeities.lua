@@ -31,26 +31,31 @@ end
 Deity.tableName = "Deities"
 DeityDomain.tableName = "DeityDomains"
 
-Commands.resetdomains = function()
-    local deitiesTable = dmhub.GetTable(Deity.tableName) or {}
-    local domainsTable = dmhub.GetTable(DeityDomain.tableName) or {}
-    for i, deity in unhidden_pairs(deitiesTable) do
-        local deityDomains = DeepCopy(deity:GetDomains())
-        for id, domain in pairs(deityDomains) do
-            if domain.typeName == "DeityDomain" then
-                for k, v in pairs(domainsTable) do
-                    print("Check::", domain.text, "->", v.name, "?")
-                    if v.name == domain.text then
-                        print("Domain Fixed:", deity.name, v.name, "->", k)
-                        deityDomains[id] = k
+Commands.RegisterMacro{
+    name = "resetdomains",
+    summary = "fix deity domains",
+    doc = "Usage: /resetdomains\nRe-links deity domain references by matching names to domain table IDs.",
+    command = function()
+        local deitiesTable = dmhub.GetTable(Deity.tableName) or {}
+        local domainsTable = dmhub.GetTable(DeityDomain.tableName) or {}
+        for i, deity in unhidden_pairs(deitiesTable) do
+            local deityDomains = DeepCopy(deity:GetDomains())
+            for id, domain in pairs(deityDomains) do
+                if domain.typeName == "DeityDomain" then
+                    for k, v in pairs(domainsTable) do
+                        print("Check::", domain.text, "->", v.name, "?")
+                        if v.name == domain.text then
+                            print("Domain Fixed:", deity.name, v.name, "->", k)
+                            deityDomains[id] = k
+                        end
                     end
                 end
             end
+            deity.domainList = deityDomains
+            dmhub.SetAndUploadTableItem(Deity.tableName, deity)
         end
-        deity.domainList = deityDomains
-        dmhub.SetAndUploadTableItem(Deity.tableName, deity)
-    end
-end
+    end,
+}
 
 RegisterGoblinScriptSymbol(creature, {
 	name = "Deities",

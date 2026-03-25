@@ -185,9 +185,11 @@ Styles = {
         textColor = "white",
         triggerColor = "#cccc00",
         freeColor = "#9999ff",
+		passiveColor = "#006300",
 
         triggerColorAgainstText = "#aaaa00",
         freeColorAgainstText = "#7777ee",
+		passiveColorAgainstText = "#006300",
     },
     TriggerStyles = {
         gui.Style{
@@ -202,6 +204,11 @@ Styles = {
             bgcolor = "#9999ff",
             color = "white",
         },
+		gui.Style{
+			selectors = {"triggeredActionPanel", "passive"},
+			bgcolor = "#006300",
+			color = "white",
+		},
         gui.Style{
             selectors = {"triggeredActionPanel", "expended"},
             saturation = 0.3,

@@ -12,15 +12,20 @@ local writeDebug = FSCIUtils.writeDebug
 local writeLog = FSCIUtils.writeLog
 local STATUS = FSCIUtils.STATUS
 
-Commands.importfs = function(str)
-    FSCIImporter.ImportCharacter(function(token)
-        if not dmhub.isDM then
-            token.ownerId = dmhub.userid
-        end
-        token:ChangeLocation(core.Loc{x = 0, y = 0})
-        token:ShowSheet("Builder")
-    end)
-end
+Commands.RegisterMacro{
+    name = "importfs",
+    summary = "import Forge Steel",
+    doc = "Usage: /importfs\nOpens a file dialog to import a Forge Steel character from JSON.",
+    command = function(str)
+        FSCIImporter.ImportCharacter(function(token)
+            if not dmhub.isDM then
+                token.ownerId = dmhub.userid
+            end
+            token:ChangeLocation(core.Loc{x = 0, y = 0})
+            token:ShowSheet("Builder")
+        end)
+    end,
+}
 
 function FSCIImporter.ImportCharacter(executeOnNewCharacter)
     dmhub.OpenFileDialog{

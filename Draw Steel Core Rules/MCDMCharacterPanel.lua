@@ -1,5 +1,6109 @@
 local mod = dmhub.GetModLoading()
 
+setting{
+    id = "oldTacPanel",
+    description = "Use the old tactical panel",
+    editor = "check",
+    default = false,
+    storage = "preference",
+    section = "game",
+}
+
+local PLACEHOLDER_TOKEN = "game-icons/griffin-symbol.png"
+
+local g_refreshChecklistName = {
+    encounter = "encounter",
+    round = "round",
+}
+
+-- Commonly used colors
+local GRAY02 = "#666663"
+local RICH_BLACK = "#040807"
+local PANEL = "#0b0f0d"
+local GOLD = "#966D4B"
+local GOLD_LIGHT = "#C49A5A"
+local GOLD_DARK_BG = "#140d00"
+local GOLD_BORDER = "#5C3D10"
+local GOLD_BORDER02 = "#3F2E1F"
+local CREAM = "#FFFEF8"
+local MUTED = "#8A8474"
+local DIM = "#B4D1C6"
+local DIMMER = "#758B7D"
+local TEAL = "#009C7D"
+local TEAL_HEAL = "#2D6A4F"
+local RED = "#D53031"
+local RULE = "#1A2420"
+local DYING_FILL = "#6B2020"
+local WINDED_FILL = "#7A4A18"
+local HEALTHY_FILL = "#2D6A4F"
+local SURGE_BORDER = "#2E3F38"
+local DARKRED = "#140A0A"
+local TEMP_STAM = "#8B5CF6"
+local MOVE_HINDERED = "#E07070"
+local CHARACTERISTIC_BG = "#0B0F0D"
+
+local TacPanel = {}
+local TacPanelSizes = {}
+local TacPanelStyles = {}
+
+TacPanelSizes.Panels = {
+    fullWidth = 340,        -- Main panel, full right side width
+    summaryNames = 140,     -- Center name panel right of portrait
+    stamBoxHeight = 40,
+    stamBoxNarrow = 28,
+    stamBoxStam = 68,
+    stamBoxRecoveries = 128,
+    condChipHeight = 16,
+}
+TacPanelSizes.Fonts = {
+    panelTitle = 14,
+    charName = 28,          -- Summary info panel
+    charLevel = 18,
+    charClass = 26,
+    charSubclass = 20,
+
+    stamBoxTitle = 10,      -- Stamina panel
+    stamBoxInput = 22,
+    currentStamina = 24,
+    maxStamina = 16,
+    recoveryValue = 24,
+    recoveryCount = 16,
+
+    tempStamValue = 12,     -- Health bar: temp stam number
+    tempStamLabel = 10,     -- Health bar: "TEMP" label
+    tempStamClear = 8,      -- Health bar: clear button X
+
+    movePanelTitle = 14,
+    movePanelValue = 24,
+
+    charTitle = 12,
+    charValue = 30,
+
+    hrChipValue = 12,
+    hrChipEvent = 10,
+    hrChipFreq = 10,
+    growHRTitle = 12,
+    grValue = 14,
+    grText = 12,
+
+    skillsLangs = 14,
+
+    condName = 11,              -- Conditions panel
+    condSetCaster = 10,
+    condRemove = 8,
+    condAdd = 14,
+    condInput = 14,
+
+    menuTitle = 14,             -- Add Condition menu
+    menuOption = 14,
+    menuSuboption = 11,
+    menuSearch = 14,
+
+    resHeading = 12,            -- Weakness/Immunity headings
+    resEntry = 12,              -- Weakness/Immunity entries
+}
+TacPanelSizes.VisionBtn = {
+    size = 20,
+}
+TacPanelSizes.HealthBar = {
+    segmentHeight = 10,
+    diamondSize = 12,
+    separatorWidth = 1,
+    statusBoxHeight = 16,
+    statusBoxMargin = 4,
+    clearBtnSize = 12,
+}
+TacPanelSizes.TokenIcon = {
+    height = 20,
+    width = 20,
+}
+TacPanelSizes.Portrait = {
+    height = 120,
+}
+
+local g_edsSetting = setting{
+    id = "eds",
+    default = 50,
+    min = 10,
+    max = 1000,
+    storage = "game",
+}
+
+TacPanelStyles.TacPanel = {
+    {   -- Outer tac panel. Applies margin, padding, alignment, bottom border.
+        selectors = {"panel", "tacpanel"},
+        width = "98%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        hpad = 4,
+        vpad = 8,
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = RICH_BLACK,
+        borderColor = GRAY02,
+        border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
+    },
+    {
+        selectors = {"panel", "tacpanel", "alt-bg"},
+        bgcolor = PANEL,
+    },
+    {
+        selectors = {"panel", "container"},
+        width = "auto",
+        height = "auto",
+        valign = "top",
+        halign = "left",
+    },
+    {
+        selectors = {"label", "panel-title"},
+        width = "100%-8",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.panelTitle,
+        color = DIM,
+    },
+    -- Collapsible title bar
+    { selectors = {"panel", "tp-title-bar"},
+      width = "100%", height = "auto",
+      halign = "left", valign = "top",
+      flow = "horizontal", vpad = 2 },
+    -- Collapse arrow
+    { selectors = {"tp-expando"},
+      hmargin = 8, halign = "right", valign = "center",
+      color = DIM },
+}
+TacPanelStyles.Tooltip = {
+    {
+        selectors = {"tacpanel-tooltip"},
+        bgimage = "panels/square.png",
+        bgcolor = "black",
+        width = 360,
+        height = "auto",
+        pad = 4,
+        flow = "vertical",
+    },
+    {
+        selectors = {"tacpanel-tooltip-text"},
+        width = "100%",
+        height = "auto",
+        fontSize = 16,
+    },
+}
+TacPanelStyles.Portrait = {
+    {
+        selectors = {"panel", "portrait-frame"},
+        bgimage = "panels/square.png",
+        height = TacPanelSizes.Portrait.height,
+        width = string.format("%f%% height", Styles.portraitWidthPercentOfHeight),
+        valign = "top",
+        halign = "left",
+        lmargin = 4,
+        bgcolor = "white",
+        borderColor = GRAY02,
+        borderWidth = 2,
+        cornerRadius = 10,
+    },
+    {
+        selectors = {"panel", "portrait-body"},
+        width = "100%-2",
+        height = "100%-2",
+        valign = "center",
+        halign = "center",
+        bgcolor = "white",
+        cornerRadius = 10,
+    },
+}
+TacPanelStyles.SummaryInfo = {
+    {
+        selectors = {"panel", "summary-info"},
+        height = "auto",
+        width = TacPanelSizes.Panels.fullWidth,
+        valign = "top",
+        halign = "center",
+        flow = "vertical",
+        pad = 6,
+    },
+    {
+        selectors = {"label", "summary-info"},
+        fontFace = "Newzald",
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = {"label", "summary-info", "char-name"},
+        fontSize = TacPanelSizes.Fonts.charName,
+        color = CREAM,
+    },
+    {
+        selectors = {"label", "summary-info", "level"},
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.charLevel,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "summary-info", "class"},
+        fontSize = TacPanelSizes.Fonts.charClass,
+        color = GOLD,
+    },
+    {
+        selectors = {"label", "summary-info", "subclass"},
+        fontSize = TacPanelSizes.Fonts.charSubclass,
+        color = MUTED,
+    },
+
+    -- Control buttons below portrait
+    {
+        selectors = {"toggle-btn"},
+        halign = "left",
+        valign = "top",
+        pad = 4,
+        border = 1,
+        cornerRadius = 4,
+        borderColor = GRAY02,
+    },
+    {
+        selectors = {"toggle-btn", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"toggle-btn", "press"},
+        brightness = 0.5,
+    },
+    -- Light toggle button
+    {
+        selectors = {"light-btn"},
+        bgimage = "drawsteel/light-off.png",
+        bgcolor = "white",
+    },
+    {
+        selectors = {"light-btn", "light-on"},
+        bgcolor = GOLD_LIGHT,
+    },
+}
+TacPanelStyles.TokenBox = {
+    {
+        selectors = {"panel", "tokenbox"},
+        height = (TacPanelSizes.Portrait.height / 2) - 2,
+        width = 100,
+        valign = "top",
+        halign = "left",
+        bmargin = 4,
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        borderColor = GRAY02,
+        borderWidth = 2,
+        cornerRadius = 6,
+        flow = "vertical",
+    },
+    {
+        selectors = {"panel", "tokenbox", "hero-tokens"},
+        borderColor = GOLD_BORDER,
+    },
+    {
+        selectors = {"panel", "tokenbox", "surges"},
+        borderColor = SURGE_BORDER,
+    },
+    {
+        selectors = {"panel", "tokenbox", "victories"},
+        borderColor = SURGE_BORDER,
+    },
+    {
+        selectors = {"panel", "tokenbox", "heroic-resources"},
+        borderColor = GOLD_BORDER,
+        bgcolor = GOLD_DARK_BG,
+    },
+    {
+        selectors = {"label", "tokenbox"},
+        color = Styles.textColor,
+    },
+    {
+        selectors = {"label", "tokenbox", "title"},
+        width = "98%",
+        height = "auto",
+        valign = "top",
+        halign = "center",
+        tmargin = 4,
+        fontFace = "Berling",
+        fontSize = 12,
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "tokenbox", "title", "hero-tokens"},
+        color = GOLD,
+    },
+    {
+        selectors = {"label", "tokenbox", "title", "surges"},
+        color = MUTED,
+    },
+    {
+        selectors = {"label", "tokenbox", "title", "victories"},
+        color = MUTED,
+    },
+    {
+        selectors = {"label", "tokenbox", "title", "heroic-resources"},
+        color = GOLD,
+    },
+    {
+        selectors = {"panel", "icon"},
+        width = TacPanelSizes.TokenIcon.width,
+        height = TacPanelSizes.TokenIcon.height,
+        valign = "center",
+        border = 0,
+        bgcolor = "white",
+    },
+    {
+        selectors = {"panel", "icon", "hero-tokens"},
+        bgimage = PLACEHOLDER_TOKEN,
+        bgcolor = GOLD,
+    },
+    {
+        selectors = {"panel", "icon", "victories"},
+        bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_VICTORY.png",
+    },
+    {
+        selectors = {"panel", "icon", "heroic-resources"},
+        bgimage = PLACEHOLDER_TOKEN,
+        bgcolor = GOLD,
+    },
+    {
+        selectors = {"label", "tokenbox", "value"},
+        width = "auto",
+        height = "auto",
+        valign = "top",
+        tmargin = -4,
+        hmargin = 6,
+        fontFace = "Newzald",
+        fontSize = 30,
+    },
+    {
+        selectors = {"label", "tokenbox", "value", "hero-tokens"},
+        color = GOLD,
+    },
+    {
+        selectors = {"label", "tokenbox", "value", "heroic-resources"},
+        color = GOLD,
+    },
+    {
+        selectors = {"refresh-icon"},
+        halign = "right",
+        valign = "bottom",
+        hmargin = 4,
+        vmargin = 4,
+    }
+}
+TacPanelStyles.Stamina = {
+    {
+        selectors = {"panel", "stamina-controls"},
+        height = "auto",
+        width = "auto", --TacPanelSizes.Panels.fullWidth,
+        valign = "top",
+        halign = "left",
+        flow = "horizontal",
+        vpad = 6,
+    },
+    {
+        selectors = {"panel", "stamina-box"},
+        height = TacPanelSizes.Panels.stamBoxHeight,
+        width = TacPanelSizes.Panels.stamBoxNarrow,
+        halign = "left",
+        flow = "vertical",
+        lmargin = 4,
+        rmargin = 2,
+        pad = 4,
+        bgimage = true,
+        bgcolor = "clear",
+        borderWidth = 1,
+        cornerRadius = 6,
+    },
+    {
+        selectors = {"panel", "stamina-box", "harm"},
+        borderColor = RED,
+        bgcolor = DARKRED,
+    },
+    {
+        selectors = {"panel", "stamina-box", "stamina"},
+        width = TacPanelSizes.Panels.stamBoxStam,
+        borderColor = TEAL_HEAL,
+        bgcolor = TEAL_HEAL .. "0F",
+    },
+    {
+        selectors = {"panel", "stamina-box", "heal"},
+        borderColor = TEAL_HEAL,
+        bgcolor = TEAL_HEAL .. "0F",
+    },
+    {
+        selectors = {"panel", "stamina-box", "recoveries"},
+        width = TacPanelSizes.Panels.stamBoxRecoveries,
+        borderColor = TEAL_HEAL,
+        bgcolor = TEAL_HEAL .. "0F",
+    },
+    {
+        selectors = {"panel", "stamina-box", "temp"},
+        borderColor = TEMP_STAM,
+        bgcolor = TEMP_STAM .. "0F",
+    },
+    {
+        selectors = {"label", "stambox-title"},
+        width = "98%",
+        height = "auto",
+        valign = "top",
+        halign = "center",
+        textAlignment = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.stamBoxTitle,
+        color = CREAM,
+    },
+    {
+        selectors = {"label", "stambox-title", "harm"},
+        -- color = RED,
+    },
+    {
+        selectors = {"label", "stambox-title", "heal"},
+        -- color = TEAL_HEAL,
+    },
+    {
+        selectors = {"label", "stambox-title", "temp"},
+        fontSize = TacPanelSizes.Fonts.stamBoxTitle - 1,
+        -- color = TEMP_STAM,
+    },
+    {
+        selectors = {"input", "stambox-input"},
+        width = "98%",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
+        fontFace = "Newzald",
+        textAlignment = "center",
+        fontSize = TacPanelSizes.Fonts.stamBoxInput,
+    },
+    {
+        selectors = {"stambox-input", "harm"},
+        color = RED,
+    },
+    {
+        selectors = {"stambox-input", "heal"},
+        color = TEAL_HEAL,
+    },
+    {
+        selectors = {"stambox-input", "temp"},
+        color = TEMP_STAM,
+        fontFace = "DrawSteelGlyphs",
+    },
+    {
+        selectors = {"stambox-input", "temp", "focus"},
+        fontFace = "Newzald",
+        color = CREAM,
+    },
+    {
+        selectors = {"label", "stambox-stam", "current"},
+        height = "auto",
+        width = "auto",
+        valign = "center",
+        halign = "left",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.currentStam,
+        color = CREAM,
+    },
+    {
+        selectors = {"label", "stambox-stam", "max"},
+        height = "auto",
+        width = "auto",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.maxStamina,
+        color = DIMMER,
+    },
+    {
+        selectors = {"label", "recovery-value"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "center",
+        textAlignment = "center",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.recoveryValue,
+        color = HEALTHY_FILL,
+    },
+    {
+        selectors = {"label", "recovery-value", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"label", "recovery-count"},
+        width = "auto",
+        height = "auto",
+        valign = "top",
+        halign = "left",
+        textAlignment = "left",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.recoveryCount,
+        color = HEALTHY_FILL,
+    },
+    {
+        selectors = {"label", "recovery-max"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        lmargin = 4,
+        textAlignment = "left",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.recoveryCount,
+        color = DIMMER,
+    },
+    {
+        selectors = {"recovery-pip-row"},
+        flow = "horizontal",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "top",
+        vmargin = 1,
+    },
+    {
+        selectors = {"recovery-pip"},
+        width = 4,
+        height = 4,
+        hmargin = 1,
+        valign = "center",
+        bgimage = "panels/square.png",
+        borderWidth = 1,
+        borderColor = HEALTHY_FILL,
+    },
+    {
+        selectors = {"recovery-pip", "filled"},
+        bgcolor = HEALTHY_FILL,
+    },
+    -- Health bar styles
+    {   -- The outer bar row container
+        selectors = {"panel", "health-bar"},
+        width = "98%",
+        vpad = 8,
+        height = "auto",
+        flow = "horizontal",
+    },
+    {   -- Vertical column pairing a segment with its status box
+        selectors = {"panel", "health-column"},
+        height = "auto",
+        flow = "vertical",
+        valign = "top",
+    },
+    {   -- Each segment: outlined box, transparent interior
+        selectors = {"panel", "health-segment"},
+        width = "100%",
+        height = TacPanelSizes.HealthBar.segmentHeight,
+        bgimage = "panels/square.png",
+        bgcolor = "clear",
+        borderWidth = 1,
+        flow = "none",
+    },
+    {
+        selectors = {"panel", "health-segment", "dying"},
+        borderColor = DYING_FILL,
+    },
+    {
+        selectors = {"panel", "health-segment", "winded"},
+        borderColor = WINDED_FILL,
+    },
+    {
+        selectors = {"panel", "health-segment", "healthy"},
+        borderColor = HEALTHY_FILL,
+    },
+    {   -- The fill panel inside each segment (left-aligned, height 100%)
+        selectors = {"panel", "health-fill"},
+        height = "100%",
+        halign = "left",
+        bgimage = "panels/square.png",
+    },
+    {
+        selectors = {"panel", "health-fill", "dying"},
+        bgcolor = DYING_FILL,
+    },
+    {
+        selectors = {"panel", "health-fill", "winded"},
+        bgcolor = WINDED_FILL,
+    },
+    {
+        selectors = {"panel", "health-fill", "healthy"},
+        bgcolor = HEALTHY_FILL,
+    },
+    {   -- White separator on right edge of dying and winded segments
+        selectors = {"panel", "health-separator"},
+        width = TacPanelSizes.HealthBar.separatorWidth,
+        height = "100%",
+        halign = "right",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+    },
+    {   -- Diamond positioner: floating panel whose width% positions the diamond
+        selectors = {"panel", "health-diamond-positioner"},
+        height = TacPanelSizes.HealthBar.segmentHeight,
+        halign = "left",
+        valign = "top",
+        flow = "none",
+    },
+    {   -- The diamond itself: rotated square, offset by half its size
+        selectors = {"panel", "health-diamond"},
+        width = TacPanelSizes.HealthBar.diamondSize,
+        height = TacPanelSizes.HealthBar.diamondSize,
+        halign = "right",
+        valign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = "white",
+        x = TacPanelSizes.HealthBar.diamondSize / 2,
+    },
+    {
+        selectors = {"panel", "health-diamond", "has-temp"},
+        bgcolor = TEMP_STAM,
+    },
+    {   -- Status box base: outlined box with transparent fill, centered label
+        selectors = {"panel", "health-status"},
+        width = "100%",
+        height = TacPanelSizes.HealthBar.statusBoxHeight,
+        tmargin = TacPanelSizes.HealthBar.statusBoxMargin,
+        bgimage = "panels/square.png",
+        borderWidth = 1,
+        halign = "left",
+        valign = "top",
+    },
+    {
+        selectors = {"panel", "health-status", "winded"},
+        borderColor = WINDED_FILL,
+        bgcolor = WINDED_FILL .. "0F",
+    },
+    {
+        selectors = {"panel", "health-status", "dying"},
+        borderColor = DYING_FILL,
+        bgcolor = DYING_FILL .. "0F",
+    },
+    {   -- Status label inside the box
+        selectors = {"label", "health-status-label"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.stamBoxTitle,
+    },
+    {
+        selectors = {"label", "health-status-label", "winded"},
+        color = WINDED_FILL,
+    },
+    {
+        selectors = {"label", "health-status-label", "dying"},
+        color = DYING_FILL,
+    },
+    {   -- Temp stam box: horizontal layout, TEMP_STAM colors
+        selectors = {"panel", "health-status", "temp"},
+        borderColor = TEMP_STAM,
+        bgcolor = TEMP_STAM .. "0F",
+        flow = "horizontal",
+    },
+    {   -- Temp HP value (Newzald 12pt white)
+        selectors = {"label", "temp-stam-value"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 6,
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.tempStamValue,
+        color = CREAM,
+    },
+    {   -- "TEMP" descriptor (Berling 10pt, border color)
+        selectors = {"label", "temp-stam-label"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.tempStamLabel,
+        color = TEMP_STAM,
+    },
+    {   -- Clear button: small square, black bg, purple border
+        selectors = {"panel", "temp-stam-clear"},
+        width = TacPanelSizes.HealthBar.clearBtnSize,
+        height = TacPanelSizes.HealthBar.clearBtnSize,
+        halign = "right",
+        valign = "center",
+        hmargin = 2,
+        bgimage = "panels/square.png",
+        bgcolor = "black",
+        borderWidth = 1,
+        borderColor = TEMP_STAM,
+    },
+    {
+        selectors = {"panel", "temp-stam-clear", "parent:hover"},
+        collapsed = false,
+    },
+    {   -- X label inside clear button
+        selectors = {"label", "temp-stam-clear-label"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.tempStamClear,
+        color = TEMP_STAM,
+    },
+}
+TacPanelStyles.CharacteristicsPanel = {
+    {
+        selectors = {"panel", "characteristics-panel"},
+        height = "auto",
+        width = "100%",
+        valign = "top",
+        halign = "left",
+        flow = "horizontal",
+        vpad = 6,
+    },
+    {
+        selectors = {"panel", "characteristic-box"},
+        width = "16%",
+        height = "100% width",
+        halign = "left",
+        valign = "top",
+        pad = 2,
+        hmargin = 4,
+        flow = "vertical",
+        bgimage = true,
+        bgcolor = CHARACTERISTIC_BG,
+        borderColor = RULE,
+        border = 1,
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"panel", "characteristic-box", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"label", "char-title"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 2,
+        color = MUTED,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.charTitle,
+    },
+    {
+        selectors = {"label", "char-title", "first"},
+        fontFace = "DrawSteelPotencies",
+        fontSize = TacPanelSizes.Fonts.charTitle + 2,
+    },
+    {
+        selectors = {"label", "char-value"},
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        -- tmargin = 4,
+        color = MUTED,
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.charValue,
+    },
+    {
+        selectors = {"label", "char-value", "positive"},
+        color = TEAL,
+    },
+    {
+        selectors = {"label", "char-value", "negative"},
+        color = RED,
+    }
+}
+TacPanelStyles.MovementPanel = {
+    {
+        selectors = {"panel", "movement-panel"},
+        height = "auto",
+        width = "100%",
+        valign = "top",
+        halign = "left",
+        flow = "horizontal",
+        vpad = 6,
+    },
+    {
+        selectors = {"panel", "movement-box"},
+        height = 38,
+        width = "20%",
+        valign = "top",
+        halign = "left",
+        tmargin = 4,
+        rmargin = 6,
+        pad = 4,
+        flow = "vertical",
+    },
+    {
+        selectors = {"label", "movebox-title"},
+        width = "100%",
+        height = "auto",
+        valign = "top",
+        halign = "center",
+        color = MUTED,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.movePanelTitle,
+        textAlignment = "center",
+    },
+    {
+        selectors = {"label", "movebox-value"},
+        width = "auto",
+        height = "auto",
+        valign = "center",
+        halign = "center",
+        fontFace = "Newzald",
+        color = "white",
+        fontSize = TacPanelSizes.Fonts.movePanelValue,
+    },
+    {
+        selectors = {"label", "movebox-value", "restricted"},
+        color = DIMMER,
+        strikethrough = true,
+    },
+    {
+        selectors = {"label", "movebox-value", "hindered"},
+        lmargin = 4,
+        color = MOVE_HINDERED,
+    },
+    {
+        selectors = {"panel", "altitude-row"},
+        flow = "horizontal",
+        width = "100%",
+        height = "auto",
+    },
+    {
+        selectors = {"panel", "altitude-btn-stack"},
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        valign = "center",
+    },
+    {
+        selectors = {"label", "altitude-btn"},
+        bgimage = "panels/square.png",
+        width = 16,
+        height = 12,
+        fontSize = 10,
+        bold = true,
+        textAlignment = "center",
+        cornerRadius = 2,
+        borderWidth = 1,
+        bgcolor = "#ffffff22",
+        borderColor = GRAY02,
+        color = "white",
+    },
+    {
+        selectors = {"label", "altitude-btn", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "altitude-btn", "press"},
+        brightness = 0.5,
+    },
+}
+TacPanelStyles.HeroicResources = {
+    {
+        selectors = {"panel", "hr-gains"},
+        width = "100%-8",
+        height = "auto",
+        lmargin = 6,
+        flow = "vertical",
+    },
+    {
+        selectors = {"panel", "hr-row"},
+        width = "100%",
+        height = "auto",
+        bmargin = 4,
+        flow = "horizontal",
+    },
+    {
+        selectors = {"panel", "hr-chip"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        vpad = 3,
+        hpad = 6,
+        flow = "horizontal",
+        bgimage = true,
+        border = 1,
+        borderColor = GOLD,
+        cornerRadius = 4,
+        bgcolor = GOLD .. "0F",
+    },
+    {
+        selectors = {"panel", "hr-chip", "completed"},
+        bgcolor = DIMMER .. "0F",
+        borderColor = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-value"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.hrChipValue,
+        color = GOLD,
+    },
+    {
+        selectors = {"label", "hr-chip-value", "parent:completed"},
+        strikethrough = true,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-event"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        hmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.hrChipEvent,
+        color = GOLD_LIGHT,
+    },
+    {
+        selectors = {"label", "hr-chip-event", "parent:completed"},
+        strikethrough = true,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "hr-chip-freq"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        hmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.hrChipFreq,
+        color = DIMMER,
+    },
+    {
+        selectors = {"panel", "growing-resources"},
+        width = "100%-8",
+        height = "auto",
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        border = 1,
+        borderColor = DIMMER,
+        cornerRadius = 2,
+    },
+    {
+        selectors = {"panel", "gr-title"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        vpad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        bgcolor = GOLD .. "0F",
+        borderColor = GOLD,
+        border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
+    },
+    {
+        selectors = {"label", "gr-title"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        lmargin = 8,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.growHRTitle,
+        color = GOLD_LIGHT,
+        bold = true,
+    },
+    {
+        selectors = {"gr-expando"},
+        hmargin = 8,
+        halign = "right",
+        valign = "center",
+        bgcolor = DIM,
+    },
+    {
+        selectors = {"panel", "gr-row"},
+        height = "auto",
+        width = "100%",
+        valign = "top",
+        halign = "left",
+        vpad = 4,
+        flow = "horizontal",
+        bgimage = true,
+        borderColor = DIMMER,
+        border = {x1 = 0, x2 = 0, y1 = 0, y2 = 1},
+    },
+    {
+        selectors = {"panel", "gr-row", "available"},
+        bgcolor = GOLD_LIGHT .. "0F"
+    },
+    {
+        selectors = {"label", "gr-value"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        lmargin = 8,
+        hpad = 8,
+        vpad = 4,
+        textAlignment = "center",
+        fontFace = "Newzald",
+        fontSize = TacPanelSizes.Fonts.grValue,
+        bold = true,
+        color = DIM,
+        bgimage = true,
+        border = 1,
+        borderColor = DIMMER,
+        bgcolor = DIMMER .. "0F",
+        cornerRadius = {x1 = 0, x2 = 0, y1 = 4, y2 = 4},
+    },
+    {
+        selectors = {"label", "gr-value", "parent:available"},
+        color = GOLD,
+        borderColor = GOLD,
+        bgcolor = GOLD .. "0F",
+    },
+    {
+        selectors = {"label", "gr-text"},
+        width = "84%",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.grText,
+        textWrap = true,
+        color = DIM,
+    },
+    {
+        selectors = {"label", "gr-text", "parent:available"},
+        color = GOLD_LIGHT,
+    }
+}
+TacPanelStyles.SkillsLanguages = {
+    {
+        selectors = {"label", "skillslangs"},
+        width = "94%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 4,
+        lmargin = 6,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.skillsLangs,
+        color = CREAM,
+    },
+}
+TacPanelStyles.Notes = {
+    -- Individual note label (markdown, same pattern as skillslangs)
+    { selectors = {"label", "note-entry"},
+      width = "94%", height = "auto",
+      halign = "left", valign = "top",
+      tmargin = 4, lmargin = 6,
+      fontFace = "Berling",
+      fontSize = TacPanelSizes.Fonts.skillsLangs,
+      color = CREAM },
+}
+TacPanelStyles.MultiEdit = {
+    -- Row containers
+    { selectors = {"panel", "me-actions"},
+      width = "100%", height = "auto",
+      flow = "horizontal", halign = "center", tmargin = 4 },
+    { selectors = {"panel", "me-icon-row"},
+      width = "auto", height = "auto",
+      flow = "horizontal", halign = "left", lmargin = 6, tmargin = 4 },
+
+    -- Heal/Damage input boxes
+    { selectors = {"panel", "me-input-box"},
+      width = "30%", height = 28, halign = "center", valign = "center",
+      bgimage = "panels/square.png",
+      border = 1, cornerRadius = 4, hmargin = 2 },
+    { selectors = {"panel", "me-input-box", "heal"},
+      bgcolor = TEAL_HEAL .. "1A", borderColor = TEAL_HEAL },
+    { selectors = {"panel", "me-input-box", "damage"},
+      bgcolor = RED .. "1A", borderColor = RED },
+    { selectors = {"input", "me-input"},
+      width = "100%", height = "100%",
+      bgcolor = "clear", borderWidth = 0, borderColor = "clear",
+      pad = 0, margin = 0,
+      fontFace = "Berling", fontSize = 12, color = CREAM,
+      bold = true, textAlignment = "center" },
+
+    -- Add Condition button
+    { selectors = {"panel", "me-condition-btn"},
+      width = "30%", height = 28, halign = "center", valign = "center",
+      bgimage = "panels/square.png",
+      bgcolor = DIM .. "1A", border = 1, borderColor = DIM,
+      cornerRadius = 4, hmargin = 2 },
+    { selectors = {"panel", "me-condition-btn", "hover"},
+      brightness = 1.3, transitionTime = 0.2 },
+    { selectors = {"label", "me-condition-btn"},
+      width = "100%", height = "100%",
+      halign = "center", valign = "center", textAlignment = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM, bold = true },
+
+    -- Icon button outline wrapper
+    { selectors = {"panel", "me-icon-wrap"},
+      width = "auto", height = "auto",
+      halign = "left", valign = "top",
+      lmargin = 4, pad = 4,
+      bgimage = true, bgcolor = "clear",
+      border = 1, borderColor = DIMMER, cornerRadius = 4 },
+
+    -- Squad chip
+    { selectors = {"panel", "me-squad-row"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      tmargin = 4, lmargin = 6, hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-squad-label"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+
+    -- EDS chip
+    { selectors = {"panel", "me-eds-chip"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-eds-label"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+    { selectors = {"label", "me-eds-input"},
+      width = 50, height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM },
+
+    -- EV result chip
+    { selectors = {"panel", "me-ev-chip"},
+      width = "auto", height = 28,
+      halign = "left", flow = "horizontal",
+      lmargin = 4, hpad = 6, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4 },
+    { selectors = {"label", "me-ev-result"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = CREAM },
+}
+TacPanelStyles.Routines = {
+    -- Container for routine chips
+    { selectors = {"panel", "rt-container"},
+      width = "100%", height = "auto",
+      flow = "horizontal", halign = "left" },
+
+    -- Routine chip (unselected = dim)
+    { selectors = {"panel", "rt-chip"},
+      width = "auto", height = 28,
+      flow = "horizontal", hpad = 8, vpad = 3,
+      bgimage = "panels/square.png",
+      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      cornerRadius = 4, lmargin = 6, tmargin = 4 },
+    { selectors = {"panel", "rt-chip", "hover"},
+      brightness = 1.3, transitionTime = 0.2 },
+    { selectors = {"panel", "rt-chip", "selected"},
+      bgcolor = GOLD .. "1A", borderColor = GOLD },
+
+    -- Routine chip label
+    { selectors = {"label", "rt-chip"},
+      width = "auto", height = "auto", valign = "center",
+      fontFace = "Berling", fontSize = 12, color = MUTED },
+    { selectors = {"label", "rt-chip", "selected"},
+      color = GOLD_LIGHT },
+}
+TacPanelStyles.Conditions = {
+    {
+        selectors = {"panel", "conditions"},
+        height = "auto",
+        width = TacPanelSizes.Panels.fullWidth,
+        valign = "top",
+        halign = "center",
+        flow = "vertical",
+        pad = 6,
+    },
+    {   -- Horizontal wrap container for chips
+        selectors = {"panel", "cond-chips"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        tmargin = 6,
+        flow = "horizontal",
+    },
+    {   -- Individual condition chip
+        selectors = {"panel", "cond-chip"},
+        height = "auto",
+        minHeight = TacPanelSizes.Panels.condChipHeight,
+        width = "auto",
+        halign = "left",
+        valign = "top",
+        hpad = 6,
+        vpad = 3,
+        margin = 2,
+        flow = "horizontal",
+        bgimage = true,
+        border = 1,
+        borderColor = GOLD,
+        bgcolor = GOLD .. "0F",
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"panel", "cond-chip", "hover"},
+        brightness = 1.3,
+        transitionTime = 0.2,
+    },
+    {   -- Condition icon
+        selectors = {"panel", "cond-icon"},
+        width = 16,
+        height = 16,
+        valign = "center",
+        halign = "left",
+    },
+    {   -- Condition name + duration label
+        selectors = {"label", "cond-name"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condName,
+        color = CREAM,
+    },
+    {   -- Set caster button
+        selectors = {"panel", "cond-setCaster"},
+        height = 14,
+        width = 14,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        bgimage = true,
+        border = 1,
+        borderColor = GOLD,
+        color = GOLD,
+        cornerRadius = 2,
+    },
+    {
+        selectors = {"panel", "cond-setCaster", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "cond-setCaster"},
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condSetCaster,
+        color = MUTED,
+    },
+    {   -- X remove button - hidden until parent hovered
+        selectors = {"panel", "cond-remove"},
+        width = 14,
+        height = 14,
+        halign = "left",
+        valign = "center",
+        lmargin = 4,
+        bgimage = true,
+        bgcolor = RED .. "0F",
+        border = 1,
+        borderColor = RED,
+        cornerRadius = 2,
+        hidden = 1,
+    },
+    {
+        selectors = {"panel", "cond-remove", "parent:hover"},
+        hidden = 0,
+    },
+    {
+        selectors = {"panel", "cond-remove", "hover"},
+        brightness = 1.5,
+    },
+    {
+        selectors = {"label", "cond-remove"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condRemove,
+        color = RED,
+    },
+    {   -- Add condition button
+        selectors = {"panel", "cond-add"},
+        width = 22,
+        height = 22,
+        halign = "left",
+        valign = "center",
+        margin = 2,
+        bgimage = true,
+        bgcolor = "clear",
+        border = 1,
+        borderColor = DIM,
+        cornerRadius = 4,
+    },
+    {
+        selectors = {"panel", "cond-add", "hover"},
+        brightness = 1.5,
+        transitionTime = 0.2,
+    },
+    {
+        selectors = {"label", "cond-add"},
+        width = "100%",
+        height = "100%",
+        halign = "center",
+        valign = "center",
+        textAlignment = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condAdd,
+        color = DIM,
+    },
+    {   -- "No conditions" placeholder
+        selectors = {"label", "cond-empty"},
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        lmargin = 8,
+        fontFace = "Berling",
+        fontSize = 16,
+        color = DIM,
+        bold = false,
+        italics = true,
+    },
+    {   -- Custom condition input
+        selectors = {"input", "cond-custom-input"},
+        width = "94%",
+        height = "auto",
+        halign = "left",
+        lmargin = 6,
+        tmargin = 6,
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.condInput,
+        color = CREAM,
+        border = 1,
+        borderColor = DIM,
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 4,
+    },
+}
+TacPanelStyles.AddConditionMenu = {
+    {   -- Section headings
+        selectors = {"label", "menu-heading"},
+        width = "100%",
+        height = "auto",
+        halign = "left",
+        valign = "top",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.menuTitle,
+        color = DIM,
+        tmargin = 8,
+        bmargin = 4,
+        lmargin = 8,
+    },
+    {   -- Condition/effect option row
+        selectors = {"label", "menu-option"},
+        width = "95%",
+        height = 24,
+        halign = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.menuOption,
+        color = CREAM,
+        bgcolor = "clear",
+        bgimage = "panels/square.png",
+        cornerRadius = 4,
+        hpad = 6,
+    },
+    {
+        selectors = {"label", "menu-option", "hover"},
+        brightness = 1.2,
+        transitionTime = 0.15,
+    },
+    {
+        selectors = {"label", "menu-option", "press"},
+        brightness = 1.4,
+    },
+    {   -- Duration/rider sub-buttons
+        selectors = {"label", "menu-suboption"},
+        height = 20,
+        minWidth = 36,
+        width = "auto",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.menuSuboption,
+        textAlignment = "center",
+        color = CREAM,
+        bgimage = true,
+        bgcolor = "clear",
+        border = 1,
+        borderColor = GOLD_BORDER,
+        cornerRadius = 8,
+        hpad = 6,
+        lmargin = 4,
+    },
+    {
+        selectors = {"label", "menu-suboption", "hover"},
+        bgcolor = GOLD_BORDER,
+        brightness = 1.2,
+        transitionTime = 0.15,
+    },
+    {
+        selectors = {"label", "menu-suboption", "press"},
+        brightness = 1.4,
+    },
+    {
+        selectors = {"label", "menu-suboption", "disabled"},
+        color = DIM,
+        borderColor = DIM,
+        bgcolor = DIM .. "0F",
+    },
+    {   -- Search input
+        selectors = {"input", "menu-search"},
+        width = "90%",
+        height = "auto",
+        halign = "center",
+        fontFace = "Berling",
+        fontSize = TacPanelSizes.Fonts.menuSearch,
+        color = CREAM,
+        border = 1,
+        borderColor = DIM,
+        cornerRadius = 4,
+        hpad = 6,
+        vpad = 4,
+        bmargin = 6,
+    },
+    {   -- Divider
+        selectors = {"panel", "menu-divider"},
+        width = "90%",
+        height = 1,
+        halign = "center",
+        bgimage = "panels/square.png",
+        bgcolor = DIM,
+        vmargin = 6,
+    },
+}
+TacPanelStyles.Resistances = {
+    -- Container: side-by-side
+    { selectors = {"panel", "res-container"},
+      width = "100%", height = "auto", flow = "horizontal",
+      halign = "center", tmargin = 4 },
+
+    -- Weakness box
+    { selectors = {"label", "res-box", "weakness"},
+      width = "47%", height = "auto", halign = "center",
+      fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
+      bold = true, color = RED, bgimage = "panels/square.png",
+      bgcolor = RED .. "04", border = 1, borderColor = RED,
+      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
+
+    -- Immunity box
+    { selectors = {"label", "res-box", "immunity"},
+      width = "47%", height = "auto", halign = "center",
+      fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
+      bold = true, color = TEAL, bgimage = "panels/square.png",
+      bgcolor = TEAL_HEAL .. "04", border = 1, borderColor = TEAL_HEAL,
+      cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
+}
+
+-- Big text
+local HERO_TOKEN_TOOLTIP = [[**Hero Tokens**
+* You can spend a hero token to gain two surges.
+* You can spend a hero token when you fail a saving throw to succeed instead.
+* You can reroll the result of a test. You must use the new result.
+* You can spend 2 hero tokens to regain Stamina equal to your Recovery value without spending a Recovery.
+]]
+
+local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunction, DescribeModificationsFunction)
+    return function(element)
+        local m_token = tokenInfo.token
+        if m_token == nil or (not m_token.valid) then
+            return
+        end
+        local baseValue = GetBaseFunction(m_token.properties)
+        local modifications = DescribeModificationsFunction(m_token.properties)
+
+        local panels = {}
+        panels[#panels+1] = gui.Label{
+            text = string.format("Base %s: %d", name, baseValue),
+            width = "auto",
+            height = "auto",
+            fontSize = 14,
+        }
+        for _,modification in ipairs(modifications) do
+            local text = string.format("%s: %s", modification.key, modification.value)
+            panels[#panels+1] = gui.Label{
+                text = text,
+                width = "auto",
+                height = "auto",
+                fontSize = 14,
+            }
+        end
+
+        local container = gui.Panel{
+            width = "auto",
+            height = "auto",
+            flow = "vertical",
+            children = panels,
+        }
+
+        element.tooltip = gui.TooltipFrame(container)
+    end
+end
+
+local function GenerateCustomAttributeCalculationTooltip(tokenInfo, name)
+    return GenerateAttributeCalculationTooltip(tokenInfo, name,
+        function(c) return c:BaseNamedCustomAttribute(name) end,
+        function(c) return c:DescribeModificationsToNamedCustomAttribute(name) end)
+end
+
+local function _fitFontSize(baseSize, maxChars, len)
+    if len <= maxChars then return baseSize end
+    return math.max(12, math.floor(baseSize * maxChars / len))
+end
+
+--- Merge several styles together
+--- @param styles table[][] array of style arrays to concatenate
+--- @return table[] merged merged array of style arrays
+function TacPanel.MergeStyles(styles)
+    local result = {}
+    for _,styleArray in ipairs(styles) do
+        for _,entry in ipairs(styleArray) do
+            result[#result + 1] = entry
+        end
+    end
+    return result
+end
+
+--- Create a tooltip panel for token resource boxes
+--- @param text string
+--- @return Panel
+function TacPanel.Tooltip(text)
+    return gui.Panel{
+        styles = TacPanelStyles.Tooltip,
+        classes = {"tacpanel-tooltip"},
+        gui.Label{
+            classes = {"tacpanel-tooltip-text"},
+            text = text,
+            markdown = true,
+        },
+    }
+end
+
+--- display the portrait
+--- @return Panel
+function TacPanel.Portrait()
+    return gui.Panel{
+        styles = TacPanelStyles.Portrait,
+        classes = {"portrait-frame"},
+        refreshCharacter = function(element, token)
+            local bg = token.portraitBackground
+            if bg == nil or bg == "" then
+                element.selfStyle.bgcolor = "clear"
+            else
+                element.bgimage = bg
+                element.selfStyle.bgcolor = "white"
+            end
+        end,
+        gui.Panel{
+            classes = {"portrait-body"},
+            floating = true,
+            refreshCharacter = function(element, token)
+                local portrait = token.offTokenPortrait
+                element.bgimage = portrait
+
+                if portrait ~= token.portrait and not token.popoutPortrait then
+                    element.selfStyle.imageRect = nil
+                else
+                    element.selfStyle.imageRect = token:GetPortraitRectForAspect(Styles.portraitWidthPercentOfHeight*0.01, portrait)
+                end
+            end,
+        }
+    }
+end
+
+--- display the hero token box
+--- @return Panel
+function TacPanel.HeroTokenBox()
+    return gui.Panel{
+        styles = TacPanelStyles.TokenBox,
+        classes = {"tokenbox", "hero-tokens", "collapsed"},
+        data = {
+            token = nil,
+        },
+
+        monitorGame = CharacterResource.GlobalResourcePath(),
+        refreshGame = function(element)
+            if element.data.token ~= nil then
+                element:FireEvent("refreshCharacter", element.data.token)
+            end
+        end,
+
+        linger = function(element)
+            if element.data.token then
+                local text = HERO_TOKEN_TOOLTIP
+                local history = element.data.token.properties:GetHeroTokenHistory()
+                if history ~= nil and #history > 0 then
+                    text = text .. "\n<b>Recent Changes:</b>"
+                    for _,entry in ipairs(history) do
+                        text = string.format("%s\n%s: %d by %s %s", text, entry.note, entry.value, entry.who, entry.when)
+                    end
+                end
+                element.tooltip = TacPanel.Tooltip(text)
+            end
+        end,
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local visible = token.properties:IsHero() or token.properties:IsCompanion()
+            element:SetClass("collapsed", not visible)
+            if visible then
+                element:FireEventTree("refreshValue", token)
+            end
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        -- Row 1: title
+        gui.Label{
+            classes = {"tokenbox", "title", "hero-tokens"},
+            text = "HERO TOKENS",
+        },
+
+        -- Row 2: icon & value
+        gui.Panel{
+            classes = {"container"},
+            halign = "center",
+            valign = "top",
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"icon", "hero-tokens"},
+            },
+            gui.Label{
+                classes = {"tokenbox", "value", "hero-tokens"},
+                text = "0",
+                editable = true,
+                numeric = true,
+                characterLimit = 2,
+                change = function(element)
+                    local token = element.parent.parent.data.token
+                    if token == nil then return end
+                    local n = tonumber(element.text)
+                    if n ~= nil and round(n) == n then
+                        n = math.max(0, n)
+                        token.properties:SetHeroTokens(n, "Set manually")
+                    end
+                    element.text = string.format("%d", token.properties:GetHeroTokens())
+                end,
+                refreshValue = function(element, token)
+                    element.text = tostring(token.properties:GetHeroTokens())
+                end,
+            },
+        },
+
+        -- Floating: refresh button
+        gui.EnhIconButton{
+            classes = {"refresh-icon"},
+            floating = true,
+            bgimage = "icons/standard/Icon_App_Undo.png",
+            color = GOLD,
+            bgcolor = GOLD,
+            width = 16,
+            height = 16,
+            press = function(element)
+                local token = element.parent.data.token
+                if token ~= nil then
+                    local n = dmhub.GetSettingValue("numheroes")
+                    token:ModifyProperties{
+                        description = "Reset Hero Tokens",
+                        execute = function()
+                            token.properties:SetHeroTokens(n, "Session Reset")
+                        end,
+                    }
+                end
+            end,
+            linger = function(element)
+                local n = dmhub.GetSettingValue("numheroes")
+                gui.Tooltip(string.format("Reset Hero Tokens For Session (%d heroes)", n))(element)
+            end,
+        },
+    }
+end
+
+--- display the surges box
+--- @return Panel
+function TacPanel.SurgesBox()
+    return gui.Panel{
+        styles = TacPanelStyles.TokenBox,
+        classes = {"tokenbox", "surges", "collapsed"},
+        data = { token = nil },
+
+        linger = function(element)
+            if element.data.token then
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "Surges",
+                    entries = element.data.token.properties:GetStatHistory(
+                        CharacterResource.surgeResourceId):GetHistory(),
+                }
+            end
+        end,
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local visible = token.properties:IsHero() or token.properties:IsCompanion()
+            element:SetClass("collapsed", not visible)
+            if visible then
+                element:FireEventTree("refreshValue", token)
+            end
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        -- Row 1: title
+        gui.Label{
+            classes = {"tokenbox", "title", "surges"},
+            text = "SURGES",
+        },
+
+        -- Row 2: icon & value
+        gui.Panel{
+            classes = {"container"},
+            halign = "center",
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"icon"},
+                bgimage = "game-icons/surge.png",
+            },
+            gui.Label{
+                classes = {"tokenbox", "value"},
+                text = "0",
+                editable = true,
+                numeric = true,
+                characterLimit = 2,
+                change = function(element)
+                    local token = element.parent.parent.data.token
+                    if token == nil then return end
+                    local amount = tonumber(element.text)
+                    if amount == nil then
+                        element.text = tostring(token.properties:GetAvailableSurges())
+                        return
+                    end
+                    amount = math.max(0, round(amount))
+                    local diff = amount - token.properties:GetAvailableSurges()
+                    if diff ~= 0 then
+                        token:ModifyProperties{
+                            description = "Change Surges",
+                            execute = function()
+                                token.properties:ConsumeSurges(-diff, "Manually Set")
+                            end,
+                        }
+                    end
+                    element.text = tostring(token.properties:GetAvailableSurges())
+                end,
+                refreshValue = function(element, token)
+                    local q = dmhub.initiativeQueue
+                    if q == nil or q.hidden then
+                        element.text = "--"
+                    else
+                        element.text = tostring(token.properties:GetAvailableSurges())
+                    end
+                end,
+            },
+        },
+    }
+end
+
+--- Display the victories box
+--- @return Panel
+function TacPanel.VictoriesBox()
+    return gui.Panel{
+        styles = TacPanelStyles.TokenBox,
+        classes = {"tokenbox", "victories"},
+
+        -- Row 1: title
+        gui.Label{
+            classes = {"tokenbox", "title", "victories"},
+            text = "VICTORIES",
+        },
+
+        -- Row 2: icon & value
+        gui.Panel{
+            classes = {"container"},
+            halign = "center",
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"icon", "victories"},
+            },
+            gui.Label{
+                classes = {"tokenbox", "value"},
+                text = "0",
+                editable = true,
+                numeric = true,
+                characterLimit = 2,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    element.text = string.format("%d", token.properties:GetVictories())
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                change = function(element)
+                    local token = element.data.token
+                    if token == nil then return end
+                    local n = math.max(0, round(tonumber(element.text) or 0))
+                    if n ~= token.properties:GetVictories() then
+                        token:ModifyProperties{
+                            description = "Set Victories",
+                            execute = function()
+                                token.properties:SetVictories(n)
+                                element.text = string.format("%d", token.properties:GetVictories())
+                            end,
+                        }
+                    else
+                        element.text = string.format("%d", token.properties:GetVictories())
+                    end
+                end,
+                refreshValue = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+        },
+    }
+end
+
+--- Display the Heroic Resources box
+--- @return Panel
+function TacPanel.HeroicResourcesBox()
+    return gui.Panel{
+        styles = TacPanelStyles.TokenBox,
+        classes = {"tokenbox", "heroic-resources"},
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        linger = function(element)
+            local token = element.data.token
+            if token == nil then return end
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then
+                gui.Tooltip(string.format("No %s while not in combat.", token.properties:GetHeroicResourceName()))(element)
+                return
+            end
+            local desc = token.properties:GetHeroicResourceName()
+            local negativeValue = token.properties:CalculateNamedCustomAttribute("Negative Heroic Resource")
+            local text = nil
+            if negativeValue > 0 then
+                text = string.format("%s may go as low as -%d", desc, negativeValue)
+            end
+            element.tooltip = gui.StatsHistoryTooltip{
+                text = text,
+                description = desc,
+                entries = token.properties:GetStatHistory(CharacterResource.heroicResourceId):GetHistory(),
+            }
+        end,
+
+        -- Row 1: title
+        gui.Label{
+            classes = {"tokenbox", "title", "heroic-resources"},
+            text = "",
+            refreshToken = function(element, token)
+                element.text = token.properties:GetHeroicResourceName():upper()
+            end,
+        },
+
+        -- Row 2: icon & value
+        gui.Panel{
+            classes = {"container"},
+            halign = "center",
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"icon", "heroic-resources"},
+                refreshToken = function(element, token)
+                    local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                    local icon = classInfo ~= nil and classInfo:try_get("heroicResourceIcon", PLACEHOLDER_TOKEN)
+                    element.selfStyle.bgimage = icon
+                end,
+            },
+            gui.Label{
+                classes = {"tokenbox", "value", "heroic-resources"},
+                text = "0",
+                editable = true,
+                numeric = true,
+                characterLimit = 2,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local q = dmhub.initiativeQueue
+                    if q == nil or q.hidden then
+                        element.text = "--"
+                    else
+                        element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+                    end
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                change = function(element)
+                    local token = element.data.token
+                    if token == nil then return end
+                    local amount = tonumber(element.text)
+                    if amount == nil then
+                        element:FireEvent("refreshCharacter", token)
+                        return
+                    end
+                    local creature = token.properties
+                    if not creature:IsHero() and not creature:IsCompanion() then
+                        CharacterResource.SetMalice(math.max(0, amount), "Manually set")
+                        return
+                    end
+                    local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
+                    amount = resource:ClampQuantity(token.properties, amount)
+                    local diff = amount - token.properties:GetHeroicOrMaliceResources()
+                    if diff ~= 0 then
+                        token:ModifyProperties{
+                            description = "Change Heroic Resource",
+                            execute = function()
+                                if diff > 0 then
+                                    token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", diff)
+                                else
+                                    token.properties:ConsumeResource(CharacterResource.heroicResourceId, "unbounded", -diff)
+                                end
+                            end,
+                        }
+                    end
+                    element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+                end,
+            },
+        },
+    }
+end
+
+--- Display the summary section with portrait, class, levels, etc.
+--- @return Panel
+function TacPanel.Summary()
+    local function outlineButton(btn)
+        return gui.Panel{
+            classes = {"container"},
+            halign = "left",
+            valign = "top",
+            lmargin = 4,
+            pad = 4,
+            bgimage = true,
+            bgcolor = "clear",
+            border = 1,
+            borderColor = DIMMER,
+            cornerRadius = 4,
+            btn
+        }
+    end
+
+    return gui.Panel{
+        styles = TacPanelStyles.TacPanel,
+        classes = {"tacpanel"},
+        -- Main arrangement - 3 columns
+        gui.Panel{
+            classes = {"container"},
+            flow = "horizontal",
+            
+            -- Col1: Portrait
+            TacPanel.Portrait(),
+
+            -- Col2: Name etc.
+            gui.Panel{
+                styles = TacPanelStyles.SummaryInfo,
+                classes = {"summary-info"},
+                width = TacPanelSizes.Panels.summaryNames,
+
+                -- Name
+                gui.Label{
+                    classes = {"summary-info", "char-name"},
+                    refreshCharacter = function(element, token)
+                        local name = token:GetNameMaxLength(64)
+                        if name == nil or name == "" then
+                            if token.properties:IsMonster() then
+                                name = rawget(token.properties, "monster_type") or "Unknown Monster"
+                            else
+                                name = token.properties:RaceOrMonsterType()
+                            end
+                        end
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charName, 11, #name)
+                        element.text = name
+                    end,
+                },
+
+                -- Level
+                gui.Label{
+                    classes = {"summary-info", "level"},
+                    refreshCharacter = function(element, token)
+                        local level = token.properties:CharacterLevel()
+                        local text = element.text
+                        if level == 1 then
+                            local extra = token.properties:ExtraLevelInfo()
+                            local encounter = type(extra) == "table" and extra.encounter or nil
+                            local mapping = {"FIRST ENCOUNTER", "SECOND ENCOUNTER", "THIRD ENCOUNTER", "FOURTH ENCOUNTER"}
+                            text = mapping[encounter] or "LEVEL 1"
+                        else
+                            text = string.format("LEVEL %d", level)
+                        end
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charLevel, 12, #text)
+                        element.text = text
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+
+                -- Class
+                gui.Label{
+                    classes = {"summary-info", "class"},
+                    refreshCharacter = function(element, token)
+                        local text = ""
+                        if token.properties:IsHero() then
+                            local classItem = token.properties:GetClass()
+                            if classItem ~= nil then
+                                text = string.upper(classItem.name)
+                            end
+                        else
+                            local mt = token.properties:try_get("monster_type", "Monster")
+                            text = string.upper(mt)
+                        end
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charClass, 9, #text)
+                        element.text = text
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+
+                -- Subclass
+                gui.Label{
+                    classes = {"summary-info", "subclass"},
+                    refreshCharacter = function(element, token)
+                        local text = ""
+                        if token.properties:IsHero() then
+                            local classItem = token.properties:GetClass()
+                            if classItem ~= nil then
+                                local subclass = token.properties:GetSubClass(classItem)
+                                if subclass ~= nil then
+                                    text = string.upper(subclass.name)
+                                end
+                            end
+                        end
+                        element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.charSubclass, 18, #text)
+                        element.text = text
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+            },
+
+            -- Col3: Token boxes
+            gui.Panel{
+                classes = {"container"},
+                flow = "vertical",
+
+                TacPanel.HeroTokenBox(),
+                TacPanel.SurgesBox(),
+            }
+        },
+        -- Control buttons below portrait
+        gui.Panel{
+            classes = {"container"},
+            flow = "horizontal",
+            outlineButton(gui.EnhIconButton{
+                classes = {"toggle-btn"},
+                bgimage = "panels/initiative/initiative-icon.png",
+                width = TacPanelSizes.VisionBtn.size,
+                height = TacPanelSizes.VisionBtn.size,
+                bgcolor = RED,
+                data = { token = nil },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local q = dmhub.initiativeQueue
+                    if q == nil or q.hidden then
+                        element.parent:SetClass("collapsed", true)
+                        return
+                    end
+                    element.parent:SetClass("collapsed",
+                        token.properties:try_get("_tmp_initiativeStatus") ~= "NonCombatant")
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    Commands.rollinitiative()
+                end,
+                linger = function(element)
+                    gui.Tooltip("Add to combat")(element)
+                end,
+            }),
+            outlineButton(gui.Panel{
+                classes = {"toggle-btn", "light-btn"},
+                width = TacPanelSizes.VisionBtn.size,
+                height = TacPanelSizes.VisionBtn.size,
+                bgimage = "drawsteel/light-off.png",
+                refreshCharacter = function(element, token)
+                    local lightOn = token.properties.selectedLoadout == 1
+                    element.selfStyle.bgimage = lightOn and "drawsteel/light-on.png" or "drawsteel/light-off.png"
+                    element.selfStyle.bgcolor = lightOn and GOLD_LIGHT or GRAY02
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    Commands.light()
+                end,
+                linger = function(element)
+                    gui.Tooltip("Toggle Light")(element)
+                end,
+            }),
+            outlineButton(gui.Panel{
+                classes = {"toggle-btn", "collapsed"},
+                bgimage = "ui-icons/eye.png",
+                width = TacPanelSizes.VisionBtn.size,
+                height = TacPanelSizes.VisionBtn.size,
+                data = { token = nil },
+                monitor = "lookup",
+                events = {
+                    monitor = function(element)
+                        local cur = dmhub.GetSettingValue("lookup")
+                        element.selfStyle.bgcolor = (cur >= 1) and TEAL or DIM
+                    end,
+                },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local canLookup = dmhub.GetSettingValue("canlookup")
+                    if token == nil or (dmhub.isDM and dmhub.tokenVision == nil)
+                        or canLookup == "never"
+                        or (canLookup == "opening" and token.countFloorsWithVisionAbove <= 0)
+                        or (canLookup == "always" and token.countFloorsAbove <= 0) then
+                        element:SetClass("collapsed", true)
+                        return
+                    end
+                    element:SetClass("collapsed", false)
+                    local cur = dmhub.GetSettingValue("lookup")
+                    element.selfStyle.bgcolor = (cur >= 1) and TEAL or DIM
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                press = function(element)
+                    local cur = dmhub.GetSettingValue("lookup")
+                    dmhub.SetSettingValue("lookup", (cur >= 1) and 0 or 1)
+                end,
+                linger = function(element)
+                    local cur = dmhub.GetSettingValue("lookup")
+                    local text = (cur >= 1) and "Look forward" or "Look up"
+                    gui.Tooltip(text)(element)
+                end,
+            }),
+        }
+    }
+end
+
+--- Display the damage / harm box
+--- @return Panel
+function TacPanel.HarmBox()
+    return gui.Panel{
+        classes = {"stamina-box", "harm"},
+        gui.Label{
+            classes = {"stambox-title", "harm"},
+            text = "DMG",
+        },
+        gui.Input{
+            classes = {"stambox-input", "harm"},
+            text = "",
+            characterLimit = 8,
+            placeholderText = "-",
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                local n = tonum(element.text, 0)
+                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Damage",
+                        execute = function()
+                            element.data.token.properties:TakeDamage(element.text)
+                            element.text = ""
+                        end,
+                    }
+                end
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the heal box
+--- @return Panel
+function TacPanel.HealBox()
+    return gui.Panel{
+        classes = {"stamina-box", "heal"},
+        gui.Label{
+            classes = {"stambox-title", "heal"},
+            text = "HEAL",
+        },
+        gui.Input{
+            classes = {"stambox-input", "heal"},
+            text = "",
+            characterLimit = 8,
+            placeholderText = "+",
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                local n = tonum(element.text, 0)
+                if n > 0 and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Healing",
+                        execute = function()
+                            element.data.token.properties:Heal(n)
+                            element.text = ""
+                        end,
+                    }
+                end
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the temp stamina box
+--- @return Panel
+function TacPanel.TempStamBox()
+    local placeholder = "b"
+    return gui.Panel{
+        classes = {"stamina-box", "temp"},
+        gui.Label{
+            classes = {"stambox-title", "temp"},
+            text = "TEMP",
+        },
+        gui.Input{
+            classes = {"stambox-input", "temp"},
+            text = "",
+            characterLimit = 8,
+            placeholderText = placeholder,
+            bgimage = true,
+            data = {
+                token = nil,
+            },
+            change = function(element)
+                local before = tonum(element.data.token.properties:TemporaryHitpointsStr(), 0)
+                local after = tonum(element.text, 0)
+                if after > before and element.data.token ~= nil and element.data.token.properties ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Apply Temp Stamina",
+                        execute = function()
+                            element.data.token.properties:SetTemporaryHitpoints(element.text)
+                            element.data.token.properties:DispatchEvent("gaintempstamina", {})
+                            element.text = ""
+                        end,
+                    }
+                end
+            end,
+            defocus = function(element)
+                element.placeholderText = placeholder
+            end,
+            focus = function(element)
+                element.placeholderText = ""
+            end,
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the current stamina box
+--- @return Panel
+function TacPanel.StaminaBox()
+    return gui.Panel{
+        classes = {"stamina-box", "stamina"},
+        halign = "center",
+        valign = "center",
+        data = { token = nil },
+
+        linger = function(element)
+            local token = element.data.token
+            if token ~= nil and token.properties ~= nil then
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "stamina",
+                    entries = token.properties:GetStatHistory("stamina"):GetHistory()
+                }
+            end
+        end,
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            element:FireEventTree("refreshValue", token)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            flow = "horizontal",
+            valign = "center",
+            halign = "center",
+            gui.Label{
+                classes = {"stambox-stam", "current"},
+                text = "0",
+                editable = true,
+                numeric = true,
+                data = {
+                    token = nil,
+                },
+                change = function(element)
+                    local token = element.data.token
+                    if token ~= nil and token.valid and token.properties ~= nil then
+                        token:ModifyProperties{
+                            description = "Set Stamina",
+                            execute = function()
+                                token.properties:SetCurrentHitpoints(element.text)
+                            end,
+                        }
+                    end
+                end,
+                refreshValue = function(element, token)
+                    element.data.token = token
+                    local text = tostring(token.properties:CurrentHitpoints())
+                    element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
+                    element.text = text
+                end,
+            },
+            gui.Label{
+                classes = {"stambox-stam", "max"},
+                text = "/ 0",
+                refreshValue = function(element, token)
+                    element.text = string.format("/ %d", token.properties:MaxHitpoints())
+                end,
+            },
+        },
+    }
+end
+
+--- Display-only recovery pips, split into rows of 10
+--- @param recoveryid string
+--- @param recoveryInfo table
+--- @return Panel
+function TacPanel.RecoveryPips(recoveryid, recoveryInfo)
+    return gui.Panel{
+        classes = {"container"},
+        halign = "center",
+        valign = "top",
+        flow = "vertical",
+
+        gui.Panel{
+            classes = {"recovery-pip-row"},
+            updatePips = function(element, info)
+                local rowCount = math.min(info.maxRec, 10)
+                for i = #element.children + 1, rowCount do
+                    element:AddChild(gui.Panel{
+                        classes = {"recovery-pip"},
+                    })
+                end
+                for i, child in ipairs(element.children) do
+                    child:SetClass("collapsed", i > rowCount)
+                    child:SetClass("filled", i <= info.current)
+                end
+            end,
+        },
+        gui.Panel{
+            classes = {"recovery-pip-row"},
+            updatePips = function(element, info)
+                local rowCount = math.max(0, info.maxRec - 10)
+                for i = #element.children + 1, rowCount do
+                    element:AddChild(gui.Panel{
+                        classes = {"recovery-pip"},
+                    })
+                end
+                for i, child in ipairs(element.children) do
+                    child:SetClass("collapsed", i > rowCount)
+                    child:SetClass("filled", (i + 10) <= info.current)
+                end
+                element:SetClass("collapsed", rowCount <= 0)
+            end,
+        },
+
+        refreshCharacter = function(element, token)
+            local maxRec = token.properties:GetResources()[recoveryid] or 0
+            local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+            local current = max(0, maxRec - usage)
+            element:FireEventTree("updatePips", {maxRec = maxRec, current = current})
+        end,
+    }
+end
+
+--- Draw the recoveries box
+--- @return Panel
+function TacPanel.RecoveriesBox()
+    local recoveryid = nil
+    local recoveryInfo = nil
+    local resourcesTable = dmhub.GetTableVisible(CharacterResource.tableName)
+    for k,v in pairs(resourcesTable) do
+        if v.name == "Recovery" then
+            recoveryid = k
+            recoveryInfo = v
+            break
+        end
+    end
+
+    return gui.Panel{
+        classes = {"stamina-box", "recoveries"},
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            local showRecovery = recoveryid ~= nil and (token.properties:IsHero() or token.properties:IsRetainer() or token.properties:IsCompanion())
+            element:SetClass("collapsed", not showRecovery)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"stambox-title", "heal"},
+            text = "RECOVERIES",
+        },
+        gui.Panel{
+            classes = {"container"},
+            height = "100% available",
+            width = "100%+8",
+            valign = "top",
+            halign = "left",
+            hmargin = -4,
+            bgimage = true,
+            border = {x1 = 0, y1 = 0, x2 = 0, y2 = 1},
+            borderColor = TEAL_HEAL,
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"container"},
+                height = "100%+2",
+                width = "40%",
+                valign = "top",
+                halign = "left",
+                bgimage = true,
+                border = {x1 = 0, y1 = 0, x2 = 1, y2 = 0},
+                borderColor = TEAL_HEAL,
+                gui.Label{
+                    classes = {"recovery-value"},
+                    text = "+0",
+                    data = { token = nil },
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                        element.text = string.format("%+d", token.properties:RecoveryAmount())
+                    end,
+                    setToken = function(element, token)
+                        element.data.token = token
+                    end,
+                    linger = function(element)
+                        local token = element.data.token
+                        if token == nil or not token.valid or token.properties == nil then return end
+                        local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                        local maxRec = token.properties:GetResources()[recoveryid] or 0
+                        local quantity = maxRec - usage
+                        local usageNote = "Use a recovery"
+                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                            usageNote = "Already at maximum stamina"
+                        elseif quantity <= 0 then
+                            if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
+                                usageNote = "Click to spend 2 hero tokens as a Recovery"
+                            else
+                                usageNote = "No Recoveries left"
+                            end
+                        end
+                        gui.Tooltip(usageNote)(element)
+                    end,
+                    press = function(element)
+                        local token = element.data.token
+                        if token == nil then return end
+
+                        local useHeroTokens = false
+                        local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+                        if quantity <= 0 then
+                            if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                                return
+                            end
+                            useHeroTokens = true
+                        end
+
+                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                            return
+                        end
+
+                        token:ModifyProperties{
+                            description = "Use Recovery",
+                            execute = function()
+                                token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
+                                if useHeroTokens then
+                                    token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
+                                else
+                                    token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                                end
+                            end,
+                        }
+                    end,
+                },
+            },
+            gui.Panel{
+                classes = {"container"},
+                height = "100%",
+                width = "60%",
+                valign = "top",
+                halign ="left",
+                flow = "vertical",
+                gui.Panel{
+                    classes = {"container"},
+                    width = "auto",
+                    valign = "top",
+                    halign = "center",
+                    flow = "horizontal",
+                    gui.Label{
+                        classes = {"recovery-count"},
+                        text = "0",
+                        editable = true,
+                        numeric = true,
+                        characterLimit = 2,
+                        data = { token = nil },
+                        refreshCharacter = function(element, token)
+                            element.data.token = token
+                            local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+                            element.text = string.format("%d", quantity)
+                        end,
+                        setToken = function(element, token)
+                            element.data.token = token
+                        end,
+                        change = function(element)
+                            local token = element.data.token
+                            if token == nil then return end
+                            local n = tonumber(element.text)
+                            if n == nil then
+                                element:FireEvent("refreshCharacter", token)
+                                return
+                            end
+                            n = math.max(0, round(n))
+                            local nresources = token.properties:GetResources()[recoveryid] or 0
+                            local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+                            local current = nresources - usage
+                            local delta = n - current
+                            if delta == 0 then return end
+                            token:ModifyProperties{
+                                description = "Set Recoveries",
+                                execute = function()
+                                    if delta > 0 then
+                                        token.properties:RefreshResource(recoveryid, recoveryInfo.usageLimit, delta, "Set Recoveries")
+                                    else
+                                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, -delta, "Set Recoveries")
+                                    end
+                                end,
+                            }
+                        end,
+                    },
+                    gui.Label{
+                        classes = {"recovery-max"},
+                        text = "/ 0",
+                        refreshCharacter = function(element, token)
+                            local maxRec = token.properties:GetResources()[recoveryid] or 0
+                            element.text = string.format("/ %d", maxRec)
+                        end,
+                    }
+                },
+                TacPanel.RecoveryPips(recoveryid, recoveryInfo),
+            }
+        },
+    }
+end
+
+--- Display the health bar
+--- @return Panel
+function TacPanel.HealthBar()
+    -- Dying segment (heroes only)
+    local dyingFill = gui.Panel{ classes = {"panel", "health-fill", "dying"} }
+    local dyingSegment = gui.Panel{
+        classes = {"panel", "health-segment", "dying"},
+        dyingFill,
+        gui.Panel{
+            classes = {"panel", "health-separator"},
+            floating = true,
+        },
+    }
+
+    -- Winded segment
+    local windedFill = gui.Panel{ classes = {"panel", "health-fill", "winded"} }
+    local windedSegment = gui.Panel{
+        classes = {"panel", "health-segment", "winded"},
+        windedFill,
+        gui.Panel{
+            classes = {"panel", "health-separator"},
+            floating = true,
+        },
+    }
+
+    -- Healthy segment
+    local healthyFill = gui.Panel{ classes = {"panel", "health-fill", "healthy"} }
+    local healthySegment = gui.Panel{
+        classes = {"panel", "health-segment", "healthy"},
+        healthyFill,
+    }
+
+    -- Diamond positioned via floating wrapper inside barRow
+    local diamond = gui.Panel{
+        classes = {"panel", "health-diamond"},
+        rotate = 45,
+    }
+    local diamondPositioner = gui.Panel{
+        classes = {"panel", "health-diamond-positioner"},
+        floating = true,
+        diamond,
+    }
+
+    -- Status boxes: appear below bar segment when health is in that range
+    local windedStatus = gui.Panel{
+        classes = {"panel", "health-status", "winded", "collapsed"},
+        gui.Label{
+            classes = {"label", "health-status-label", "winded"},
+            text = "WINDED",
+        },
+    }
+    local dyingStatus = gui.Panel{
+        classes = {"panel", "health-status", "dying", "collapsed"},
+        gui.Label{
+            classes = {"label", "health-status-label", "dying"},
+            text = "DYING",
+        },
+    }
+
+    -- Temp stam box: shows temp HP value + label + hover-revealed clear button
+    local tempStamValue = gui.Label{
+        classes = {"label", "temp-stam-value"},
+        text = "0",
+    }
+    local tempStamClearBtn = gui.Panel{
+        classes = {"panel", "temp-stam-clear", "collapsed"},
+        press = function(element)
+            -- clearBtn -> tempStamBox -> windedColumn -> barRow -> returnPanel
+            local token = element.parent.parent.parent.parent.data.token
+            if token ~= nil and token.properties ~= nil then
+                token:ModifyProperties{
+                    description = "Clear Temporary Stamina",
+                    execute = function()
+                        token.properties:SetTemporaryHitpoints("0")
+                    end,
+                }
+            end
+        end,
+        linger = function(element)
+            gui.Tooltip("Clear temp")(element)
+        end,
+        gui.Label{
+            classes = {"label", "temp-stam-clear-label"},
+            text = "X",
+        },
+    }
+    local tempStamBox = gui.Panel{
+        classes = {"panel", "health-status", "temp", "collapsed"},
+        tempStamValue,
+        gui.Label{
+            classes = {"label", "temp-stam-label"},
+            text = "TEMP",
+        },
+        tempStamClearBtn,
+    }
+
+    -- Columns: pair each segment with its status box
+    local dyingColumn = gui.Panel{
+        classes = {"panel", "health-column", "dying"},
+        dyingSegment,
+        dyingStatus,
+    }
+    local windedColumn = gui.Panel{
+        classes = {"panel", "health-column", "winded"},
+        windedSegment,
+        windedStatus,
+    }
+    local healthyColumn = gui.Panel{
+        classes = {"panel", "health-column", "healthy"},
+        healthySegment,
+        tempStamBox,
+    }
+
+    local barRow = gui.Panel{
+        classes = {"panel", "health-bar"},
+        dyingColumn,
+        windedColumn,
+        healthyColumn,
+        diamondPositioner,
+    }
+
+    local function pct(value)
+        return string.format("%f%%", value)
+    end
+
+    return gui.Panel{
+        styles = TacPanelStyles.Stamina,
+        classes = {"container"},
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                return
+            end
+
+            local props = token.properties
+            local currentHP = props:CurrentHitpoints()
+            local maxHP = props:MaxHitpoints()
+            local tempHP = props:TemporaryHitpoints() or 0
+            local bloodied = props:BloodiedThreshold()
+            local isHero = props:IsHero()
+            local windedVal = math.floor(maxHP / 2)
+
+            -- Column widths: equal splits
+            if isHero then
+                dyingColumn.selfStyle.width = "33%"
+                windedColumn.selfStyle.width = "34%"
+                healthyColumn.selfStyle.width = "33%"
+            else
+                windedColumn.selfStyle.width = "50%"
+                healthyColumn.selfStyle.width = "50%"
+            end
+            dyingColumn:SetClass("collapsed", not isHero)
+
+            -- Fill percentages per segment
+            -- Dying: range is -bloodied to 0
+            if isHero then
+                local dyingRange = bloodied
+                local dyingHP = math.max(0, math.min(dyingRange, currentHP + bloodied))
+                dyingFill.selfStyle.width = dyingRange > 0
+                    and pct(dyingHP / dyingRange * 100) or "0%"
+            end
+
+            -- Winded: range is 0 to windedVal
+            local windedHP = math.max(0, math.min(windedVal, currentHP))
+            windedFill.selfStyle.width = windedVal > 0
+                and pct(windedHP / windedVal * 100) or "0%"
+
+            -- Healthy: range is windedVal to maxHP
+            local healthyRange = maxHP - windedVal
+            local healthyHP = math.max(0, math.min(healthyRange, currentHP - windedVal))
+            healthyFill.selfStyle.width = healthyRange > 0
+                and pct(healthyHP / healthyRange * 100) or "0%"
+
+            -- Diamond position: percentage across the full bar
+            local totalRange = maxHP + (isHero and bloodied or 0)
+            if totalRange <= 0 then totalRange = 1 end
+            local diamondPct = isHero
+                and ((currentHP + bloodied) / totalRange * 100)
+                or (currentHP / totalRange * 100)
+            diamondPct = math.max(0, math.min(100, diamondPct))
+            diamondPositioner.selfStyle.width = pct(diamondPct)
+
+            -- Diamond color: white normally, TEMP_STAM when temp HP > 0
+            diamond:SetClass("has-temp", tempHP > 0)
+
+            -- Status boxes: show when health is in that segment's range (mutually exclusive)
+            local inDyingRange = isHero and currentHP < 0
+            local inWindedRange = currentHP >= 0 and currentHP <= windedVal
+
+            dyingStatus:SetClass("collapsed", not inDyingRange)
+            windedStatus:SetClass("collapsed", not inWindedRange)
+
+            -- Temp stam box: show when temp HP > 0
+            tempStamBox:SetClass("collapsed", tempHP <= 0)
+            tempStamValue.text = tostring(math.floor(tempHP))
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        barRow,
+    }
+end
+
+--- Clean up resistance/immunity text for compact display.
+--- Strips " Damage ", " weakness N.", " immunity N.", "Immune to ", trailing ".".
+--- e.g. "Fire Damage weakness 5." -> "Fire 5"
+---      "Damage immunity 3." -> "All 3"
+---      "Immune to Frightened, Slowed." -> "Frightened, Slowed"
+--- @param text string
+--- @return string
+function TacPanel.CleanResistanceText(text)
+    local txt = text
+    -- Strip "Immune to " prefix
+    txt = string.gsub(txt, "^Immune to ", "")
+    -- Strip trailing period
+    txt = string.gsub(txt, "%.$", "")
+    -- Strip " weakness N" or " immunity N" suffix
+    txt = string.gsub(txt, " weakness %d+$", "")
+    txt = string.gsub(txt, " immunity %d+$", "")
+    -- Strip " Damage" (keep damage type prefix)
+    txt = string.gsub(txt, " Damage", "")
+    -- If text is now empty (was "Damage immunity 3"), show "All"
+    if txt == "" then
+        txt = "All"
+    end
+    return txt
+end
+
+--- Display weaknesses and immunities below the health bar
+--- @return Panel
+function TacPanel.Resistances()
+    return gui.Panel{
+        styles = TacPanelStyles.Resistances,
+        classes = {"res-container", "collapsed"},
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local creature = token.properties
+            local entries = creature:ResistanceEntries()
+
+            -- Separate into weaknesses (dr < 0) and immunities (dr > 0)
+            local weaknesses = {}
+            local immunities = {}
+            for _, e in ipairs(entries) do
+                if (e.entry:try_get("dr", 0)) < 0 then
+                    weaknesses[#weaknesses+1] = e
+                else
+                    immunities[#immunities+1] = e
+                end
+            end
+
+            -- Sort each list alphabetically by text
+            table.sort(weaknesses, function(a, b) return a.text < b.text end)
+            table.sort(immunities, function(a, b) return a.text < b.text end)
+
+            -- Condition immunities
+            local condImmDesc = creature:ConditionImmunityDescription()
+
+            -- Build comma-separated weakness string
+            local weakParts = {}
+            for _, e in ipairs(weaknesses) do
+                local dr = math.abs(e.entry:try_get("dr", 0))
+                weakParts[#weakParts+1] = TacPanel.CleanResistanceText(e.text) .. " " .. dr
+            end
+            local weakText = table.concat(weakParts, ", ")
+
+            -- Build comma-separated immunity string
+            local immuneParts = {}
+            for _, e in ipairs(immunities) do
+                local dr = math.abs(e.entry:try_get("dr", 0))
+                immuneParts[#immuneParts+1] = TacPanel.CleanResistanceText(e.text) .. " " .. dr
+            end
+            if condImmDesc ~= "" then
+                immuneParts[#immuneParts+1] = TacPanel.CleanResistanceText(condImmDesc)
+            end
+            local immuneText = table.concat(immuneParts, ", ")
+
+            -- Collapse entire section if nothing to show
+            local hasWeak = #weakParts > 0
+            local hasImmune = #immuneParts > 0
+            local hasContent = hasWeak or hasImmune
+            element:SetClass("collapsed", not hasContent)
+
+            if hasContent then
+                local boxWidth = (hasWeak and hasImmune) and "47%" or "94%"
+                local children = {}
+                if hasWeak then
+                    local weakTitle = #weakParts > 1 and "WEAKNESSES" or "WEAKNESS"
+                    children[#children+1] = gui.Label{
+                        classes = {"res-box", "weakness"},
+                        width = boxWidth,
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format("**<color=%s>%s:</color>** %s", DIM, weakTitle, weakText),
+                    }
+                end
+                if hasImmune then
+                    local immuneTitle = #immuneParts > 1 and "IMMUNITIES" or "IMMUNITY"
+                    children[#children+1] = gui.Label{
+                        classes = {"res-box", "immunity"},
+                        width = boxWidth,
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format("**<color=%s>%s:</color>** %s", DIM, immuneTitle, immuneText),
+                    }
+                end
+                element.children = children
+            end
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+    }
+end
+
+--- Display the stamina controls
+--- @return Panel
+function TacPanel.Stamina()
+    return TacPanel.CollapsiblePanel{
+        title = "STAMINA",
+        altBg = false,
+        gui.Panel{
+            styles = TacPanelStyles.Stamina,
+            classes = {"stamina-controls"},
+            TacPanel.HarmBox(),
+            TacPanel.StaminaBox(),
+            TacPanel.HealBox(),
+            TacPanel.RecoveriesBox(),
+            TacPanel.TempStamBox(),
+        },
+        TacPanel.HealthBar(),
+        TacPanel.Resistances(),
+    }
+end
+
+--- Display the Speed box
+--- @return Panel
+function TacPanel.SpeedBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateAttributeCalculationTooltip(tokenInfo, "Speed", creature.GetBaseSpeed, creature.DescribeSpeedModifications),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Speed",
+                    baseValue = token.properties:GetBaseSpeed(),
+                    modifications = token.properties:DescribeSpeedModifications(),
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Speed",
+        },
+        gui.Panel{
+            classes = {"container"},
+            width = "auto",
+            valign = "top",
+            halign = "center",
+            flow = "horizontal",
+            gui.Label{
+                classes = {"movebox-value"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid or token.properties == nil then return end
+                    local baseMove = token.properties:GetBaseSpeed()
+                    local curMove = token.properties:CurrentMovementSpeed()
+                    element.text = tostring(curMove >= baseMove and curMove or baseMove)
+                    element:SetClass("restricted", curMove < baseMove)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+            gui.Label{
+                classes = {"movebox-value", "hindered", "collapsed"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid or token.properties == nil then return end
+                    local baseMove = token.properties:GetBaseSpeed()
+                    local curMove = token.properties:CurrentMovementSpeed()
+                    element.text = tostring(curMove)
+                    element:SetClass("collapsed", curMove >= baseMove)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+        },
+    }
+end
+
+--- Display the Disengage box
+--- @return Panel
+function TacPanel.DisengageBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateCustomAttributeCalculationTooltip(tokenInfo, "Disengage Speed"),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Disengage Speed",
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Disengage",
+        },
+        gui.Label{
+            classes = {"movebox-value"},
+            text = "0",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                local customAttr = CustomAttribute.attributeInfoByLookupSymbol["disengagespeed"]
+                if customAttr ~= nil then
+                    element.text = tostring(token.properties:GetCustomAttribute(customAttr))
+                else
+                    element.text = "0"
+                end
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the Stability box
+--- @return Panel
+function TacPanel.StabilityBox()
+    local tokenInfo = { token = nil }
+
+    return gui.Panel{
+        classes = {"movement-box"},
+        data = { token = nil },
+        linger = GenerateAttributeCalculationTooltip(tokenInfo, "Stability",
+            creature.BaseForcedMoveResistance,
+            function(c)
+                return c:DescribeModifications("forcedmoveresistance", c:BaseForcedMoveResistance())
+            end),
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil then
+                local baseStability = token.properties:BaseForcedMoveResistance()
+                gui.PopupOverrideAttribute{
+                    parentElement = element,
+                    token = token,
+                    attributeName = "Stability",
+                    baseValue = baseStability,
+                    modifications = token.properties:DescribeModifications("forcedmoveresistance", baseStability),
+                }
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            tokenInfo.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Stability",
+        },
+        gui.Label{
+            classes = {"movebox-value"},
+            text = "0",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                element.text = tostring(token.properties:Stability())
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+    }
+end
+
+--- Display the altitude box
+--- @return Panel
+function TacPanel.AltitudeBox()
+    return gui.Panel{
+        classes = {"movement-box", "collapsed"},
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            local canFly = token.properties:CanFly()
+            local canClimb = token.canCurrentlyClimb
+            local canBurrow = token.properties:CanBurrow()
+            local visible = canFly or canClimb or canBurrow
+            element:SetClass("collapsed", not visible)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Label{
+            classes = {"movebox-title"},
+            text = "Flying",
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                local moveType = token.properties:CurrentMoveType()
+                if moveType == "fly" then
+                    element.text = "Flying"
+                elseif moveType == "burrow" then
+                    element.text = "Burrowing"
+                elseif moveType == "climb" then
+                    element.text = "Climbing"
+                else
+                    element.text = "On Ground"
+                end
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        },
+        gui.Panel{
+            classes = {"altitude-row"},
+            gui.Label{
+                classes = {"movebox-value"},
+                text = "0",
+                refreshCharacter = function(element, token)
+                    if token == nil or not token.valid then return end
+                    element.text = tostring(token.floorAltitude)
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+            gui.Panel{
+                classes = {"altitude-btn-stack"},
+                floating = true,
+                halign = "right",
+                gui.Label{
+                    classes = {"altitude-btn"},
+                    text = "+",
+                    data = { token = nil },
+                    press = function(element)
+                        local token = element.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.canCurrentlyClimb then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            elseif token.properties:CanBurrow() then
+                                token.properties:SetAndUploadCurrentMoveType("burrow")
+                            end
+                            token:MoveVertical(token.floorAltitude + 1)
+                        end
+                    end,
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+                gui.Label{
+                    classes = {"altitude-btn"},
+                    text = "-",
+                    data = { token = nil },
+                    press = function(element)
+                        local token = element.data.token
+                        if token ~= nil then
+                            if token.properties:CanFly() then
+                                token.properties:SetAndUploadCurrentMoveType("fly")
+                            elseif token.canCurrentlyClimb then
+                                token.properties:SetAndUploadCurrentMoveType("climb")
+                            elseif token.properties:CanBurrow() then
+                                token.properties:SetAndUploadCurrentMoveType("burrow")
+                            end
+                            token:MoveVertical(token.floorAltitude - 1)
+                        end
+                    end,
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                    setToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                },
+            },
+        },
+    }
+end
+
+--- Display the movement panel
+--- @return Panel
+function TacPanel.MovementPanel()
+    return gui.Panel{
+        styles = TacPanelStyles.MovementPanel,
+        classes = {"movement-panel"},
+        TacPanel.SpeedBox(),
+        TacPanel.DisengageBox(),
+        TacPanel.StabilityBox(),
+        TacPanel.AltitudeBox(),
+    }
+end
+
+--- Display a single characteristic box
+--- @param attrInfo table Information about the attribute
+--- @return Panel
+function TacPanel.CharacteristicBox(attrInfo)
+    return gui.Panel{
+        classes = {"characteristic-box"},
+        data = { token = nil },
+        press = function(element)
+            local token = element.data.token
+            if token ~= nil and token.properties ~= nil then
+                token.properties:ShowCharacteristicRollDialog(attrInfo.id)
+            end
+        end,
+        refreshCharacter = function(element, token)
+            element.data.token = token
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"container"},
+            halign = "center",
+            valign = "top",
+            flow = "horizontal",
+            gui.Label{
+                classes = {"char-title", "first"},
+                text = attrInfo.description:sub(1,1)
+            },
+            gui.Label{
+                classes = {"char-title"},
+                text = attrInfo.description:sub(2)
+            }
+        },
+        gui.Label{
+            classes = {"char-value"},
+            text = "0",
+            data = {
+                attrId = attrInfo.id,
+            },
+            refreshCharacter = function(element, token)
+                if token == nil or not token.valid or token.properties == nil then return end
+                local modifier = token.properties:GetAttribute(attrInfo.id):Modifier()
+                element.text = (modifier == 0) and "0" or string.format("%+d", modifier)
+                element:SetClass("positive", modifier > 0)
+                element:SetClass("negative", modifier < 0)
+            end,
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+            setToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+        }
+    }
+end
+
+--- Display the characteristics panel
+--- @return Panel
+function TacPanel.CharacteristicsPanel()
+    local children = {}
+    local attrList = table.values(creature.attributesInfo)
+    table.sort(attrList, function(a,b) return a.order < b.order end)
+    for _,attr in pairs(attrList) do
+        children[#children+1] = TacPanel.CharacteristicBox(attr)
+    end
+
+    return gui.Panel{
+        styles = TacPanelStyles.CharacteristicsPanel,
+        classes = {"characteristics-panel"},
+        children = children,
+    }
+end
+
+--- Display the statistics panel
+--- @return Panel
+function TacPanel.Statistics()
+    return TacPanel.CollapsiblePanel{
+        title = "STATISTICS",
+        altBg = false,
+        tmargin = -26,
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            valign = "top",
+            halign = "left",
+            pad = 4,
+            flow = "vertical",
+            TacPanel.CharacteristicsPanel(),
+            gui.MCDMDivider{ width = "96%", bgcolor = SURGE_BORDER },
+            TacPanel.MovementPanel(),
+        }
+    }
+end
+
+--- Display a heroic resource gain row
+--- @param entry table from GetHeroicResourceChecklist()
+--- @param token table the creature token
+--- @return Panel
+function TacPanel.HRGainRow(entry, token)
+    return gui.Panel{
+        classes = {"hr-row"},
+        linger = gui.Tooltip(entry.details),
+        updateCompleted = function(element, consumed)
+            element:FireEventTree("setCompleted", consumed)
+        end,
+        gui.Panel{
+            classes = {"hr-chip"},
+            setCompleted = function(element, consumed)
+                element:SetClassImmediate("completed", consumed)
+            end,
+            press = function(element)
+                local q = dmhub.initiativeQueue
+                if q == nil or q.hidden then
+                    return
+                end
+                if element:HasClass("completed") then
+                    return
+                end
+                if token == nil or not token.valid then
+                    return
+                end
+                token:ModifyProperties{
+                    description = tr("Trigger resource gain"),
+                    execute = function()
+                        local updateid = token.properties:GetHeroicResourceChecklistRefreshId(entry.guid)
+                        if updateid == nil then
+                            return
+                        end
+                        local record = token.properties:get_or_add("heroicResourceRecord", {})
+                        local checklistBefore = {}
+                        checklistBefore[entry.guid] = {record[entry.guid], updateid}
+                        record[entry.guid] = updateid
+
+                        local quantity = ExecuteGoblinScript(entry.quantity, GenerateSymbols(token.properties), 0, "Heroic Resource Amount")
+                        local amount = token.properties:RefreshResource(CharacterResource.heroicResourceId, "unbounded", quantity, entry.name)
+                        if amount > 0 then
+                            chat.SendCustom(
+                                ResourceChatMessage.new{
+                                    tokenid = token.charid,
+                                    resourceid = CharacterResource.heroicResourceId,
+                                    quantity = amount,
+                                    mode = "replenish",
+                                    checklistBefore = checklistBefore,
+                                    reason = entry.name,
+                                }
+                            )
+                        end
+                    end,
+                }
+            end,
+            gui.Label{
+                classes = {"label", "hr-chip-value"},
+                text = string.format("+%d", tonumber(entry.quantity) or 1),
+                refreshToken = not safe_toint(entry.quantity) and function(element)
+                    local text = dmhub.EvalGoblinScript(entry.quantity, token.properties:LookupSymbol())
+                    element.text = string.format("+%s", text)
+                end or nil,
+            },
+            gui.Label{ classes = {"label", "hr-chip-event"}, text = entry.name },
+        },
+        gui.Label{
+            classes = {"label", "hr-chip-freq"},
+            text = string.format("1 / %s", g_refreshChecklistName[entry.mode or "encounter"] or "always"),
+        },
+    }
+end
+
+--- Display a single growing HR table row
+--- @param entry table from growingResources.progression
+--- @param creature table the creature properties
+--- @return Panel
+function TacPanel.GrowingHRRow(entry, creature)
+    return gui.Panel{
+        classes = {"gr-row"},
+        data = { entry = entry },
+        setCollapse = function(element, collapsed)
+            element:SetClass("collapsed", collapsed)
+        end,
+        update = function(element, newEntry)
+            element.data.entry = newEntry
+        end,
+        linger = function(element)
+            if element.data.entry.tooltip ~= nil then
+                gui.Tooltip(element.data.entry.tooltip)(element)
+            end
+        end,
+        gui.Label{
+            classes = {"label", "gr-value"},
+            text = tostring(entry.resources),
+            update = function(element, newEntry)
+                element.text = tostring(newEntry.resources)
+            end,
+        },
+        gui.Label{
+            classes = {"label", "gr-text"},
+            text = StringInterpolateGoblinScript(entry.description, creature),
+            update = function(element, newEntry)
+                local text = StringInterpolateGoblinScript(newEntry.description, creature)
+                element.text = text
+                element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.grText, 50, #text)
+            end,
+        },
+    }
+end
+
+--- Display the growing heroic resource table
+--- @return Panel
+function TacPanel.GrowingHRTable()
+    return gui.Panel{
+        styles = TacPanelStyles.HeroicResources,
+        classes = {"growing-resources", "collapsed"},
+        data = { token = nil, rows = {}, collapsed = false },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            local creature = token.properties
+            if (not creature:IsHero()) and (not creature:IsCompanion()) then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local growingResources = creature:GetGrowingResourcesTable()
+            if growingResources == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setTitle", growingResources.name:upper())
+
+            local characterLevel = creature:CharacterLevel()
+            local characterResources = creature:GetProgressionResource()
+
+            local rows = element.data.rows
+            local rowChildren = {}
+            local index = 1
+
+            for _, entry in ipairs(growingResources.progression) do
+                if (tonumber(entry.level) or 0) <= characterLevel then
+                    local row = rows[index] or TacPanel.GrowingHRRow(entry, creature)
+                    rows[index] = row
+                    index = index + 1
+
+                    row:FireEventTree("update", entry)
+                    row:SetClass("available", entry.resources <= characterResources)
+                    row:SetClass("collapsed", element.data.collapsed)
+
+                    rowChildren[#rowChildren + 1] = row
+                end
+            end
+
+            for i = index, #rows do
+                if rows[i] then rows[i]:SetClass("collapsed", true) end
+            end
+
+            element.data.rows = rows
+            element:FireEventTree("setContent", rowChildren)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"panel", "gr-title"},
+            press = function(element)
+                local outer = element.parent
+                outer.data.collapsed = not outer.data.collapsed
+                outer:FireEventTree("setCollapse", outer.data.collapsed)
+            end,
+            gui.Label{
+                classes = {"label", "gr-title"},
+                text = "",
+                setTitle = function(element, text)
+                    element.text = text
+                end,
+            },
+            gui.CollapseArrow{
+                classes = {"gr-expando"},
+                width = 10,
+                height = 10,
+                setCollapse = function(element, collapsed)
+                    element:SetClass("collapseSet", collapsed)
+                end,
+            },
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+            setCollapse = function(element, collapsed)
+                element:SetClass("collapsed", collapsed)
+            end,
+        },
+    }
+end
+
+--- Build a collapsible TacPanel section with a title bar and collapse arrow.
+--- @param args table {title, styles, classes, data, ...} plus array children
+--- @return Panel
+function TacPanel.CollapsiblePanel(args)
+    local title = args.title or ""
+    local extraStyles = args.styles or {}
+    local extraClasses = args.classes or {}
+    local extraData = args.data or {}
+    local altBg = args.altBg ~= false
+    args.title = nil
+    args.styles = nil
+    args.classes = nil
+    args.data = nil
+    args.altBg = nil
+
+    -- Build merged data with collapsed default
+    local data = { collapsed = false }
+    for k,v in pairs(extraData) do
+        data[k] = v
+    end
+
+    -- Build merged classes
+    local classes = {"tacpanel"}
+    if altBg then classes[#classes+1] = "alt-bg" end
+    for _,c in ipairs(extraClasses) do
+        classes[#classes+1] = c
+    end
+
+    -- Build merged styles
+    local allStyles = {TacPanelStyles.TacPanel}
+    for _,s in ipairs(extraStyles) do
+        allStyles[#allStyles+1] = s
+    end
+
+    -- Title bar (always child[1])
+    local titleBar = gui.Panel{
+        classes = {"tp-title-bar"},
+        press = function(element)
+            local outer = element.parent
+            outer.data.collapsed = not outer.data.collapsed
+            outer:FireEventTree("setCollapse", outer.data.collapsed)
+        end,
+        gui.Label{
+            classes = {"panel-title"},
+            text = title,
+        },
+        gui.CollapseArrow{
+            classes = {"tp-expando"},
+            floating = true,
+            width = 10,
+            height = 10,
+            setCollapse = function(element, collapsed)
+                element:SetClass("collapseSet", collapsed)
+            end,
+        },
+    }
+
+    -- Collect content children from array entries into a single wrapper
+    local contentPanelArgs = {
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+        setCollapse = function(element, collapsed)
+            element:SetClass("collapsed", collapsed)
+        end,
+    }
+    for i,child in ipairs(args) do
+        contentPanelArgs[#contentPanelArgs+1] = child
+        args[i] = nil
+    end
+    local contentPanel = gui.Panel(contentPanelArgs)
+
+    -- Build the outer panel args: titleBar (child[1]), contentPanel (child[2])
+    local panelArgs = {
+        styles = TacPanel.MergeStyles(allStyles),
+        classes = classes,
+        data = data,
+        titleBar,
+        contentPanel,
+    }
+
+    -- Pass through all remaining args properties
+    for k,v in pairs(args) do
+        panelArgs[k] = v
+    end
+
+    local panel = gui.Panel(panelArgs)
+
+    -- Sync initial collapsed state so arrow, content wrapper, etc. all match
+    if data.collapsed then
+        panel:FireEventTree("setCollapse", true)
+    end
+
+    return panel
+end
+
+--- Display the Routines panel
+--- @return Panel
+function TacPanel.Routines()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Routines},
+        classes = {"collapsed"},
+        title = "ROUTINES",
+        data = { routinePanels = {} },
+        setCollapse = function(element)
+            element:FireEvent("refreshCharacter", element.data.token)
+        end,
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local routines = token.properties:GetRoutines()
+            if routines == nil or #routines == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            if element.data.collapsed then
+                element:FireEventTree("setContent", {})
+                return
+            end
+
+            local routinesSelected = token.properties:try_get("routinesSelected") or {}
+            local newPanels = {}
+            local children = {}
+
+            -- "None" chip
+            local noneSelected = (token.properties:try_get("routinesSelected") == nil)
+            children[#children+1] = gui.Panel{
+                classes = {"rt-chip"},
+                press = function(el)
+                    token:ModifyProperties{
+                        description = tr("Select Routine"),
+                        execute = function()
+                            token.properties.routinesSelected = nil
+                        end,
+                    }
+                end,
+                gui.Label{
+                    classes = {"rt-chip"},
+                    text = "None",
+                    selfStyle = noneSelected and {color = GOLD_LIGHT} or nil,
+                },
+                selfStyle = noneSelected and {bgcolor = GOLD .. "1A", borderColor = GOLD} or nil,
+            }
+
+            for _,routine in ipairs(routines) do
+                local selected = (routinesSelected[routine.guid] ~= nil)
+                local panel = element.data.routinePanels[routine.guid]
+
+                if panel == nil then
+                local routineLabel = gui.Label{
+                    classes = {"rt-chip"},
+                    text = routine.name,
+                    popupPositioning = "panel",
+                    hover = function(el)
+                        el.tooltip = gui.TooltipFrame(routine:Render{}, {
+                            halign = "left",
+                            valign = "top",
+                        })
+                    end,
+                    press = function(el)
+                        token:ModifyProperties{
+                            description = tr("Select Routine"),
+                            execute = function()
+                                local sel = token.properties:get_or_add("routinesSelected", {})
+                                if sel[routine.guid] then
+                                    sel[routine.guid] = nil
+                                else
+                                    sel[routine.guid] = ServerTimestamp()
+                                end
+                                token.properties.routinesSelected = sel
+                            end,
+                        }
+                    end,
+                    selectionChanged = function(el, sel)
+                        el:SetClass("selected", sel)
+                    end,
+                }
+                panel = gui.Panel{
+                    data = { selected = false, label = routineLabel },
+                    classes = {"rt-chip"},
+                    flow = "horizontal",
+
+                    routineLabel,
+
+                    selectionChanged = function(el, sel)
+                        el:SetClass("selected", sel)
+
+                        if not sel then
+                            el.children = {el.data.label}
+                            return
+                        end
+
+                        el.children = {
+                            el.data.label,
+                            gui.Panel{
+                                valign = "center",
+                                halign = "right",
+                                width = "auto", height = "auto",
+                                bgimage = "panels/square.png",
+                                bgcolor = "clear",
+                                border = 1,
+                                borderColor = GOLD_LIGHT,
+                                cornerRadius = 3,
+                                pad = 3, lmargin = 4,
+                                gui.VisibilityPanel{
+                                    opacity = 1,
+                                    visible = true,
+                                    bgcolor = GOLD_LIGHT,
+                                    width = 12,
+                                    height = 12,
+                                    press = function(element)
+                                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                        settings.hide = not settings.hide
+
+                                        token:ModifyProperties{
+                                            description = tr("Set Aura Display Settings"),
+                                            undoable = false,
+                                            execute = function()
+                                                token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                            end,
+                                        }
+                                    end,
+                                    refresh = function(element)
+                                        if token == nil or not token.valid then
+                                            return
+                                        end
+
+                                        element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(routine.name).hide)
+                                    end,
+                                },
+                            },
+                            gui.PercentSlider{
+                                valign = "center",
+                                halign = "right",
+                                hmargin = 6,
+                                selfStyle = {borderColor = GOLD_LIGHT},
+                                styles = {
+                                    {selectors = {"percentSlider"},
+                                     borderWidth = 1, borderColor = GOLD_LIGHT,
+                                     cornerRadius = 2, bgimage = "panels/square.png",
+                                     bgcolor = "black", height = 14, flow = "none"},
+                                    {selectors = {"percentSliderLabel"},
+                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
+                                     halign = "left", valign = "center",
+                                     width = 40, textAlignment = "center", height = "auto"},
+                                    {selectors = {"percentSliderLabel", "fill"},
+                                     color = "black"},
+                                    {selectors = {"percentFill"},
+                                     bgcolor = GOLD_LIGHT, height = "100%",
+                                     width = "0%", halign = "left", cornerRadius = 2},
+                                },
+                                value = token.properties:GetAuraDisplaySetting(routine.name).opacity,
+                                refresh = function(element)
+                                    if token == nil or not token.valid then
+                                        return
+                                    end
+
+                                    element.value = token.properties:GetAuraDisplaySetting(routine.name).opacity
+                                end,
+                                preview = function(element)
+                                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                    settings.opacity = element.value
+                                    token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                    token:UpdateAuras()
+                                end,
+                                confirm = function(element)
+                                    --set it to off to force upload.
+                                    token.properties:SetAuraDisplaySetting(routine.name, nil)
+
+                                    token:ModifyProperties{
+                                        description = tr("Set Aura Display Settings"),
+                                        undoable = false,
+                                        execute = function()
+                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(routine.name))
+                                            settings.opacity = element.value
+                                            token.properties:SetAuraDisplaySetting(routine.name, settings)
+                                        end,
+                                    }
+                                end,
+                            }
+                        }
+                    end,
+                }
+                end
+
+                if selected ~= panel.data.selected then
+                    panel.data.selected = selected
+                    panel:FireEvent("selectionChanged", selected)
+                end
+
+                children[#children+1] = panel
+                newPanels[routine.guid] = panel
+            end
+
+            element.data.routinePanels = newPanels
+            element:FireEventTree("setContent", children)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"rt-container"},
+            wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- Display the heroic resources info
+--- @return Panel
+function TacPanel.HeroicResources()
+    return TacPanel.CollapsiblePanel{
+        classes = {"collapsed"},
+        title = "HEROIC RESOURCES",
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+            element:SetClass("collapsed", not token.properties:IsHero())
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            valign = "top",
+            halign = "left",
+            pad = 4,
+            flow = "horizontal",
+            gui.Panel{
+                classes = {"container"},
+                width = "auto",
+                halign = "left",
+                valign = "top",
+                flow = "vertical",
+                TacPanel.VictoriesBox(),
+                TacPanel.HeroicResourcesBox(),
+            },
+            gui.Panel{
+                styles = TacPanelStyles.HeroicResources,
+                classes = {"hr-gains"},
+                data = { token = nil, panels = {} },
+                refreshCharacter = function(element, token)
+                    element.data.token = token
+                    local creature = token.properties
+                    local checklist = creature:GetHeroicResourceChecklist()
+                    if checklist == nil or #checklist == 0 then
+                        element.children = {}
+                        element.data.panels = {}
+                        return
+                    end
+
+                    local panels = element.data.panels
+                    local newPanels = {}
+                    local children = {}
+
+                    for _, entry in ipairs(checklist) do
+                        local consumed
+                        local q = dmhub.initiativeQueue
+                        local record = creature:try_get("heroicResourceRecord")
+                        if q == nil or q.hidden or entry.mode == "recurring" or record == nil or record[entry.guid] == nil or record[entry.guid] ~= creature:GetResourceRefreshId(entry.mode or "encounter") then
+                            consumed = false
+                        else
+                            consumed = true
+                        end
+
+                        local panel = panels[entry.guid] or TacPanel.HRGainRow(entry, token)
+
+                        panel:FireEvent("updateCompleted", consumed)
+
+                        newPanels[entry.guid] = panel
+                        children[#children + 1] = panel
+                    end
+
+                    element.data.panels = newPanels
+                    element.children = children
+                end,
+                refreshToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+                setToken = function(element, token)
+                    element:FireEvent("refreshCharacter", token)
+                end,
+            },
+        },
+        TacPanel.GrowingHRTable(),
+    }
+end
+
+--- Display the Skills & Languages panel
+--- @return Panel
+function TacPanel.SkillLanguages()
+    return TacPanel.CollapsiblePanel{
+        title = "SKILLS & LANGUAGES",
+        gui.Panel{
+            styles = TacPanelStyles.SkillsLanguages,
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            refreshCharacter = function(element, token)
+                local creature = token.properties
+                local children = {}
+                -- Skill categories
+                for _, cat in ipairs(Skill.categories) do
+                    local proficiencyList = nil
+                    for _, skill in ipairs(Skill.SkillsInfo) do
+                        if skill.category == cat.id and creature:ProficientInSkill(skill) then
+                            if proficiencyList == nil then
+                                proficiencyList = skill.name
+                            else
+                                proficiencyList = proficiencyList .. ", " .. skill.name
+                            end
+                        end
+                    end
+                    if proficiencyList ~= nil then
+                        children[#children + 1] = gui.Label{
+                            classes = {"skillslangs"},
+                            textWrap = true,
+                            markdown = true,
+                            text = string.format("**<color=%s>%s:</color>** %s", MUTED, cat.text, proficiencyList)
+                        }
+                    end
+                end
+                -- Languages
+                local languagesTable = dmhub.GetTable(Language.tableName) or {}
+                local languages = {}
+                for langid, _ in pairs(creature:LanguagesKnown()) do
+                    local language = languagesTable[langid]
+                    if language then
+                        languages[#languages + 1] = language
+                    end
+                end
+                table.sort(languages, function(a, b) return a.name < b.name end)
+                local langText = nil
+                for _, language in ipairs(languages) do
+                    if langText == nil then
+                        langText = language.name
+                    else
+                        langText = langText .. ", " .. language.name
+                    end
+                end
+                if langText ~= nil then
+                    children[#children + 1] = gui.Label{
+                        classes = {"skillslangs"},
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format("**<color=%s>Languages:</color>** %s", MUTED, langText)
+                    }
+                end
+                element.children = children
+            end,
+            refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+            setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+        },
+    }
+end
+
+--- Display the Features panel
+--- @return Panel
+function TacPanel.Features()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Notes},
+        classes = {"collapsed"},
+        title = "FEATURES",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local creature = token.properties
+            local features = creature:try_get("characterFeatures")
+            if features == nil or #features == 0 then
+                if not (creature.withCaptain and creature.minion) then
+                    element:SetClass("collapsed", true)
+                    return
+                end
+            end
+
+            local labels = {}
+
+            -- With Captain entry (minions only)
+            if creature.withCaptain and creature.minion then
+                local implemented = DrawSteelMinion.GetWithCaptainEffect(creature.withCaptain) ~= nil
+                local implementedColor = cond(implemented, "#ff", "#55")
+
+                labels[#labels+1] = gui.Label{
+                    classes = {"note-entry"},
+                    textWrap = true,
+                    markdown = true,
+                    text = string.format(
+                        "**<color=%s>With Captain:</color>** <alpha=%s>%s",
+                        MUTED, implementedColor, creature.withCaptain
+                    ),
+                }
+            end
+
+            -- Feature entries
+            if features ~= nil then
+                for _, feature in ipairs(features) do
+                    if feature.description ~= "" then
+                        local implemented = feature:try_get("implementation", 1) ~= 1
+                        local implementedColor = cond(implemented, "#ff", "#55")
+
+                        labels[#labels+1] = gui.Label{
+                            classes = {"note-entry"},
+                            textWrap = true,
+                            markdown = true,
+                            text = string.format(
+                                "**<color=%s>%s:</color>** <alpha=%s>%s",
+                                MUTED, feature.name, implementedColor, feature.description
+                            ),
+                        }
+                    end
+                end
+            end
+
+            if #labels == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setContent", labels)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- Display the Notes panel
+--- @return Panel
+function TacPanel.Notes()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Notes},
+        classes = {"collapsed"},
+        title = "NOTES",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local creature = token.properties
+            local notes = creature:try_get("notes")
+            if notes == nil or #notes == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            -- Check if any note has text
+            local hasContent = false
+            for _, note in ipairs(notes) do
+                if note.text ~= nil and note.text ~= "" then
+                    hasContent = true
+                    break
+                end
+            end
+            if not hasContent then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+
+            -- Rebuild note labels into the content container
+            local noteLabels = {}
+            for _, note in ipairs(notes) do
+                if note.text ~= nil and note.text ~= "" then
+                    noteLabels[#noteLabels+1] = gui.Label{
+                        classes = {"note-entry"},
+                        textWrap = true,
+                        markdown = true,
+                        text = string.format(
+                            "**<color=%s>%s:</color>** %s",
+                            MUTED, note.title, note.text
+                        ),
+                    }
+                end
+            end
+            element:FireEventTree("setContent", noteLabels)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- Multi-token selection panel
+--- @return Panel
+function TacPanel.MultiEdit()
+    local m_tokens = {}
+    local m_selectedSquadId = nil
+
+    -- Squad name input
+    local monsterSquadInput = gui.Input{
+        classes = {"me-input"},
+        placeholderText = "Enter name...",
+        characterLimit = 24,
+        selectAllOnFocus = true,
+        width = 140,
+        height = "auto",
+        valign = "center",
+        change = function(element)
+            local squadid = trim(element.text)
+            if squadid ~= "" then
+                for _,tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Set Squad",
+                        execute = function()
+                            tok.properties.minionSquad = squadid
+                        end,
+                    }
+                end
+            end
+        end,
+    }
+
+    -- Squad color picker
+    local monsterSquadColorPicker = gui.ColorPicker{
+        width = 20,
+        height = 20,
+        cornerRadius = 10,
+        halign = "center",
+        valign = "center",
+        color = "white",
+        confirm = function(element)
+            local color = element.value.tostring
+            for _,tok in ipairs(m_tokens) do
+                tok:ModifyProperties{
+                    description = "Set Color",
+                    execute = function()
+                        DrawSteelMinion.SetSquadColor(m_selectedSquadId, color)
+                    end,
+                }
+            end
+
+            local monsterTokens = dmhub.GetTokens{
+                unaffiliated = true,
+            }
+
+            local squadTokens = {}
+            for _,tok in ipairs(monsterTokens) do
+                if tok.properties.minion and tok.properties:MinionSquad() == m_selectedSquadId then
+                    squadTokens[#squadTokens+1] = tok.id
+                end
+            end
+
+            if #squadTokens > 0 then
+                game.Refresh{
+                    tokens = squadTokens,
+                }
+            end
+        end,
+    }
+
+    -- Add to Combat icon button
+    local addToCombatBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local q = dmhub.initiativeQueue
+            if q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local hasNonCombatant = false
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties:try_get("_tmp_initiativeStatus") == "NonCombatant" then
+                    hasNonCombatant = true
+                end
+            end
+
+            element:SetClass("collapsed", hasNonCombatant == false)
+        end,
+        gui.EnhIconButton{
+            classes = {"toggle-btn"},
+            bgimage = "panels/initiative/initiative-icon.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = RED,
+            press = function(element)
+                Commands.rollinitiative()
+            end,
+            linger = function(element)
+                gui.Tooltip("Add to Combat")(element)
+            end,
+        },
+    }
+
+    -- Group Initiative icon button
+    local groupInitBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local initiativeid = false
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties.initiativeGrouping == false or (initiativeid ~= false and tok.properties.initiativeGrouping ~= initiativeid) then
+                    element:SetClass("collapsed", false)
+                    return
+                end
+                initiativeid = tok.properties.initiativeGrouping
+            end
+            element:SetClass("collapsed", true)
+        end,
+        gui.EnhIconButton{
+            classes = {"toggle-btn"},
+            bgimage = "icons/icon_app/icon_app_18.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = TEAL,
+            press = function(element)
+                local guid = dmhub.GenerateGuid()
+
+                local hasPlayers = false
+                local existingInitiative = {}
+                local info = gamehud.initiativeInterface
+
+                for _,tok in ipairs(m_tokens) do
+                    if tok.playerControlled then
+                        hasPlayers = true
+                    end
+                end
+
+                if hasPlayers then
+                    guid = "PLAYERS-" .. guid
+                end
+
+                local tokens = DrawSteelMinion.GrowTokensToIncludeSquads(m_tokens)
+
+                for _,tok in ipairs(tokens) do
+                    local initiativeid = InitiativeQueue.GetInitiativeId(tok)
+                    existingInitiative[initiativeid] = true
+                    tok:ModifyProperties{
+                        description = "Set Initiative",
+                        execute = function()
+                            tok.properties.initiativeGrouping = guid
+                        end,
+                    }
+                end
+
+                if info.initiativeQueue ~= nil and not info.initiativeQueue.hidden then
+                    for initiativeid,_ in pairs(existingInitiative) do
+                        info.initiativeQueue:RemoveInitiative(initiativeid)
+                    end
+
+                    info.initiativeQueue:SetInitiative(guid, 0, 0)
+                    if hasPlayers then
+                        local entry = info.initiativeQueue.entries[guid]
+                        if entry ~= nil and entry:try_get("player") ~= true then
+                            entry.player = true
+                        end
+                    end
+
+                    info.UploadInitiative()
+                end
+            end,
+            linger = function(element)
+                gui.Tooltip("Group Initiative")(element)
+            end,
+        },
+    }
+
+    -- Ungroup Initiative icon button
+    local ungroupInitBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        tokens = function(element)
+            local tokens = dmhub.allTokens
+            local haveInitiativeGrouping = false
+
+            for _,tok in ipairs(m_tokens) do
+                if tok.properties.initiativeGrouping then
+                    local squadsSeen = {}
+                    local count = 0
+                    for _,token in ipairs(tokens) do
+                        if token.properties.initiativeGrouping == tok.properties.initiativeGrouping and (token.properties:MinionSquad() == nil or squadsSeen[token.properties:MinionSquad()] == nil) then
+                            count = count+1
+                            if token.properties:MinionSquad() ~= nil then
+                                squadsSeen[token.properties:MinionSquad()] = true
+                            end
+                        end
+                    end
+
+                    if count > 1 then
+                        haveInitiativeGrouping = true
+                    end
+                end
+            end
+
+            element:SetClass("collapsed", not haveInitiativeGrouping)
+        end,
+        gui.EnhIconButton{
+            classes = {"toggle-btn"},
+            bgimage = "icons/icon_app/icon_app_13.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
+            press = function(element)
+                local q = dmhub.initiativeQueue
+
+                local needsInitiativeRefresh = false
+                for _,tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Set Initiative",
+                        execute = function()
+                            local haveInitiative = q ~= nil and (not q.hidden) and q:HasInitiative(InitiativeQueue.GetInitiativeId(tok))
+                            tok.properties.initiativeGrouping = dmhub.GenerateGuid()
+                            if haveInitiative then
+                                needsInitiativeRefresh = true
+                            end
+                        end,
+                    }
+                end
+
+                if needsInitiativeRefresh then
+                    Commands.rollinitiative()
+                end
+            end,
+            linger = function(element)
+                gui.Tooltip("Ungroup Initiative")(element)
+            end,
+        },
+    }
+
+    -- Make Captain icon button
+    local makeCaptainBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        data = { mode = "Make Captain" },
+        gui.EnhIconButton{
+            classes = {"toggle-btn"},
+            bgimage = "panels/hud/crown.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
+            press = function(element)
+                local outer = element.parent
+                local isMakeCaptain = outer.data.mode == "Make Captain"
+                local initiativeGrouping = nil
+                local allTokens = dmhub.allTokens
+
+                local charids = {}
+                for _,tok in ipairs(m_tokens) do
+                    charids[tok.charid] = true
+                end
+                local initiativeGroupingsSeen = {}
+
+                for _,tok in ipairs(m_tokens) do
+                    if tok.properties.initiativeGrouping and not initiativeGroupingsSeen[tok.properties.initiativeGrouping] then
+                        local grouping = tok.properties.initiativeGrouping
+                        local used = false
+                        for _,otherTok in ipairs(allTokens) do
+                            if otherTok.properties.initiativeGrouping == grouping and (not charids[otherTok.charid]) then
+                                used = true
+                                break
+                            end
+                        end
+
+                        if not used then
+                            initiativeGrouping = grouping
+                            break
+                        end
+                    end
+                end
+
+                if initiativeGrouping == false or not isMakeCaptain then
+                    initiativeGrouping = dmhub.GenerateGuid()
+                end
+
+                local groupid = dmhub.GenerateGuid()
+                local captainid = nil
+                for _,tok in ipairs(m_tokens) do
+                    if (not tok.properties.minion) then
+                        captainid = tok.id
+                        tok:ModifyProperties{
+                            groupid = groupid,
+                            description = "Set Squad",
+                            execute = function()
+                                tok.properties.initiativeGrouping = initiativeGrouping
+                                if isMakeCaptain then
+                                    tok.properties.minionSquad = m_selectedSquadId
+                                else
+                                    tok.properties.minionSquad = nil
+                                end
+                            end,
+                        }
+                    elseif tok.properties.initiativeGrouping ~= initiativeGrouping and isMakeCaptain then
+                        tok:ModifyProperties{
+                            groupid = groupid,
+                            description = "Set Squad",
+                            execute = function()
+                                tok.properties.initiativeGrouping = initiativeGrouping
+                            end,
+                        }
+                    end
+                end
+
+                if captainid ~= nil then
+                    local monsterTokens = dmhub.GetTokens{}
+                    for _,tok in ipairs(monsterTokens) do
+                        if tok.id ~= captainid and (not tok.properties.minion) and tok.properties:MinionSquad() == m_selectedSquadId then
+                            tok:ModifyProperties{
+                                description = "Set Squad",
+                                execute = function()
+                                    tok.properties.minionSquad = nil
+                                end,
+                            }
+                        end
+                    end
+                end
+            end,
+            linger = function(element)
+                gui.Tooltip(element.parent.data.mode)(element)
+            end,
+        },
+    }
+
+    -- Form Squad icon button
+    local formSquadBtn = gui.Panel{
+        classes = {"me-icon-wrap", "collapsed"},
+        gui.EnhIconButton{
+            classes = {"toggle-btn"},
+            bgimage = "icons/icon_app/icon_app_2.png",
+            width = TacPanelSizes.VisionBtn.size,
+            height = TacPanelSizes.VisionBtn.size,
+            bgcolor = GOLD,
+            press = function(element)
+                DrawSteelMinion.FormSquad(dmhub.selectedOrPrimaryTokens)
+            end,
+            linger = function(element)
+                gui.Tooltip("Form Squad")(element)
+            end,
+        },
+    }
+
+    -- Monster squad row
+    local monsterSquadPanel = gui.Panel{
+        classes = {"me-squad-row", "collapsed"},
+        tokens = function(element, tokens)
+            local nminions = 0
+            local monsterType = nil
+            local squadid = nil
+            local minionParty = nil
+            local potentialCaptain = nil
+            for _,tok in ipairs(tokens) do
+                if (not tok.properties.minion) then
+                    potentialCaptain = tok
+                end
+                if tok.properties.minion and tok.properties:has_key("monster_type") and (monsterType == nil or tok.properties.monster_type == monsterType) then
+                    nminions = nminions + 1
+                    monsterType = tok.properties.monster_type
+                    if squadid == nil then
+                        squadid = tok.properties:MinionSquad()
+                    elseif squadid ~= tok.properties:MinionSquad() then
+                        squadid = false
+                    end
+
+                    if minionParty == nil then
+                        minionParty = tok.ownerId
+                    elseif minionParty ~= tok.ownerId then
+                        minionParty = false
+                    end
+                end
+            end
+
+            local showCaptainButton = false
+
+            if nminions == #tokens-1 and potentialCaptain ~= nil and potentialCaptain.ownerId == minionParty then
+                showCaptainButton = true
+                if squadid ~= false and squadid ~= nil and potentialCaptain.properties:MinionSquad() == squadid then
+                    nminions = nminions + 1
+                    makeCaptainBtn.data.mode = "Remove Captain"
+                else
+                    makeCaptainBtn.data.mode = "Make Captain"
+                    m_selectedSquadId = squadid
+                end
+            end
+
+            makeCaptainBtn:SetClass("collapsed", not showCaptainButton)
+
+            local shouldCollapse = nminions < #tokens
+            local haveFormSquad = false
+
+            if nminions == #tokens and squadid ~= nil then
+                if squadid == false then
+                    haveFormSquad = true
+                    shouldCollapse = true
+                else
+                    monsterSquadInput.text = squadid
+                    monsterSquadColorPicker:SetClass("hidden", false)
+                    monsterSquadColorPicker.value = DrawSteelMinion.GetSquadColor(squadid)
+                    m_selectedSquadId = squadid
+                end
+            end
+
+            element:SetClass("collapsed", shouldCollapse)
+            formSquadBtn:SetClass("collapsed", not haveFormSquad)
+        end,
+        monsterSquadColorPicker,
+        gui.Label{
+            classes = {"me-squad-label"},
+            text = "Squad:",
+            lmargin = 8,
+        },
+        monsterSquadInput,
+    }
+
+    -- EV result chip
+    local monsterEVChip = gui.Panel{
+        classes = {"me-ev-chip", "collapsed"},
+        gui.Label{
+            classes = {"me-ev-result"},
+            text = "",
+            markdown = true,
+
+            multimonitor = "eds",
+            monitor = function(element)
+                if m_tokens ~= nil then
+                    element:FireEvent("tokens", m_tokens)
+                end
+            end,
+
+            tokens = function(element, tokens)
+                local monsterTokens = {}
+                for _,tok in ipairs(tokens) do
+                    if tok.properties:IsMonster() then
+                        monsterTokens[#monsterTokens+1] = tok
+                    end
+                end
+
+                if #monsterTokens == 0 then
+                    element.text = ""
+                    element.parent:SetClass("collapsed", true)
+                    return
+                end
+
+                element.parent:SetClass("collapsed", false)
+
+            local ev = 0
+            for _,tok in ipairs(monsterTokens) do
+                if tok.properties.minion then
+                    ev = ev + tok.properties.ev/GameSystem.minionsPerSquad
+                else
+                    ev = ev + tok.properties.ev
+                end
+            end
+
+            ev = round(ev)
+
+            local edsDescription
+            local eds = g_edsSetting:Get()
+
+            if ev <= eds/2 then
+                edsDescription = "<color=#66ff66>Trivial</color>"
+            elseif ev <= eds then
+                local val = ev
+                while val % 5 ~= 0 do
+                    val = val + 1
+                end
+
+                if val - eds/2 >= eds - val then
+                    edsDescription = "<color=#ffff66>Standard</color>"
+                else
+                    edsDescription = "<color=#66ff66>Easy</color>"
+                end
+            elseif ev <= eds + 10 then
+                edsDescription = "<color=#ff6666>Hard</color>"
+            else
+                edsDescription = "<color=#990000>Extreme</color>"
+            end
+
+            element.text = string.format("%d monsters selected, EV: %d (<b>%s</b>)", #monsterTokens, ev, edsDescription)
+        end,
+    },
+    }
+
+    return gui.Panel{
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit},
+        classes = {"tacpanel", "alt-bg", "collapsed"},
+        tokens = function(element, tokens)
+            m_tokens = tokens
+            if #tokens <= 1 then
+                element:SetClass("collapsed", true)
+            else
+                element:SetClass("collapsed", false)
+                for _,child in ipairs(element.children) do
+                    child:FireEventTree("tokens", tokens)
+                end
+            end
+        end,
+
+        gui.Label{
+            classes = {"panel-title"},
+            text = "SELECTED TOKENS",
+        },
+
+        -- Row 1: Heal / Damage / Add Condition
+        gui.Panel{
+            classes = {"me-actions"},
+
+            -- Heal All
+            gui.Panel{
+                classes = {"me-input-box", "heal"},
+                gui.Input{
+                    classes = {"me-input"},
+                    placeholderText = "Heal All",
+                    placeholderAlpha = 0.6,
+                    change = function(element)
+                        for _,tok in ipairs(m_tokens) do
+                            tok:ModifyProperties{
+                                description = "Heal",
+                                execute = function()
+                                    tok.properties:Heal(element.text)
+                                end,
+                            }
+                        end
+                        element.text = ""
+                    end,
+                },
+            },
+
+            -- Damage All
+            gui.Panel{
+                classes = {"me-input-box", "damage"},
+                gui.Input{
+                    classes = {"me-input"},
+                    placeholderText = "Damage All",
+                    placeholderAlpha = 0.6,
+                    change = function(element)
+                        for _,tok in ipairs(m_tokens) do
+                            tok:ModifyProperties{
+                                description = "Damage",
+                                execute = function()
+                                    tok.properties:TakeDamage(element.text)
+                                end,
+                            }
+                        end
+                        element.text = ""
+                    end,
+                },
+            },
+
+            -- Add Condition
+            gui.Panel{
+                classes = {"me-condition-btn"},
+                press = function(element)
+                    TacPanel.AddConditionMenu{
+                        tokens = m_tokens,
+                        button = element,
+                    }
+                end,
+                gui.Label{
+                    classes = {"me-condition-btn"},
+                    text = "Add Condition",
+                },
+            },
+        },
+
+        -- Row 2: Icon buttons
+        gui.Panel{
+            classes = {"me-icon-row"},
+            addToCombatBtn,
+            groupInitBtn,
+            ungroupInitBtn,
+            makeCaptainBtn,
+            formSquadBtn,
+        },
+
+        -- Squad row
+        monsterSquadPanel,
+
+        -- EDS + EV row
+        gui.Panel{
+            width = "100%", height = "auto",
+            flow = "horizontal", halign = "left",
+            tmargin = 4, lmargin = 6,
+
+            -- EDS chip
+            gui.Panel{
+                classes = {"me-eds-chip"},
+                lmargin = 0,
+                gui.Label{
+                    classes = {"me-eds-label"},
+                    text = "EDS:",
+                },
+                gui.Label{
+                    classes = {"me-eds-input"},
+                    editable = true,
+                    text = g_edsSetting:Get(),
+                    characterLimit = 3,
+                    multimonitor = "eds",
+                    monitor = function(element)
+                        element.text = tostring(g_edsSetting:Get())
+                    end,
+                    change = function(element)
+                        local n = tonumber(element.text)
+                        if n == nil or n < 10 or n > 1000 then
+                            element.text = tostring(g_edsSetting:Get())
+                            return
+                        end
+                        g_edsSetting:Set(n)
+                    end,
+                },
+            },
+
+            -- EV result
+            monsterEVChip,
+        },
+    }
+end
+
+--- Format a condition's duration for display
+--- @param duration string raw duration value
+--- @return string formatted duration text
+function TacPanel.FormatConditionDuration(duration)
+    if duration == "eot" then return "EoT"
+    elseif duration == "eoe" then return "EoE"
+    elseif duration == "save" then return "Save"
+    elseif type(duration) == "string" then return string.upper(duration) .. " ends"
+    else return "EoT"
+    end
+end
+
+--- Build the display text for a condition chip
+--- @param condid string condition id
+--- @param cond table inflicted condition entry
+--- @param creature table token.properties
+--- @return string chip label text
+function TacPanel.ConditionChipText(condid, cond, creature)
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+    local info = conditionsTable[condid]
+    if info == nil then return "???" end
+
+    local text = info.name
+
+    -- Append rider names
+    local riderids = creature:GetConditionRiders(condid)
+    if riderids ~= nil then
+        local ridersTable = dmhub.GetTable(CharacterCondition.ridersTableName)
+        for _, riderid in ipairs(riderids) do
+            if ridersTable[riderid] then
+                text = string.format("%s %s", text, ridersTable[riderid].name)
+            end
+        end
+    end
+
+    -- Append duration
+    if not info.indefiniteDuration then
+        text = string.format("%s (%s)", text, TacPanel.FormatConditionDuration(cond.duration))
+    end
+
+    return text
+end
+
+--- Build a tooltip for a condition chip (matches old code tooltip format)
+--- @param condid string condition id
+--- @param cond table inflicted condition entry
+--- @param creature table token.properties
+--- @return string tooltip markup
+function TacPanel.ConditionTooltipText(condid, cond, creature)
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+    local info = conditionsTable[condid]
+    if info == nil then return "" end
+
+    local durationText = ""
+    if not info.indefiniteDuration then
+        durationText = string.format(" (%s)", TacPanel.FormatConditionDuration(cond.duration))
+    end
+
+    local ridersText = ""
+    local riderids = creature:GetConditionRiders(condid)
+    if riderids ~= nil then
+        local ridersTable = dmhub.GetTable(CharacterCondition.ridersTableName)
+        for _, riderid in ipairs(riderids) do
+            local riderInfo = ridersTable[riderid]
+            if riderInfo ~= nil then
+                ridersText = string.format("%s\n\n<b>%s</b>: %s", ridersText, riderInfo.name, riderInfo.description)
+            end
+        end
+    end
+
+    return string.format('<b>%s</b>%s: %s%s\n\n%s',
+        info.name, durationText, info.description, ridersText, cond.sourceDescription or "")
+end
+
+--- Shared helper for condition/effect chip panels.
+--- @param args table {token, tooltipText, label, removeDescription, onRemove, icon?, lingerExtra?, extraChildren?}
+--- @return Panel
+function TacPanel.EffectChip(args)
+    local children = {}
+
+    if args.icon then
+        children[#children+1] = gui.Panel{
+            classes = {"panel", "cond-icon"},
+            bgimage = args.icon.bgimage,
+            bgcolor = args.icon.bgcolor or "white",
+            hueshift = args.icon.hueshift or 0,
+        }
+    end
+
+    children[#children+1] = gui.Label{
+        classes = {"label", "cond-name"},
+        text = args.label,
+    }
+
+    if args.extraChildren then
+        for _,child in ipairs(args.extraChildren) do
+            children[#children+1] = child
+        end
+    end
+
+    if args.onRemove then
+        children[#children+1] = gui.Panel{
+            classes = {"panel", "cond-remove"},
+            press = function(element)
+                args.token:ModifyProperties{
+                    description = args.removeDescription,
+                    execute = function()
+                        args.onRemove(args.token)
+                    end,
+                }
+            end,
+            linger = function(element)
+                gui.Tooltip("Remove")(element)
+            end,
+            gui.Label{
+                classes = {"label", "cond-remove"},
+                text = "X",
+            },
+        }
+    end
+
+    local panelArgs = {
+        classes = {"panel", "cond-chip"},
+        data = { targetingMarkers = {} },
+        linger = function(element)
+            element:FireEvent("clearMarkers")
+            element.popupPositioning = "panel"
+            element.tooltip = gui.TooltipFrame(
+                TacPanel.Tooltip(args.tooltipText),
+                { halign = "left", valign = "top" }
+            )
+            if args.lingerExtra then
+                args.lingerExtra(element)
+            end
+        end,
+        dehover = function(element)
+            element:FireEvent("clearMarkers")
+        end,
+        clearMarkers = function(element)
+            for _, marker in ipairs(element.data.targetingMarkers) do
+                marker:Destroy()
+            end
+            element.data.targetingMarkers = {}
+        end,
+        children = children,
+    }
+
+    return gui.Panel(panelArgs)
+end
+
+--- Create a single condition chip panel
+--- @param condid string condition id
+--- @param cond table inflicted condition entry
+--- @param token CharacterToken
+--- @return Panel
+function TacPanel.ConditionChip(condid, cond, token)
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+    local info = conditionsTable[condid]
+    local iconid = info and info.iconid or ""
+    local display = info and info.display or {}
+    local showSetCaster = info ~= nil and info.trackCaster and cond.casterInfo == nil
+
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = TacPanel.ConditionTooltipText(condid, cond, token.properties),
+        label = TacPanel.ConditionChipText(condid, cond, token.properties),
+        icon = { bgimage = iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        removeDescription = "Remove Condition",
+        onRemove = function(tok)
+            tok.properties:InflictCondition(condid, {purge = true})
+        end,
+        lingerExtra = function(element)
+            local creature = token.properties
+            local conditions = creature:try_get("inflictedConditions", {})
+            local c = conditions[condid]
+            if c == nil then return end
+            local caster = c.casterInfo
+            if caster ~= nil and type(caster.tokenid) == "string" then
+                local casterToken = dmhub.GetTokenById(caster.tokenid)
+                if casterToken ~= nil then
+                    element.data.targetingMarkers[#element.data.targetingMarkers+1] =
+                        dmhub.HighlightLine{color = "red", a = casterToken.pos, b = token.pos}
+                end
+            end
+        end,
+        extraChildren = {
+            gui.Panel{
+                classes = {"panel", "cond-setCaster", showSetCaster and "" or "collapsed"},
+                press = function(element)
+                    if element.data.invoking or gamehud.actionBarPanel.data.IsCastingSpell() then return end
+                    element.data.invoking = true
+                    element.thinkTime = 0.1
+                    local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
+                    ability.behaviors[1].condid = condid
+                    ability.OnFinishCast = function()
+                        element.data.invoking = false
+                        element.thinkTime = nil
+                    end
+                    ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(token, ability, token, "prompt", {}, {})
+                end,
+                think = function(element)
+                    if element.data.invoking and element.data.invokeReady then
+                        if not gamehud.actionBarPanel.data.IsCastingSpell() and not gamehud.rollDialog.data.IsShown() then
+                            element.data.invoking = false
+                            element.data.invokeReady = false
+                            element.thinkTime = nil
+                        end
+                    elseif element.data.invoking then
+                        element.data.invokeReady = true
+                    end
+                end,
+                linger = function(element)
+                    gui.Tooltip("Set Caster")(element)
+                end,
+                gui.Panel{
+                    bgimage = "icons/icon_app/icon_app_4.png",
+                    width = 10, height = 10,
+                    valign = "center", halign = "center",
+                    bgcolor = TEMP_STAM,
+                },
+            },
+        },
+    }
+end
+
+--- Build the display text for a status effect chip
+--- @param entry CharacterOngoingEffectInstance
+--- @param info CharacterOngoingEffect definition
+--- @return string chip label text
+function TacPanel.StatusEffectChipText(entry, info)
+    local text = info.name
+    if entry.stacks ~= nil and entry.stacks > 1 then
+        text = string.format("%s x%d", text, entry.stacks)
+    end
+    local timeText = entry:DescribeTimeRemaining()
+    if timeText ~= nil and timeText ~= "" then
+        text = string.format("%s (%s)", text, timeText)
+    end
+    return text
+end
+
+--- Build a tooltip for a status effect chip
+--- @param entry CharacterOngoingEffectInstance
+--- @param info CharacterOngoingEffect definition
+--- @param creature table token.properties
+--- @return string tooltip markup
+function TacPanel.StatusEffectTooltipText(entry, info, creature)
+    local stacksText = ""
+    if info.stackable and entry.stacks ~= nil and entry.stacks > 1 then
+        stacksText = string.format(" (%d stacks)", entry.stacks)
+    end
+    local casterText = ""
+    local caster = entry:DescribeCaster()
+    if caster ~= nil then
+        casterText = string.format("\nInflicted by %s", caster)
+    end
+    local timeText = entry:DescribeTimeRemaining()
+    if timeText ~= nil and timeText ~= "" then
+        timeText = "\n" .. timeText
+    else
+        timeText = ""
+    end
+    return string.format('<b>%s</b>%s: %s%s%s',
+        info.name, stacksText,
+        StringInterpolateGoblinScript(info.description, creature),
+        casterText, timeText)
+end
+
+--- Create a single status effect chip panel
+--- @param entry CharacterOngoingEffectInstance
+--- @param info CharacterOngoingEffect definition
+--- @param token CharacterToken
+--- @return Panel
+function TacPanel.StatusEffectChip(entry, info, token)
+    local iconid = info:GetDisplayIcon()
+    local display = info:GetDisplayDisplay() or {}
+
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = TacPanel.StatusEffectTooltipText(entry, info, token.properties),
+        label = TacPanel.StatusEffectChipText(entry, info),
+        icon = { bgimage = iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        removeDescription = "Remove Status Effect",
+        onRemove = function(tok)
+            tok.properties:RemoveOngoingEffect(entry.ongoingEffectid)
+        end,
+        lingerExtra = function(element)
+            if entry.bondid then
+                local tokens = creature.GetTokensWithBoundOngoingEffect(entry.bondid)
+                for i, _ in ipairs(tokens) do
+                    for j = i + 1, #tokens do
+                        element.data.targetingMarkers[#element.data.targetingMarkers+1] =
+                            dmhub.HighlightLine{color = "red", a = tokens[i].pos, b = tokens[j].pos}
+                    end
+                end
+            end
+        end,
+    }
+end
+
+--- Create a single custom condition chip panel (text only, no icon)
+--- @param key string GUID key in customConditions
+--- @param entry table {text, timestamp}
+--- @param token CharacterToken
+--- @return Panel
+function TacPanel.CustomConditionChip(key, entry, token)
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = entry.text,
+        label = entry.text,
+        removeDescription = "Remove Custom Condition",
+        onRemove = function(tok)
+            local cc = tok.properties:get_or_add("customConditions", {})
+            cc[key] = nil
+        end,
+    }
+end
+
+--- Create a single aura chip panel (no remove button)
+--- @param auraInstance table the aura instance from GetAurasAffecting
+--- @param token CharacterToken
+--- @return Panel
+function TacPanel.AuraChip(auraInstance, token)
+    local aura = auraInstance.aura
+    local display = aura.display or {}
+    return TacPanel.EffectChip{
+        token = token,
+        tooltipText = string.format('<b>%s</b>: %s', aura.name, aura:GetDescription()),
+        label = string.format("%s (Aura)", aura.name),
+        icon = { bgimage = aura.iconid, bgcolor = display.bgcolor, hueshift = display.hueshift },
+        lingerExtra = function(element)
+            local area = auraInstance:GetArea()
+            if area ~= nil then
+                local marks = area:Mark{ color = "white", video = "divinationline.webm" }
+                element.data.targetingMarkers[#element.data.targetingMarkers+1] = marks
+            end
+        end,
+    }
+end
+
+--- Display the Auras we're emitting panel
+--- @return Panel
+function TacPanel.AurasEmitting()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        classes = {"collapsed"},
+        title = "AURAS EMITTING",
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local creature = token.properties
+            local chips = {}
+
+            -- Source 1: direct auras
+            local auras = creature:try_get("auras", {})
+            for _, auraInstance in ipairs(auras) do
+                local aura = auraInstance.aura
+                local display = aura.display or {}
+                local auraid = auraInstance.guid
+                local iconid = aura.iconid or ""
+                local iconbg = display.bgcolor or "white"
+                local iconhue = display.hueshift or 0
+
+                local chipChildren = {}
+                if iconid ~= "" then
+                    chipChildren[#chipChildren+1] = gui.Panel{
+                        classes = {"panel", "cond-icon"},
+                        bgimage = iconid,
+                        bgcolor = iconbg,
+                        hueshift = iconhue,
+                    }
+                end
+                chipChildren[#chipChildren+1] = gui.Label{
+                    classes = {"label", "cond-name"},
+                    text = aura.name,
+                }
+                chipChildren[#chipChildren+1] = gui.Panel{
+                    valign = "center",
+                    halign = "right",
+                    width = "auto", height = "auto",
+                    bgimage = "panels/square.png",
+                    bgcolor = "clear",
+                    border = 1,
+                    borderColor = GOLD_LIGHT,
+                    cornerRadius = 3,
+                    pad = 3, lmargin = 4,
+                    gui.VisibilityPanel{
+                        opacity = 1,
+                        visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                        bgcolor = GOLD_LIGHT,
+                        width = 12,
+                        height = 12,
+                        press = function(element)
+                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                            settings.hide = not settings.hide
+                            token:ModifyProperties{
+                                description = tr("Set Aura Display Settings"),
+                                undoable = false,
+                                execute = function()
+                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                end,
+                            }
+                        end,
+                        refresh = function(element)
+                            if token == nil or not token.valid then return end
+                            element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                        end,
+                    },
+                }
+                chipChildren[#chipChildren+1] = gui.PercentSlider{
+                    valign = "center",
+                    halign = "right",
+                    hmargin = 6,
+                    selfStyle = {borderColor = GOLD_LIGHT},
+                    styles = {
+                        {selectors = {"percentSlider"},
+                         borderWidth = 1, borderColor = GOLD_LIGHT,
+                         cornerRadius = 2, bgimage = "panels/square.png",
+                         bgcolor = "black", height = 14, flow = "none"},
+                        {selectors = {"percentSliderLabel"},
+                         color = GOLD_LIGHT, bold = true, fontSize = 10,
+                         halign = "left", valign = "center",
+                         width = 40, textAlignment = "center", height = "auto"},
+                        {selectors = {"percentSliderLabel", "fill"},
+                         color = "black"},
+                        {selectors = {"percentFill"},
+                         bgcolor = GOLD_LIGHT, height = "100%",
+                         width = "0%", halign = "left", cornerRadius = 2},
+                    },
+                    value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
+                    refresh = function(element)
+                        if token == nil or not token.valid then return end
+                        element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
+                    end,
+                    preview = function(element)
+                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                        settings.opacity = element.value
+                        token.properties:SetAuraDisplaySetting(aura.name, settings)
+                        token:UpdateAuras()
+                    end,
+                    confirm = function(element)
+                        token.properties:SetAuraDisplaySetting(aura.name, nil)
+                        token:ModifyProperties{
+                            description = tr("Set Aura Display Settings"),
+                            undoable = false,
+                            execute = function()
+                                local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                settings.opacity = element.value
+                                token.properties:SetAuraDisplaySetting(aura.name, settings)
+                            end,
+                        }
+                    end,
+                }
+                local chipArgs = {
+                    classes = {"panel", "cond-chip"},
+                    data = { targetingMarkers = {} },
+                    popupPositioning = "panel",
+                    linger = function(el)
+                        el:FireEvent("clearMarkers")
+                        el.tooltip = gui.TooltipFrame(
+                            TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                            { halign = "left", valign = "top" }
+                        )
+                        local area = auraInstance:GetArea()
+                        if area ~= nil then
+                            local marks = area:Mark{ color = "white", video = "divinationline.webm" }
+                            el.data.targetingMarkers[#el.data.targetingMarkers+1] = marks
+                        end
+                    end,
+                    dehover = function(el)
+                        el:FireEvent("clearMarkers")
+                    end,
+                    clearMarkers = function(el)
+                        for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                        el.data.targetingMarkers = {}
+                    end,
+                }
+                for i, child in ipairs(chipChildren) do
+                    chipArgs[i] = child
+                end
+                chips[#chips+1] = gui.Panel(chipArgs)
+            end
+
+            -- Source 2: ongoing effect modifier auras
+            local ongoingEffectsTable = dmhub.GetTable(CharacterOngoingEffect.tableName)
+            local ongoingEffects = creature:try_get("ongoingEffects", {})
+            for _, effect in ipairs(ongoingEffects) do
+                local effectInfo = ongoingEffectsTable[effect.ongoingEffectid]
+                if effectInfo ~= nil then
+                    for _, effmod in ipairs(effectInfo.modifiers) do
+                        if effmod:has_key("aura") then
+                            local aura = effmod.aura
+                            local display = aura.display or {}
+                            local auraid = aura.guid
+                            local iconid = aura.iconid or ""
+                            local iconbg = display.bgcolor or "white"
+                            local iconhue = display.hueshift or 0
+
+                            local effChildren = {}
+                            if iconid ~= "" then
+                                effChildren[#effChildren+1] = gui.Panel{
+                                    classes = {"panel", "cond-icon"},
+                                    bgimage = iconid,
+                                    bgcolor = iconbg,
+                                    hueshift = iconhue,
+                                }
+                            end
+                            effChildren[#effChildren+1] = gui.Label{
+                                classes = {"label", "cond-name"},
+                                text = aura.name,
+                            }
+                            effChildren[#effChildren+1] = gui.Panel{
+                                valign = "center",
+                                halign = "right",
+                                width = "auto", height = "auto",
+                                bgimage = "panels/square.png",
+                                bgcolor = "clear",
+                                border = 1,
+                                borderColor = GOLD_LIGHT,
+                                cornerRadius = 3,
+                                pad = 3, lmargin = 4,
+                                gui.VisibilityPanel{
+                                    opacity = 1,
+                                    visible = not token.properties:GetAuraDisplaySetting(aura.name).hide,
+                                    bgcolor = GOLD_LIGHT,
+                                    width = 12,
+                                    height = 12,
+                                    press = function(element)
+                                        local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                        settings.hide = not settings.hide
+                                        token:ModifyProperties{
+                                            description = tr("Set Aura Display Settings"),
+                                            undoable = false,
+                                            execute = function()
+                                                token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                            end,
+                                        }
+                                    end,
+                                    refresh = function(element)
+                                        if token == nil or not token.valid then return end
+                                        element:FireEvent("visible", not token.properties:GetAuraDisplaySetting(aura.name).hide)
+                                    end,
+                                },
+                            }
+                            effChildren[#effChildren+1] = gui.PercentSlider{
+                                valign = "center",
+                                halign = "right",
+                                hmargin = 6,
+                                selfStyle = {borderColor = GOLD_LIGHT},
+                                styles = {
+                                    {selectors = {"percentSlider"},
+                                     borderWidth = 1, borderColor = GOLD_LIGHT,
+                                     cornerRadius = 2, bgimage = "panels/square.png",
+                                     bgcolor = "black", height = 14, flow = "none"},
+                                    {selectors = {"percentSliderLabel"},
+                                     color = GOLD_LIGHT, bold = true, fontSize = 10,
+                                     halign = "left", valign = "center",
+                                     width = 40, textAlignment = "center", height = "auto"},
+                                    {selectors = {"percentSliderLabel", "fill"},
+                                     color = "black"},
+                                    {selectors = {"percentFill"},
+                                     bgcolor = GOLD_LIGHT, height = "100%",
+                                     width = "0%", halign = "left", cornerRadius = 2},
+                                },
+                                value = token.properties:GetAuraDisplaySetting(aura.name).opacity,
+                                refresh = function(element)
+                                    if token == nil or not token.valid then return end
+                                    element.value = token.properties:GetAuraDisplaySetting(aura.name).opacity
+                                end,
+                                preview = function(element)
+                                    local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                    settings.opacity = element.value
+                                    token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                    token:UpdateAuras()
+                                end,
+                                confirm = function(element)
+                                    token.properties:SetAuraDisplaySetting(aura.name, nil)
+                                    token:ModifyProperties{
+                                        description = tr("Set Aura Display Settings"),
+                                        undoable = false,
+                                        execute = function()
+                                            local settings = DeepCopy(token.properties:GetAuraDisplaySetting(aura.name))
+                                            settings.opacity = element.value
+                                            token.properties:SetAuraDisplaySetting(aura.name, settings)
+                                        end,
+                                    }
+                                end,
+                            }
+                            local effChipArgs = {
+                                classes = {"panel", "cond-chip"},
+                                data = { targetingMarkers = {} },
+                                popupPositioning = "panel",
+                                linger = function(el)
+                                    el:FireEvent("clearMarkers")
+                                    el.tooltip = gui.TooltipFrame(
+                                        TacPanel.Tooltip(string.format('<b>%s</b>: %s', aura.name, aura:GetDescription())),
+                                        { halign = "left", valign = "top" }
+                                    )
+                                end,
+                                dehover = function(el)
+                                    el:FireEvent("clearMarkers")
+                                end,
+                                clearMarkers = function(el)
+                                    for _, m in ipairs(el.data.targetingMarkers) do m:Destroy() end
+                                    el.data.targetingMarkers = {}
+                                end,
+                            }
+                            for i, child in ipairs(effChildren) do
+                                effChipArgs[i] = child
+                            end
+                            chips[#chips+1] = gui.Panel(effChipArgs)
+                        end
+                    end
+                end
+            end
+
+            if #chips == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setContent", chips)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+function TacPanel.AddConditionMenu(args)
+    local m_tokens = args.tokens
+    local m_button = args.button
+
+    local options = {}
+    local conditionsTable = dmhub.GetTable(CharacterCondition.tableName) or {}
+
+    for k, effect in unhidden_pairs(conditionsTable) do
+        if effect.showInMenus then
+            local children = {}
+            if effect.indefiniteDuration then
+                local ridersTable = dmhub.GetTable(CharacterCondition.ridersTableName)
+                for riderid, rider in unhidden_pairs(ridersTable) do
+                    if rider.condition == k and rider.showAsMenuOption then
+                        children[#children + 1] = gui.Label{
+                            halign = "right",
+                            swallowPress = true,
+                            classes = {"menu-suboption"},
+                            text = rider.name,
+                            press = function(element)
+                                element.parent:FireEvent("press", "eoe", riderid)
+                            end,
+                        }
+                    end
+                end
+            else
+                children = {
+                    gui.Label{
+                        halign = "right",
+                        swallowPress = true,
+                        classes = {"menu-suboption"},
+                        text = "EoT",
+                        press = function(element)
+                            element.parent:FireEvent("press", "eot")
+                        end,
+                    },
+                    gui.Label{
+                        halign = "right",
+                        swallowPress = true,
+                        classes = {"menu-suboption"},
+                        text = "Save",
+                        press = function(element)
+                            element.parent:FireEvent("press", "save")
+                        end,
+                    },
+                    gui.Label{
+                        halign = "right",
+                        swallowPress = true,
+                        classes = {"menu-suboption"},
+                        text = "EoE",
+                        press = function(element)
+                            element.parent:FireEvent("press", "eoe")
+                        end,
+                    },
+                }
+            end
+
+            options[#options + 1] = gui.Label{
+                classes = {"menu-option"},
+                text = effect.name,
+                flow = "horizontal",
+                searchText = function(element, searchText)
+                    local match = string.starts_with(string.lower(element.text), searchText)
+                    element:SetClass("collapsed", not match)
+                end,
+                press = function(element, durationOverride, riderid)
+                    if (not durationOverride) and effect.indefiniteDuration then
+                        durationOverride = "eoe"
+                    end
+                    for _, tok in ipairs(m_tokens) do
+                        tok:ModifyProperties{
+                            description = "Apply Condition",
+                            execute = function()
+                                tok.properties:InflictCondition(k, {
+                                    riders = {riderid},
+                                    duration = (durationOverride or "eot"),
+                                })
+                            end,
+                        }
+                    end
+                    m_button.popup = nil
+                end,
+                linger = function(element)
+                    gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(element)
+                end,
+                children = children,
+            }
+        end
+    end
+
+    table.sort(options, function(a, b) return a.text < b.text end)
+
+    local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+    local statusEffectData = {}
+    for k, effect in unhidden_pairs(ongoingEffectsTable) do
+        if effect.statusEffect then
+            statusEffectData[#statusEffectData + 1] = {key = k, effect = effect}
+        end
+    end
+    table.sort(statusEffectData, function(a, b) return a.effect.name < b.effect.name end)
+
+    local function makeStatusLabel(k, effect)
+        return gui.Label{
+            classes = {"menu-option"},
+            text = effect.name,
+            searchText = function(el, searchText)
+                el:SetClass("collapsed", not string.starts_with(string.lower(el.text), searchText))
+            end,
+            linger = function(el)
+                gui.Tooltip(string.format("%s: %s", effect.name, effect.description))(el)
+            end,
+            press = function(el)
+                for _, tok in ipairs(m_tokens) do
+                    tok:ModifyProperties{
+                        description = "Apply Status Effect",
+                        combine = true,
+                        execute = function()
+                            if tok == nil or not tok.valid then return end
+                            tok.properties:ApplyOngoingEffect(k)
+                        end,
+                    }
+                end
+                m_button.popup = nil
+            end,
+        }
+    end
+
+    local initialCount = math.min(10, #statusEffectData)
+    local initialLabels = {}
+    for i = 1, initialCount do
+        local d = statusEffectData[i]
+        initialLabels[i] = makeStatusLabel(d.key, d.effect)
+    end
+
+    local statusContent = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "vertical",
+    }
+
+    if #statusEffectData > initialCount then
+        local moreButton = gui.Label{
+            classes = {"menu-suboption"},
+            text = "More...",
+            halign = "left",
+            tmargin = 4,
+            lmargin = 8,
+            swallowPress = true,
+            press = function(element)
+                local allLabels = {}
+                for i = 1, #statusEffectData do
+                    local d = statusEffectData[i]
+                    allLabels[i] = makeStatusLabel(d.key, d.effect)
+                end
+                statusContent.children = allLabels
+                element:SetClass("collapsed", true)
+            end,
+        }
+        initialLabels[#initialLabels + 1] = moreButton
+    end
+
+    statusContent.children = initialLabels
+
+    m_button.popup = gui.Panel{
+        styles = {Styles.Default, TacPanelStyles.AddConditionMenu},
+        floating = true,
+        vscroll = true,
+        hideObjectsOutOfScroll = true,
+        flow = "vertical",
+        width = 300,
+        height = 800,
+        bgimage = "panels/square.png",
+        bgcolor = RICH_BLACK,
+        border = 1,
+        borderColor = GOLD_BORDER,
+        cornerRadius = 6,
+        pad = 6,
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "ADD CONDITION",
+            halign = "center",
+            tmargin = 2,
+        },
+
+        gui.Panel{
+            classes = {"panel", "menu-divider"},
+        },
+
+        gui.Input{
+            classes = {"input", "menu-search"},
+            placeholderText = "Search...",
+            hasFocus = true,
+            data = { searchedOption = nil },
+            edit = function(element)
+                element.parent:FireEventTree("searchText", string.lower(element.text))
+                element.data.searchedOption = nil
+                local found = element.text == ""
+                for _, option in ipairs(options) do
+                    if found == false and option:HasClass("collapsed") == false then
+                        found = true
+                        element.data.searchedOption = option
+                    end
+                end
+            end,
+            submit = function(element)
+                if element.data.searchedOption ~= nil then
+                    element.data.searchedOption:FireEvent("press")
+                end
+            end,
+        },
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "CONDITIONS",
+        },
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            children = options,
+        },
+
+        gui.Label{
+            classes = {"menu-heading"},
+            text = "STATUS EFFECTS",
+        },
+        statusContent,
+    }
+end
+
+--- Display the Persistent Abilities panel
+--- @return Panel
+function TacPanel.PersistentAbilities()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        classes = {"collapsed"},
+        title = "PERSISTENT ABILITIES",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local persistentAbilities = token.properties:try_get("persistentAbilities")
+            local q = dmhub.initiativeQueue
+            if persistentAbilities == nil or #persistentAbilities == 0 or q == nil or q.hidden then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local abilities = token.properties:GetActivatedAbilities{excludeGlobal = true}
+            local totalCost = 0
+            local chips = {}
+
+            for _, entry in ipairs(persistentAbilities) do
+                if entry.combatid == q.guid then
+                    totalCost = totalCost + entry.cost
+
+                    local abilityRef = nil
+                    for _, ability in ipairs(abilities) do
+                        if ability.name == entry.abilityName then
+                            abilityRef = ability
+                            break
+                        end
+                    end
+
+                    local iconid = abilityRef and abilityRef.iconid or ""
+                    local display = abilityRef and abilityRef.display or {}
+                    local guid = entry.guid
+
+                    chips[#chips+1] = gui.Panel{
+                        classes = {"panel", "cond-chip"},
+                        data = { targetingMarkers = {} },
+                        popupPositioning = "panel",
+
+                        hover = function(el)
+                            el:FireEvent("clearMarkers")
+                            if abilityRef then
+                                el.tooltip = gui.TooltipFrame(
+                                    CreateAbilityTooltip(abilityRef, {width = 540, token = token}),
+                                    { halign = "left", valign = "top" }
+                                )
+                                if abilityRef:Persistence().mode == "recast_target" then
+                                    for _, targetid in ipairs(entry.targets or {}) do
+                                        local targetToken = dmhub.GetTokenById(targetid)
+                                        if targetToken ~= nil then
+                                            el.data.targetingMarkers[#el.data.targetingMarkers+1] =
+                                                dmhub.MarkLineOfSight(token, targetToken, token.properties:GetPierceWalls())
+                                        end
+                                    end
+                                end
+                            end
+                        end,
+                        dehover = function(el)
+                            el:FireEvent("clearMarkers")
+                        end,
+                        clearMarkers = function(el)
+                            for _, m in ipairs(el.data.targetingMarkers) do
+                                m:Destroy()
+                            end
+                            el.data.targetingMarkers = {}
+                        end,
+
+                        iconid ~= "" and gui.Panel{
+                            classes = {"panel", "cond-icon"},
+                            bgimage = iconid,
+                            bgcolor = display.bgcolor or "white",
+                            hueshift = display.hueshift or 0,
+                        } or nil,
+                        gui.Label{
+                            classes = {"label", "cond-name"},
+                            text = string.format("%s--%d", entry.abilityName, entry.cost),
+                        },
+                        gui.Panel{
+                            classes = {"panel", "cond-remove"},
+                            press = function(el)
+                                token.properties:EndPersistentAbilityById(guid)
+                            end,
+                            linger = function(el)
+                                gui.Tooltip("Stop")(el)
+                            end,
+                            gui.Label{
+                                classes = {"label", "cond-remove"},
+                                text = "X",
+                            },
+                        },
+                    }
+                end
+            end
+
+            if #chips == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            local children = {}
+            for _, chip in ipairs(chips) do
+                children[#children+1] = chip
+            end
+            if totalCost > 2 then
+                children[#children+1] = gui.Label{
+                    width = "100%",
+                    height = "auto",
+                    fontSize = 12,
+                    color = RED,
+                    text = "Too many persistent abilities. You must end some.",
+                }
+            end
+            element:FireEventTree("setContent", children)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
+--- Display the Conditions panel
+--- @return Panel
+function TacPanel.Conditions()
+    return TacPanel.CollapsiblePanel{
+        styles = {TacPanelStyles.Conditions},
+        title = "AURAS, CONDITIONS, & EFFECTS",
+        data = { token = nil },
+        refreshCharacter = function(element, token)
+            element.data.token = token
+            if token == nil or not token.valid then
+                element:FireEventTree("setContent", {})
+                return
+            end
+
+            local creature = token.properties
+            local conditions = creature:try_get("inflictedConditions", {})
+
+            -- Gather status effects (ongoing effects with statusEffect flag)
+            local ongoingTable = dmhub.GetTable("characterOngoingEffects")
+            local activeEffects = creature:ActiveOngoingEffects()
+            local statusEffects = {}
+            for _, entry in ipairs(activeEffects) do
+                local effectInfo = ongoingTable[entry.ongoingEffectid]
+                if effectInfo ~= nil and effectInfo.statusEffect then
+                    statusEffects[#statusEffects + 1] = { entry = entry, info = effectInfo }
+                end
+            end
+
+            -- Rebuild chips each refresh (lists are small)
+            local children = {}
+
+            -- Add button first
+            children[#children + 1] = gui.Panel{
+                    classes = {"panel", "cond-add"},
+                    press = function(el)
+                        TacPanel.AddConditionMenu{
+                            tokens = {element.data.token},
+                            button = el,
+                        }
+                    end,
+                    linger = function(el)
+                        gui.Tooltip("Add a condition or effect")(el)
+                    end,
+                    gui.Label{
+                        classes = {"label", "cond-add"},
+                        text = "+",
+                    },
+                }
+
+            -- Condition chips
+            for condid, cond in pairs(conditions) do
+                children[#children + 1] = TacPanel.ConditionChip(condid, cond, token)
+            end
+
+            -- Status effect chips
+            for _, se in ipairs(statusEffects) do
+                children[#children + 1] = TacPanel.StatusEffectChip(se.entry, se.info, token)
+            end
+
+            -- Custom condition chips
+            local customConditions = creature:try_get("customConditions", {})
+            for key, entry in pairs(customConditions) do
+                children[#children + 1] = TacPanel.CustomConditionChip(key, entry, token)
+            end
+
+            -- Aura chips (DISABLED FOR DIAGNOSTIC)
+            local aurasTouching = creature:GetAurasAffecting(token) or {}
+            for _, auraInfo in ipairs(aurasTouching) do
+               children[#children + 1] = TacPanel.AuraChip(auraInfo.auraInstance, token)
+            end
+
+            -- "No conditions" placeholder when nothing to show
+            if #children == 1 then
+                children[#children + 1] = gui.Label{
+                    classes = {"label", "cond-empty"},
+                    text = "No conditions",
+                }
+            end
+
+            element:FireEventTree("setContent", children)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        gui.Panel{
+            classes = {"panel", "cond-chips"},
+            wrap = true,
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+        gui.Input{
+            classes = {"input", "cond-custom-input"},
+            characterLimit = 60,
+            placeholderText = "Add Custom Condition...",
+            data = { token = nil },
+            refreshCharacter = function(element, token)
+                element.data.token = token
+            end,
+            refreshToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+            setToken = function(element, token) element:FireEvent("refreshCharacter", token) end,
+            change = function(element)
+                local text = trim(element.text)
+                if text ~= "" and element.data.token ~= nil then
+                    element.data.token:ModifyProperties{
+                        description = "Add Custom Condition",
+                        execute = function()
+                            local cc = element.data.token.properties:get_or_add("customConditions", {})
+                            cc[dmhub.GenerateGuid()] = {
+                                text = text,
+                                timestamp = dmhub.serverTimeMilliseconds,
+                            }
+                        end,
+                    }
+                end
+                element.text = ""
+            end,
+        },
+    }
+end
+
+--- Display the testing panel
+--- @return Panel
+function TacPanel.Testing()
+    local testInfo = [[
+*Thank you for helping us test the new tactical panel!*
+
+This panel should do everything the previous panel did.
+
+**What Needs Testing**
+* Pretty much the whole thing for all classes & levels.
+* Including when you have multiple tokens selected.
+
+If you find an issue, plese let us know via a bug report in the DMHub Discord.mod
+
+**Recent Fixes**
+* Temp Stam placeholder no longer turns into a P when you click into the field.
+* Corrected intermittent placeholder icon for heroic resource icon.
+* Clicking the "Set Caster" button again while still setting caster should not produce a LUA errror.
+* Resolved perf issue in loading condition list by making Status Effects load on demand (those will still take .5-1 second when you click Load).
+
+**Known Issues**
+* Some icons are placeholders, especially griffons, but also the light button and the icon in the temp stamina box.
+]]
+    return TacPanel.CollapsiblePanel{
+        title = "TESTING INFO",
+        altBg = true,
+        data = { collapsed = false },
+        gui.Label{
+            width = "100%",
+            height = "auto",
+            fontFace = "Berling",
+            fontSize = 14,
+            textWrap = true,
+            markdown = true,
+            color = CREAM,
+            text = testInfo,
+        },
+    }
+end
+
 CharacterPanel.CreateConditionsPanel = function(token)
     return nil
 end
@@ -28,14 +6132,24 @@ function CharacterPanel.CreateLookupPanel()
 
         refresh = function(element)
             local tok = dmhub.currentToken
-            if tok == nil or (dmhub.isDM and dmhub.tokenVision == nil) then
+            local canLookup = dmhub.GetSettingValue("canlookup")
+            if tok == nil or (dmhub.isDM and dmhub.tokenVision == nil) or canLookup == "never" then
                 element:SetClass("collapsed", true)
                 m_maxLookup = -1
                 m_slider = nil
                 return
             end
 
-            local maxLookup = tok.countFloorsWithVisionAbove
+            local maxLookupSetting = dmhub.GetSettingValue("maxlookup")
+            local maxLookup
+            if canLookup == "always" then
+                maxLookup = tok.countFloorsAbove
+            else
+                maxLookup = tok.countFloorsWithVisionAbove
+            end
+            if maxLookupSetting >= 0 then
+                maxLookup = math.min(maxLookup, maxLookupSetting)
+            end
 
             if maxLookup ~= m_maxLookup then
                 m_maxLookup = maxLookup
@@ -520,7 +6634,7 @@ local function PersistencePanel(m_token)
                                             local targetToken = dmhub.GetTokenById(targetid)
                                             if targetToken ~= nil then
                                                 element.data.targetingMarkers = element.data.targetingMarkers or {}
-                                                element.data.targetingMarkers[#element.data.targetingMarkers+1] = dmhub.MarkLineOfSight(m_token, targetToken)
+                                                element.data.targetingMarkers[#element.data.targetingMarkers+1] = dmhub.MarkLineOfSight(m_token, targetToken, m_token.properties:GetPierceWalls())
                                             end
                                         end
                                     end
@@ -1393,9 +7507,27 @@ local function InflictedConditionsPanel(m_token)
                         text = "Set Caster",
                         halign = "left",
                         press = function(element)
+                            if element.data.invoking or gamehud.actionBarPanel.data.IsCastingSpell() then return end
+                            element.data.invoking = true
+                            element.thinkTime = 0.1
                             local ability = DeepCopy(MCDMUtils.GetStandardAbility("SetConditionCaster"))
                             ability.behaviors[1].condid = element.parent.data.condid
+                            ability.OnFinishCast = function()
+                                element.data.invoking = false
+                                element.thinkTime = nil
+                            end
                             ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(m_token, ability, m_token, "prompt", {}, {})
+                        end,
+                        think = function(element)
+                            if element.data.invoking and element.data.invokeReady then
+                                if not gamehud.actionBarPanel.data.IsCastingSpell() and not gamehud.rollDialog.data.IsShown() then
+                                    element.data.invoking = false
+                                    element.data.invokeReady = false
+                                    element.thinkTime = nil
+                                end
+                            elseif element.data.invoking then
+                                element.data.invokeReady = true
+                            end
                         end,
                         refresh = function(element)
                             if m_token == nil or not m_token.valid then
@@ -1626,12 +7758,10 @@ local function InflictedConditionsPanel(m_token)
     return resultPanel
 end
 
-local g_refreshChecklistName = {
-    encounter = "encounter",
-    round = "round",
-}
-
 CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
+
+    local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+    local newTacPanel = not oldTacPanel
 
     local m_effectEntryPanels = {}
     local m_customConditionPanels = {}
@@ -1659,7 +7789,7 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
         end,
 
         --add to combat button.
-        gui.Button{
+        oldTacPanel and gui.Button{
             classes = {"collapsed"},
             width = 320,
             height = 30,
@@ -1677,9 +7807,9 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
             click = function(element)
                 Commands.rollinitiative()
             end,
-        },
+        } or nil,
 
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             classes = {"collapsed"},
             width = "100%",
             height = "auto",
@@ -1700,10 +7830,21 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                     element:SetClass("collapsed", true)
                 end
             end,
-        },
+        } or nil,
+
+        newTacPanel and TacPanel.Statistics() or nil,
+        -- newTacPanel and TacPanel.Testing() or nil,
+        newTacPanel and TacPanel.Routines() or nil,
+        newTacPanel and TacPanel.AurasEmitting() or nil,
+        newTacPanel and TacPanel.PersistentAbilities() or nil,
+        newTacPanel and TacPanel.HeroicResources() or nil,
+        newTacPanel and TacPanel.Conditions() or nil,
+        newTacPanel and TacPanel.SkillLanguages() or nil,
+        newTacPanel and TacPanel.Features() or nil,
+        newTacPanel and TacPanel.Notes() or nil,
 
         --heroic resource panel.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -1977,10 +8118,10 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
                 }
             },
-        },
+        } or nil,
 
         --growing resource table, only relevant for characters that have growing resources.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -2128,16 +8269,13 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                     element.children = newChildren
                 end
             end,
-        },
+        } or nil,
 
-
-
-        RoutinesPanel(m_token),
-        PersistencePanel(m_token),
-
+        oldTacPanel and RoutinesPanel(m_token) or nil,
+        oldTacPanel and PersistencePanel(m_token) or nil,
 
         --custom effects.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -2250,13 +8388,13 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                     element.children = children
                 end,
             }
-        },
+        } or nil,
 
         --auras.
-        AurasEmittingPanel(m_token),
+        oldTacPanel and AurasEmittingPanel(m_token) or nil,
 
         --ongoing effects.
-        gui.Panel{
+        oldTacPanel and gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
@@ -2347,8 +8485,8 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
                                     halign = "left",
 
                                     refreshStatus = function(element, info, entry)
-                                        element:FireEvent("icon", info.iconid)
-                                        element:FireEvent("display", info.display)
+                                        element:FireEvent("icon", info:GetDisplayIcon())
+                                        element:FireEvent("display", info:GetDisplayDisplay())
                                     end,
 
                                 },
@@ -2428,17 +8566,17 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
             end,
 
-        },
+        } or nil,
 
-        AurasAffectingPanel(m_token),
+        oldTacPanel and AurasAffectingPanel(m_token) or nil,
 
         --inflicted conditions.
-        InflictedConditionsPanel(m_token),
+        oldTacPanel and InflictedConditionsPanel(m_token) or nil,
 
-		CharacterPanel.CharacteristicsPanel(m_token),
-		CharacterPanel.ImportantAttributesPanel(m_token),
+		oldTacPanel and CharacterPanel.CharacteristicsPanel(m_token) or nil,
+		oldTacPanel and CharacterPanel.ImportantAttributesPanel(m_token) or nil,
 
-		gui.Panel{
+		oldTacPanel and gui.Panel{
 			width = "100%",
 			height = "auto",
             flow = "vertical",
@@ -2476,12 +8614,12 @@ CharacterPanel.CreateCharacterDetailsPanel = function(m_token)
 
                 element.children = children
 			end,
-		},
+		} or nil,
 
-		CharacterPanel.SkillsPanel(m_token),
-		CharacterPanel.LanguagesPanel(m_token),
-        CharacterPanel.AbilitiesPanel(m_token),
-        CharacterPanel.NotesPanel(m_token),
+		oldTacPanel and CharacterPanel.SkillsPanel(m_token) or nil,
+		oldTacPanel and CharacterPanel.LanguagesPanel(m_token) or nil,
+        oldTacPanel and CharacterPanel.AbilitiesPanel(m_token) or nil,
+        oldTacPanel and CharacterPanel.NotesPanel(m_token) or nil,
     }
 
     return resultPanel
@@ -3137,14 +9275,6 @@ function CharacterPanel.DecoratePortraitPanel(token)
 	}
 end
 
-local g_edsSetting = setting{
-	id = "eds",
-	default = 50,
-	min = 10,
-	max = 1000,
-	storage = "game",
-}
-
 local multiEditBaseFunction = CharacterPanel.CreateMultiEdit
 
 local g_nseq = 0
@@ -3152,6 +9282,11 @@ local g_nseq = 0
 CharacterPanel.CreateMultiEdit = function()
 	if mod.unloaded then
 		return multiEditBaseFunction()
+	end
+
+	local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+	if not oldTacPanel then
+		return TacPanel.MultiEdit()
 	end
 
 	g_nseq = g_nseq + 1
@@ -4054,49 +10189,6 @@ function CharacterPanel.SkillsPanel(token)
 	return resultPanel
 end
 
-local function GenerateAttributeCalculationTooltip(tokenInfo, name, GetBaseFunction, DescribeModificationsFunction)
-    return function(element)
-        local m_token = tokenInfo.token
-        if m_token == nil or (not m_token.valid) then
-            return
-        end
-        local baseValue = GetBaseFunction(m_token.properties)
-        local modifications = DescribeModificationsFunction(m_token.properties)
-
-        local panels = {}
-        panels[#panels+1] = gui.Label{
-            text = string.format("Base %s: %d", name, baseValue),
-            width = "auto",
-            height = "auto",
-            fontSize = 14,
-        }
-        for _,modification in ipairs(modifications) do
-            local text = string.format("%s: %s", modification.key, modification.value)
-            panels[#panels+1] = gui.Label{
-                text = text,
-                width = "auto",
-                height = "auto",
-                fontSize = 14,
-            }
-        end
-
-        local container = gui.Panel{
-            width = "auto",
-            height = "auto",
-            flow = "vertical",
-            children = panels,
-        }
-
-        element.tooltip = gui.TooltipFrame(container)
-    end
-end
-
-local function GenerateCustomAttributeCalculationTooltip(tokenInfo, name)
-    return GenerateAttributeCalculationTooltip(tokenInfo, name,
-        function(c) return c:BaseNamedCustomAttribute(name) end,
-        function(c) return c:DescribeModificationsToNamedCustomAttribute(name) end)
-end
-
 --important attributes beyond characteristics
 --e.g. things like stability etc.
 function CharacterPanel.ImportantAttributesPanel(token)
@@ -4339,11 +10431,14 @@ end
 
 function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 
+    local oldTacPanel = dmhub.GetSettingValue("oldTacPanel") == true
+    local newTacPanel = not oldTacPanel
+
 	local characterDisplaySidebar
 
 	local conditionsPanel = CharacterPanel.CreateConditionsPanel(token)
 
-	local summaryPanel = gui.Panel{
+	local summaryPanel = oldTacPanel and gui.Panel{
 		flow = "horizontal",
 		styles = {
 			{
@@ -4538,8 +10633,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 },
 			},
 		}),
-
-	}
+	} or nil
 
 	characterDisplaySidebar = gui.Panel{
 		id = 'sidebar',
@@ -4574,7 +10668,7 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
 			displayedProperties = nil,
 		},
 
-        gui.Label{
+        oldTacPanel and gui.Label{
             width = "100%",
             height = "auto",
             textAlignment = "center",
@@ -4595,8 +10689,10 @@ function CharacterPanel.SingleCharacterDisplaySidePanel(token)
                 end
                 element.text = name
             end,
-        },
+        } or nil,
 		summaryPanel,
+        newTacPanel and TacPanel.Summary() or nil,
+        newTacPanel and TacPanel.Stamina() or nil,
 	}
 
 	return characterDisplaySidebar

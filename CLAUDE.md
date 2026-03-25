@@ -16,6 +16,8 @@ local mod = dmhub.GetModLoading()
 ```
 This gives access to the current module interface. The `mod` object is used to track module lifecycle (e.g., `mod.unloaded`).
 
+**IMPORTANT: Do not create new Lua files.** Lua files are registered through the DMHub module system and will not auto-load just by being placed on disk. Adding a `require` in `main.lua` for a file that hasn't been registered will cause a load failure. If new code is needed, add it to an existing file in the appropriate module. If a new file is truly necessary, ask the user to create and register it through the DMHub module system.
+
 ## Repository Structure
 
 Each top-level directory is a "mod" (module) loaded by DMHub. Key layers:
@@ -65,6 +67,29 @@ end
 ### Data Tables
 Game data is stored in named tables accessed via `dmhub.GetTable("tableName")`. Iterate with `unhidden_pairs(t)` (skips soft-deleted entries). Write with `dmhub.SetAndUploadObject(tableName, id, obj)`.
 
+### Modifying Token Properties
+When changing any value on a token's properties outside of the character sheet, you **must** wrap mutations in `token:ModifyProperties{}`. This observes the changes, uploads only the diffs to the cloud, and supports undo.
+
+```lua
+token:ModifyProperties{
+    description = "Spend a recovery",
+    execute = function()
+        -- modify token.properties inside here
+        token.properties:SpendRecovery()
+    end,
+}
+```
+
+Options:
+- `execute` (required) -- function that mutates `token.properties`
+- `description` (string) -- human-readable label for the undo stack
+- `undoable` (boolean) -- defaults to true; set false for non-undoable changes
+- `combine` (boolean) -- if true, combines with other uploads this frame as a transaction
+
+**Exception**: Code running inside the character sheet/builder modifies properties directly without `ModifyProperties`, since the sheet manages its own upload lifecycle.
+
+**Deprecated**: `BeginChanges`/`CompleteChanges` -- use `ModifyProperties` instead.
+
 ### Shared Documents
 Shared cloud documents provide key-value storage that syncs across all clients in a game session. They are used for real-time shared state such as chat events, audio grid slots, global resources, initiative data, and downtime project shares. Unlike Data Tables (which store game content definitions), documents hold live session state.
 
@@ -112,7 +137,7 @@ UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. P
 See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
 
 ### GoblinScript
-GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`.
+GoblinScript is an expression language (evaluates formula strings) used for ability costs, damage formulas, prerequisites, etc. Compile with `GoblinScript.Compile(formula, symbolTable)` and evaluate with `GoblinScript.Execute(compiled, context)`. See **[GoblinScript_Guide.md](GoblinScript_Guide.md)** for the full language reference including semantics, operator precedence, evaluation model, all available symbols, and real examples.
 
 ### Module Lifecycle
 Guard against stale closures using `mod.unloaded`:
@@ -138,6 +163,10 @@ local mySetting = setting{
 ## Lua File Constraints
 
 **ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0–127). Never use em dashes (`—`), curly quotes (`""`), ellipses (`…`), or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of `—`, `"` instead of curly quotes, `...` instead of `…`.
+
+## Monster Reference Documentation
+
+**[monster-reference.md](monster-reference.md)** contains the complete stat blocks for every monster in Draw Steel Book Two: Monsters. Use this as the authoritative source when implementing or auditing monster YAML files in `compendium/bestiary/`. It includes all abilities, traits, villain actions, malice features, power roll tiers, and stat tables for every creature.
 
 ## `Definitions/` Files
 

@@ -65,7 +65,7 @@ CharacterModifier.RegisterAbilityModifier
 					ability.resourceCost = "101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8" --Malice Resource
 				end
 				--When we add a resourceCost, a value of 1 is implied.
-				value = value -1
+				value = string.format("(%s) - 1", value)
 			end
 
 			if operation == "Set" then

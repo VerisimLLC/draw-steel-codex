@@ -62,11 +62,19 @@ mod.shared.ImportMapDialog = function(paths, options)
             importPanel:Confirm(function(progress, info)
 
                 if progress == nil then
+                    -- Capture values before closing the modal destroys the panel.
+                    local imgW = importPanel.imageWidth
+                    local imgH = importPanel.imageHeight
+
                     gui.CloseModal()
 
                     g_modalDialog = nil
 
                     if options.finish ~= nil then
+                        -- Attach the local file paths and image dimensions for the alignment dialog.
+                        info.paths = paths
+                        info.imageWidth = imgW
+                        info.imageHeight = imgH
                         options.finish(info)
                     end
                     return
@@ -148,6 +156,71 @@ mod.shared.ImportMapDialog = function(paths, options)
         vmargin = 16,
     }
 
+    -- "Match Existing Map" panel for floor imports.
+    local matchMapPanel = nil
+    local matchApplied = false
+
+    if options.floorImport then
+        local dim = game.currentMap.dimensions
+        local mapW = dim.x2 - dim.x1
+        local mapH = dim.y2 - dim.y1
+
+        if mapW > 0 and mapH > 0 then
+            local matchInfoLabel = gui.Label{
+                width = 380,
+                height = "auto",
+                fontSize = 14,
+                color = "#cccccc",
+                text = "",
+                wrap = true,
+            }
+
+            matchMapPanel = gui.Panel{
+                classes = {"hidden"},
+                flow = "vertical",
+                width = 400,
+                height = "auto",
+                vmargin = 8,
+
+                updateMatchInfo = function(element, imgW, imgH)
+                    local tileW = imgW / mapW
+                    local tileH = imgH / mapH
+                    local ratio = math.abs(tileW - tileH) / math.max(tileW, tileH)
+                    if ratio < 0.02 then
+                        matchInfoLabel.text = string.format("Image dimensions match the existing map. Tile size would be %.0f x %.0f px.", tileW, tileH)
+                    else
+                        matchInfoLabel.text = string.format("Tile size would be %.1f x %.1f px (non-square tiles).", tileW, tileH)
+                    end
+                end,
+
+                gui.Label{
+                    width = 400,
+                    height = "auto",
+                    fontSize = 14,
+                    wrap = true,
+                    text = string.format("The existing map is %dx%d tiles.", mapW, mapH),
+                },
+
+                matchInfoLabel,
+
+                gui.PrettyButton{
+                    text = "Match Existing Map",
+                    width = 200,
+                    height = 40,
+                    halign = "left",
+                    vmargin = 4,
+                    fontSize = 18,
+                    click = function(element)
+                        importPanel:CreateGridless()
+                        gridlessChoice.value = false
+                        importPanel:SetMapDimensions(mapW, mapH)
+                        matchApplied = true
+                    end,
+                },
+            }
+        end
+    end
+
     local instructionsPanel = gui.Panel{
         width = 400,
         height = "auto",
@@ -156,6 +229,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         valign = "top",
         instructionsText,
         gridlessChoice,
+        matchMapPanel,
     }
 
     local statusWidth = gui.Input{
@@ -181,22 +255,36 @@ mod.shared.ImportMapDialog = function(paths, options)
         end,
     }
 
-    local statusPanel = gui.Panel{
-        classes = {"hidden"},
+    -- Try to parse map dimensions from filename (e.g. "dungeon_20x18.png").
+    local inferredMapW, inferredMapH = nil, nil
+    if paths and #paths > 0 then
+        local filename = paths[1]
+        -- Strip directory separators to get just the filename.
+        filename = string.match(filename, "[^/\\]+$") or filename
+        -- Look for NxM pattern (digits x digits).
+        local w, h = string.match(filename, "(%d+)x(%d+)")
+        if w and h then
+            w, h = tonumber(w), tonumber(h)
+            if w >= 1 and w <= 500 and h >= 1 and h <= 500 then
+                inferredMapW, inferredMapH = w, h
+            end
+        end
+    end
+
+    -- Track whether we're showing tile dimensions or map dimensions mode.
+    local dimMode = "tile" -- "tile" or "map"
+
+    -- Track which map dimension fields the user has manually edited.
+    local mapWidthTouched = false
+    local mapHeightTouched = false
+
+    local tileDimPanel
+    local mapDimPanel
+
+    tileDimPanel = gui.Panel{
         flow = "vertical",
         width = "auto",
         height = "auto",
-        halign = "left",
-        valign = "center",
-
-        gui.Label{
-            width = "auto",
-            height = "auto",
-            halign = "center",
-            fontSize = 22,
-            bold = true,
-            text = "Tile Dimensions",
-        },
 
         gui.Panel{
             flow = "horizontal",
@@ -252,6 +340,196 @@ mod.shared.ImportMapDialog = function(paths, options)
                 fontSize = 18,
             },
         },
+    }
+
+    -- Get image dimensions using simple float properties (more robust than vec2).
+    local function getImageDim()
+        local w = importPanel.imageWidth
+        local h = importPanel.imageHeight
+        if w ~= nil and h ~= nil and w > 0 and h > 0 then
+            return w, h
+        end
+        return nil, nil
+    end
+
+    local mapDimInfoLabel
+    local mapDimWidth
+    local mapDimHeight
+
+    -- Shared handler: called when either map dimension field is edited.
+    -- `source` is "width" or "height", `val` is the parsed integer from that field.
+    local function onMapDimEdit(source, val)
+        if val == nil or val < 1 or val ~= math.floor(val) then
+            return
+        end
+
+        local imgW, imgH = getImageDim()
+        if imgW == nil then
+            return
+        end
+
+        if source == "width" then
+            mapWidthTouched = true
+            if not mapHeightTouched then
+                local inferredH = math.floor(val * (imgH / imgW) + 0.5)
+                if inferredH < 1 then inferredH = 1 end
+                mapDimHeight.textNoNotify = tostring(inferredH)
+                importPanel:SetMapDimensions(val, inferredH)
+            else
+                local hVal = tonumber(mapDimHeight.text)
+                if hVal ~= nil and hVal >= 1 and hVal == math.floor(hVal) then
+                    importPanel:SetMapDimensions(val, hVal)
+                end
+            end
+        else
+            mapHeightTouched = true
+            if not mapWidthTouched then
+                local inferredW = math.floor(val * (imgW / imgH) + 0.5)
+                if inferredW < 1 then inferredW = 1 end
+                mapDimWidth.textNoNotify = tostring(inferredW)
+                importPanel:SetMapDimensions(inferredW, val)
+            else
+                local wVal = tonumber(mapDimWidth.text)
+                if wVal ~= nil and wVal >= 1 and wVal == math.floor(wVal) then
+                    importPanel:SetMapDimensions(wVal, val)
+                end
+            end
+        end
+
+        mapDimInfoLabel:FireEvent("updateInfo")
+    end
+
+    mapDimWidth = gui.Input{
+        fontSize = 16,
+        width = 80,
+        height = 24,
+        placeholderText = "width",
+        edit = function(element)
+            onMapDimEdit("width", tonumber(element.text))
+        end,
+        change = function(element)
+            onMapDimEdit("width", tonumber(element.text))
+        end,
+    }
+
+    mapDimHeight = gui.Input{
+        fontSize = 16,
+        width = 80,
+        height = 24,
+        placeholderText = "height",
+        edit = function(element)
+            onMapDimEdit("height", tonumber(element.text))
+        end,
+        change = function(element)
+            onMapDimEdit("height", tonumber(element.text))
+        end,
+    }
+
+    mapDimInfoLabel = gui.Label{
+        width = 280,
+        height = "auto",
+        fontSize = 14,
+        color = "#cccccc",
+        text = "",
+
+        updateInfo = function(element)
+            local wVal = tonumber(mapDimWidth.text)
+            local hVal = tonumber(mapDimHeight.text)
+            local imgW, imgH = getImageDim()
+            if wVal and hVal and wVal >= 1 and hVal >= 1 and imgW then
+                local tileW = imgW / wVal
+                local tileH = imgH / hVal
+                element.text = string.format("Tile size: %.1f x %.1f px", tileW, tileH)
+            else
+                element.text = ""
+            end
+        end,
+    }
+
+    mapDimPanel = gui.Panel{
+        classes = {"hidden"},
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            gui.Label{
+                width = 90,
+                height = "auto",
+                text = "Width:",
+                fontSize = 18,
+            },
+            mapDimWidth,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                text = " tiles",
+                fontSize = 18,
+            },
+        },
+
+        gui.Panel{
+            flow = "horizontal",
+            width = "auto",
+            height = "auto",
+            gui.Label{
+                width = 90,
+                height = "auto",
+                text = "Height:",
+                fontSize = 18,
+            },
+            mapDimHeight,
+            gui.Label{
+                width = "auto",
+                height = "auto",
+                text = " tiles",
+                fontSize = 18,
+            },
+        },
+
+        mapDimInfoLabel,
+    }
+
+    local dimModeChoice = gui.EnumeratedSliderControl{
+        options = {
+            {id = "tile", text = "Tile Dimensions"},
+            {id = "map", text = "Map Dimensions"},
+        },
+
+        width = 280,
+
+        value = cond(inferredMapW ~= nil, "map", "tile"),
+
+        change = function(element)
+            dimMode = element.value
+            tileDimPanel:SetClass("hidden", dimMode ~= "tile")
+            mapDimPanel:SetClass("hidden", dimMode ~= "map")
+        end,
+
+        create = function(element)
+            dimMode = element.value
+            tileDimPanel:SetClass("hidden", dimMode ~= "tile")
+            mapDimPanel:SetClass("hidden", dimMode ~= "map")
+        end,
+
+        vmargin = 4,
+    }
+
+    local statusPanel = gui.Panel{
+        classes = {"hidden"},
+        flow = "vertical",
+        width = "auto",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+
+        dimModeChoice,
+
+        tileDimPanel,
+        mapDimPanel,
 
         --some padding.
         gui.Panel{
@@ -440,6 +718,19 @@ mod.shared.ImportMapDialog = function(paths, options)
             previousButton:SetClass("hidden", not element.havePrevious)
             continueButton:SetClass("hidden", not element.haveNext)
             confirmButton:SetClass("hidden", not element.haveConfirm)
+
+            -- Show/hide "Match Existing Map" panel for floor imports.
+            if matchMapPanel ~= nil then
+                local inSizing = element.haveNext or element.havePrevious or element.haveConfirm
+                local imgW = element.imageWidth
+                local imgH = element.imageHeight
+                local haveImg = imgW ~= nil and imgW > 0 and imgH ~= nil and imgH > 0
+                local showMatch = haveImg and not inSizing and not matchApplied
+                matchMapPanel:SetClass("hidden", not showMatch)
+                if showMatch then
+                    matchMapPanel:FireEvent("updateMatchInfo", imgW, imgH)
+                end
+            end
             instructionsText.text = element.instructionsText
 
             local tileDim = element.tileDim
@@ -447,10 +738,43 @@ mod.shared.ImportMapDialog = function(paths, options)
                 statusPanel:SetClass("hidden", true)
             else
                 statusPanel:SetClass("hidden", false)
+
+                -- Show the mode toggle only in gridless mode.
+                local isGridless = gridlessChoice.value == false
+                dimModeChoice:SetClass("hidden", not isGridless)
+                -- In grid mode, always show tile dimensions.
+                if not isGridless then
+                    tileDimPanel:SetClass("hidden", false)
+                    mapDimPanel:SetClass("hidden", true)
+                end
+
                 if (not statusWidth.hasInputFocus) and (not statusHeight.hasInputFocus) then
                     statusWidth.textNoNotify = string.format("%.2f", tileDim.x)
                     statusHeight.textNoNotify = string.format("%.2f", tileDim.y)
                 end
+
+                -- Apply inferred dimensions from filename on first availability.
+                local imgW = element.imageWidth
+                local imgH = element.imageHeight
+                local haveImageDim = imgW ~= nil and imgW > 0 and imgH ~= nil and imgH > 0
+
+                if inferredMapW ~= nil and haveImageDim then
+                    local w, h = inferredMapW, inferredMapH
+                    inferredMapW, inferredMapH = nil, nil
+                    mapWidthTouched = true
+                    mapHeightTouched = true
+                    mapDimWidth.textNoNotify = tostring(w)
+                    mapDimHeight.textNoNotify = tostring(h)
+                    element:SetMapDimensions(w, h)
+                end
+
+                -- Update map dimension display from current tile dims (only when user is not editing).
+                if haveImageDim and (not mapDimWidth.hasInputFocus) and (not mapDimHeight.hasInputFocus) and dimMode ~= "map" then
+                    mapDimWidth.textNoNotify = string.format("%d", math.floor(imgW / tileDim.x + 0.5))
+                    mapDimHeight.textNoNotify = string.format("%d", math.floor(imgH / tileDim.y + 0.5))
+                end
+
+                mapDimInfoLabel:FireEvent("updateInfo")
             end
 
             if element.error ~= nil then

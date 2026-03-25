@@ -12,6 +12,42 @@ setting{
 	default = true, 
 }
 
+setting{
+	id = "canlookup",
+	description = "Can Look Up",
+	help = "Controls whether players can look up to see higher floors. 'Under Opening' only allows looking up when there is a hole in the floor above. 'Always' allows looking up even under solid floors. 'Never' prevents looking up entirely.",
+	storage = "map",
+	editor = "dropdown",
+	default = "opening",
+	enum = {
+		{ value = "never", text = "Never" },
+		{ value = "opening", text = "Under Opening" },
+		{ value = "always", text = "Always" },
+	},
+}
+
+setting{
+	id = "maxlookup",
+	description = "Max Look Up",
+	help = "The maximum number of floors a creature can look up on this map",
+	storage = "map",
+	editor = "dropdown",
+	default = -1,
+	monitorVisible = {"canlookup"},
+	visible = function()
+		return dmhub.GetSettingValue("canlookup") ~= "never"
+	end,
+	enum = {
+		{ value = 0, text = "None" },
+		{ value = 1, text = "One floor" },
+		{ value = 2, text = "Two floors" },
+		{ value = 3, text = "Three floors" },
+		{ value = 4, text = "Four floors" },
+		{ value = 5, text = "Five floors" },
+		{ value = -1, text = "Unlimited floors" },
+	},
+}
+
 local CreateMapSettings
 local CreateEditorSettings
 
@@ -70,6 +106,8 @@ CreateMapSettings = function()
 			CreateSettingsEditor("maplayout:hexslant"),
 
 			CreateSettingsEditor("editor:showpathfinding"),
+			CreateSettingsEditor("canlookup"),
+			CreateSettingsEditor("maxlookup"),
 		},
 	}
 

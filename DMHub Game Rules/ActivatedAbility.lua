@@ -64,6 +64,9 @@ ActivatedAbilityDamageBehavior = RegisterGameType("ActivatedAbilityDamageBehavio
 --- @class ActivatedAbilityHealBehavior:ActivatedAbilityBehavior
 ActivatedAbilityHealBehavior = RegisterGameType("ActivatedAbilityHealBehavior", "ActivatedAbilityBehavior")
 
+--- @class ActivatedAbilitySetStaminaBehavior:ActivatedAbilityBehavior
+ActivatedAbilitySetStaminaBehavior = RegisterGameType("ActivatedAbilitySetStaminaBehavior", "ActivatedAbilityBehavior")
+
 --- @class ActivatedAbilityAugmentedAbilityBehavior:ActivatedAbilityBehavior
 ActivatedAbilityAugmentedAbilityBehavior = RegisterGameType("ActivatedAbilityAugmentedAbilityBehavior", "ActivatedAbilityBehavior")
 
@@ -148,6 +151,9 @@ ActivatedAbilityApplyOngoingEffectBehavior.repeatSave = false
 ActivatedAbilityApplyOngoingEffectBehavior.hasTemporaryHitpoints = false
 ActivatedAbilityApplyOngoingEffectBehavior.temporaryHitpoints = "5"
 ActivatedAbilityApplyOngoingEffectBehavior.stacks = "1"
+ActivatedAbilityApplyOngoingEffectBehavior.ongoingEffectSource = "specific"
+ActivatedAbilityApplyOngoingEffectBehavior.ongoingEffectFormula = ""
+ActivatedAbilityApplyOngoingEffectBehavior.inheritDuration = false
 ActivatedAbilityBehavior.durationUntilEndOfTurn = false
 
 ActivatedAbility.multipleModes = false
@@ -520,6 +526,19 @@ ActivatedAbility.RegisterType
 		}
 	end
 }
+
+ActivatedAbility.RegisterType
+{
+	id = 'setstamina',
+	text = 'Set Stamina',
+	createBehavior = function()
+		return ActivatedAbilitySetStaminaBehavior.new{
+			roll = "1",
+		}
+	end
+}
+
+ActivatedAbilitySetStaminaBehavior.summary = 'Set Stamina'
 
 ActivatedAbility.RegisterType
 {
@@ -1132,9 +1151,9 @@ function ActivatedAbility:TargetPassesFilter(casterToken, targetToken, symbols, 
 		return false
 	end
 
-    if self.targetType == "all" and casterToken:GetLineOfSight(targetToken) <= 0 then
+    if self.targetType == "all" and casterToken.floorIndex == targetToken.floorIndex and casterToken:GetLineOfSight(targetToken, casterToken.properties:GetPierceWalls()) <= 0 then
         return false
-    elseif symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin) <= 0 then
+    elseif symbols.targetArea ~= nil and targetToken:GetLineOfSight(symbols.targetArea.origin, targetToken.properties:GetPierceWalls()) <= 0 then
         return false
     end
 
@@ -1643,35 +1662,63 @@ function ActivatedAbility:GetCost(casterToken, options)
 		--look for any resources of this type in the level progression and spend the first one we find.
 		--the common case is for the progression to just be one resource.
 		local resourceLevels = CharacterResource.GetLevelProgression(self.resourceCost)
-		for levelNum,resourceCost in ipairs(resourceLevels) do
-			local resourceInfo = resourcesTable[resourceCost]
-			if resourceInfo ~= nil then
-				local max = resourcesAvailable[resourceCost] or 0
-				local usage = creature:GetResourceUsage(resourceCost, resourceInfo.usageLimit)
-				local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
 
-				local mode = options.mode or 1
-                local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
+		local mode = options.mode or 1
+		local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
 
-				if resourceNum == 0 then
-					resourceDetails = nil
-					break
-				end
-				local canAfford = available >= resourceNum
-
-				--note that we set resourceDetails to the first found, but prefer to
-				--set to the highest resource we have, and being affordable we short-circuit immediately.
-				if resourceDetails == nil or max > 0 or canAfford then
-					resourceDetails = {
-						cost = self.resourceCost,
-						quantity = resourceNum,
-						canAfford = canAfford,
-						paymentOptions = cond(canAfford, {{resourceid = resourceCost, quantity = resourceNum}}, {}),
-						expendedOptions = cond(not canAfford, {resourceid = resourceCost, quantity = resourceNum}, {}),
-					}
-
-					if canAfford then
+		if resourceNum == 0 then
+			-- zero cost, no payment needed
+		elseif #resourceLevels > 1 and self.resourceCost == CharacterResource.heroicResourceId then
+			-- Heroic/epic split: spend base resource first, supplement with epic for the remainder.
+			local paymentOptions = {}
+			local remaining = resourceNum
+			for _, levelResourceId in ipairs(resourceLevels) do
+				local resourceInfo = resourcesTable[levelResourceId]
+				if resourceInfo ~= nil then
+					local max = resourcesAvailable[levelResourceId] or 0
+					local usage = creature:GetResourceUsage(levelResourceId, resourceInfo.usageLimit)
+					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
+					local use = math.min(available, remaining)
+					if use > 0 then
+						paymentOptions[#paymentOptions+1] = {resourceid = levelResourceId, quantity = use}
+						remaining = remaining - use
+					end
+					if remaining <= 0 then
 						break
+					end
+				end
+			end
+			local canAfford = remaining <= 0
+			resourceDetails = {
+				cost = self.resourceCost,
+				quantity = resourceNum,
+				canAfford = canAfford,
+				paymentOptions = cond(canAfford, paymentOptions, {}),
+				expendedOptions = cond(not canAfford, {resourceid = self.resourceCost, quantity = resourceNum}, {}),
+			}
+		else
+			for levelNum,resourceCost in ipairs(resourceLevels) do
+				local resourceInfo = resourcesTable[resourceCost]
+				if resourceInfo ~= nil then
+					local max = resourcesAvailable[resourceCost] or 0
+					local usage = creature:GetResourceUsage(resourceCost, resourceInfo.usageLimit)
+					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
+					local canAfford = available >= resourceNum
+
+					--note that we set resourceDetails to the first found, but prefer to
+					--set to the highest resource we have, and being affordable we short-circuit immediately.
+					if resourceDetails == nil or max > 0 or canAfford then
+						resourceDetails = {
+							cost = self.resourceCost,
+							quantity = resourceNum,
+							canAfford = canAfford,
+							paymentOptions = cond(canAfford, {{resourceid = resourceCost, quantity = resourceNum}}, {}),
+							expendedOptions = cond(not canAfford, {resourceid = resourceCost, quantity = resourceNum}, {}),
+						}
+
+						if canAfford then
+							break
+						end
 					end
 				end
 			end
@@ -1706,10 +1753,15 @@ function ActivatedAbility.ExpectedResourceConsumptionFromCurrentCast()
     local result = {}
     local cost = info.options.costOverride or info.ability:GetCost(info.casterToken)
 	for i,entry in ipairs(cost.details) do
-		if #entry.paymentOptions > 0 then
-			local resourceid = entry.paymentOptions[1].resourceid
-            local quantity = entry.paymentOptions[1].quantity or 1
-            result[resourceid] = (result[resourceid] or 0) + quantity
+		for _,payment in ipairs(entry.paymentOptions) do
+            result[payment.resourceid] = (result[payment.resourceid] or 0) + (payment.quantity or 1)
+        end
+    end
+
+    local improvCosts = info.options.improvementCosts
+    if improvCosts ~= nil then
+        for _, ic in ipairs(improvCosts) do
+            result[ic.resourceId] = (result[ic.resourceId] or 0) + ic.costAmt
         end
     end
 
@@ -1720,11 +1772,9 @@ function ActivatedAbility:WillBecomeStrained(casterToken, options)
     local totalCost = 0
 	local cost = options.costOverride or self:GetCost(casterToken)
 	for i,entry in ipairs(cost.details) do
-		if #entry.paymentOptions > 0 then
-			local resourceid = entry.paymentOptions[1].resourceid
-            if resourceid == CharacterResource.heroicResourceId then
-                local quantity = entry.paymentOptions[1].quantity or 1
-                totalCost = totalCost + quantity
+		for _,payment in ipairs(entry.paymentOptions) do
+            if payment.resourceid == CharacterResource.heroicResourceId then
+                totalCost = totalCost + (payment.quantity or 1)
             end
         end
     end
@@ -1771,8 +1821,8 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
                 end
 
                 for i,entry in ipairs(cost.details) do
-                    if #entry.paymentOptions > 0 then
-                        local resourceid = entry.paymentOptions[1].resourceid
+                    for _,payment in ipairs(entry.paymentOptions) do
+                        local resourceid = payment.resourceid
                         local refreshType = entry.refreshType
                         if refreshType == nil then
                             local resourceInfo = resourceTable[resourceid]
@@ -1782,7 +1832,7 @@ function ActivatedAbility:ConsumeResources(casterToken, options)
                         end
 
                         if refreshType ~= nil then
-                            tok.properties:ConsumeResource(resourceid, refreshType, entry.paymentOptions[1].quantity or 1, self.name)
+                            tok.properties:ConsumeResource(resourceid, refreshType, payment.quantity or 1, self.name)
                         end
                     end
                 end
@@ -2539,7 +2589,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 	options.targets = targets
 
 	for i,behavior in ipairs(self.behaviors) do
-		print("CastCoroutine:: behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
+		print("CastCoroutine::", self.name, "behavior " .. i .. "/" .. #self.behaviors .. " type=" .. tostring(behavior.typeName) .. " instant=" .. tostring(behavior.instant) .. " filtered=" .. tostring(behavior:IsFiltered(self, casterToken, options)) .. " abort=" .. tostring(options.abort) .. " stopProcessing=" .. tostring(options.stopProcessing))
 		if not behavior.instant and (not behavior:IsFiltered(self, casterToken, options)) then
             if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
                 CharacterPanel.HighlightAbilitySection{
@@ -2563,12 +2613,26 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		end
 	end
 
+	print("CastCoroutine::", self.name, "end behaviors")
+
     if restoreTargets ~= nil then
         options.symbols.cast.targets = restoreTargets
     end
 
 	if (options.pay or (options.payIfNotAborted and (not options.abort))) and not options.alreadyPaid then
 		self:ConsumeResources(casterToken, options)
+		if options.improvementCosts ~= nil and #options.improvementCosts > 0 then
+			local costs = options.improvementCosts
+			casterToken:ModifyProperties{
+				description = "Ability Improvement Cost",
+				undoable = false,
+				execute = function()
+					for _, ic in ipairs(costs) do
+						casterToken.properties:ConsumeResource(ic.resourceId, ic.refreshType, ic.costAmt, ic.name)
+					end
+				end,
+			}
+		end
 		options.alreadyPaid = true
 	end
 
@@ -2603,6 +2667,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 			end
 		end
 		
+	print("CastCoroutine::", self.name, "end with invoke")
 		gamehud.actionBarPanel:FireEventTree("invokeAbility", casterToken, self, options.symbols)
 		return
 	end
@@ -2627,6 +2692,7 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
 		end
 	end
 
+	print("CastCoroutine::", self.name, "FinishCast()")
 	self:FinishCast(casterToken, options)
 end
 
@@ -3194,7 +3260,7 @@ function ActivatedAbilityBehavior:ApplyToTargets(ability, casterToken, targets, 
 
 
 		for i,item in ipairs(result) do
-            if item.token ~= nil then
+            if item.token ~= nil and item.token.properties ~= nil and casterToken.properties ~= nil then
                 symbols.target = item.token.properties
                 symbols.caster = casterToken.properties
                 symbols.targetnumber = i
@@ -3230,6 +3296,10 @@ end
 
 function ActivatedAbilityHealBehavior:SummarizeBehavior(ability, creatureLookup)
 	return string.format("%s Healing", dmhub.NormalizeRoll(dmhub.EvalGoblinScript(self.roll, creatureLookup, string.format("Heal roll for %s", ability.name))))
+end
+
+function ActivatedAbilitySetStaminaBehavior:SummarizeBehavior(ability, creatureLookup)
+	return string.format("Set Stamina to %s", dmhub.NormalizeRoll(dmhub.EvalGoblinScript(self.roll, creatureLookup, string.format("Set Stamina for %s", ability.name))))
 end
 
 function ActivatedAbilityApplyOngoingEffectBehavior:SummarizeBehavior(ability, creatureLookup)
@@ -3458,6 +3528,41 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 
 	while not finished do
 		coroutine.yield(0.1)
+	end
+end
+
+function ActivatedAbilitySetStaminaBehavior:Cast(ability, casterToken, targets, options)
+	if #targets == 0 then
+		return
+	end
+
+	local casterName = creature.GetTokenDescription(casterToken)
+
+	for i, target in ipairs(targets) do
+		if target.token ~= nil and target.token.valid then
+			local targetCreature = target.token.properties
+
+			local symbols = DeepCopy(options.symbols or {})
+			symbols.target = targetCreature:LookupSymbol()
+
+			local newStamina = dmhub.EvalGoblinScript(self.roll, casterToken.properties:LookupSymbol(symbols), string.format("Set Stamina for %s", ability.name))
+			newStamina = math.floor(tonumber(newStamina) or 0)
+
+			ability.RecordTokenMessage(target.token, options, string.format("Set Stamina to %d", newStamina))
+
+			target.token:ModifyProperties{
+				description = "Set Stamina",
+				execute = function()
+					targetCreature:SetStaminaDirect(newStamina, string.format("%s's %s", casterName, ability.name))
+				end,
+			}
+		end
+	end
+
+	ability:CommitToPaying(casterToken, options)
+
+	if options ~= nil and options.complete ~= nil then
+		options.complete()
 	end
 end
 
@@ -3787,6 +3892,11 @@ end
 
 function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, targets, options)
 
+    if self:try_get("ongoingEffectSource", "specific") == "formula" then
+        self:CastFromFormula(ability, casterToken, targets, options)
+        return
+    end
+
     local count = 0
     for _,target in ipairs(targets) do
         if target.token ~= nil then
@@ -4075,6 +4185,105 @@ function ActivatedAbilityApplyOngoingEffectBehavior:Cast(ability, casterToken, t
 	end
 
     --force the game to refresh with the new game status so later effects take it into consideration.
+    game.Refresh{
+        tokens = tokenids,
+    }
+end
+
+function ActivatedAbilityApplyOngoingEffectBehavior:CastFromFormula(ability, casterToken, targets, options)
+    local formula = self:try_get("ongoingEffectFormula", "")
+    if formula == "" then return end
+
+    local formulaResult = dmhub.EvalGoblinScriptToObject(formula, casterToken.properties:LookupSymbol(options.symbols), string.format("Ongoing effect formula for %s", ability.name))
+    local effectIds = {}
+    if type(formulaResult) == "table" then
+        for _, v in ipairs(formulaResult) do
+            if type(v) == "string" then
+                effectIds[#effectIds+1] = v
+            end
+        end
+    elseif type(formulaResult) == "string" then
+        effectIds = {formulaResult}
+    end
+
+    if #effectIds == 0 then return end
+
+    local characterOngoingEffectsTable = dmhub.GetTable("characterOngoingEffects")
+    local tokenids = ActivatedAbility.GetTokenIds(targets)
+
+    local casterInfo = {
+        tokenid = casterToken.id,
+        abilityName = ability.name,
+    }
+    if casterToken.properties.minion then
+        casterInfo.minionSquad = casterToken.properties:MinionSquad()
+    end
+    if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+        casterInfo.concentrationid = casterToken.properties:MostRecentConcentrationId()
+    end
+
+    for _, effectId in ipairs(effectIds) do
+        local ongoingEffectInfo = characterOngoingEffectsTable[effectId]
+        if ongoingEffectInfo ~= nil then
+            for i,target in ipairs(targets) do
+                if target.token ~= nil then
+                    local stacks = nil
+                    local finished = false
+
+                    gamehud.rollDialog.data.ShowDialog{
+                        title = string.format("Roll for Stacks of %s Effect", ongoingEffectInfo.name),
+                        description = string.format("%s Stacks", ability.name),
+                        roll = dmhub.EvalGoblinScript(self.stacks, casterToken.properties:LookupSymbol(options.symbols), string.format("Number of stacks for %s", ability.name)),
+                        creature = casterToken.properties,
+                        skipDeterministic = true,
+                        type = 'effect_stacks',
+                        cancelRoll = function()
+                            finished = true
+                        end,
+                        completeRoll = function(rollInfo)
+                            finished = true
+                            ability:CommitToPaying(casterToken, options)
+                            stacks = rollInfo.total
+                        end
+                    }
+
+                    while not finished do
+                        coroutine.yield(0.1)
+                    end
+
+                    if stacks == nil then return end
+
+                    local targetCreature = target.token.properties
+                    local sourceDescription = string.format("Applied by %s's <b>%s</b> ability", creature.GetTokenDescription(casterToken), ability.name)
+                    ability.RecordTokenMessage(target.token, options, string.format("Apply %s", ongoingEffectInfo.name))
+
+                    local applyDuration = self:try_get("duration")
+                    local applyUntilEot = self.durationUntilEndOfTurn
+                    if self:try_get("inheritDuration", false) then
+                        local durations = options.symbols.cast:try_get("purgedOngoingEffectDurations") or {}
+                        local durationInfo = durations[effectId]
+                        if durationInfo ~= nil then
+                            applyDuration = durationInfo.duration
+                            applyUntilEot = durationInfo.untilEndOfTurn
+                        end
+                    end
+
+                    target.token:ModifyProperties{
+                        description = "Applied Ongoing Effect",
+                        execute = function()
+                            targetCreature:ApplyOngoingEffect(effectId, applyDuration, casterInfo, {
+                                guid = dmhub.GenerateGuid(),
+                                untilEndOfTurn = applyUntilEot,
+                                stacks = stacks,
+                                sourceDescription = sourceDescription,
+                            })
+                        end
+                    }
+                end
+            end
+        end
+    end
+
     game.Refresh{
         tokens = tokenids,
     }

@@ -1495,9 +1495,14 @@ end
 
 
 if mod.canedit then
-	Commands.savedefaultaudio = function()
-		mod:SaveDefaultDocuments(function()
-			dmhub.Debug("Saved audio")
-		end)
-	end
+    Commands.RegisterMacro{
+        name = "savedefaultaudio",
+        summary = "save audio defaults",
+        doc = "Usage: /savedefaultaudio\nSaves the current audio configuration as defaults.",
+        command = function()
+            mod:SaveDefaultDocuments(function()
+                dmhub.Debug("Saved audio")
+            end)
+        end,
+    }
 end

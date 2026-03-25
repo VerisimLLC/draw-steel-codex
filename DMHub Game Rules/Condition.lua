@@ -29,6 +29,22 @@ CharacterCondition.powertable = false
 CharacterCondition.indefiniteDuration = false
 CharacterCondition.showInMenus = true
 CharacterCondition.sustainFormula = ""
+CharacterCondition.buffType = "debuff"
+
+CharacterCondition.BuffTypeOptions = {
+	{
+		id = 'debuff',
+		text = 'Debuff',
+	},
+	{
+		id = 'buff',
+		text = 'Buff',
+	},
+	{
+		id = 'neutral',
+		text = 'Neutral',
+	},
+}
 
 
 CharacterCondition.conditionsByName = {}
@@ -286,6 +302,23 @@ local SetData = function(tableName, conditionPanel, condid)
 			text = "Shown in Menus",
 			change = function(element)
 				condition.showInMenus = not condition.showInMenus
+				UploadCondition()
+			end,
+		},
+	}
+
+	children[#children+1] = gui.Panel{
+		classes = {'formPanel'},
+		gui.Label{
+			text = 'Type:',
+			valign = 'center',
+			minWidth = 240,
+		},
+		gui.Dropdown{
+			options = CharacterCondition.BuffTypeOptions,
+			idChosen = condition.buffType,
+			change = function(element)
+				condition.buffType = element.idChosen
 				UploadCondition()
 			end,
 		},

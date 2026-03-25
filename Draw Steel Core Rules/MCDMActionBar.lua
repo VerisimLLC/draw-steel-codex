@@ -116,25 +116,30 @@ ActionBar.bars = {
 
 }
 
-Commands.actionbar = function(str)
-    local items = string.split(str, " ")
-    if type(items) ~= "table" or #items ~= 2 then
-        return
-    end
-
-    local panelid = items[1]
-    local n = items[2]
-    n = tonumber(n)
-    if n == nil then
-        return
-    end
-    if gamehud ~= nil then
-        local target = gamehud.dialog.sheet:Get(panelid)
-        if target ~= nil and target.enabled then
-            target:FireEventTree("activate", n)
+Commands.RegisterMacro{
+    name = "actionbar",
+    summary = "activate ability slot",
+    doc = "Usage: /actionbar <panel> <slot>\nActivates the given slot number on the specified action bar panel.",
+    command = function(str)
+        local items = string.split(str, " ")
+        if type(items) ~= "table" or #items ~= 2 then
+            return
         end
-    end
-end
+
+        local panelid = items[1]
+        local n = items[2]
+        n = tonumber(n)
+        if n == nil then
+            return
+        end
+        if gamehud ~= nil then
+            local target = gamehud.dialog.sheet:Get(panelid)
+            if target ~= nil and target.enabled then
+                target:FireEventTree("activate", n)
+            end
+        end
+    end,
+}
 
 Keybinds.Register{
     command = "actionbar basic-attack 1",

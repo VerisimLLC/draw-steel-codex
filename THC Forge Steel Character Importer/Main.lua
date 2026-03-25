@@ -13,13 +13,18 @@ Dependencies:
   Basic Chat Message module
 --]]
 
-Commands.fsci = function(args)
-    if args and #args then
-        if string.find(args:lower(), "d") then FSCIUtils.ToggleDebugMode() end
-        if string.find(args:lower(), "v") then FSCIUtils.ToggleVerboseMode() end
-    end
-    SendTitledChatMessage(string.format("<color=#00cccc>[d]ebug:</color> %s <color=#00cccc>[v]erbose:</color> %s", FSCIUtils.inDebugMode(), FSCIUtils.inVerboseMode()), "fsci", "#e09c9c")
-end
+Commands.RegisterMacro{
+    name = "fsci",
+    summary = "FSCI debug toggle",
+    doc = "Usage: /fsci [d] [v]\nToggles Forge Steel Character Importer debug (d) and verbose (v) modes.",
+    command = function(args)
+        if args and #args then
+            if string.find(args:lower(), "d") then FSCIUtils.ToggleDebugMode() end
+            if string.find(args:lower(), "v") then FSCIUtils.ToggleVerboseMode() end
+        end
+        SendTitledChatMessage(string.format("<color=#00cccc>[d]ebug:</color> %s <color=#00cccc>[v]erbose:</color> %s", FSCIUtils.inDebugMode(), FSCIUtils.inVerboseMode()), "fsci", "#e09c9c")
+    end,
+}
 
 local function debugWriteToFile(dto)
     if FSCIUtils.inDebugMode() then

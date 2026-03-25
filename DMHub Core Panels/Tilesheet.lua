@@ -1267,6 +1267,26 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 		undoValues.blocksForcedMovement = asset.blocksForcedMovement
 	end
 
+	if undoValues.solidity == nil then
+		undoValues.solidity = asset.solidity
+	end
+
+	if undoValues.breakStamina == nil then
+		undoValues.breakStamina = asset.breakStamina
+	end
+
+	if undoValues.rubbleKeyword == nil then
+		undoValues.rubbleKeyword = asset.rubbleKeyword
+	end
+
+	if undoValues.rubbleTerrainId == nil then
+		undoValues.rubbleTerrainId = asset.rubbleTerrainId
+	end
+
+	if undoValues.breakSound == nil then
+		undoValues.breakSound = asset.breakSound
+	end
+
 	if undoValues.soundOcclusion == nil then
 		undoValues.soundOcclusion = asset.soundOcclusion
 	end
@@ -2105,6 +2125,195 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 					asset.cover = element.idChosen
 					RefreshAssets()
 				end,
+			},
+
+			gui.Dropdown{
+				id = "solidityDropdown",
+				idChosen = asset.solidity or "Unbreakable",
+				options = {
+					{
+						id = "Unbreakable",
+						text = "Unbreakable",
+					},
+					{
+						id = "Thin",
+						text = "Thin (breakable)",
+					},
+					{
+						id = "Solid",
+						text = "Solid (breakable)",
+					},
+				},
+				change = function(element)
+					asset.solidity = element.idChosen
+					RefreshAssets()
+				end,
+			},
+
+			gui.Panel{
+				classes = {cond((asset.solidity or "Unbreakable") == "Unbreakable", "collapsed-anim")},
+				refreshAssets = function(element)
+					element:SetClass('collapsed-anim', (asset.solidity or "Unbreakable") == "Unbreakable")
+				end,
+				flow = "vertical",
+				width = "100%",
+				height = "auto",
+				children = {
+					gui.Label{
+						text = "Break Stamina:",
+						classes = {"formLabel"},
+					},
+
+					gui.Input{
+						id = "breakStaminaInput",
+						placeholderText = "0",
+						text = tostring(asset.breakStamina or 0),
+						width = "100%",
+						height = 30,
+						change = function(element)
+							asset.breakStamina = tonumber(element.text) or 0
+							RefreshAssets()
+						end,
+					},
+
+					gui.Label{
+						text = "Rubble Object Keyword:",
+						classes = {"formLabel"},
+					},
+
+					gui.Input{
+						id = "rubbleKeywordInput",
+						placeholderText = "keyword",
+						text = asset.rubbleKeyword or "",
+						width = "100%",
+						height = 30,
+						change = function(element)
+							asset.rubbleKeyword = element.text
+							RefreshAssets()
+						end,
+					},
+
+					gui.Label{
+						text = "Rubble Terrain:",
+						classes = {"formLabel"},
+					},
+
+					gui.Dropdown{
+						id = "rubbleTerrainDropdown",
+						hasSearch = true,
+						idChosen = asset.rubbleTerrainId or "__none__",
+						options = (function()
+							local result = {
+								{
+									id = "__none__",
+									text = "None",
+								},
+							}
+							for id, tile in pairs(assets.tilesheets) do
+								if not tile.hidden then
+									result[#result+1] = {
+										id = id,
+										text = tile.description or id,
+									}
+								end
+							end
+							table.sort(result, function(a, b)
+								if a.id == "__none__" then return true end
+								if b.id == "__none__" then return false end
+								return a.text < b.text
+							end)
+							return result
+						end)(),
+						change = function(element)
+							if element.idChosen == "__none__" then
+								asset.rubbleTerrainId = nil
+							else
+								asset.rubbleTerrainId = element.idChosen
+							end
+							RefreshAssets()
+						end,
+					},
+
+					gui.Label{
+						text = "Break Sound:",
+						classes = {"formLabel"},
+					},
+
+					gui.Dropdown{
+						id = "breakSoundDropdown",
+						idChosen = asset.breakSound or "none",
+						options = (function()
+							local result = {}
+							for _,entry in ipairs(AudioObjectDestructionTypes.types) do
+								result[#result+1] = {
+									id = entry.sound or "none",
+									text = entry.text,
+								}
+							end
+							return result
+						end)(),
+						change = function(element)
+							if element.idChosen == "none" then
+								asset.breakSound = nil
+							else
+								asset.breakSound = element.idChosen
+							end
+							RefreshAssets()
+						end,
+					},
+
+					gui.Panel{
+						classes = {cond((asset.solidity or "Unbreakable") ~= "Solid", "collapsed-anim")},
+						refreshAssets = function(element)
+							element:SetClass('collapsed-anim', (asset.solidity or "Unbreakable") ~= "Solid")
+						end,
+						flow = "vertical",
+						width = "100%",
+						height = "auto",
+						children = {
+							gui.Label{
+								text = "Replacement Wall:",
+								classes = {"formLabel"},
+							},
+
+							gui.Dropdown{
+								id = "replacementWallDropdown",
+								hasSearch = true,
+								idChosen = asset.replacementWallId or "__default__",
+								options = (function()
+									local result = {
+										{
+											id = "__default__",
+											text = "Same as original",
+										},
+									}
+									for id, wall in pairs(assets.walls) do
+										if not wall.hidden then
+											result[#result+1] = {
+												id = id,
+												text = wall.description or id,
+											}
+										end
+									end
+									table.sort(result, function(a, b)
+										if a.id == "__default__" then return true end
+										if b.id == "__default__" then return false end
+										return a.text < b.text
+									end)
+									return result
+								end)(),
+								change = function(element)
+									if element.idChosen == "__default__" then
+										asset.replacementWallId = nil
+									else
+										asset.replacementWallId = element.idChosen
+									end
+									RefreshAssets()
+								end,
+							},
+						},
+					},
+				},
 			},
 
 			--padding until the buttons.

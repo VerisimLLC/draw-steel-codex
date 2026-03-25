@@ -207,12 +207,13 @@ function gui.GoblinScriptInput(options)
 					end
 
 					local parentPanel = element
-					parentPanel.popupPositioning = "panel"
 
 					local pos = element.caretPosition
-					local text = string.sub(element.text, 1, pos)
+					local fullText = element.text
+					local textBeforeCaret = string.sub(fullText, 1, pos)
+					local textAfterCaret = string.sub(fullText, pos + 1)
 					local completions = dmhub.AutoCompleteGoblinScript {
-						text = text,
+						text = textBeforeCaret,
 						symbols = m_autoCompleteSymbols,
 						deterministic = (documentation or {}).output ~= "roll",
 					}
@@ -233,18 +234,17 @@ function gui.GoblinScriptInput(options)
 								text = labelText,
 								press = function(element)
 									printf("GOBLINSCRIPT:: PRESS")
-									local newText = completion.completion .. string.sub(text, pos + 1, #text)
+									local newText = completion.completion .. textAfterCaret
 									local caretPosition = #completion.completion
 
 									if completion.type == "function" then
-										newText = newText .. "()"
-										caretPosition = caretPosition + 1
+										local insertPos = #completion.completion
+										newText = string.sub(newText, 1, insertPos) .. "()" .. string.sub(newText, insertPos + 1)
+										caretPosition = insertPos + 1
 									end
 
-									parentPanel.text = newText
-									parentPanel.caretPosition = caretPosition
-
 									parentPanel.popup = nil
+									parentPanel:SetTextAndCaret(caretPosition, newText)
 									parentPanel.hasInputFocus = true
 									parentPanel.data.changePending = true
 									parentPanel.data.focusPending = true
@@ -305,13 +305,32 @@ function gui.GoblinScriptInput(options)
 								refreshCompletions()
 							end,
 						}
+
+						-- Find the start of the word being completed for anchor positioning.
+						-- Walk backwards from caret to find where the current identifier starts.
+						local wordStartPos = pos
+						for j = pos, 1, -1 do
+							local ch = string.sub(fullText, j, j)
+							if ch == '.' or ch == ' ' or ch == '+' or ch == '-' or ch == '*' or ch == '/' or ch == '(' or ch == ')' or ch == ',' then
+								break
+							end
+							wordStartPos = j
+						end
+
+						local anchorPos = element:GetCharWorldPosition(wordStartPos)
+						if anchorPos ~= nil then
+							parentPanel.popupPositioning = anchorPos
+						else
+							parentPanel.popupPositioning = "panel"
+						end
+
 						element.popup = gui.Panel {
 							styles = { Styles.Default, g_completionMenuStyles },
 							width = "auto",
 							height = menuHeight,
 							scale = parentPanel.renderedScale.x,
 							valign = "bottom",
-							halign = "center",
+							halign = "right",
 							menu,
 						}
 						printf("GOBLINSCRIPT:: POPUP: %d", #children)

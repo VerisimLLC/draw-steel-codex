@@ -1,6 +1,7 @@
 local mod = dmhub.GetModLoading()
 
 CharacterResource.heroicResourceId = "2d3d5511-4b80-46d1-a8c6-4705b9aa45ca"
+CharacterResource.epicResourceId = "e7b04a7e-61fc-4e17-b999-d95d7e751abb"
 CharacterResource.maliceResourceId = "101bab52-7f7c-4bab-92c2-9f8e0cfb7ec8"
 CharacterResource.surgeResourceId = "8b0ae5fe-0eb3-45fa-9e6d-b9de68f5cc6d"
 CharacterResource.triggerResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
@@ -84,4 +85,15 @@ end
 --- @return {color: string, when: string, who: string, value: number, note: string}
 function creature:GetHeroTokenHistory()
     return CharacterResource.GetGlobalResourceHistory(CharacterResource.heroTokenId)
+end
+
+function creature:GetEpicResources()
+    local resources = self:try_get("resources")
+    if resources ~= nil then
+        local epicResource = resources[CharacterResource.epicResourceId]
+        if epicResource ~= nil then
+            return epicResource.unbounded or 0
+        end
+    end
+    return 0
 end

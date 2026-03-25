@@ -45,6 +45,8 @@ Commands.Register{
 			dmhub.initiativeQueue.gameMode = "exploration"
 			dmhub:UploadInitiativeQueue()
 
+            CharacterResource.SetMalice(0, "End of Combat")
+
 			for initiativeid,_ in pairs(dmhub.initiativeQueue.entries) do
 				local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
 				for _,tok in ipairs(tokens) do

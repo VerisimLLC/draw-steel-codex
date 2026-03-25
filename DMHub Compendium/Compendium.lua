@@ -295,7 +295,10 @@ local CreateListItem = function(options)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
                         if libraryPanel ~= nil then
-                            libraryPanel:FireEventTree("searchCompendium", m_search)
+                            local contentPanels = libraryPanel:GetChildrenWithClass('content-panel')
+                            for _,cp in ipairs(contentPanels) do
+                                cp:FireEventTree("searchCompendium", m_search)
+                            end
                         end
                     end
                 end,
@@ -311,7 +314,7 @@ local CreateListItem = function(options)
                     else
                         element:SetClass("searching", true)
                         if options.contentType ~= nil then
-                            element:SetClass("matchSearch", #SearchTableForText(dmhub.GetTable(options.contentType), text, options.contentType == "charConditions") > 0)
+                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
 
 	                    elseif options.tableName ~= nil and options.key ~= nil then
 		                    local table = dmhub.GetTable(options.tableName)
@@ -1698,7 +1701,7 @@ local ShowResourcesPanel = function(parentPanel)
 
 
 		--the resource's dice type.
-		children[#children+1] = gui.Panel{
+		--[[ children[#children+1] = gui.Panel{
 			classes = {'formPanel'},
 			gui.Label{
 				text = 'Die Type:',
@@ -1718,10 +1721,10 @@ local ShowResourcesPanel = function(parentPanel)
 					UploadResource()
 				end,
 			}
-		}
+		} ]]
 
 		--if the resource can be used to cast spells
-		children[#children+1] = gui.Panel{
+		--[[ children[#children+1] = gui.Panel{
 			classes = {'formPanel'},
 			gui.Label{
 				text = 'Spell Level:',
@@ -1741,7 +1744,7 @@ local ShowResourcesPanel = function(parentPanel)
 					UploadResource()
 				end,
 			}
-		}
+		} ]]
 
 		--if the resource is a level up from another resource.
 		local resourceChoices = {}

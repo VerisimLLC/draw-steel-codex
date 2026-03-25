@@ -350,10 +350,23 @@ CreateLayersPanel = function()
                 element.popup = gui.ContextMenu{
                     entries = {
                         {
-                            text = "Add New Floor",
+                            text = "Add New Empty Floor",
                             click = function()
                                 element.popup = nil
                                 game.currentMap:CreateFloor()
+                            end,
+                        },
+                        {
+                            text = "Import New Floor",
+                            click = function()
+                                element.popup = nil
+                                mod.shared.ImportMap{
+                                    imagesOnly = true,
+                                    floorImport = true,
+                                    finish = function(info)
+                                        mod.shared.ShowFloorAlignmentDialog(info)
+                                    end,
+                                }
                             end,
                         },
                     }
@@ -790,70 +803,98 @@ CreateLayersPanel = function()
 							},
 
 							rightClick = function(element)
+								local floorEntries = {}
+
+								-- Check if any layer on this floor has a map object.
+								local mapObj = nil
+								local mapLayer = nil
+								for _, layer in ipairs(currentMap:GetLayersForFloor(floor.floorid)) do
+									for _, obj in pairs(layer.objects) do
+										if obj:GetComponent("Map") ~= nil then
+											mapObj = obj
+											mapLayer = layer
+											break
+										end
+									end
+									if mapObj ~= nil then break end
+								end
+
+								if mapObj ~= nil then
+									floorEntries[#floorEntries+1] = {
+										text = "Reimport Map Sizing",
+										click = function()
+											element.popup = nil
+											mod.shared.ReimportMapSizing(mapLayer, mapObj)
+										end,
+									}
+								end
+
 								if #currentMap.floorsWithoutLayers > 1 then
+									floorEntries[#floorEntries+1] = {
+										text = 'Delete Floor',
+										click = function()
+											element.popup = nil
+
+											if element:HasClass("selected") then
+												--if this floor is selected, switch to a different floor.
+												local newFloor = nil
+												for k,f in pairs(floorItems) do
+													if k ~= floor.floorid then
+														newFloor = k
+													end
+												end
+
+												if newFloor ~= nil then
+													floorItems[newFloor]:FireEvent("click")
+												end
+											end
+
+											local chars = floor.playerCharactersOnFloor
+											if #chars > 0 then
+												local players = false
+												for i,c in ipairs(chars) do
+													if c.playerControlled then
+														players = true
+													end
+												end
+
+												if players then
+													gui.ModalMessage{
+														title = "Cannot Delete Players",
+														message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
+													}
+												else
+
+													gui.ModalMessage{
+														title = "Delete Floor?",
+														message = "This floor includes tokens on it. Do you really want to delete it?",
+														options = {
+															{
+																text = "Yes",
+																execute = function()
+																	game.DeleteFloor(floor.floorid)
+																end,
+															},
+															{
+																text = "No",
+																execute = function() end,
+															}
+														}
+													}
+
+												end
+												return
+											end
+
+
+											game.DeleteFloor(floor.floorid)
+										end,
+									}
+								end
+
+								if #floorEntries > 0 then
 									element.popup = gui.ContextMenu{
-										entries = {
-											{
-												text = 'Delete Floor',
-												click = function()
-													element.popup = nil
-
-													if element:HasClass("selected") then
-														--if this floor is selected, switch to a different floor.
-														local newFloor = nil
-														for k,f in pairs(floorItems) do
-															if k ~= floor.floorid then
-																newFloor = k
-															end
-														end
-
-														if newFloor ~= nil then
-															floorItems[newFloor]:FireEvent("click")
-														end
-													end
-
-													local chars = floor.playerCharactersOnFloor
-													if #chars > 0 then
-														local players = false
-														for i,c in ipairs(chars) do
-															if c.playerControlled then
-																players = true
-															end
-														end
-
-														if players then
-															gui.ModalMessage{
-																title = "Cannot Delete Players",
-																message = "You cannot delete a floor with players on it. Delete them first or teleport them elsewhere before deleting this floor.",
-															}
-														else
-
-															gui.ModalMessage{
-																title = "Delete Floor?",
-																message = "This floor includes tokens on it. Do you really want to delete it?",
-																options = {
-																	{
-																		text = "Yes",
-																		execute = function()
-																			game.DeleteFloor(floor.floorid)
-																		end,
-																	},
-																	{
-																		text = "No",
-																		execute = function() end,
-																	}
-																}
-															}
-
-														end
-														return
-													end
-
-
-													game.DeleteFloor(floor.floorid)
-												end,
-											},
-										}
+										entries = floorEntries
 									}
 								end
 							end,
@@ -1505,6 +1546,27 @@ CreateLayersList = function(parentFloor)
 
 
 											game.DeleteFloor(floor.floorid)
+										end,
+									}
+								end
+
+								-- Check if this layer has a map object for reimport.
+								local mapObj = nil
+								local mapObjId = nil
+								for objKey, obj in pairs(floor.objects) do
+									if obj:GetComponent("Map") ~= nil then
+										mapObj = obj
+										mapObjId = objKey
+										break
+									end
+								end
+
+								if mapObj ~= nil then
+									entries[#entries+1] = {
+										text = "Reimport Map Sizing",
+										click = function()
+											element.popup = nil
+											mod.shared.ReimportMapSizing(floor, mapObj)
 										end,
 									}
 								end

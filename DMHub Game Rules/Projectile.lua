@@ -72,7 +72,7 @@ function Projectile.CalculateProperties(casterToken, targetToken, ability, rollI
 		local targetArmorClass = targetToken.properties:ArmorClass()
 		local hitRequirement = rollInfo.properties:FindOutcomeRequirement("Hit") or targetArmorClass
 
-		local coverInfo = dmhub.GetCoverInfo(casterToken, targetToken)
+		local coverInfo = dmhub.GetCoverInfo(casterToken, targetToken, casterToken.properties:GetPierceWalls())
 		local coverModifier = 0
 		if coverInfo ~= nil then
 			coverModifier = coverInfo.coverModifier

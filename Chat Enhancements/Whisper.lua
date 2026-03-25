@@ -356,26 +356,29 @@ local function unitTest()
 
 end
 
---- Runs unit tests for the WhisperChatMessage class.
-Commands.whisper2test = function(args)
-    unitTest()
-end
+Commands.RegisterMacro{
+    name = "whisper2test",
+    summary = "whisper unit tests",
+    doc = "Usage: /whisper2test\nRuns unit tests for whisper matching. Requires debug mode enabled.",
+    command = function(args)
+        unitTest()
+    end,
+}
 
---- Toggles or sets the WHISPER_DEBUG flag.
--- If given an argument of \"t\", \"true\", \"f\", or \"false\" (case-insensitive),
--- it sets the flag accordingly. Otherwise, it leaves the flag unchanged.
--- Always prints the current value to chat.
---
--- @param args (string?) Optional toggle value: \"t\", \"true\", \"f\", or \"false\".
-Commands.w2debug = function(args)
-    local lowered = args and args:lower()
-    if lowered == "t" or lowered == "true" then
-        WHISPER_DEBUG = true
-    elseif lowered == "f" or lowered == "false" then
-        WHISPER_DEBUG = false
-    end
-    sendTitledChatMessage(tostring(WHISPER_DEBUG), "wdebug", "#e09c9c")
-end
+Commands.RegisterMacro{
+    name = "w2debug",
+    summary = "whisper debug toggle",
+    doc = "Usage: /w2debug [t|f]\nToggles or sets the whisper debug flag. Pass t/true or f/false.",
+    command = function(args)
+        local lowered = args and args:lower()
+        if lowered == "t" or lowered == "true" then
+            WHISPER_DEBUG = true
+        elseif lowered == "f" or lowered == "false" then
+            WHISPER_DEBUG = false
+        end
+        sendTitledChatMessage(tostring(WHISPER_DEBUG), "wdebug", "#e09c9c")
+    end,
+}
 
 --- Handles the sending of a whisper chat message.
 --- Takes a raw input argument string, attempts to create a WhisperChatMessage instance,
@@ -413,19 +416,21 @@ local function doWhisper(args)
 
 end
 
---- Command aliases for sending a whisper chat message.
----
---- Usage: `/[w|whisper] recipient1[, recipient2...]: message`
----
---- Recipient values `d`, `director`, `dm`, `gm` send to all Director/GM's.
---- Recipient values can be player or character names.
----
---- @param args string The command argument string (recipients and message).
-Commands.w = function(args)
-    doWhisper(args)
-end
+Commands.RegisterMacro{
+    name = "w",
+    summary = "whisper message",
+    doc = "Usage: /w <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
+    command = function(args)
+        doWhisper(args)
+    end,
+}
 
-Commands.whisper = function(args)
-    doWhisper(args)
-end
+Commands.RegisterMacro{
+    name = "whisper",
+    summary = "whisper message",
+    doc = "Usage: /whisper <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
+    command = function(args)
+        doWhisper(args)
+    end,
+}
 

@@ -11,7 +11,7 @@ SourceReference.docid = "none"
 SourceReference.page = 1
 
 function SourceReference:url()
-    return string.format("%s:%s&page=%d", self.type, self.docid, self.page-1)
+    return string.format("%s:%s&page=%d", self.type, self.docid, self.page)
 end
 
 function SourceReference:Editor(options)

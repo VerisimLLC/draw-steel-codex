@@ -70,11 +70,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
             end
 
             element:SetClassTree("searching", true)
-            if #SearchTableForText(feature, text) > 0 then
-                element:SetClassTree("matchSearch", true)
-            else
-                element:SetClassTree("matchSearch", false)
-            end
+            element:SetClassTree("matchSearch", SearchTableHasMatch(feature, text))
         end,
 
 		gui.Label{
@@ -633,11 +629,7 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
             end
 
             element:SetClassTree("searching", true)
-            if #SearchTableForText(feature, text) > 0 then
-                element:SetClassTree("matchSearch", true)
-            else
-                element:SetClassTree("matchSearch", false)
-            end
+            element:SetClassTree("matchSearch", SearchTableHasMatch(feature, text))
         end,
 	}
 
@@ -1279,11 +1271,7 @@ function Class.CreateLevelEditor(children, class, UploadClass, startLevel, finis
                 end
 
                 element:SetClassTree("searching", true)
-                if #SearchTableForText(classLevel, text) > 0 then
-                    element:SetClassTree("matchSearch", true)
-                else
-                    element:SetClassTree("matchSearch", false)
-                end
+                element:SetClassTree("matchSearch", SearchTableHasMatch(classLevel, text))
             end,
 
 		}

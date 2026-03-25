@@ -6,6 +6,20 @@ function CharacterChoice.RegisterChoice(options)
     g_registeredCharacterChoices[options.id] = options
 end
 
+local g_validFeatureTypes = {
+	CharacterFeature = true,
+	CharacterFeatureChoice = true,
+	CharacterFeatChoice = true,
+	CharacterSingleFeat = true,
+	CharacterFeatureList = true,
+	CharacterSubclassChoice = true,
+	CharacterAncestryInheritanceChoice = true,
+	CharacterSkillChoice = true,
+}
+
+local IsCharacterFeatureType = function(item)
+	return item ~= nil and g_validFeatureTypes[item.typeName] == true
+end
 
 local CreateFeatureSummary = function(feature, featuresList, index, parentPanel, DescribeFeature, options)
 	options = options or {}
@@ -134,7 +148,7 @@ local CreateFeatureSummary = function(feature, featuresList, index, parentPanel,
 					}
 				end
 
-				if clipboardItem ~= nil and (clipboardItem.typeName == 'CharacterFeature' or clipboardItem.typeName == 'CharacterFeatureChoice') then
+				if IsCharacterFeatureType(clipboardItem) then
 
 					entries[#entries+1] = {
 						text = 'Paste Before',
@@ -334,6 +348,11 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
 
 		rightClick = function(element)
 
+			local clipboardItem = dmhub.GetInternalClipboard()
+			if clipboardItem ~= nil then
+				clipboardItem.guid = dmhub.GenerateGuid()
+			end
+
 			local entries = {
 				{
 					text = 'Copy Choice...',
@@ -392,6 +411,26 @@ local CreateChoiceEditor = function(feature, featuresList, index, parentPanel, c
                     end,
                 }
             end
+
+			if IsCharacterFeatureType(clipboardItem) then
+
+				entries[#entries+1] = {
+					text = 'Paste Before',
+					click = function()
+						element.popup = nil
+						parentPanel:FireEvent('paste', clipboardItem, index)
+					end,
+				}
+
+				entries[#entries+1] = {
+					text = 'Paste After',
+					click = function()
+						element.popup = nil
+						parentPanel:FireEvent('paste', clipboardItem, index+1)
+					end,
+				}
+
+			end
 
 			element.popup = gui.ContextMenu{
 				entries = entries
@@ -847,14 +886,14 @@ function ClassLevel:CreateEditor(classOrRace, levelNum, params)
 				id = "paste",
 				text = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    if clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterFeature' and clipboardItem.typeName ~= 'CharacterFeatureChoice' and clipboardItem.typeName ~= 'CharacterFeatChoice' and clipboardItem.typeName ~= 'CharacterSkillChoice') then
+                    if not IsCharacterFeatureType(clipboardItem) then
                         return "Paste"
                     end
                     return "Paste " .. clipboardItem.name
                 end,
                 hidden = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    return clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterFeature' and clipboardItem.typeName ~= 'CharacterFeatureChoice' and clipboardItem.typeName ~= 'CharacterFeatChoice' and clipboardItem.typeName ~= 'CharacterSkillChoice')
+                    return not IsCharacterFeatureType(clipboardItem)
                 end,
 			}
 
@@ -1356,14 +1395,12 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 		vpad = 4,
 
 		paste = function(element, item, index)
-			if item.typeName == "CharacterFeature" or item.typename == "CharacterFeatureList" then
-				item = DeepCopy(item)
-				item:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
-				item:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
-				table.insert(self.options, index, item)
-				resultPanel:FireEvent('create')
-				resultPanel:FireEvent('change')
-			end
+			item = DeepCopy(item)
+			item:VisitRecursive(function(a) a.source = classOrRace:FeatureSourceName() end)
+			item:VisitRecursive(function(a) a.guid = dmhub.GenerateGuid() end)
+			table.insert(self.options, index, item)
+			resultPanel:FireEvent('create')
+			resultPanel:FireEvent('change')
 		end,
 
 		create = function(element)
@@ -1569,14 +1606,14 @@ function CharacterFeatureChoice:CreateEditor(classOrRace, params)
 				id = "paste",
 				text = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    if clipboardItem == nil then
+                    if not IsCharacterFeatureType(clipboardItem) then
                         return "Paste"
                     end
                     return "Paste " .. clipboardItem.name
                 end,
                 hidden = function()
 			        local clipboardItem = dmhub.GetInternalClipboard()
-                    return clipboardItem == nil or (clipboardItem.typeName ~= 'CharacterFeature' and clipboardItem.typeName ~= 'CharacterFeatureChoice' and clipboardItem.typeName ~= 'CharacterSkillChoice')
+                    return not IsCharacterFeatureType(clipboardItem)
                 end,
 			}
 

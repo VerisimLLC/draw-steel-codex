@@ -1,4 +1,5 @@
 --- @class LuaPath 
+--- @field wallBreaks nil|table[] 
 --- @field movementType string 
 --- @field shifting boolean 
 --- @field forced boolean 

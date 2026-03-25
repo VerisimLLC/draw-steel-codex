@@ -24,6 +24,11 @@
 --- @field taper any 
 --- @field parallax any 
 --- @field shadowGlowThickness any 
+--- @field solidity any 
+--- @field breakStamina any 
+--- @field rubbleKeyword any 
+--- @field rubbleTerrainId any 
+--- @field breakSound any 
 WallAssetLua = {}
 
 --- Upload

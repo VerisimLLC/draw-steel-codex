@@ -436,12 +436,17 @@ function Aura:GenerateEditor(options)
                 },
             },
 
-            gui.Check{
+            gui.Dropdown{
                 halign = "left",
-                text = "Avoid Damage When Shifting",
-                value = self:try_get("shiftAvoidsDamage", false),
+                classes = "formDropdown",
+                options = {
+                    {id = "all", text = "All Movement"},
+                    {id = "nonshift", text = "Non-Shifting Movement"},
+                    {id = "forced", text = "Forced Movement Only"},
+                },
+                idChosen = self:try_get("movementDamageFilter") or (self:try_get("shiftAvoidsDamage", false) and "nonshift" or "all"),
                 change = function(element)
-                    self.shiftAvoidsDamage = element.value
+                    self.movementDamageFilter = element.idChosen
                     resultPanel:FireEventTree("refreshAura")
                 end,
                 create = function(element)
@@ -878,9 +883,16 @@ function AuraInstance:GetDamageInfo()
         type = movedamage,
     }
 
-    if self.aura:try_get("shiftAvoidsDamage", false) then
-        result.shiftAvoidsDamage = true
+    -- migrate legacy shiftAvoidsDamage boolean to movementDamageFilter string
+    local filter = self.aura:try_get("movementDamageFilter")
+    if filter == nil then
+        if self.aura:try_get("shiftAvoidsDamage", false) then
+            filter = "nonshift"
+        else
+            filter = "all"
+        end
     end
+    result.movementDamageFilter = filter
 
     return result
 end

@@ -22,6 +22,22 @@ CharacterOngoingEffect.effectsByName = {}
 CharacterOngoingEffect.endTrigger = "none"
 CharacterOngoingEffect.countsTowardInstanceLimit = true
 CharacterOngoingEffect.casterTracking = "none"
+CharacterOngoingEffect.buffType = "debuff"
+
+CharacterOngoingEffect.BuffTypeOptions = {
+	{
+		id = 'debuff',
+		text = 'Debuff',
+	},
+	{
+		id = 'buff',
+		text = 'Buff',
+	},
+	{
+		id = 'neutral',
+		text = 'Neutral',
+	},
+}
 
 CharacterOngoingEffect.allowEditingDisplayInfo = true
 
@@ -130,6 +146,26 @@ function CharacterOngoingEffect:GetCondition()
 
 	local dataTable = dmhub.GetTable(CharacterCondition.tableName)
 	return dataTable[self.condition]
+end
+
+function CharacterOngoingEffect:GetDisplayIcon()
+	if self.condition ~= "none" then
+		local cond = self:GetCondition()
+		if cond ~= nil then
+			return cond.iconid
+		end
+	end
+	return self.iconid
+end
+
+function CharacterOngoingEffect:GetDisplayDisplay()
+	if self.condition ~= "none" then
+		local cond = self:GetCondition()
+		if cond ~= nil then
+			return cond.display
+		end
+	end
+	return self.display
 end
 
 function CharacterOngoingEffect:GetEndAbility()
@@ -260,7 +296,7 @@ end
 --- @field ongoingEffectid string
 --- @field duration nil|number time in rounds
 --- @field time TimePoint time when effect was added.
---- @field endAbility nil|ActivatedAbility which ends the action
+--- @field _tmp_endAbility nil|ActivatedAbility which ends the action (transient, never serialized)
 --- @field countdowns nil|table<string,number> a map of string -> count which is a trigger id -> number of triggers left. Used to keep track of triggers
 ---                        which will expire this effect when they hit their limit. If any are 0 then this effect expires.
 --- @field casterInfo nil|{tokenid: string, concentrationid: nil|string}

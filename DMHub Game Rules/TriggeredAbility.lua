@@ -376,6 +376,27 @@ TriggeredAbility.triggers = {
         },
 	},
 	{
+		id = "wallbreak",
+		text = "Break Through a Wall",
+		symbols = {
+			speed = {
+				name = "Speed",
+				type = "number",
+				desc = "The stamina cost of breaking through the wall.",
+			},
+			wallType = {
+				name = "Wall Type",
+				type = "text",
+				desc = "The solidity type of the wall: 'Thin' or 'Solid'.",
+			},
+			loc = {
+				name = "Location",
+				type = "loc",
+				desc = "The location where the wall was broken.",
+			},
+		},
+	},
+	{
 		id = "fall",
 		text = "Land from a fall",
 	},
@@ -567,7 +588,13 @@ TriggeredAbility.RegisterTrigger{
 TriggeredAbility.RegisterTrigger{
     id = "endrespite",
     text = "End Respite",
-    symbols = {}
+    symbols = {
+        {
+            name = "XP Gained",
+            type = "number",
+            desc = "The amount of experience gained from this respite.",
+        },
+    }
 }
 
 table.sort(TriggeredAbility.triggers, function(a,b) return a.text < b.text end)

@@ -46,7 +46,7 @@ creature.RegisterSymbol{
     },
 
     lookup = function(c)
-        return c:try_get("victories", 0)
+        return c:GetVictoriesWithBonus()
     end
 }
 

@@ -1107,6 +1107,11 @@ dmhub.TokenMovingOnPath = function(args)
 end
 
 
-Commands.downloadaudio = function()
-    audio.DevDownloadAudio()
-end
+Commands.RegisterMacro{
+    name = "downloadaudio",
+    summary = "download audio assets",
+    doc = "Usage: /downloadaudio\nDownloads audio assets for development.",
+    command = function()
+        audio.DevDownloadAudio()
+    end,
+}

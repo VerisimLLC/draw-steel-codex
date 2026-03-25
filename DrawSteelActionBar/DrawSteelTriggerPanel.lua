@@ -45,6 +45,22 @@ mod.shared.freeTriggerGradient = gui.Gradient{
     }
 }
 
+mod.shared.passiveTriggerGradient = gui.Gradient{
+    type = "radial",
+    point_a = {x = 0.5, y = 0.5},
+    point_b = {x = 1, y = 0.5},
+    stops = {
+        {
+            position = 0,
+            color = "srgb:#085708",
+        },
+        {
+            position = 1,
+            color = "srgb:#0C2D0C",
+        }
+    }
+}
+
 mod.shared.CreateTriggerPanel = function()
 
 	local m_activeTriggerPanels = {}
@@ -228,6 +244,11 @@ mod.shared.CreateTriggerPanel = function()
         borderColor = "#966D4B",
     },
 
+    gui.Style{
+        classes = {"costInnerDiamond", "epicCost"},
+        bgcolor = "#6fa8e9",
+        borderColor = "#4B6D96",
+    },
     gui.Style{
         classes = {"costInnerDiamond", "cannotAfford"},
         bgcolor = g_forbiddenColor,
@@ -625,6 +646,7 @@ mod.shared.CreateTriggerPanel = function()
 
 
 							local m_ping = trigger.ping
+                            local isPassive = trigger.powerRollModifier and trigger.powerRollModifier.type == "passive"
 
                             local triggerPanel
 							triggerPanel = gui.Panel{
@@ -655,7 +677,7 @@ mod.shared.CreateTriggerPanel = function()
                                     for _,targetid in ipairs(trigger.targets or {}) do
                                         local target = dmhub.GetTokenById(targetid)
                                         if target ~= nil then
-                                            local ray = dmhub.MarkLineOfSight(g_token, target)
+                                            local ray = dmhub.MarkLineOfSight(g_token, target, g_token.properties:GetPierceWalls())
                                             element.data.rays[#element.data.rays+1] = ray
                                         end
                                     end
@@ -883,16 +905,18 @@ mod.shared.CreateTriggerPanel = function()
                                     end,
                                 },
 
-        gui.Panel{
-            classes = {"costDiamond", cond(trigger.heroicResourceCost == 0, "hidden")},
+        (function()
+            local resourceCost = trigger.heroicResourceCost ~= 0 and trigger.heroicResourceCost or trigger.epicResourceCost
+            return gui.Panel{
+            classes = {"costDiamond", cond(resourceCost == 0, "hidden")},
             floating = true,
             rotate = 135,
             gui.Panel{
-                classes = {"costInnerDiamond"},
+                classes = {"costInnerDiamond", cond(trigger.epicResourceCost ~= 0, "epicCost")},
                 gui.Label{
                     classes = {"abilityCostLabel"},
                     rotate = -135,
-                    text = cond(trigger.heroicResourceCost == 0, "!", trigger.heroicResourceCost),
+                    text = cond(resourceCost == 0, "!", resourceCost),
 
                     ability = function(element, ability)
 --[[
@@ -912,12 +936,13 @@ mod.shared.CreateTriggerPanel = function()
                     end,
                 },
             },
-        },
+        }
+        end)(),
 
         --icon panel.
         gui.Label{
             textAlignment = "center",
-            color = cond(trigger.free, "srgb:3097FF", "srgb:#FF9730"),
+            color = cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730")),
             bold = true,
             text = "!",
             fontSize = 24,
@@ -930,7 +955,7 @@ mod.shared.CreateTriggerPanel = function()
             bgcolor = "white",
             borderWidth = 1,
             borderColor = "black",
-            gradient = cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient),
+            gradient = cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient)),
 
         },
 
@@ -988,7 +1013,7 @@ mod.shared.CreateTriggerPanel = function()
 
                                     gui.Label{
                                         textAlignment = "center",
-                                        color = cond(trigger.free, "srgb:3097FF", "srgb:#FF9730"),
+                                        color = cond(isPassive, "srgb:#00a300", cond(trigger.free, "srgb:3097FF", "srgb:#FF9730")),
                                         bold = true,
                                         text = "!",
                                         fontSize = 24,
@@ -1001,7 +1026,7 @@ mod.shared.CreateTriggerPanel = function()
                                         bgcolor = "white",
                                         borderWidth = 1,
                                         borderColor = "black",
-                                        gradient = cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient),
+                                        gradient = cond(isPassive, mod.shared.passiveTriggerGradient, cond(trigger.free, mod.shared.freeTriggerGradient, mod.shared.triggerGradient)),
                                     },
 
                                     gui.Panel{

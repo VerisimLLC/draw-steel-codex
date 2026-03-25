@@ -173,7 +173,12 @@ function RollCheck:GetRoll(creature)
 	elseif self.type == "custom" then
 		return self:try_get("roll", "1d6")
 	else
-		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(Skill.SkillsById[self.id]))
+		local skillInfo = Skill.SkillsById[self.id]
+		if skillInfo == nil then
+			printf("WARNING: RollCheck:GetRoll -- unknown skill id '%s' for roll type '%s', returning base roll", tostring(self.id), tostring(self.type))
+			return GameSystem.BaseSkillRoll
+		end
+		return string.format("%s+%d", GameSystem.BaseSkillRoll, creature:SkillMod(skillInfo))
 	end
 end
 
@@ -189,7 +194,7 @@ function RollCheck:GetModifiers(creature, rollRequest)
 		end
 	end
 
-	if self.type == "test_power_roll" then
+	if self.type == "test_power_roll" or self.type == "resistance_power_roll" then
 		local skill = self:GetSkill()
 		local skills = nil
 		if skill ~= nil then
@@ -218,7 +223,7 @@ function RollCheck:GetModifiers(creature, rollRequest)
 		local rollModifiers = self:try_get("modifiers", {})
 		--Modifiers for the creature making the roll
 		local result = creature:GetModifiersForPowerRoll(self:GetRoll(creature), "test_power_roll", {attribute = self.id, skills = skills})
-		if creature:ProficientInSkill(skill) then
+		if skill ~= nil and creature:ProficientInSkill(skill) then
             for _,mod in ipairs(result) do
                 if mod.modifier.name == "Skilled" then
                     mod.hint.result = true
@@ -237,7 +242,12 @@ function RollCheck:GetModifiers(creature, rollRequest)
 	elseif self.type == "custom" then
 		return {}
 	else
-		return creature:GetModifiersForSkillCheckRoll(Skill.SkillsById[self.id], self:try_get("options"))
+		local skillInfo = Skill.SkillsById[self.id]
+		if skillInfo == nil then
+			printf("WARNING: RollCheck:GetModifiers -- unknown skill id '%s' for roll type '%s', returning empty modifiers", tostring(self.id), tostring(self.type))
+			return {}
+		end
+		return creature:GetModifiersForSkillCheckRoll(skillInfo, self:try_get("options"))
 	end
 	
 end

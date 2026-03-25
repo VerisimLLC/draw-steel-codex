@@ -918,6 +918,11 @@ CharacterResource.RegisterRefreshOptions{
 		refreshDescription = 'on rest',
 	},
 	{
+		id = 'level',
+		text = 'Per Level',
+		refreshDescription = 'on level up',
+	},
+	{
 		id = 'never',
 		text = 'Manual Refresh',
 		refreshDescription = 'manually',
@@ -1078,6 +1083,18 @@ TriggeredAbility.RegisterTrigger{
             type = "number",
             desc = "The number of resources used.",
         }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
+    id = "earnvictory",
+    text = "Earn Victory",
+    symbols = {
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of victories earned.",
+        },
     }
 }
 
@@ -2372,6 +2389,11 @@ CharacterResource.RegisterRefreshOptions{
 		refreshDescription = 'on rest',
 	},
 	{
+		id = 'level',
+		text = 'Per Level',
+		refreshDescription = 'on level up',
+	},
+	{
 		id = 'never',
 		text = 'Manual Refresh',
 		refreshDescription = 'manually',
@@ -2532,6 +2554,18 @@ TriggeredAbility.RegisterTrigger{
             type = "number",
             desc = "The number of resources used.",
         }
+    }
+}
+
+TriggeredAbility.RegisterTrigger{
+    id = "earnvictory",
+    text = "Earn Victory",
+    symbols = {
+        quantity = {
+            name = "Quantity",
+            type = "number",
+            desc = "The number of victories earned.",
+        },
     }
 }
 

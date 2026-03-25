@@ -95,6 +95,7 @@ CharacterBuilder.SELECTOR = {
     CLASS       = "class",
     KIT         = "kit",
     COMPLICATION = "complication",
+    TITLE       = "title",
 }
 CharacterBuilder.INITIAL_SELECTOR = CharacterBuilder.SELECTOR.ANCESTRY
 
@@ -141,6 +142,12 @@ You should absolutely feel free to describe your equipment in a way that makes s
 CharacterBuilder.STRINGS.COMPLICATION = {}
 CharacterBuilder.STRINGS.COMPLICATION.INTRO = [[
 Beyond the abilities and features bestowed by ancestry and class, your hero might have something else that makes them ... unusual. Perhaps an earth elemental lives in your body. Maybe your eldritch blade devastates enemies but feeds on your own vitality. A complication is an optional feature you can select to enrich your hero's backstory, with any complication providing you both a positive benefit and a negative drawback.]]
+
+CharacterBuilder.STRINGS.TITLE = {}
+CharacterBuilder.STRINGS.TITLE.INTRO = [[
+Titles are special benefits earned by heroes through adventure and mighty deeds. Heroes must win titles - sometimes individually, sometimes as a group - by accomplishing heroic tasks. Titles are the record of a hero's accomplishments, forming the basis of the stories told of them in taverns or whispered in the halls of the mighty.
+
+Each title comes with a new ability or other special benefit. By earning titles, heroes gain a unique set of capabilities that sets them apart from other adventurers.]]
 
 --[[
     Ability to register selectors - controls down the left side of the window
@@ -269,6 +276,16 @@ end
 function CharacterBuilder._fireControllerEvent(eventName, ...)
     local controller = CharacterBuilder._getController()
     if controller then controller:FireEvent(eventName, ...) end
+end
+
+--- Calculates font size based on length of text
+--- @param baseSize integer The largest size the font might be
+--- @param maxChars integer The number of characters the max size can fit
+--- @param len integer The length of the text to display
+--- @return integer fontSize
+function CharacterBuilder._fitFontSize(baseSize, maxChars, len)
+    if len <= maxChars then return baseSize end
+    return math.max(12, math.floor(baseSize * maxChars / len))
 end
 
 --- Format an order string for sorting
@@ -648,6 +665,8 @@ end
 --- @param options ButtonOptions
 --- @return SelectorButton|Panel
 function CharacterBuilder._makeCategoryButton(options)
+    local fontSize = options.fontSize or 22
+    options.fontSize = CharacterBuilder._fitFontSize(fontSize, 21, #options.text)
     options.width = CBStyles.SIZES.CATEGORY_BUTTON_WIDTH
     options.height = CBStyles.SIZES.CATEGORY_BUTTON_HEIGHT
     options.valign = "top"

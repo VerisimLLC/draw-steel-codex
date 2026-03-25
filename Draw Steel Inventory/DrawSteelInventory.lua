@@ -1384,6 +1384,8 @@ local CreateInventorySlot = function(dmhud, options)
 end
 
 function GameHud.LootAll(token, tokenTradingWith, inventoryDialog)
+	if token.properties == nil or tokenTradingWith.properties == nil then return end
+
 	token:BeginChanges()
 	tokenTradingWith:BeginChanges()
 

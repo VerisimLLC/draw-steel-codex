@@ -1,5 +1,72 @@
 local mod = dmhub.GetModLoading()
 
+-- Macro registration infrastructure. Defined here in Utils so it is available
+-- to every module (Utils loads first in main.lua).
+Commands._macros = Commands._macros or {}
+
+function Commands.RegisterMacro(args)
+    local name = args.name
+    local fn = args.command
+    local doc = args.doc
+    local summary = args.summary
+
+    if doc ~= nil then
+        Commands[name] = function(str)
+            if str == "help" then
+                dmhub.Log(doc)
+                return
+            end
+            return fn(str)
+        end
+    else
+        Commands[name] = fn
+    end
+
+    Commands._macros[name] = {
+        doc = doc,
+        summary = summary,
+        completions = args.completions,
+    }
+end
+
+function Commands.GetMacroInfo(name)
+    return Commands._macros[name]
+end
+
+function Commands.GetAllMacros()
+    return Commands._macros
+end
+
+-- Parse the text after a /command into structured argument info.
+-- Returns macroName, args (completed args), partial (current partial arg), argIndex
+function Commands.GetCurrentArg(text)
+    local macroName = string.match(text, "^/([%w_]+)%s")
+    if macroName == nil then
+        return nil
+    end
+    local afterCommand = string.match(text, "^/%S+%s(.*)$") or ""
+    local args = {}
+    local current = {}
+    local inQuote = false
+    for i = 1, #afterCommand do
+        local c = string.sub(afterCommand, i, i)
+        if c == '"' then
+            inQuote = not inQuote
+            current[#current+1] = c
+        elseif c == ' ' and not inQuote then
+            if #current > 0 then
+                args[#args+1] = table.concat(current)
+                current = {}
+            end
+        else
+            current[#current+1] = c
+        end
+    end
+    local partial = table.concat(current)
+    local argIndex = #args + 1
+    return macroName, args, partial, argIndex
+end
+
 --- @param table table
 --- @param element any
 --- @return boolean
@@ -214,7 +281,7 @@ function math.clamp01(x)
 end
 
 function DebugMatchesSearchRecursive(obj, search, depth, path)
-    if depth > 16 then
+    if depth > 6 then
         return false
     end
     if type(obj) == "table" then
@@ -237,7 +304,7 @@ end
 
 function MatchesSearchRecursive(obj, search, depth)
     depth = depth or 0
-    if depth > 16 then
+    if depth > 6 then
         return false
     end
     if type(obj) == "table" then
@@ -253,6 +320,15 @@ function MatchesSearchRecursive(obj, search, depth)
         end
     end
 
+    return false
+end
+
+function SearchTableHasMatch(t, search)
+    for k,v in unhidden_pairs(t) do
+        if MatchesSearchRecursive(k, search) or MatchesSearchRecursive(v, search) then
+            return true
+        end
+    end
     return false
 end
 
@@ -663,46 +739,51 @@ function FindAbilityParentByGuid(guid)
     return nil, nil
 end
 
-Commands.updateimplementationvalues = function(str)
-    local function UpdateInObject(obj, visited)
-        if type(obj) ~= "table" then
-            return
-        end
-        
-        -- Avoid infinite loops
-        if visited[obj] then
-            return
-        end
-        visited[obj] = true
-        
-        -- Check if this object has implementation field with value 4
-        if rawget(obj, "implementation") == 4 then
-            print("Updating implementation for object:", json(obj))
-            obj.implementation = 0
-        end
-        
-        -- Recursively search in child objects
-        for k, v in pairs(obj) do
-            if type(v) == "table" and not string.starts_with(tostring(k), "_tmp") then
-                UpdateInObject(v, visited)
+Commands.RegisterMacro{
+    name = "updateimplementationvalues",
+    summary = "fix implementation flags",
+    doc = "Usage: /updateimplementationvalues\nScans all data tables and resets implementation=4 fields to 0.",
+    command = function(str)
+        local function UpdateInObject(obj, visited)
+            if type(obj) ~= "table" then
+                return
             end
-        end
-    end
-    
-    -- Search through all tables in the system
-    local tables = dmhub.GetTableTypes()
-    for _, tableid in ipairs(tables) do
-        local t = dmhub.GetTable(tableid) or {}
-        for key, obj in unhidden_pairs(t) do
-            if type(obj) == "table" and not string.starts_with(tostring(key), "_tmp") then
-                local visited = {}
-                UpdateInObject(obj, visited)
-            end
-        end
-    end
-end
 
-local function DeepCopyInternal(t)
+            -- Avoid infinite loops
+            if visited[obj] then
+                return
+            end
+            visited[obj] = true
+
+            -- Check if this object has implementation field with value 4
+            if rawget(obj, "implementation") == 4 then
+                print("Updating implementation for object:", json(obj))
+                obj.implementation = 0
+            end
+
+            -- Recursively search in child objects
+            for k, v in pairs(obj) do
+                if type(v) == "table" and not string.starts_with(tostring(k), "_tmp") then
+                    UpdateInObject(v, visited)
+                end
+            end
+        end
+
+        -- Search through all tables in the system
+        local tables = dmhub.GetTableTypes()
+        for _, tableid in ipairs(tables) do
+            local t = dmhub.GetTable(tableid) or {}
+            for key, obj in unhidden_pairs(t) do
+                if type(obj) == "table" and not string.starts_with(tostring(key), "_tmp") then
+                    local visited = {}
+                    UpdateInObject(obj, visited)
+                end
+            end
+        end
+    end,
+}
+
+local function DeepCopyInternal(t, visited)
     local t_type = type(t)
     if t_type ~= "table" then
         if t_type == "userdata" then
@@ -711,10 +792,15 @@ local function DeepCopyInternal(t)
         return t
     end
 
+    if visited[t] then
+        return visited[t]
+    end
+
     local copy = {}
+    visited[t] = copy
     for k, v in next, t do
 	    if type(k) ~= "string" or string.sub(k,1,5) ~= "_tmp_" then
-            copy[k] = DeepCopyInternal(v)
+            copy[k] = DeepCopyInternal(v, visited)
         else
             copy[k] = v
         end
@@ -731,7 +817,43 @@ end
 local g_profileDeepCopy = dmhub.ProfileMarker("LuaDeepCopy")
 function DeepCopy(t)
     local _ = g_profileDeepCopy.Begin
-    local result = DeepCopyInternal(t)
+    local result = DeepCopyInternal(t, {})
     local _ = g_profileDeepCopy.End
     return result
+end
+
+-- Checks whether a table contains any circular references.
+-- Returns nil if no self-references are found.
+-- Returns a string tracing the path of keys that form the cycle otherwise.
+function DebugCheckTableSelfReference(t)
+    local visited = {}
+
+    local function check(obj, path)
+        if type(obj) ~= "table" then
+            return nil
+        end
+
+        if visited[obj] then
+            return path .. " -> " .. visited[obj] .. " (cycle)"
+        end
+
+        visited[obj] = path
+
+        for k, v in pairs(obj) do
+            if type(k) == "string" and string.sub(k, 1, 5) == "_tmp_" then
+                -- skip transient fields
+            elseif type(v) == "table" then
+                local key_str = tostring(k)
+                local child_path = path .. "." .. key_str
+                local result = check(v, child_path)
+                if result then
+                    return result
+                end
+            end
+        end
+
+        return nil
+    end
+
+    return check(t, "root")
 end

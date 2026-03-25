@@ -2100,7 +2100,9 @@ CharacterModifier.TypeInfo.transform = {
 	RefreshGameState = function(creature, self)
 		if creature:has_key("transformInfo") then
 			local monsterInfo = assets.monsters[creature.transformInfo.transformid]
-			creature._tmp_appearance = monsterInfo.appearance
+			if self:try_get("gainCreatureVisuals") ~= false then
+				creature._tmp_appearance = monsterInfo.appearance
+			end
 			creature._tmp_creaturesize = monsterInfo.info.creatureSize
 		end
 	end,
@@ -2293,6 +2295,10 @@ CharacterModifier.TypeInfo.transform = {
 
 			local capabilities = {
 				{
+					id = "gainCreatureVisuals",
+					text = "Gain Creature Visuals",
+				},
+				{
 					id = "overrideMovement",
 					text = "Override Movement",
 				},
@@ -2345,6 +2351,7 @@ CharacterModifier.StandardModifiers.TransformIntoBeast = CharacterModifier.new{
 	name = "Transformation",
 	source = "Transformation",
 	description = "You are transformed into a different creature",
+	gainCreatureVisuals = true,
 	attributes = {
 		str = true,
 		dex = true,
@@ -2396,7 +2403,7 @@ CharacterModifier.TypeInfo.resource = {
 
 			local resourceTable = dmhub.GetTable("characterResources") or {}
 			for k,v in pairs(resourceTable) do
-				if (not v:try_get("hidden")) and (v.levelsFrom == "none" or v.spellSlot ~= "none") then
+				if (not v:try_get("hidden")) then
 					resourceChoices[#resourceChoices+1] = {
 						id = k,
 						text = v.name,
@@ -3193,6 +3200,10 @@ function CharacterModifier:ConsumeResourceInternal(creature, modContext)
             note = modContext.modifier.name
         end
         creature:ConsumeSurges(cost, note)
+    elseif costType == "epic" and not self:try_get("overrideCost", false) then
+        local charges = self:try_get("_tmp_symbols", {}).charges or 1
+        local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges
+        creature:ConsumeResource(CharacterResource.epicResourceId, "unbounded", cost, string.format("%s", self.name))
     elseif costType ~= "none" and not self:try_get("overrideCost", false) then
         local charges = self:try_get("_tmp_symbols", {}).charges or 1
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)*charges
@@ -3233,6 +3244,10 @@ function CharacterModifier:HasResourcesAvailable(creature)
     local costType = self:try_get("resourceCostType", "none")
     if costType == "surges" then
         local resourcesAvailable = creature:GetAvailableSurges()
+        local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)
+        return cost <= resourcesAvailable
+    elseif costType == "epic" then
+        local resourcesAvailable = creature:GetEpicResources()
         local cost = ExecuteGoblinScript(self:try_get("resourceCostAmount", "1"), creature:LookupSymbol(self:try_get("_tmp_symbols", {})), 0)
         return cost <= resourcesAvailable
     elseif costType ~= "none" then
@@ -3276,6 +3291,9 @@ function CharacterModifier:DescribeResourceAvailability(creature, charges, expec
         if costType == "surges" then
             resourcesAvailable = creature:GetAvailableSurges()
             resourceName = tr("Surges")
+        elseif costType == "epic" then
+            resourcesAvailable = creature:GetEpicResources()
+            resourceName = creature:GetEpicResourceName()
         else
             resourcesAvailable = creature:GetHeroicOrMaliceResources()
             resourceName = creature:GetHeroicResourceName()
@@ -3429,7 +3447,7 @@ function CharacterModifier:HasTriggeredEvent(creature, eventName, targetsOther, 
         end
 
         local token = dmhub.LookupToken(creature)
-        if token == nil or (self.triggeredAbility:try_get("whenActive", "combat") == "combat" and (dmhub.initiativeQueue == nil or dmhub.initiativeQueue:HasInitiative(InitiativeQueue.GetInitiativeId(token)) == false)) then
+        if token == nil or (self.triggeredAbility:try_get("whenActive", "always") == "combat" and (dmhub.initiativeQueue == nil or dmhub.initiativeQueue:HasInitiative(InitiativeQueue.GetInitiativeId(token)) == false)) then
             return false
         end
 

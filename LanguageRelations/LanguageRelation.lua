@@ -139,7 +139,10 @@ local function createListItem(options)
                     if m_search ~= nil then
                         local libraryPanel = element:FindParentWithClass('library-panel')
                         if libraryPanel ~= nil then
-                            libraryPanel:FireEventTree("searchCompendium", m_search)
+                            local contentPanels = libraryPanel:GetChildrenWithClass('content-panel')
+                            for _,cp in ipairs(contentPanels) do
+                                cp:FireEventTree("searchCompendium", m_search)
+                            end
                         end
                     end
                 end,
@@ -155,7 +158,7 @@ local function createListItem(options)
                     else
                         element:SetClass("searching", true)
                         if options.contentType ~= nil then
-                            element:SetClass("matchSearch", #SearchTableForText(dmhub.GetTable(options.contentType), text, options.contentType == "charConditions") > 0)
+                            element:SetClass("matchSearch", SearchTableHasMatch(dmhub.GetTable(options.contentType), text))
 
 	                    elseif options.tableName ~= nil and options.key ~= nil then
 		                    local table = dmhub.GetTable(options.tableName)
@@ -623,18 +626,33 @@ local function obliterateLangRel()
 	langRelTable = dmhub.GetTableVisible(LanguageRelation.tableName) or {}
 end
 
-Commands.langrelloadorden = function(args)
-	loadOrdenRels()
-end
+Commands.RegisterMacro{
+    name = "langrelloadorden",
+    summary = "load Orden relations",
+    doc = "Usage: /langrelloadorden\nLoads the default Orden language relations.",
+    command = function(args)
+        loadOrdenRels()
+    end,
+}
 
-Commands.langrelobliterate = function(args)
-	obliterateLangRel()
-end
+Commands.RegisterMacro{
+    name = "langrelobliterate",
+    summary = "delete all relations",
+    doc = "Usage: /langrelobliterate\nDeletes all language relation data.",
+    command = function(args)
+        obliterateLangRel()
+    end,
+}
 
-Commands.langrelreset = function(args)
-	obliterateLangRel()
-	loadOrdenRels()
-end
+Commands.RegisterMacro{
+    name = "langrelreset",
+    summary = "reset lang relations",
+    doc = "Usage: /langrelreset\nDeletes all language relations then reloads the Orden defaults.",
+    command = function(args)
+        obliterateLangRel()
+        loadOrdenRels()
+    end,
+}
 
 end
 

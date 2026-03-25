@@ -540,6 +540,8 @@ function creature:GetResourceRefreshId(refreshType)
 		end
 
 		return dmhub.initiativeQueue.guid
+	elseif refreshType == 'level' then
+		return tostring(self:CharacterLevel())
 	elseif refreshType == 'never' then
 		return "manual"
 	end

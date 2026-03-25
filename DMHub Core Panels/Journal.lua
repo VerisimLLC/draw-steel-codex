@@ -6,29 +6,34 @@ local docid = "journal"
 
 RegisterGameType("CustomDocument")
 
-Commands.doc = function(str)
-    local args = str:split(" ")
+Commands.RegisterMacro{
+    name = "doc",
+    summary = "open a document",
+    doc = "Usage: /doc <document ID> [page]\nOpens the given document (PDF or custom document) by ID.",
+    command = function(str)
+        local args = str:split(" ")
 
-    if #args == 0 then
-        print("Provide document as argument.")
-        return
-    end
-
-    local doc = assets.pdfDocumentsTable[args[1]]
-    if doc == nil then
-        local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[args[1]]
-        if doc ~= nil then
-            CustomDocument.OpenContent(doc)
+        if #args == 0 then
+            print("Provide document as argument.")
             return
         end
-        print("Document not found.")
-        return
-    end
 
-    local page = tonumber(args[2])
+        local doc = assets.pdfDocumentsTable[args[1]]
+        if doc == nil then
+            local doc = (dmhub.GetTable(CustomDocument.tableName) or {})[args[1]]
+            if doc ~= nil then
+                CustomDocument.OpenContent(doc)
+                return
+            end
+            print("Document not found.")
+            return
+        end
 
-    mod.shared.ShowPDFViewerDialog(doc, page)
-end
+        local page = tonumber(args[2])
+
+        mod.shared.ShowPDFViewerDialog(doc, page)
+    end,
+}
 
 
 local g_adventureDocumentId = "adventureDocuments"
@@ -38,44 +43,43 @@ function GetCurrentAdventuresDocument()
     return doc
 end
 
-Commands.clearadventuredocuments = function(str)
-    if str == "help" then
-        dmhub.Log("Usage: /clearadventuredocuments\n Clears the current adventure document list.")
-    end
-
-    local doc = GetCurrentAdventuresDocument()
-    doc:BeginChange()
-    for k, v in pairs(doc.data) do
-        if doc.data[k] ~= nil then
-            doc.data[k] = nil
+Commands.RegisterMacro{
+    name = "clearadventuredocuments",
+    summary = "clear adventure docs",
+    doc = "Usage: /clearadventuredocuments\nClears the current adventure document list.",
+    command = function(str)
+        local doc = GetCurrentAdventuresDocument()
+        doc:BeginChange()
+        for k, v in pairs(doc.data) do
+            if doc.data[k] ~= nil then
+                doc.data[k] = nil
+            end
         end
-    end
-    doc:CompleteChange()
-end
+        doc:CompleteChange()
+    end,
+}
 
-Commands.setadventuredocumentstitle = function(str)
-    if str == "help" then
-        dmhub.Log(
-            "Usage: /setadventuredocumentstitle name [icon]\nSets the title for adventure documents, and optionally an icon.")
-        return
-    end
+Commands.RegisterMacro{
+    name = "setadventuredocumentstitle",
+    summary = "set adventure title",
+    doc = "Usage: /setadventuredocumentstitle name [icon]\nSets the title for adventure documents, and optionally an icon.",
+    command = function(str)
+        local args = Commands.SplitArgs(str)
+        local doc = GetCurrentAdventuresDocument()
+        doc:BeginChange()
+        doc.data.meta = {
+            name = args[1],
+            icon = args[2],
+        }
+        doc:CompleteChange("Set adventure document title")
+    end,
+}
 
-    local args = Commands.SplitArgs(str)
-    local doc = GetCurrentAdventuresDocument()
-    doc:BeginChange()
-    doc.data.meta = {
-        name = args[1],
-        icon = args[2],
-    }
-    doc:CompleteChange("Set adventure document title")
-end
-
-Commands.setadventuredocument = function(str)
-    if str == "help" then
-        dmhub.Log(
-            "Usage: /setadventuredocument <order> <document name>\n Sets the given document name to be a 'current' adventure document.\n'order' is a number which specifies the order it should be displayed in.\nUse 'off' instead of a number for order to remove the document from the current list.")
-        return
-    end
+Commands.RegisterMacro{
+    name = "setadventuredocument",
+    summary = "set adventure doc",
+    doc = "Usage: /setadventuredocument <order> <document name>\nSets a document as a 'current' adventure document. Use 'off' for order to remove.",
+    command = function(str)
 
     local args = Commands.SplitArgs(str)
     print("ADVENTURE:: SET", str, "->", args)
@@ -108,7 +112,8 @@ Commands.setadventuredocument = function(str)
     end
 
     print("ADVENTURE:: COULD NOT FIND DOC", name)
-end
+    end,
+}
 
 
 
@@ -259,7 +264,6 @@ local function CreateFolderPanel(journalPanel, folderid)
     local resultPanel
     resultPanel = gui.TreeNode {
         classes = cond(builtinFolder, { "documentFolder" }, { "documentFolder", "subfolder" }),
-        headerExtraClasses = cond(builtinFolder, {}, { "subfolder" }),
         editable = not builtinFolder,
         width = "100%",
         dragTarget = true,
@@ -984,14 +988,19 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
     return contentPanel
 end
 
-Commands.getdocument = function()
-    local docs = assets.pdfDocumentsTable
-    for k, doc in pairs(docs or {}) do
-        if not doc.hidden then
-            print("VENLA: ", k, doc.description)
+Commands.RegisterMacro{
+    name = "getdocument",
+    summary = "list PDF documents",
+    doc = "Prints all unhidden PDF document IDs and descriptions to the console.",
+    command = function()
+        local docs = assets.pdfDocumentsTable
+        for k, doc in pairs(docs or {}) do
+            if not doc.hidden then
+                print("VENLA: ", k, doc.description)
+            end
         end
-    end
-end
+    end,
+}
 
 local GetRecentDocumentsSetting = setting {
 

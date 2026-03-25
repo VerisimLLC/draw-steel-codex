@@ -62,7 +62,6 @@ end
 
 function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, targets, options)
 
-    local resultPanel = nil
     local finished = false
     local canceled = false
 
@@ -80,197 +79,326 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
 
     startOfTurnHeroicResource = tonumber(dmhub.EvalGoblinScript(startOfTurnHeroicResource, caster:LookupSymbol(), string.format("Calculating Start of Turn Resources")))
 
-    local stopPresistence = {}
+    local persistenceAbilities = casterToken.properties:try_get("persistentAbilities") or {}
 
-    local createPersistenceAbilityPanel = function(ability)
-        local abilityPanel = gui.Panel{
-            width = "auto",
-            height = 35,
-            halign = "left",
-            flow = "horizontal",
-            vmargin = 3,
-            data = {
-                ability = ability,
-            },
-            gui.Label{
-                text = ability.abilityName,
-                color = Styles.textColor,
-                width = "auto",
-                valign = "center",
-                fontSize = 16,
-            },
-            gui.Button{
-                classes = {'effect-button'},
-                halign = "center",
-                text = "Stop",
-                click = function(element)
-                    if stopPresistence[ability.guid] then
-                        stopPresistence[ability.guid] = nil
-                    else
-                        stopPresistence[ability.guid] = true
-                    end
-                    if element:HasClass("selected") then
-                        element:RemoveClass("selected")
-                    else
-                        element:AddClass("selected")
-                    end
-
-                    element:Get("expectedCostLabel"):FireEvent("refreshCost")
-                end,
-            },
-        }
-
-        return abilityPanel
+    -- Track which abilities are selected to KEEP (start with all selected).
+    local keepAbilities = {}
+    for _, ab in pairs(persistenceAbilities) do
+        keepAbilities[ab.guid] = true
     end
 
+    -- Reference to the cost label so chips can trigger a refresh.
+    local costLabelElement = nil
 
-    local persistenceAbilities = casterToken.properties:try_get("persistentAbilities")
-    local persistenceAbilityPanel = nil
-    persistenceAbilityPanel = gui.Panel{
-        id = "persistenceAbilityPanel",
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        valign = "top",
-        flow = "vertical",
+    local function refreshCostLabel()
+        if costLabelElement == nil then
+            return
+        end
+        local expectedCost = 0
+        for _, ab in pairs(persistenceAbilities) do
+            if keepAbilities[ab.guid] then
+                expectedCost = expectedCost + (ab.cost or 0)
+            end
+        end
+
+        costLabelElement.text = string.format("Essence Gained: %d", startOfTurnHeroicResource - expectedCost)
+
+        if expectedCost > startOfTurnHeroicResource then
+            costLabelElement:SetClass("persist-cannot-afford", true)
+        else
+            costLabelElement:SetClass("persist-cannot-afford", false)
+        end
+    end
+
+    -- Build chip panels for each persistent ability.
+    local chipPanels = {}
+    for _, persistAbility in pairs(persistenceAbilities) do
+        local capturedAbility = persistAbility
+
+        chipPanels[#chipPanels+1] = gui.Panel{
+            classes = {"persist-chip"},
+            flow = "horizontal",
+
+            press = function(element)
+                if keepAbilities[capturedAbility.guid] then
+                    keepAbilities[capturedAbility.guid] = nil
+                    element:SetClass("persist-chip-selected", false)
+                else
+                    keepAbilities[capturedAbility.guid] = true
+                    element:SetClass("persist-chip-selected", true)
+                end
+                refreshCostLabel()
+            end,
+
+            create = function(element)
+                if keepAbilities[capturedAbility.guid] then
+                    element:SetClass("persist-chip-selected", true)
+                end
+            end,
+
+            hover = function(element)
+                local abilities = casterToken.properties:GetActivatedAbilities{excludeGlobal = true}
+                for _, ab in ipairs(abilities) do
+                    if ab.name == capturedAbility.abilityName then
+                        element.tooltip = CreateAbilityTooltip(ab, {
+                            token = casterToken,
+                            halign = "right",
+                            width = 500,
+                        })
+                        break
+                    end
+                end
+            end,
+
+            gui.Label{
+                classes = {"persist-chip-label"},
+                text = capturedAbility.abilityName,
+            },
+        }
+    end
+
+    -- Assemble main content.
+    local mainChildren = {}
+
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"persist-title"},
+        text = ability.name or "Persistence Control",
+    }
+
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"persist-instruction"},
+        text = "Select abilities to end.",
+    }
+
+    mainChildren[#mainChildren+1] = gui.Label{
+        classes = {"persist-cost-label"},
 
         create = function(element)
-            local children = {}
-            for _, ability in pairs(persistenceAbilities or {}) do
-                local abilityEntry = createPersistenceAbilityPanel(ability)
-                children[#children+1] = abilityEntry
-            end
-            element.children = children
+            costLabelElement = element
+            refreshCostLabel()
         end,
     }
 
-    resultPanel = gui.Panel{
-        classes = {"framedPanel"},
-        bgimage = 'panels/square.png',
-        bgcolor = Styles.backgroundColor,
-        borderColor = Styles.textColor,
-        borderWidth = 2,
-        width = 550,
-        height = 550,
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"persist-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        classes = {"persist-chips-wrap"},
+        children = chipPanels,
+    }
+
+    mainChildren[#mainChildren+1] = gui.Panel{ classes = {"persist-divider"} }
+
+    mainChildren[#mainChildren+1] = gui.Panel{
+        classes = {"persist-button-row"},
+        gui.Panel{
+            classes = {"persist-submit"},
+            press = function(element)
+                -- End any persistent abilities that were NOT selected to keep.
+                for _, ab in pairs(persistenceAbilities) do
+                    if not keepAbilities[ab.guid] then
+                        casterToken.properties:EndPersistentAbilityById(ab.guid)
+                    end
+                end
+
+                -- Calculate essence from kept abilities.
+                local selectedCost = 0
+                for _, ab in pairs(persistenceAbilities) do
+                    if keepAbilities[ab.guid] then
+                        selectedCost = selectedCost + (ab.cost or 0)
+                    end
+                end
+                local earnedEssence = startOfTurnHeroicResource - selectedCost
+
+                local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+                for id, effect in pairs(ongoingEffectsTable) do
+                    if string.lower(effect.name) == "essence at start" then
+                        casterToken:ModifyProperties{
+                            description = "Set Start of Turn Essence",
+                            execute = function()
+                                casterToken.properties:ApplyOngoingEffect(id, nil, casterToken, {stacks = earnedEssence + 1})
+                            end,
+                        }
+                        break
+                    end
+                end
+
+                finished = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"persist-button-label"},
+                text = "Submit",
+            },
+        },
+        gui.Panel{
+            classes = {"persist-cancel"},
+            escapeActivates = true,
+            escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+            press = function(element)
+                finished = true
+                canceled = true
+                gui.CloseModal()
+            end,
+            gui.Label{
+                classes = {"persist-button-label"},
+                text = "Cancel",
+            },
+        },
+    }
+
+    local resultPanel = gui.Panel{
+        flow = "vertical",
+        bgimage = "panels/square.png",
+        bgcolor = "#040807",
+        border = 1,
+        borderColor = "#5C3D10",
+        cornerRadius = 6,
+        width = 480,
+        height = "auto",
+        pad = 12,
 
         styles = {
             {
-                classes = {'effect-button'},
+                selectors = {"label", "persist-title"},
+                fontFace = "Berling",
+                fontSize = 18,
+                color = "#5C6860",
                 width = "auto",
                 height = "auto",
                 halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "persist-instruction"},
+                fontFace = "Berling",
+                fontSize = 12,
+                color = "#C49A5A",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
+            },
+            {
+                selectors = {"label", "persist-cost-label"},
+                fontFace = "Berling",
                 fontSize = 14,
-                margin = 4,
-                pad = 2,
-            },
-            {
-                classes = {'effect-button' , 'selected'},
-                borderColor = 'white',
-				borderWidth = 2,
-				bgcolor = '#882222',
-            },
-            {
-                classes = {"persist-label"},
-                color = Styles.textColor,
-                valign = "top",
+                color = "#FFFEF8",
                 width = "auto",
-                fontSize = 20,
+                height = "auto",
+                halign = "left",
+                bmargin = 2,
                 bold = true,
             },
             {
-                classes = {"persist-label",  "cannot-afford"},
-                color = "red",
+                selectors = {"label", "persist-cost-label", "persist-cannot-afford"},
+                color = "#D53031",
             },
-		},
-
-        gui.Panel{
-            flow = "vertical",
-            width = "90%",
-            height = "90%",
-            valign = "top",
-            halign = "center",
-            gui.Label{
-                classes = {"persist-label"},
-                text = ability.name or "Persistence Control",
+            {
+                selectors = {"panel", "persist-divider"},
+                width = "100%",
+                height = 1,
+                bgimage = "panels/square.png",
+                bgcolor = "#5C3D10",
+                vmargin = 8,
             },
-
-            gui.Label{
-                id = "expectedCostLabel",
-                classes = {"persist-label"},
-
-                refreshCost = function(element)
-                    local expectedCost = 0
-                    for _, ability in pairs(persistenceAbilities or {}) do
-                        if not stopPresistence[ability.guid] then
-                            expectedCost = expectedCost + (ability.cost or 0)
-                        end
-                    end
-
-                    element.text = string.format("Essence Gained: %d", startOfTurnHeroicResource - expectedCost)
-
-                    if expectedCost > startOfTurnHeroicResource then
-                        element:AddClass("cannot-afford")
-                    else
-                        element:RemoveClass("cannot-afford")
-                    end
-                end,
-
-                create = function(element)
-                    element:FireEvent("refreshCost")
-                end,
+            {
+                selectors = {"panel", "persist-chips-wrap"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                wrap = true,
+                bmargin = 2,
             },
-
-            persistenceAbilityPanel,
-
-            gui.Button{
-                halign = 'right',
-                valign = 'bottom',
-                text = 'Submit',
+            {
+                selectors = {"panel", "persist-chip"},
+                height = "auto",
+                minHeight = 22,
+                width = "auto",
+                halign = "left",
+                valign = "top",
+                hpad = 8,
+                vpad = 4,
+                margin = 3,
+                flow = "horizontal",
+                bgimage = "panels/square.png",
+                border = 1,
+                borderColor = "#5C6860",
+                bgcolor = "clear",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "persist-chip", "hover"},
+                brightness = 1.3,
+                transitionTime = 0.15,
+            },
+            {
+                selectors = {"panel", "persist-chip", "persist-chip-selected"},
+                borderColor = "#966D4B",
+                bgcolor = "#5C3D10",
+            },
+            {
+                selectors = {"label", "persist-chip-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                valign = "center",
+            },
+            {
+                selectors = {"panel", "persist-button-row"},
+                width = "100%",
+                height = "auto",
+                flow = "horizontal",
+                halign = "right",
+                tmargin = 4,
+            },
+            {
+                selectors = {"panel", "persist-submit"},
+                width = 130,
                 height = 30,
-                width = 160,
-                click = function(element)
-                    for guid, _ in pairs(stopPresistence) do
-                        casterToken.properties:EndPersistentAbilityById(guid)
-                    end
-
-                    local selectedCost = 0
-                    for _, ability in pairs(persistenceAbilities or {}) do
-                        selectedCost = selectedCost + (ability.cost or 0)
-                    end
-                    local earnedEssence = startOfTurnHeroicResource - selectedCost
-
-                    local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
-                    for id, effect in pairs(ongoingEffectsTable) do
-                        if string.lower(effect.name) == "essence at start" then
-                            casterToken:ModifyProperties{
-                                description = "Set Start of Turn Essence",
-                                execute = function()
-                                    casterToken.properties:ApplyOngoingEffect(id, nil, casterToken, {stacks = earnedEssence + 1})
-                                end,
-                            }
-                            break
-                        end
-                    end
-
-                    finished = true
-                    gui.CloseModal()
-                end,
+                halign = "right",
+                rmargin = 8,
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#966D4B",
+                cornerRadius = 4,
             },
-            gui.Button{
-                halign = 'right',
-                valign = 'bottom',
-                text = 'Cancel',
-                width = 160,
-                escapeActivates = true,
-                escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
-                click = function(element)
-                    finished = true
-                    canceled = true
-                    gui.CloseModal()
-                end,
+            {
+                selectors = {"panel", "persist-submit", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"panel", "persist-cancel"},
+                width = 130,
+                height = 30,
+                halign = "right",
+                bgimage = "panels/square.png",
+                bgcolor = "#040807",
+                border = 1,
+                borderColor = "#5C6860",
+                cornerRadius = 4,
+            },
+            {
+                selectors = {"panel", "persist-cancel", "hover"},
+                brightness = 1.25,
+                transitionTime = 0.1,
+            },
+            {
+                selectors = {"label", "persist-button-label"},
+                fontFace = "Berling",
+                fontSize = 13,
+                color = "#FFFEF8",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                valign = "center",
             },
         },
 
+        children = mainChildren,
     }
 
     gui.ShowModal(resultPanel)
@@ -279,7 +407,6 @@ function ActivatedAbilityPersistenceControlBehavior:Cast(ability, casterToken, t
         coroutine.yield(0.1)
     end
 
-    --Canceling stops the ability from executing
     if canceled then
         return
     end

@@ -42,3 +42,4 @@ status.json
 *.x86_64
 *.hex
 
+Definitions/version.txt

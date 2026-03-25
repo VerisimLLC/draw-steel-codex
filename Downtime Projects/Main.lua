@@ -53,14 +53,24 @@ if dmhub.isDM then
     end
 
     -- Register maintenance commands
-    Commands.wipealldowntimedata = function(args)
-        _clearAllData()
-    end
-    Commands.wipetokendowntimedata = function(args)
-        for _, t in ipairs(dmhub.selectedTokens) do
-            _clearTokenData(t)
-        end
-    end
+    Commands.RegisterMacro{
+        name = "wipealldowntimedata",
+        summary = "wipe all downtime",
+        doc = "Usage: /wipealldowntimedata\nClears all downtime project data. DM only.",
+        command = function(args)
+            _clearAllData()
+        end,
+    }
+    Commands.RegisterMacro{
+        name = "wipetokendowntimedata",
+        summary = "wipe token downtime",
+        doc = "Usage: /wipetokendowntimedata\nClears downtime data for selected tokens. DM only.",
+        command = function(args)
+            for _, t in ipairs(dmhub.selectedTokens) do
+                _clearTokenData(t)
+            end
+        end,
+    }
 
 end
 
@@ -113,7 +123,12 @@ local function _migrateFollowerRollsToHero()
 end
 
 if dmhub.isDM then
-Commands.dtmigratefollowerrolls = function()
-    _migrateFollowerRollsToHero()
-end
+Commands.RegisterMacro{
+    name = "dtmigratefollowerrolls",
+    summary = "migrate follower rolls",
+    doc = "Usage: /dtmigratefollowerrolls\nMigrates legacy follower roll data to hero tokens. DM only.",
+    command = function()
+        _migrateFollowerRollsToHero()
+    end,
+}
 end

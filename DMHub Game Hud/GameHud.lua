@@ -14,6 +14,9 @@ end
 
 --is the player currently available to interact with something that pops up?
 function GameHud.AvailableToInteract(self)
+	if self.dialog.sheet == nil then
+		return false
+	end
 	return ActivatedAbility.IsCasting() == false and not self.dialog.sheet.modalDialog
 end
 

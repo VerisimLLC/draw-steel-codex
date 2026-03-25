@@ -94,13 +94,18 @@ function TimerChatMessage.Render(self, message)
     return resultPanel
 end
 
-Commands.timer = function(str)
-    local duration = tonumber(str) or 5
-    local message = TimerChatMessage.new{
-        channel = "chat",
-        duration = duration,
-        timestamp = dmhub.serverTime,
-    }
+Commands.RegisterMacro{
+    name = "timer",
+    summary = "start a timer",
+    doc = "Usage: /timer [seconds]\nCreates a visible countdown timer in chat. Defaults to 5 seconds.",
+    command = function(str)
+        local duration = tonumber(str) or 5
+        local message = TimerChatMessage.new{
+            channel = "chat",
+            duration = duration,
+            timestamp = dmhub.serverTime,
+        }
 
-    chat.SendCustom(message)
-end
+        chat.SendCustom(message)
+    end,
+}

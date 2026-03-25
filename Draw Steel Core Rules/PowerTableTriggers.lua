@@ -190,6 +190,10 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             if token.properties:GetHeroicOrMaliceResources() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
                 return false
             end
+        elseif selfClone.powerRollModifier:try_get("resourceCostType") == "epic" then
+            if token.properties:GetEpicResources() < ExecuteGoblinScript(selfClone.powerRollModifier:try_get("resourceCostAmount", "1"), token.properties:LookupSymbol(symbols), 1) then
+                return false
+            end
         end
 
         local entry = ActiveTrigger.new{
@@ -202,6 +206,8 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
         if selfClone.powerRollModifier:try_get("resourceCostType") == "cost" then
             entry.heroicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
+        elseif selfClone.powerRollModifier:try_get("resourceCostType") == "epic" then
+            entry.epicResourceCost = tonumber(selfClone.powerRollModifier:try_get("resourceCostAmount", 1))
         end
 
         if self.abilityTargets ~= "" then
@@ -243,6 +249,10 @@ CharacterModifier.TypeInfo.powertabletrigger = {
 
         if self.powerRollModifier:try_get("resourceCostType") == "cost" then
             if (tonumber(token.properties:GetHeroicOrMaliceResources()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
+                return false
+            end
+        elseif self.powerRollModifier:try_get("resourceCostType") == "epic" then
+            if (tonumber(token.properties:GetEpicResources()) or 0) < (tonumber(self.powerRollModifier:try_get("resourceCostAmount", 1)) or 0) then
                 return false
             end
         end

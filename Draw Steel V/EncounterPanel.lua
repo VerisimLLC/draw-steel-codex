@@ -361,7 +361,7 @@ local function createGroupPanel(encounter)
 
                             element.children = panels
 
-                            if #panels >= 2 then
+                            if #panels >= 3 then
                                 element.parent:SetClassTree("full", true)
                             else
                                 element.parent:SetClassTree("full", false)

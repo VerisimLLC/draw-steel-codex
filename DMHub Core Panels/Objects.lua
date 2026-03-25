@@ -346,20 +346,30 @@ local function ScrollObjectEntries(delta)
 	end
 end
 
-Commands.nextobj = function()
-	ScrollObjectEntries(1)
-end
+Commands.RegisterMacro{
+    name = "nextobj",
+    summary = "next map object",
+    doc = "Usage: /nextobj\nSelects the next object in the map objects panel.",
+    command = function()
+        ScrollObjectEntries(1)
+    end,
+}
 
-Commands.prevobj = function()
-	ScrollObjectEntries(-1)
-end
+Commands.RegisterMacro{
+    name = "prevobj",
+    summary = "previous map object",
+    doc = "Usage: /prevobj\nSelects the previous object in the map objects panel.",
+    command = function()
+        ScrollObjectEntries(-1)
+    end,
+}
 
 --randomize which object is selected out of the list.
 local function RandomizeObjectSelection()
 	if gui.GetFocus() == nil or #mod.shared.selectedObjectEntries == 0 then
 		return
 	end
-	
+
 	local index = math.random(#mod.shared.selectedObjectEntries)
 	local best = mod.shared.selectedObjectEntries[index]
 	if best ~= nil then
@@ -370,7 +380,12 @@ local function RandomizeObjectSelection()
 	end
 end
 
-Commands.randobj = RandomizeObjectSelection
+Commands.RegisterMacro{
+    name = "randobj",
+    summary = "random map object",
+    doc = "Usage: /randobj\nRandomly selects an object from the map objects panel.",
+    command = RandomizeObjectSelection,
+}
 
 local g_objectEntryStyles = {
 	gui.Style{

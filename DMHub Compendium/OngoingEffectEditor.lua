@@ -131,6 +131,23 @@ function CharacterOngoingEffect.CreateEditor(condid, editorOptions)
 			},
 		}
 
+		children[#children+1] = gui.Panel{
+			classes = {'formPanel'},
+			gui.Label{
+				text = 'Type:',
+				valign = 'center',
+				minWidth = 100,
+			},
+			gui.Dropdown{
+				options = CharacterOngoingEffect.BuffTypeOptions,
+				idChosen = ongoingEffect.buffType,
+				change = function(element)
+					ongoingEffect.buffType = element.idChosen
+					UploadOngoingEffect()
+				end,
+			},
+		}
+
 		local conditionOptions = {
 			{
 				id = "none",

@@ -279,14 +279,24 @@ function DTShares._validDoc(doc)
 end
 
 if DTConstants.DEVMODE then
-    Commands.thcdtshares = function(args)
-        local shares = DTShares.CreateNew()
-        if shares then
-            print("THC:: SHARES::", json(shares:GetShares()))
-        end
-    end
+    Commands.RegisterMacro{
+        name = "thcdtshares",
+        summary = "print downtime shares",
+        doc = "Usage: /thcdtshares\nPrints the current downtime shares data. Dev only.",
+        command = function(args)
+            local shares = DTShares.CreateNew()
+            if shares then
+                print("THC:: SHARES::", json(shares:GetShares()))
+            end
+        end,
+    }
 
-    Commands.thcdtclearshares = function(args)
-        DTShares.CreateNew():InitializeDocument()
-    end
+    Commands.RegisterMacro{
+        name = "thcdtclearshares",
+        summary = "clear downtime shares",
+        doc = "Usage: /thcdtclearshares\nResets the downtime shares document. Dev only.",
+        command = function(args)
+            DTShares.CreateNew():InitializeDocument()
+        end,
+    }
 end

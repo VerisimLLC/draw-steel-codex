@@ -408,7 +408,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local state = _getState()
                 local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
                 if blockSel then
-                    local tip = string.format("Select your %s before chooing features.", CharacterBuilder._ucFirst(selector))
+                    local tip = string.format("Select your %s before choosing features.", CharacterBuilder._ucFirst(selector))
                     gui.Tooltip{
                         halign = "center",
                         valign = "top",
@@ -471,11 +471,21 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 element.hoverCursor = canDrag and "hand" or nil
             end,
             selectItem = function(element)
-                if element.data.option then
-                    local controller = getFeatureSelController(element)
-                    if controller then
-                        controller:FireEvent("applyItem", element.data.option)
-                    end
+                local option = element.data.option
+                if option == nil then return end
+
+                local state = _getState()
+                if state == nil then return end
+                local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
+                if blockSel then return end
+
+                local cachedFeature = getCachedFeature(state, element.data.featureId)
+                if cachedFeature == nil then return end
+                if not cachedFeature:AllowSelection(option:GetGuid()) then return end
+
+                local controller = getFeatureSelController(element)
+                if controller then
+                    controller:FireEvent("applyItem", option)
                 end
             end,
             gui.Panel{

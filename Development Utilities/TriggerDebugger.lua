@@ -279,16 +279,21 @@ LaunchablePanel.Register{
 }
 end
 
-Commands.subclass = function()
-    for _,tok in ipairs(dmhub.selectedTokens) do
-        local subclassName = nil
-        local subclasses = character:GetSubclasses()
-        for _,subclass in ipairs(subclasses) do
-            if subclassName == nil then
-                subclassName = subclass.name
-            else
-                subclassName = string.format("%s/%s", subclassName, subclass.name)
+Commands.RegisterMacro{
+    name = "subclass",
+    summary = "show subclass info",
+    doc = "Usage: /subclass\nPrints subclass information for selected tokens.",
+    command = function()
+        for _,tok in ipairs(dmhub.selectedTokens) do
+            local subclassName = nil
+            local subclasses = character:GetSubclasses()
+            for _,subclass in ipairs(subclasses) do
+                if subclassName == nil then
+                    subclassName = subclass.name
+                else
+                    subclassName = string.format("%s/%s", subclassName, subclass.name)
+                end
             end
         end
-    end
-end
+    end,
+}

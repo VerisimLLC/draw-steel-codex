@@ -10,6 +10,8 @@ end
 local g_activeRoll = nil
 local g_activeRollArgs = nil
 
+local g_timelineHighlightColor = "#6666ff"
+
 local g_settingTriggerDelay = setting{
     id = "rolltriggerdelay",
     description = "Trigger Delay",
@@ -285,6 +287,11 @@ function GameHud.CreateEmbeddedRollDialog()
     --- @type nil|({token: CharacterToken, boons: number, banes: number, text: string, modifiers: CharacterModifier[], triggers: list}[])
     local m_multitargets = nil
     local m_CalculateMultiTargets = nil
+    local m_afterRollModifierEntries = nil
+    -- Non-dice modifier portion of the roll (total - naturalRoll), computed on first
+    -- pending call.  On re-rolls the engine provides a fresh naturalRoll but a stale
+    -- total, so we recompute: correctedTotal = naturalRoll + m_rollNonDiceModifier.
+    local m_rollNonDiceModifier = nil
 
     local GetCurrentMultiTarget = function()
         if m_multitargets == nil or targetCreature == nil then
@@ -1148,11 +1155,18 @@ function GameHud.CreateEmbeddedRollDialog()
                             local costType = modifier:try_get("resourceCostType")
                             local amount = ExecuteGoblinScript(modifier:try_get("resourceCostAmount", 1),
                                 creature:LookupSymbol {}, 0)
-                            local available = tok.properties:GetHeroicOrMaliceResources()
-                            if costType ~= "cost" or amount > available then
+                            local available, resourceName
+                            if costType == "cost" then
+                                available = tok.properties:GetHeroicOrMaliceResources()
+                                resourceName = tok.properties:GetHeroicResourceName()
+                            elseif costType == "epic" then
+                                available = tok.properties:GetEpicResources()
+                                resourceName = tok.properties:GetEpicResourceName()
+                            end
+                            if (costType ~= "cost" and costType ~= "epic") or amount > (available or 0) then
                                 panel:SetClass("collapsed", true)
                             else
-                                panel.text = string.format("%d %s", amount, tok.properties:GetHeroicResourceName())
+                                panel.text = string.format("%d %s", amount, resourceName)
                                 panel:SetClass("selected", augmentations[i])
                             end
                         end
@@ -1486,6 +1500,8 @@ function GameHud.CreateEmbeddedRollDialog()
 
                         if trigger.modifier.powerRollModifier:try_get("resourceCostType") == "cost" then
                             activeTrigger.heroicResourceCost = tonumber(trigger.modifier.powerRollModifier:try_get("resourceCostAmount", 1))
+                        elseif trigger.modifier.powerRollModifier:try_get("resourceCostType") == "epic" then
+                            activeTrigger.epicResourceCost = tonumber(trigger.modifier.powerRollModifier:try_get("resourceCostAmount", 1))
                         end
 
                         activeTrigger._tmp_tokenid = trigger.charid
@@ -1669,6 +1685,21 @@ function GameHud.CreateEmbeddedRollDialog()
         height = "auto",
         maxHeight = 96,
         valign = "top",
+        classes = {"triggersContainer"},
+        bgimage = true,
+
+        styles = {
+            {
+                selectors = {"triggersContainer"},
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"triggersContainer", "finishedRolling"},
+                bgcolor = g_timelineHighlightColor,
+            },
+        },
+
+
         triggersContainer,
         triggersTab,
 
@@ -1736,6 +1767,11 @@ function GameHud.CreateEmbeddedRollDialog()
                     events:Listen(element)
                 end
             end
+            -- On re-rolls rollInfo.total is stale; use the stored modifier
+            -- so diceface events compute the correct running total.
+            if m_rollNonDiceModifier ~= nil and #rollInfo.rolls > 0 then
+                element.data.mod = m_rollNonDiceModifier
+            end
             if #rollInfo.rolls == 0 then
                 element.text = tostring(rollInfo.total)
             end
@@ -1752,11 +1788,22 @@ function GameHud.CreateEmbeddedRollDialog()
     }
 
     m_rollResults = gui.Panel{
-        classes = { "hideWhenMinimized" },
+        classes = { "hideWhenMinimized", "resultsPanel" },
         width = "100%",
         height = "auto",
         halign = "left",
         valign = "top",
+        bgimage = true,
+        styles = {
+            {
+                selectors = {"resultsPanel"},
+                bgcolor = "clear",
+            },
+            {
+                selectors = {"resultsPanel", "rolling"},
+                bgcolor = g_timelineHighlightColor,
+            },
+        },
 
         m_rollResultsTab,
         m_customContainer,
@@ -1805,7 +1852,9 @@ function GameHud.CreateEmbeddedRollDialog()
         },
         width = "auto",
         height = "auto",
+        maxHeight = 100,
         maxWidth = 350,
+        vscroll = true,
         halign = "center",
         valign = "top",
         flow = "horizontal",
@@ -2376,6 +2425,9 @@ function GameHud.CreateEmbeddedRollDialog()
                 local children = {}
 
                 for modifierIndex, mod in ipairs(options.modifiers) do
+                    if mod.isAfterRoll then
+                        goto continue
+                    end
                     if mod.modifier then
                         -- Skip modifiers that fail requirements
                         if mod.failsRequirement then
@@ -2566,6 +2618,117 @@ function GameHud.CreateEmbeddedRollDialog()
         },
     }
 
+    local afterRollModifiersPanel = gui.Panel {
+        classes = { "hideWhenMinimized", "modifiers-panel" },
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        wrap = true,
+        bmargin = 6,
+        events = {
+            prepare = function(element, options)
+                if creature == nil or options.modifiers == nil then
+                    element.children = {}
+                    element:SetClass('collapsed-anim', true)
+                    return
+                end
+
+                local children = {}
+
+                for modifierIndex, mod in ipairs(options.modifiers) do
+                    if not mod.isAfterRoll then
+                        goto continue
+                    end
+                    if mod.modifier then
+                        if mod.failsRequirement then
+                            goto continue
+                        end
+
+                        mod.context = mod.context or {}
+                        local ischecked = false
+                        local force = mod.modifier:try_get("force", false)
+                        if mod.override ~= nil then
+                            ischecked = mod.override
+                        elseif force then
+                            ischecked = true
+                        elseif mod.hint ~= nil then
+                            ischecked = mod.hint.result
+                        end
+
+                        local tooltip = mod.modifier:GetSummaryText()
+                        if creature ~= nil then
+                            tooltip = StringInterpolateGoblinScript(tooltip, creature)
+                        end
+                        for i, justification in ipairs(mod.hint.justification) do
+                            tooltip = string.format("%s\n<color=%s>%s", tooltip, cond(ischecked, '#aaffaa', '#ffaaaa'),
+                                justification)
+                        end
+
+                        local text = mod.modifier.name
+                        if mod.modFromTarget then
+                            text = string.format("Target is %s", text)
+                        end
+
+                        local triggeredModifier = mod.modifier:try_get("_tmp_trigger")
+
+                        if triggeredModifier then
+                            local token = dmhub.GetTokenById(mod.modifier._tmp_triggerCharid)
+                            if token ~= nil then
+                                text = string.format("%s (%s)", text, token.name)
+                            end
+                        else
+                            local availability = mod.modifier:DescribeResourceAvailability(creature,
+                                mod.context.charges or 1, options.expectedCostOfCurrentCast)
+                            if availability then
+                                text = string.format("%s (%s)", text, availability)
+                            end
+                        end
+
+                        local classes = nil
+
+                        if force then
+                            classes = { "collapsed-anim" }
+                        end
+
+                        local check = ModifierPanel{
+                            classes = classes,
+                            text = text,
+                            value = ischecked,
+                            hmargin = 2,
+                            mod = mod,
+                            data = {
+                                mod = mod,
+                                modifierIndex = modifierIndex,
+                            },
+                            change = function(element)
+                                mod.override = element.value
+
+                                resultPanel:FireEventTree('prepare', m_options)
+                                CalculateRollText()
+                                RecalculateMultiTargets()
+                            end,
+                            linger = gui.Tooltip {
+                                text = tooltip,
+                                maxWidth = 600,
+                            },
+                        }
+
+                        children[#children + 1] = check
+                    end
+
+                    ::continue::
+                end
+
+                if #children > 0 then
+                    element:SetClass('collapsed-anim', false)
+                else
+                    element:SetClass('collapsed-anim', true)
+                end
+                element.children = children
+            end,
+        },
+    }
+
     local CancelRollDialog = function()
         RemoveTargetHints()
         if cancelRoll ~= nil then
@@ -2581,13 +2744,23 @@ function GameHud.CreateEmbeddedRollDialog()
         m_triggerProgressDice = gui.ProgressDice{
             data = {
                 startTime = 0,
+                bonusTime = 0,
+                lastThinkTime = 0,
             },
             classes = {"shownWhenPending", "collapsed"},
             width = 64,
             height = 64,
             halign = "center",
             valign = "center",
-            hover = gui.Tooltip("Allow time for triggers to be used."),
+            brightness = 1,
+            hoverCursor = "pointer",
+            styles = {
+                {
+                    selectors = {"hover"},
+                    brightness = 1.3,
+                },
+            },
+            hover = gui.Tooltip("Allow time for triggers to be used.\nHold to advance faster."),
             pending = function(element)
                 if triggersTab:HasClass("hasTriggers") then
                     element:SetClass("collapsed", false)
@@ -2595,6 +2768,8 @@ function GameHud.CreateEmbeddedRollDialog()
                     proceedAfterRollButton:SetClass("collapsed", true)
                     element.thinkTime = 0.01
                     element.data.startTime = dmhub.Time()
+                    element.data.bonusTime = 0
+                    element.data.lastThinkTime = dmhub.Time()
                 end
             end,
 
@@ -2607,7 +2782,17 @@ function GameHud.CreateEmbeddedRollDialog()
                     return
                 end
 
-                local t = (dmhub.Time() - element.data.startTime)/g_settingTriggerDelay:Get()
+                local now = dmhub.Time()
+                local dt = now - element.data.lastThinkTime
+                element.data.lastThinkTime = now
+
+                -- Advance 8x faster while the user holds the mouse button on the timer
+                if element:HasClass("hover") and element:GetMouseButton(0) then
+                    element.data.bonusTime = element.data.bonusTime + dt * 7
+                end
+
+                local elapsed = (now - element.data.startTime) + element.data.bonusTime
+                local t = elapsed / g_settingTriggerDelay:Get()
                 element:FireEventTree("progress", t)
                 if t >= 1 then
                     rollAgainButton:SetClass("collapsed", false)
@@ -2747,9 +2932,25 @@ function GameHud.CreateEmbeddedRollDialog()
         children = {
             alternateRollsBar,
             gui.Panel {
+                classes = {"rollPanel"},
                 width = "100%",
                 height = "auto",
                 flow = "vertical",
+                bgimage = true,
+                styles = {
+                    {
+                        selectors = {"rollPanel"},
+                        bgcolor = g_timelineHighlightColor,
+                    },
+                    {
+                        selectors = {"rollPanel", "rolling"},
+                        bgcolor = "clear",
+                    },
+                    {
+                        selectors = {"rollPanel", "finishedRolling"},
+                        bgcolor = "clear",
+                    },
+                },
 
                 --tab panel
                 gui.Panel{
@@ -2835,6 +3036,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_tableContainer,
             rollInputContainer,
             m_rollTotalLabel,
+            afterRollModifiersPanel,
             m_rollResults,
             triggersWithTabContainer,
             rollDisabledLabel,
@@ -2939,6 +3141,14 @@ function GameHud.CreateEmbeddedRollDialog()
                 end
             end
 
+            -- Re-inject after-roll modifier entries so they survive this recalculation.
+            -- The same entry objects are reused, preserving any mod.override values set by the user.
+            if m_afterRollModifierEntries ~= nil then
+                for _, entry in ipairs(m_afterRollModifierEntries) do
+                    m_options.modifiers[#m_options.modifiers + 1] = entry
+                end
+            end
+
             resultPanel:FireEventTree('prepare', m_options)
             local roll = CalculateRollText {
                 surges = m_multitargets[index].surges or 0,
@@ -2951,6 +3161,7 @@ function GameHud.CreateEmbeddedRollDialog()
             m_multitargets[index].rollProperties.multitargets = nil
             m_multitargets[index].boons = (rollInfo.boons or 0)
             m_multitargets[index].banes = (rollInfo.banes or 0)
+            m_multitargets[index].tiersDelta = (rollInfo.tiers or 0)
 
             -- Check roll requirements for triggers so they hide/show dynamically.
             -- If a trigger is already activated, skip the check -- its own effect
@@ -2970,6 +3181,137 @@ function GameHud.CreateEmbeddedRollDialog()
                     trigger.failsRequirement = nil
                 end
             end
+
+            -- Re-evaluate after-roll conditions using the effective (post-modifier) roll.
+            -- Modifier toggles may change the effective tier, which affects conditions like Cast.Tier = 3.
+            -- Only runs after pending has fired (m_afterRollModifierEntries ~= nil).
+            if m_afterRollModifierEntries ~= nil
+                    and m_symbols ~= nil and m_symbols.cast ~= nil then
+                -- rollInfo here is from ParseRoll which does not carry a 'total' field.
+                -- Build a combined rollInfo using the corrected dice total and the
+                -- per-target boons/banes/tiers from ParseRoll so DiceResultToTier works correctly.
+                -- On re-rolls the engine's m_rollInfo.total is stale; recompute
+                -- from naturalRoll + stored modifier (same logic as pending callback).
+                local correctedTotal = 0
+                if m_rollInfo ~= nil then
+                    local natRoll = m_rollInfo.naturalRoll or 0
+                    if natRoll > 0 and m_rollNonDiceModifier ~= nil then
+                        correctedTotal = natRoll + m_rollNonDiceModifier
+                    else
+                        correctedTotal = m_rollInfo.total or 0
+                    end
+                end
+                local effectiveRollInfo = {
+                    total        = correctedTotal,
+                    boons        = rollInfo.boons,
+                    banes        = rollInfo.banes,
+                    tiers        = rollInfo.tiers,
+                    autosuccess  = rollInfo.autosuccess,
+                    autofailure  = rollInfo.autofailure,
+                    nottierone   = rollInfo.nottierone,
+                    nottierthree = rollInfo.nottierthree,
+                }
+                -- Keep all three cast symbols in sync so condition scripts see consistent
+                -- values regardless of when RecalculateMultiTargets fires relative to pending.
+                if m_rollInfo ~= nil then
+                    local natRoll = m_rollInfo.naturalRoll or 0
+                    m_symbols.cast.roll = correctedTotal
+                    m_symbols.cast.naturalRoll = natRoll > 0 and natRoll or correctedTotal
+                end
+                m_symbols.cast.tier = (rollProperties and rollProperties:try_get("overrideTier"))
+                                       or RollUtils.DiceResultToTier(effectiveRollInfo)
+
+                -- Re-run full collection (Pass 1 + Pass 2) with updated symbols.
+                local recollected = {}
+                if creature ~= nil then
+                    local creatureMods = creature:GetAfterRollModifiersForPowerRoll(rollType, {
+                        ability  = m_options.ability,
+                        target   = m_options.targetCreature,
+                        caster   = m_options.creature,
+                        title    = m_options.title or "",
+                        symbols  = m_symbols,
+                    })
+                    for _, mod in ipairs(creatureMods) do
+                        mod.isAfterRoll = true
+                        recollected[#recollected + 1] = mod
+                    end
+                end
+                if m_options.ability ~= nil then
+                    for _, behavior in ipairs(m_options.ability.behaviors or {}) do
+                        if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" then
+                            local modifier = behavior.modifier
+                            if type(modifier:try_get("activationAfterRoll", false)) == "string" then
+                                local modContext = { mod = modifier }
+                                local hint = modifier:HintModifyPowerRollsAfter(modContext, creature, rollType, {
+                                    ability  = m_options.ability,
+                                    target   = m_options.targetCreature,
+                                    caster   = m_options.creature,
+                                    title    = m_options.title or "",
+                                    symbols  = m_symbols,
+                                })
+                                if hint ~= nil then
+                                    recollected[#recollected + 1] = {
+                                        modifier = modifier,
+                                        context  = modContext,
+                                        hint     = hint,
+                                        isAfterRoll = true,
+                                    }
+                                end
+                            end
+                        end
+                    end
+                end
+
+                -- Merge with existing entries to preserve any user override values.
+                local existingByModifier = {}
+                for _, e in ipairs(m_afterRollModifierEntries) do
+                    existingByModifier[e.modifier] = e
+                end
+                local newEntries = {}
+                local changed = (#recollected ~= #m_afterRollModifierEntries)
+                for _, rec in ipairs(recollected) do
+                    local existing = existingByModifier[rec.modifier]
+                    if existing then
+                        if existing.hint == nil
+                                or existing.hint.result ~= rec.hint.result then
+                            existing.hint = rec.hint
+                            changed = true
+                        end
+                        newEntries[#newEntries + 1] = existing
+                    else
+                        newEntries[#newEntries + 1] = rec
+                        changed = true
+                    end
+                end
+
+                if changed then
+                    -- Rebuild m_options.modifiers: strip old entries, append new entries.
+                    local oldEntrySet = {}
+                    for _, e in ipairs(m_afterRollModifierEntries) do
+                        oldEntrySet[e] = true
+                    end
+                    local filtered = {}
+                    for _, mod in ipairs(m_options.modifiers) do
+                        if not oldEntrySet[mod] then
+                            filtered[#filtered + 1] = mod
+                        end
+                    end
+                    m_afterRollModifierEntries = newEntries
+                    for _, entry in ipairs(m_afterRollModifierEntries) do
+                        filtered[#filtered + 1] = entry
+                    end
+                    m_options.modifiers = filtered
+                    -- CalculateRollText fires 'prepare' internally (at the start of its
+                    -- rollProperties block), so a separate prepare call here is redundant.
+                    -- Re-running CalculateRollText ensures m_activeModifiers, surge counts,
+                    -- and rollProperties reflect the updated modifier state. Without this,
+                    -- modifiersUsed is captured before the modifier becomes active, so its
+                    -- effects (surges etc.) are never applied on roll acceptance.
+                    CalculateRollText{surges = m_multitargets[index].surges or 0}
+                    m_multitargets[index].modifiersUsed = DeepCopy(m_activeModifiers)
+                    m_multitargets[index].rollProperties = DeepCopy(rollProperties)
+                end
+            end
         end
 
         --make sure the rollProperties have the correct multitargets.
@@ -2985,16 +3327,20 @@ function GameHud.CreateEmbeddedRollDialog()
         --a multitarget's "boons" is relative to the boons for the roll.
         local normalizedBoons = m_multitargets[index].boons
         local normalizedBanes = m_multitargets[index].banes
+        local normalizedTiers = m_multitargets[index].tiersDelta or 0
         if m_rollInfo ~= nil then
             --if the roll has already started then the roll defines the normalized boons.
             normalizedBoons = (m_rollInfo.boons or 0)
             normalizedBanes = (m_rollInfo.banes or 0)
+            normalizedTiers = (m_rollInfo.tiers or 0)
         end
         for i = 1, #m_multitargets do
             m_multitargets[i].boons = m_multitargets[i].boons - normalizedBoons
             m_multitargets[i].banes = m_multitargets[i].banes - normalizedBanes
+            m_multitargets[i].tiersDelta = (m_multitargets[i].tiersDelta or 0) - normalizedTiers
             rollProperties.multitargets[i].boons = m_multitargets[i].boons
             rollProperties.multitargets[i].banes = m_multitargets[i].banes
+            rollProperties.multitargets[i].tiersDelta = m_multitargets[i].tiersDelta
         end
 
         resultPanel:FireEventTree("recalculatedMultiTargets", m_multitargets, rollProperties)
@@ -3093,12 +3439,14 @@ function GameHud.CreateEmbeddedRollDialog()
 
                 print("RollDialog:: inCoroutine", dmhub.inCoroutine)
                 if dmhub.inCoroutine then
-                    while not resultPanel:HasClass("hidden") do
-                        coroutine.yield(0.02)
-
+                    while true do
                         if resultPanel == nil or (not resultPanel.valid) then
                             return
                         end
+                        if resultPanel:HasClass("hidden") then
+                            break
+                        end
+                        coroutine.yield(0.02)
                     end
                 elseif not resultPanel:HasClass("hidden") then
                     local rollid = dmhub.GenerateGuid()
@@ -3218,6 +3566,7 @@ function GameHud.CreateEmbeddedRollDialog()
                 rollDiceButton.hasFocus = true
 
                 m_symbols = options.symbols
+                m_rollNonDiceModifier = nil
 
                 resultPanel.data.rollid = options.rollid or dmhub.GenerateGuid()
                 rollIsSilent = false
@@ -3696,7 +4045,41 @@ function GameHud.CreateEmbeddedRollDialog()
                     end,
                     pending = function(rollInfo)
                         m_rollInfo = rollInfo
-                        m_rollTotalLabel.text = tostring(rollInfo.total or 0)
+
+                        -- On re-rolls the engine provides a fresh naturalRoll but a
+                        -- stale total.  Compute the non-dice modifier once (first
+                        -- pending, where total IS accurate) then reuse it.
+                        local natRoll = rollInfo.naturalRoll or 0
+                        local correctedTotal
+                        if natRoll > 0 then
+                            if m_rollNonDiceModifier == nil then
+                                m_rollNonDiceModifier = (rollInfo.total or 0) - natRoll
+                            end
+                            correctedTotal = natRoll + m_rollNonDiceModifier
+                        else
+                            correctedTotal = rollInfo.total or 0
+                        end
+
+                        m_rollTotalLabel.text = tostring(correctedTotal)
+
+                        if m_symbols ~= nil and m_symbols.cast ~= nil then
+                            m_symbols.cast.roll = correctedTotal
+                            m_symbols.cast.naturalRoll = natRoll > 0 and natRoll or correctedTotal
+                            local tierRollInfo = {
+                                total        = correctedTotal,
+                                boons        = rollInfo.boons,
+                                banes        = rollInfo.banes,
+                                tiers        = rollInfo.tiers,
+                                autosuccess  = rollInfo.autosuccess,
+                                autofailure  = rollInfo.autofailure,
+                                nottierone   = rollInfo.nottierone,
+                                nottierthree = rollInfo.nottierthree,
+                            }
+                            local tier = (rollProperties and rollProperties:try_get("overrideTier"))
+                                         or RollUtils.DiceResultToTier(tierRollInfo)
+                            m_symbols.cast.tier = tier
+                        end
+
                         if showingDialog then
                             resultPanel:SetClassTree("rolling", false)
                             resultPanel:SetClassTree("finishedRolling", true)
@@ -3707,6 +4090,78 @@ function GameHud.CreateEmbeddedRollDialog()
                             else
                                 rollAgainButton:SetClass("collapsed", false)
                                 proceedAfterRollButton:SetClass("collapsed", false)
+                            end
+
+                            -- On re-roll, strip any stale after-roll entries that were
+                            -- re-injected by RecalculateMultiTargets before the new dice were thrown.
+                            if m_afterRollModifierEntries ~= nil and m_options.modifiers ~= nil then
+                                local oldEntries = {}
+                                for _, entry in ipairs(m_afterRollModifierEntries) do
+                                    oldEntries[entry] = true
+                                end
+                                local filtered = {}
+                                for _, mod in ipairs(m_options.modifiers) do
+                                    if not oldEntries[mod] then
+                                        filtered[#filtered + 1] = mod
+                                    end
+                                end
+                                m_options.modifiers = filtered
+                            end
+
+                            -- Collect after-roll modifier entries into a persistent table so
+                            -- they survive RecalculateMultiTargets calls (which rebuild m_options.modifiers).
+                            m_afterRollModifierEntries = {}
+
+                            -- Pass 1: creature-level modifiers (conditions, features) via GetActiveModifiers()
+                            if creature ~= nil then
+                                local creatureMods = creature:GetAfterRollModifiersForPowerRoll(rollType, {
+                                    ability  = m_options.ability,
+                                    target   = m_options.targetCreature,
+                                    caster   = m_options.creature,
+                                    title    = m_options.title or "",
+                                    symbols  = m_symbols,
+                                })
+                                for _, mod in ipairs(creatureMods) do
+                                    mod.isAfterRoll = true
+                                    m_afterRollModifierEntries[#m_afterRollModifierEntries + 1] = mod
+                                end
+                            end
+
+                            -- Pass 2: ActivatedAbilityModifyPowerRollBehavior modifiers on the active ability.
+                            -- These are NOT in GetActiveModifiers() so must be iterated directly.
+                            if m_options.ability ~= nil then
+                                for _, behavior in ipairs(m_options.ability.behaviors or {}) do
+                                    if behavior.typeName == "ActivatedAbilityModifyPowerRollBehavior" then
+                                        local modifier = behavior.modifier
+                                        if type(modifier:try_get("activationAfterRoll", false)) == "string" then
+                                            local modContext = { mod = modifier }
+                                            local hint = modifier:HintModifyPowerRollsAfter(modContext, creature, rollType, {
+                                                ability  = m_options.ability,
+                                                target   = m_options.targetCreature,
+                                                caster   = m_options.creature,
+                                                title    = m_options.title or "",
+                                                symbols  = m_symbols,
+                                            })
+                                            if hint ~= nil then
+                                                m_afterRollModifierEntries[#m_afterRollModifierEntries + 1] = {
+                                                    modifier = modifier,
+                                                    context  = modContext,
+                                                    hint     = hint,
+                                                    isAfterRoll = true,
+                                                }
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+
+                            if #m_afterRollModifierEntries > 0 then
+                                m_options.modifiers = m_options.modifiers or {}
+                                for _, entry in ipairs(m_afterRollModifierEntries) do
+                                    m_options.modifiers[#m_options.modifiers + 1] = entry
+                                end
+                                resultPanel:FireEventTree('prepare', m_options)
+                                CalculateRollText{}
                             end
                         end
                     end,

@@ -19,11 +19,16 @@ g_useCompiled = g_compiledGoblinScript:Get()
 local g_compiled = {}
 local g_errors = {}
 
-Commands.flushcompiledgoblinscript = function()
-    g_compiled = {}
-    g_errors = {}
-    print("GoblinScript: Flushed compiled formula cache")
-end
+Commands.RegisterMacro{
+    name = "flushcompiledgoblinscript",
+    summary = "flush formula cache",
+    doc = "Usage: /flushcompiledgoblinscript\nClears the compiled GoblinScript formula cache.",
+    command = function()
+        g_compiled = {}
+        g_errors = {}
+        print("GoblinScript: Flushed compiled formula cache")
+    end,
+}
 
 local g_debugEntries = {}
 local g_debugScheduled = false
@@ -176,7 +181,8 @@ BuiltinGoblinScriptFunctions = {
         if toka == nil or tokb == nil then
             return 1
         end
-        local coverInfo = dmhub.GetCoverInfo(toka, tokb)
+        local pierceWalls = (toka.properties ~= nil) and toka.properties:GetPierceWalls() or 0
+        local coverInfo = dmhub.GetCoverInfo(toka, tokb, pierceWalls)
         if coverInfo == nil then
             return 1
         end
@@ -252,50 +258,54 @@ local function UnitTestGoblinScript(formula, expectedValue, out)
     return true
 end
 
-Commands.goblinscriptunittest = function(str)
-    local tests = {
-        {"18 + (Level - 1)*6", 18 + (1 - 1)*6},
-        {"min(10, 20)", 10},
-        {"max(10, 20)", 20},
-        {"floor(3.7)", 3},
-        {"ceiling(3.2)", 4},
-        {"self.stamina + 5", 15},
-        {"self.monstertype = \"Goblin\"", 1},
-        {"self.monstertype ~= \"Goblin\"", 0},
-        {"self.conditions has \"Poisoned\"", 1},
-        {"self.conditions has \"Burning\"", 0},
-        {"5 when stamina > 5", 5},
-        {"5 when stamina < 5", 0},
-        {"2 + 5 when stamina > 5 and level = 1 else 12", 7},
-        {"2 + 5 when stamina < 5 and level = 1 else 12", 14},
-        {"max(stamina, 118, 4, 170, 24)", 170},
-        {"stamina or level or 4", 10},
-        {"stamina or level or 18", 18},
-        {"stamina + x where x = 7", 17},
-        {"Stamina <= Maximum Stamina/2", 1},
-        {"Stamina <= Maximum Stamina/4", 0},
-        {"symbols = self", 1},
-        {"symbols = symbols", 1},
-        {"symbols != self", 0},
-        {"symbols != symbols", 0},
-    }
+Commands.RegisterMacro{
+    name = "goblinscriptunittest",
+    summary = "run formula tests",
+    doc = "Usage: /goblinscriptunittest\nRuns unit tests for the GoblinScript formula evaluator.",
+    command = function(str)
+        local tests = {
+            {"18 + (Level - 1)*6", 18 + (1 - 1)*6},
+            {"min(10, 20)", 10},
+            {"max(10, 20)", 20},
+            {"floor(3.7)", 3},
+            {"ceiling(3.2)", 4},
+            {"self.stamina + 5", 15},
+            {"self.monstertype = \"Goblin\"", 1},
+            {"self.monstertype ~= \"Goblin\"", 0},
+            {"self.conditions has \"Poisoned\"", 1},
+            {"self.conditions has \"Burning\"", 0},
+            {"5 when stamina > 5", 5},
+            {"5 when stamina < 5", 0},
+            {"2 + 5 when stamina > 5 and level = 1 else 12", 7},
+            {"2 + 5 when stamina < 5 and level = 1 else 12", 14},
+            {"max(stamina, 118, 4, 170, 24)", 170},
+            {"stamina or level or 4", 10},
+            {"stamina or level or 18", 18},
+            {"stamina + x where x = 7", 17},
+            {"Stamina <= Maximum Stamina/2", 1},
+            {"Stamina <= Maximum Stamina/4", 0},
+            {"symbols = self", 1},
+            {"symbols = symbols", 1},
+            {"symbols != self", 0},
+            {"symbols != symbols", 0},
+        }
 
-    local allPassed = true
-    for i, test in ipairs(tests) do
-        local formula = test[1]
-        local expectedValue = test[2]
-        local out = {}
-        local passed = UnitTestGoblinScript(formula, expectedValue, out)
-        if not passed then
-            print("GoblinScript Unit Test: Lua code for failed", formula, ":\n", out.lua)
-            allPassed = false
+        local allPassed = true
+        for i, test in ipairs(tests) do
+            local formula = test[1]
+            local expectedValue = test[2]
+            local out = {}
+            local passed = UnitTestGoblinScript(formula, expectedValue, out)
+            if not passed then
+                print("GoblinScript Unit Test: Lua code for failed", formula, ":\n", out.lua)
+                allPassed = false
+            end
         end
-    end
 
-    if allPassed then
-        print("GoblinScript Unit Test: ALL TESTS PASSED")
-    else
-        print("GoblinScript Unit Test: SOME TESTS FAILED")
-    end
-
-end
+        if allPassed then
+            print("GoblinScript Unit Test: ALL TESTS PASSED")
+        else
+            print("GoblinScript Unit Test: SOME TESTS FAILED")
+        end
+    end,
+}

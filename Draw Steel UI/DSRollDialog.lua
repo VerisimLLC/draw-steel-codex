@@ -842,11 +842,18 @@ function GameHud.CreateRollDialog(self)
                             local costType = modifier:try_get("resourceCostType")
                             local amount = ExecuteGoblinScript(modifier:try_get("resourceCostAmount", 1),
                                 creature:LookupSymbol {}, 0)
-                            local available = tok.properties:GetHeroicOrMaliceResources()
-                            if costType ~= "cost" or amount > available then
+                            local available, resourceName
+                            if costType == "cost" then
+                                available = tok.properties:GetHeroicOrMaliceResources()
+                                resourceName = tok.properties:GetHeroicResourceName()
+                            elseif costType == "epic" then
+                                available = tok.properties:GetEpicResources()
+                                resourceName = tok.properties:GetEpicResourceName()
+                            end
+                            if (costType ~= "cost" and costType ~= "epic") or amount > (available or 0) then
                                 panel:SetClass("collapsed", true)
                             else
-                                panel.text = string.format("%d %s", amount, tok.properties:GetHeroicResourceName())
+                                panel.text = string.format("%d %s", amount, resourceName)
                                 panel:SetClass("selected", augmentations[i])
                             end
                         end
@@ -1125,6 +1132,8 @@ function GameHud.CreateRollDialog(self)
 
                         if trigger.modifier.powerRollModifier:try_get("resourceCostType") == "cost" then
                             activeTrigger.heroicResourceCost = tonumber(trigger.modifier.powerRollModifier:try_get("resourceCostAmount", 1))
+                        elseif trigger.modifier.powerRollModifier:try_get("resourceCostType") == "epic" then
+                            activeTrigger.epicResourceCost = tonumber(trigger.modifier.powerRollModifier:try_get("resourceCostAmount", 1))
                         end
 
                         activeTrigger._tmp_tokenid = trigger.charid

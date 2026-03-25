@@ -991,7 +991,11 @@ TokenHud.RegisterPanel{
                             height = 36*0.45,
                             rotate = 180,
                             think = function(element)
-                                element.selfStyle.bgcolor = cond(element.parent.data.otherToken.properties:try_get("_tmp_grantsFlanking", "") == token.charid, "#FFFFFF", "#CF1414")
+                                local otherToken = element.parent.data.otherToken
+                                if otherToken == nil or not otherToken.valid then
+                                    return
+                                end
+                                element.selfStyle.bgcolor = cond(otherToken.properties:try_get("_tmp_grantsFlanking", "") == token.charid, "#FFFFFF", "#CF1414")
                             end,
                         },                        
 

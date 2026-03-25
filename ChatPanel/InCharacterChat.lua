@@ -74,11 +74,16 @@ function InCharacterChatMessage.Render(self, message)
     }
 end
 
-Commands.ic = function(msg)
-    chat.SendCustom(
-        InCharacterChatMessage.new{
-            channel = "chat",
-            text = msg,
-        }
-    )
-end
+Commands.RegisterMacro{
+    name = "ic",
+    summary = "in-character chat",
+    doc = "Usage: /ic <message>\nSends a chat message as your primary character using the language system.",
+    command = function(msg)
+        chat.SendCustom(
+            InCharacterChatMessage.new{
+                channel = "chat",
+                text = msg,
+            }
+        )
+    end,
+}

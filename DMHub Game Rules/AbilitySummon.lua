@@ -26,6 +26,17 @@ ActivatedAbilitySummonBehavior.casterControls = true
 ActivatedAbilitySummonBehavior.casterChoosesCreatures = true
 ActivatedAbilitySummonBehavior.groupInitiativeWithCaster = true
 
+--duplicate mode fields
+ActivatedAbilitySummonBehavior.duplicateMode = false
+ActivatedAbilitySummonBehavior.copyStamina = false
+ActivatedAbilitySummonBehavior.copyEffects = false
+ActivatedAbilitySummonBehavior.copyConditions = false
+ActivatedAbilitySummonBehavior.copyFeatures = false
+ActivatedAbilitySummonBehavior.copyResistances = false
+ActivatedAbilitySummonBehavior.copyAbilities = false
+ActivatedAbilitySummonBehavior.copyTriggers = false
+ActivatedAbilitySummonBehavior.duplicateTargetOrigin = "duplicate"
+
 
 setting{
 	id = "summoncrcheck",
@@ -41,6 +52,9 @@ setting{
 
 
 function ActivatedAbilitySummonBehavior:SummarizeBehavior(ability, creatureLookup)
+	if self.duplicateMode then
+		return "Duplicate Token"
+	end
 	return "Summon Creatures"
 end
 
@@ -233,7 +247,286 @@ function ActivatedAbilitySummonBehavior.ShowCreatureChoiceDialog(choices, dialog
 end
 
 
+function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targets, args)
+    local summonedTokens = {}
+
+    local initiativeGrouping = nil
+    if self.groupInitiativeWithCaster then
+        initiativeGrouping = InitiativeQueue.GetInitiativeId(casterToken)
+    end
+
+    --targets comes from ApplyToTargets, which determines the SOURCE tokens to duplicate.
+    --args.targets holds the original ability targets (the locations the player chose).
+    --When applyto = "caster", targets = {{token = casterToken}} with no loc,
+    --so we use the original target locs for spawn positions.
+    local spawnLocs = {}
+    if args.targets ~= nil then
+        for _,t in ipairs(args.targets) do
+            if t.loc ~= nil then
+                spawnLocs[#spawnLocs+1] = t.loc
+            end
+        end
+    end
+
+    for i,target in ipairs(targets) do
+        local sourceToken = target.token
+        if sourceToken == nil then
+            print("DUPLICATE:: target has no token, skipping")
+            goto continue_duplicate
+        end
+
+        --use the original target loc for spawn position if available,
+        --otherwise fall back to the source token's location.
+        local loc = spawnLocs[i] or spawnLocs[1] or target.loc or sourceToken.loc
+
+        local token = nil
+        local isMonster = sourceToken.properties:try_get("__typeName") == "monster"
+
+        if isMonster then
+            --monsters can be duplicated directly from their bestiary entry
+            local bestiaryId = sourceToken.bestiaryId
+            if bestiaryId == nil or bestiaryId == "" then
+                print("DUPLICATE:: monster has no bestiaryId, skipping")
+                goto continue_duplicate
+            end
+
+            token = game.SpawnTokenFromBestiaryLocally(bestiaryId, loc, {
+                fitLocation = true,
+            })
+
+            if token == nil then
+                print("DUPLICATE:: failed to spawn monster token from bestiary")
+                goto continue_duplicate
+            end
+        else
+            --character creatures (heroes, followers, etc.) are spawned as
+            --monster tokens and have properties copied from the source.
+            local newCharId = game.CreateCharacter("monster")
+            local newChar = nil
+            for attempt = 1, 100 do
+                newChar = dmhub.GetCharacterById(newCharId)
+                if newChar ~= nil then
+                    break
+                end
+                coroutine.yield(0.1)
+            end
+
+            if newChar == nil then
+                print("DUPLICATE:: timed out waiting for character creation")
+                goto continue_duplicate
+            end
+
+            --start with default monster properties, then selectively copy
+            --from the source based on settings. The token keeps its own
+            --monster base so property types remain consistent.
+            local props = newChar.properties
+            props.monster_type = sourceToken.properties:try_get("name", "Duplicate")
+            props.description = sourceToken.properties:try_get("description", "")
+
+            local srcProps = sourceToken.properties
+            local srcMaxHp = srcProps:MaxHitpoints()
+            if self.copyStamina then
+                props.damage_taken = srcProps.damage_taken
+                props.max_hitpoints = srcMaxHp
+            end
+            if self.copyFeatures then
+                props.attributes = DeepCopy(srcProps.attributes)
+                props.max_hitpoints = srcMaxHp
+                props.walkingSpeed = srcProps:try_get("walkingSpeed", 5)
+                props.skillRatings = DeepCopy(srcProps:try_get("skillRatings", {}))
+                props.savingThrowRatings = DeepCopy(srcProps:try_get("savingThrowRatings", {}))
+                props.innateAttacks = DeepCopy(srcProps:try_get("innateAttacks", {}))
+                props.characterFeatures = DeepCopy(srcProps:try_get("characterFeatures", {}))
+                props.equipment = DeepCopy(srcProps:try_get("equipment", {}))
+            end
+            if self.copyResistances then
+                props.resistances = DeepCopy(srcProps:try_get("resistances", {}))
+                props.innateConditionImmunities = DeepCopy(srcProps:try_get("innateConditionImmunities", {}))
+            end
+            if self.copyAbilities then
+                --for characters, abilities come from class features and modifiers,
+                --not just innateActivatedAbilities. Gather all computed abilities
+                --and store them as innate on the monster duplicate.
+                local sourceAbilities = srcProps:GetActivatedAbilities{excludeGlobal = true}
+                props.innateActivatedAbilities = DeepCopy(sourceAbilities)
+            end
+            if self.copyTriggers then
+                props.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
+            end
+            if self.copyConditions then
+                props.inflictedConditions = DeepCopy(sourceToken.properties.inflictedConditions)
+            end
+            if self.copyEffects then
+                props.ongoingEffects = DeepCopy(sourceToken.properties.ongoingEffects)
+            end
+
+            props.isDuplicate = true
+            props.duplicateSourceId = sourceToken.charid
+
+            newChar:UploadToken()
+            game.UpdateCharacterTokens()
+            newChar:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+
+            --wait for the token to be fully created and available on the map,
+            --following the same pattern as follower creation in DSFollower.lua.
+            for attempt = 1, 100 do
+                token = dmhub.GetTokenById(newCharId)
+                if token ~= nil then
+                    break
+                end
+                coroutine.yield(0.1)
+            end
+
+            if token == nil then
+                print("DUPLICATE:: timed out waiting for spawned character token")
+                goto continue_duplicate
+            end
+        end
+
+        token.ownerId = casterToken.ownerId
+        token.summonerid = casterToken.charid
+
+        if initiativeGrouping ~= nil then
+            token.properties.initiativeGrouping = initiativeGrouping
+        end
+
+        --for monsters, selectively copy from the source onto the fresh
+        --bestiary spawn. Character duplicates are already set up above.
+        if isMonster then
+            token:ModifyProperties{
+                description = "Duplicate Token",
+                execute = function()
+                    token.properties.isDuplicate = true
+                    token.properties.duplicateSourceId = sourceToken.charid
+
+                    local srcProps = sourceToken.properties
+                    local srcMaxHp = srcProps:MaxHitpoints()
+                    if self.copyStamina then
+                        token.properties.damage_taken = srcProps.damage_taken
+                        token.properties.max_hitpoints = srcMaxHp
+                    end
+                    if self.copyConditions then
+                        token.properties.inflictedConditions = DeepCopy(srcProps.inflictedConditions)
+                    end
+                    if self.copyEffects then
+                        token.properties.ongoingEffects = DeepCopy(srcProps.ongoingEffects)
+                    end
+                    if self.copyFeatures then
+                        token.properties.attributes = DeepCopy(srcProps.attributes)
+                        token.properties.max_hitpoints = srcMaxHp
+                        token.properties.walkingSpeed = srcProps:try_get("walkingSpeed", 5)
+                        token.properties.skillRatings = DeepCopy(srcProps:try_get("skillRatings", {}))
+                        token.properties.savingThrowRatings = DeepCopy(srcProps:try_get("savingThrowRatings", {}))
+                        token.properties.innateAttacks = DeepCopy(srcProps:try_get("innateAttacks", {}))
+                        token.properties.characterFeatures = DeepCopy(srcProps:try_get("characterFeatures", {}))
+                        token.properties.equipment = DeepCopy(srcProps:try_get("equipment", {}))
+                    end
+                    if self.copyResistances then
+                        token.properties.resistances = DeepCopy(srcProps:try_get("resistances", {}))
+                        token.properties.innateConditionImmunities = DeepCopy(srcProps:try_get("innateConditionImmunities", {}))
+                    end
+                    if self.copyAbilities then
+                        local sourceAbilities = srcProps:GetActivatedAbilities{excludeGlobal = true}
+                        token.properties.innateActivatedAbilities = DeepCopy(sourceAbilities)
+                    end
+                    if self.copyTriggers then
+                        token.properties.availableTriggers = DeepCopy(srcProps:try_get("availableTriggers", {}))
+                    end
+                end,
+            }
+        end
+
+        --copy full appearance (portrait, frame, zoom, offset, etc.) from source
+        local appearanceData = sourceToken:SerializeAppearanceToString()
+        if appearanceData ~= nil and appearanceData ~= "" then
+            token:SerializeAppearanceFromString(appearanceData)
+        end
+
+        token.partyid = sourceToken.partyid
+
+        local dupCharId = token.charid
+        summonedTokens[#summonedTokens+1] = dupCharId
+
+        token:UploadToken("Duplicate Token")
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.1)
+
+        ::continue_duplicate::
+    end
+
+    --inject spawned duplicates into the target list so subsequent behaviors
+    --can target them (e.g. to apply ongoing effects onto the duplicates).
+    if #summonedTokens > 0 and args.targets ~= nil and self.duplicateTargetOrigin ~= "source" then
+        --ensure all tokens are fully available before injecting
+        game.UpdateCharacterTokens()
+        coroutine.yield(0.2)
+        game.UpdateCharacterTokens()
+
+        --resolve all summoned tokens by charid
+        local resolvedTokens = {}
+        for _,charid in ipairs(summonedTokens) do
+            local resolved = dmhub.GetTokenById(charid)
+            if resolved ~= nil then
+                resolvedTokens[#resolvedTokens+1] = resolved
+            else
+                print("DUPLICATE:: could not resolve token for target injection", charid)
+            end
+        end
+
+        if self.duplicateTargetOrigin == "duplicate" then
+            --replace all existing targets with the duplicates
+            for i = #args.targets, 1, -1 do
+                args.targets[i] = nil
+            end
+            for _,resolved in ipairs(resolvedTokens) do
+                args.targets[#args.targets+1] = {token = resolved, loc = resolved.loc}
+            end
+        elseif self.duplicateTargetOrigin == "both" then
+            --keep existing targets and add the duplicates
+            for _,resolved in ipairs(resolvedTokens) do
+                args.targets[#args.targets+1] = {token = resolved, loc = resolved.loc}
+            end
+        end
+    end
+
+    if ability:RequiresConcentration() and casterToken.properties:HasConcentration() then
+        casterToken:ModifyProperties{
+            description = "Concentrate on duplicates",
+            execute = function()
+                local concentration = casterToken.properties:MostRecentConcentration()
+                local summonid = concentration:get_or_add("summonid", {})
+                for _,charid in ipairs(summonedTokens) do
+                    summonid[#summonid+1] = charid
+                end
+            end,
+        }
+    end
+
+    game.UpdateCharacterTokens()
+    coroutine.yield(0.1)
+
+    --final re-resolution: ensure all injected targets have valid token refs
+    --before subsequent behaviors try to use them.
+    if args.targets ~= nil then
+        for _,t in ipairs(args.targets) do
+            if t.token ~= nil then
+                local fresh = dmhub.GetTokenById(t.token.charid)
+                if fresh ~= nil then
+                    t.token = fresh
+                end
+            end
+        end
+    end
+
+    ability:CommitToPaying(casterToken, args)
+end
+
 function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args)
+    if self.duplicateMode then
+        self:CastDuplicate(ability, casterToken, targets, args)
+        return
+    end
+
     for _,target in ipairs(targets) do
         local newOwner = ""
         if self.casterControls then
@@ -396,7 +689,125 @@ end
 
 function ActivatedAbilitySummonBehavior:EditorItems(parentPanel)
 	local result = {}
-	self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true})
+
+	result[#result+1] = gui.Check{
+		text = "Duplicate Mode",
+		value = self.duplicateMode,
+		minWidth = 300,
+		change = function(element)
+			self.duplicateMode = element.value
+			parentPanel:FireEvent("refreshBehavior")
+		end,
+	}
+
+	if self.duplicateMode then
+		self:ApplyToEditor(parentPanel, result)
+		self:FilterEditor(parentPanel, result)
+
+		result[#result+1] = gui.Check{
+			text = "Copy Stamina",
+			value = self.copyStamina,
+			minWidth = 300,
+			change = function(element)
+				self.copyStamina = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Effects",
+			value = self.copyEffects,
+			minWidth = 300,
+			change = function(element)
+				self.copyEffects = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Conditions",
+			value = self.copyConditions,
+			minWidth = 300,
+			change = function(element)
+				self.copyConditions = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Features",
+			value = self.copyFeatures,
+			minWidth = 300,
+			change = function(element)
+				self.copyFeatures = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Resistances",
+			value = self.copyResistances,
+			minWidth = 300,
+			change = function(element)
+				self.copyResistances = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Abilities",
+			value = self.copyAbilities,
+			minWidth = 300,
+			change = function(element)
+				self.copyAbilities = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Copy Triggers",
+			value = self.copyTriggers,
+			minWidth = 300,
+			change = function(element)
+				self.copyTriggers = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Panel{
+			classes = "formPanel",
+			gui.Label{
+				classes = "formLabel",
+				text = "Targeting Origin:",
+			},
+			gui.Dropdown{
+				classes = {"formDropdown"},
+				options = {
+					{id = "duplicate", text = "Duplicate Token"},
+					{id = "source", text = "Source Token"},
+					{id = "both", text = "Both"},
+				},
+				idChosen = self.duplicateTargetOrigin,
+				change = function(element)
+					self.duplicateTargetOrigin = element.idChosen
+				end,
+			},
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Caster controls duplicate",
+			minWidth = 300,
+			value = self.casterControls,
+			change = function(element)
+				self.casterControls = element.value
+			end,
+		}
+
+		result[#result+1] = gui.Check{
+			text = "Group with caster",
+			minWidth = 300,
+			value = self.groupInitiativeWithCaster,
+			change = function(element)
+				self.groupInitiativeWithCaster = element.value
+			end,
+		}
+	else
+		self:SummonEditor(parentPanel, result, {numSummons = true, casterControls = true})
+	end
+
 	return result
 end
 

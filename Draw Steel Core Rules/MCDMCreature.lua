@@ -947,6 +947,19 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol{
+    symbol = "herotokens",
+    lookup = function(c)
+        return c:GetHeroTokens()
+    end,
+    help = {
+        name = "HeroTokens",
+        type = "number",
+        desc = "The number of hero tokens the party has available.",
+        seealso = {},
+    }
+}
+
+creature.RegisterSymbol{
     symbol = "malice",
     lookup = function(c)
         return CharacterResource.GetMalice()
@@ -1072,6 +1085,38 @@ creature.RegisterSymbol {
         eexamples = {
             'Dead Languages has "Old Variac"',
         },
+    },
+}
+
+creature.RegisterSymbol{
+    symbol = "magictreasurecount",
+    lookup = function(self)
+        local gearTable = dmhub.GetTable("tbl_Gear")
+        local count = 0
+
+        -- Count equipped magic items
+        for _, itemid in ipairs(self:EquipmentInUse()) do
+            local item = gearTable[itemid]
+            if item ~= nil and item:try_get("keywords", {})["Magic"] then
+                count = count + 1
+            end
+        end
+
+        -- Count carried (inventory) magic items
+        for itemid, info in pairs(self:try_get("inventory", {})) do
+            local item = gearTable[itemid]
+            if item ~= nil and item:try_get("keywords", {})["Magic"] then
+                count = count + (info.quantity or 1)
+            end
+        end
+
+        return count
+    end,
+    help = {
+        name = "Magic Treasure Count",
+        type = "number",
+        desc = "The number of magic treasures this creature has equipped or carried.",
+        seealso = {},
     },
 }
 
@@ -1306,10 +1351,16 @@ creature.RegisterSymbol {
     lookup = function(c)
         if c:has_key("inflictedConditions") then
             local conditions = c.inflictedConditions
-            for _, cond in ipairs(conditions) do
+            for _, cond in pairs(conditions) do
                 if cond.duration == "save" then
                     return true
                 end
+            end
+        end
+
+        for _, effectInstance in ipairs(c:ActiveOngoingEffects()) do
+            if effectInstance.removeOnSave then
+                return true
             end
         end
 
@@ -1418,7 +1469,7 @@ local function GetEnemyCreaturesAtLoc(token, allowedTokenIds, loc, result)
     local tokensAtLoc = dmhub.GetTokensAtLoc(loc)
     if tokensAtLoc ~= nil then
         for _, otherTok in ipairs(tokensAtLoc) do
-            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token) > 0 and (not otherTok.properties:IsDead()) then
+            if token.charid ~= otherTok.charid and (allowedTokenIds == nil or allowedTokenIds[otherTok.charid]) and token:IsFriend(otherTok) == false and otherTok:GetLineOfSight(token, otherTok.properties:GetPierceWalls()) > 0 and (not otherTok.properties:IsDead()) then
                 local alreadyFound = false
                 for _, existing in ipairs(result) do
                     if existing.charid == otherTok.charid then
@@ -1564,7 +1615,7 @@ function creature:GetFlankingTokens(tokensOverride)
 
     --remove any enemies that we don't have line of sight to or that can't grant flanking.
     for i = #adjacentEnemies, 1, -1 do
-        local los = adjacentEnemies[i]:GetLineOfSight(token)
+        local los = adjacentEnemies[i]:GetLineOfSight(token, adjacentEnemies[i].properties:GetPierceWalls())
         if los <= 0 or not adjacentEnemies[i].properties:CanGrantFlanking() then
             table.remove(adjacentEnemies, i)
         end
@@ -1679,6 +1730,10 @@ end
 
 function creature:GrantFlankingToAllies()
     return self:CalculateNamedCustomAttribute("Grant Flanking to Allies") > 0
+end
+
+function creature:GetPierceWalls()
+    return self:CalculateNamedCustomAttribute("Pierce Walls")
 end
 
 function creature:Echelon()
@@ -2113,6 +2168,19 @@ function character:GetHeroicResourceName()
     return "Heroic Resource"
 end
 
+function creature:GetEpicResourceName()
+    return "Epic Resource"
+end
+
+function character:GetEpicResourceName()
+    local classInfo = self:GetClass()
+    if classInfo ~= nil then
+        return classInfo.epicResourceName
+    end
+
+    return "Epic Resource"
+end
+
 function creature:GetHeroicOrMaliceId()
     return CharacterResource.heroicResourceId
 end
@@ -2193,8 +2261,8 @@ function creature:GetActivatedAbilities(options)
 
     if self:has_key("ongoingEffects") then
         for i, cond in ipairs(self.ongoingEffects) do
-            if cond:try_get('endAbility') ~= nil and not cond:Expired() then
-                result[#result + 1] = cond.endAbility
+            if cond:try_get('_tmp_endAbility') ~= nil and not cond:Expired() then
+                result[#result + 1] = cond._tmp_endAbility
             elseif cond:try_get("stolenAbility") ~= nil and not cond:Expired() then
                 result[#result + 1] = cond.stolenAbility
             end
@@ -2434,6 +2502,43 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "indifficultterrain",
+    lookup = function(c)
+        -- Flying or burrowing creatures are not affected by difficult terrain.
+        local moveType = c:CurrentMoveType()
+        if moveType == "fly" or moveType == "burrow" then
+            return false
+        end
+
+        -- Creatures that ignore difficult terrain are not affected.
+        if c:IgnoreDifficultTerrain() then
+            return false
+        end
+
+        local token = dmhub.LookupToken(c)
+        if token == nil or not token.valid then
+            return false
+        end
+
+        -- Check all occupied tiles for difficult terrain (tile rules + auras).
+        local locs = token.locsOccupying
+        for _, loc in ipairs(locs) do
+            if dmhub.IsLocDifficultTerrain(loc) then
+                return true
+            end
+        end
+
+        return false
+    end,
+    help = {
+        name = "In Difficult Terrain",
+        type = "boolean",
+        desc = "True if this creature is currently in difficult terrain that affects it. False if the creature is flying, burrowing, or ignores difficult terrain.",
+        seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "temporarystamina",
     --- @param c creature
     lookup = function(c)
@@ -2523,6 +2628,54 @@ creature.RegisterSymbol {
         type = "number",
         desc = "The number of active conditions on this creature.",
         seealso = {},
+    }
+}
+
+creature.RegisterSymbol {
+    symbol = "effectscount",
+    lookup = function(c)
+        local result = {}
+        local conditions = {}
+        local ongoingEffects = c:ActiveOngoingEffects()
+        local pureOngoingEffectsCount = 0
+        if #ongoingEffects > 0 then
+            local ongoingEffectsTable = dmhub.GetTable("characterOngoingEffects") or {}
+            for i, cond in ipairs(ongoingEffects) do
+                local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
+                if ongoingEffectInfo.condition ~= 'none' then
+                    --effect has an underlying condition; count it as a condition only.
+                    conditions[ongoingEffectInfo.condition] = 1
+                else
+                    pureOngoingEffectsCount = pureOngoingEffectsCount + 1
+                end
+            end
+        end
+
+        --get bestowed conditions.
+        for i, modifier in ipairs(c:GetActiveModifiers()) do
+            if modifier.mod:CanBestowConditions() and modifier.mod:PassesFilter(c) then
+                modifier.mod:BestowConditions(modifier, c, conditions)
+            end
+        end
+
+        local conditionsTable = dmhub.GetTable(CharacterCondition.tableName)
+        for k, _ in pairs(conditions) do
+            local conditionInfo = conditionsTable[k]
+            result[#result + 1] = conditionInfo.name
+        end
+
+        local inflictedConditions = c:get_or_add("inflictedConditions", {})
+        for condid, _ in pairs(inflictedConditions) do
+            result[#result + 1] = conditionsTable[condid].name
+        end
+
+        return #result + pureOngoingEffectsCount
+    end,
+    help = {
+        name = "Effects Count",
+        type = "number",
+        desc = "The number of conditions and ongoing effects currently active on this creature.",
+        seealso = {"ConditionCount"},
     }
 }
 
@@ -3047,6 +3200,22 @@ function creature:GetModifiersForPowerRoll(roll, rollType, options)
     return result
 end
 
+function creature:GetAfterRollModifiersForPowerRoll(rollType, options)
+    options = options or {}
+    local result = {}
+    local modifiers = self:GetActiveModifiers()
+    for _, mod in ipairs(modifiers) do
+        local m = mod.mod:DescribeModifyPowerRollAfter(mod, self, rollType, options)
+        if m ~= nil then
+            m.hint = m.modifier:HintModifyPowerRollsAfter(mod, self, rollType, options)
+            if m.hint ~= nil then
+                result[#result + 1] = m
+            end
+        end
+    end
+    return result
+end
+
 function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers)
     local attrid = nil
     local bestModifier = nil
@@ -3059,6 +3228,11 @@ function creature:RollCustomPowerTableTest(title, characteristics, skills, tiers
                 attrid = id
             end
         end
+    end
+
+    if attrid == nil then
+        printf("RollCustomPowerTableTest: no matching characteristic for '%s'", title)
+        return
     end
 
     local attrInfo = creature.attributesInfo[attrid]
@@ -3288,6 +3462,13 @@ function creature.TakeDamage(self, amount, note, info)
         attackerid = attackerid,
         sound = info.damagesound,
     }
+
+    if info.damagetype == "collide" then
+        local forcedMovementCast = self:try_get("_tmp_forcedMovementCast")
+        if forcedMovementCast ~= nil then
+            forcedMovementCast:CountForcedMovementDamage(amount)
+        end
+    end
 
     if self.minion then
         if info.keywords ~= nil and info.keywords:Has("area") then
@@ -3558,6 +3739,42 @@ function creature.Heal(self, amount, note)
     self:DispatchEvent("regainhitpoints", {})
 end
 
+function creature.SetStaminaDirect(self, amount, note)
+    local isWindedAtStart = self:IsWinded()
+    local isBelowZeroAtStart = self:CurrentHitpoints() <= 0
+    local isDeadAtStart = self:IsDead()
+
+    self:SetCurrentHitpoints(amount, note)
+
+    local isWindedNow = self:IsWinded()
+    local isBelowZeroNow = self:CurrentHitpoints() <= 0
+    local isDeadNow = self:IsDead()
+
+    if isWindedNow and not isWindedAtStart then
+        self:DispatchEvent("winded", {})
+        audio.DispatchSoundEvent("Condition.Winded", {})
+    end
+
+    if isBelowZeroNow and not isBelowZeroAtStart then
+        audio.DispatchSoundEvent("Notify.Status_Dying_Hero", {})
+        self:DispatchEvent("dying", {})
+    end
+
+    if (not isDeadAtStart) and isDeadNow then
+        self:RemoveAurasOnDeath()
+        if self:IsDead() then
+            self:ResetDeathSavingThrowStatus()
+        end
+        self:DispatchEvent("zerohitpoints", {})
+        self:DispatchEvent("creaturedeath", {})
+        self:CancelConcentration()
+    end
+
+    if (not isBelowZeroAtStart) and isBelowZeroNow then
+        self:StartOnDying()
+    end
+end
+
 --this is called by the engine to tell the 'cost' of moving through
 --another token. We can return "difficult" to signal difficult terrain.
 --return true to mean we can move through with no cost. false means
@@ -3708,7 +3925,7 @@ function creature:PersistentAbilities()
         if q == nil or q.hidden then
             break
         elseif (q.round or 0) > (a.round or 0) or ((q.round or 0) == (a.round or 0) and (q.turn or 0) > (a.turn or 0)) then
-            if a.ability == nil then
+            if a.ability == nil or type(a.ability) ~= "table" or getmetatable(a.ability) == nil then
                 break
             end
             local ability = a.ability:MakeTemporaryClone()
@@ -3721,7 +3938,10 @@ function creature:PersistentAbilities()
             end
 
             if persistenceMode == "recast_new" and a.ability:try_get("recastNewAbility") then
-                ability = a.ability.recastNewAbility:MakeTemporaryClone()
+                local recastAbility = a.ability.recastNewAbility
+                if recastAbility ~= nil and type(recastAbility) == "table" and getmetatable(recastAbility) ~= nil then
+                    ability = recastAbility:MakeTemporaryClone()
+                end
             end
 
             local newAbility = TriggeredAbility.Create()
@@ -4159,6 +4379,28 @@ creature.RegisterSymbol {
     }
 }
 
+creature.RegisterSymbol {
+    symbol = "numberofplayers",
+    lookup = function(c)
+        local partyid = GetDefaultPartyID()
+        local charids = dmhub.GetCharacterIdsInParty(partyid) or {}
+        local count = 0
+        for _, charid in ipairs(charids) do
+            local ch = dmhub.GetCharacterById(charid)
+            if ch ~= nil and ch.followerType == nil then
+                count = count + 1
+            end
+        end
+        return count
+    end,
+    help = {
+        name = "NumberOfPlayers",
+        type = "number",
+        desc = "The number of players in the game, not counting followers.",
+        seealso = {},
+    }
+}
+
 function creature:StartOnDying()
     self:RemoveMatchingOngoingEffects(function(ongoingEffect)
         return ongoingEffect.removeOnEoEOrDying
@@ -4347,7 +4589,7 @@ local function GroupingHud(groupid)
                 end
 
                 if count <= 1 then
-                    sheetParent:Destroy()
+                    sheetParent:DestroySelf()
                     return
                 end
 
@@ -4429,7 +4671,7 @@ local function GroupingHud(groupid)
                 for key, line in pairs(m_lines) do
                     if g_initiativeGroupings[groupid].tokens[key] == nil then
                         changes = true
-                        line:Destroy()
+                        line:DestroySelf()
                         m_lines[key] = nil
                     end
                 end

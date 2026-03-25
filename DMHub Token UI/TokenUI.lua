@@ -224,7 +224,7 @@ local CalculateStatusIcons = function(token)
 				local hoverText = "test"
                 local statusText = nil
 				local ongoingEffectInfo = ongoingEffectsTable[cond.ongoingEffectid]
-				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or dmhub.isDM) then
+				if ongoingEffectInfo ~= nil and ongoingEffectInfo.statusEffect and (not ongoingEffectInfo.hiddenOnToken) and ((not ongoingEffectInfo.hiddenFromEnemies) or token.isFriendOfPlayer or token.canControl or (dmhub.isDM and dmhub.tokenVision == nil and dmhub.tokensLoggedInAs == nil)) then
 					local casterInfo = cond:try_get("casterInfo")
 					local condInfo = conditionsTable[ongoingEffectInfo.condition]
                     if condInfo ~= nil then
@@ -264,8 +264,8 @@ local CalculateStatusIcons = function(token)
 
 					result[#result+1] = {
 						id = cond.ongoingEffectid,
-						icon = ongoingEffectInfo.iconid,
-						style = ongoingEffectInfo.display,
+						icon = ongoingEffectInfo:GetDisplayIcon(),
+						style = ongoingEffectInfo:GetDisplayDisplay(),
                         statusText = statusText,
 						hoverText = hoverText,
 						statusIcon = true,
@@ -2921,13 +2921,18 @@ function creature:GetOrAddAnimation(anim)
 end
 
 
-Commands.tokeneffect = function(str)
-    local selectedTokens = dmhub.selectedTokens
-    if selectedTokens == nil or #selectedTokens == 0 then
-        return
-    end
+Commands.RegisterMacro{
+    name = "tokeneffect",
+    summary = "play token effect",
+    doc = "Usage: /tokeneffect <effect name>\nPlays a visual effect on selected tokens.",
+    command = function(str)
+        local selectedTokens = dmhub.selectedTokens
+        if selectedTokens == nil or #selectedTokens == 0 then
+            return
+        end
 
-    for _,tok in ipairs(selectedTokens) do
-	    tok.sheet.data.PlayEffect(str, false)
-    end
-end
+        for _,tok in ipairs(selectedTokens) do
+            tok.sheet.data.PlayEffect(str, false)
+        end
+    end,
+}

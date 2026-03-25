@@ -1,5 +1,8 @@
 local mod = dmhub.GetModLoading()
 
+local g_selectedTokensOpenInitiative = nil
+local g_playerTokensOpenInitiative = nil
+local g_monsterTokensOpenInitiative = nil
 
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
@@ -23,6 +26,21 @@ local function createDrawSteelBanner(options)
 
     if options.immediateResult then
         m_heroesWin = cond(options.immediateResult == "heroes", true, false)
+    end
+
+    local m_initiativeThreshold = 6
+    local surprisedConditionForThreshold = CharacterCondition.conditionsByName["surprised"]
+    for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            local isSurprised = surprisedConditionForThreshold ~= nil and tok.properties:HasCondition(surprisedConditionForThreshold.id)
+            if not isSurprised then
+                local t = tok.properties:CalculateNamedCustomAttribute("Initiative Threshold")
+                if type(t) == "number" and t > 0 and t < m_initiativeThreshold then
+                    m_initiativeThreshold = t
+                end
+            end
+        end
     end
 
     local m_rollInfo = nil
@@ -223,7 +241,7 @@ local function createDrawSteelBanner(options)
         end,
 
         diceface = function(self, diceguid, num)
-            local heroesWin = (num >= 6)
+            local heroesWin = (num >= m_initiativeThreshold)
             m_heroesWin = heroesWin
             BannerPanel:SetClassTree("rolling", true)
             BannerPanel:SetClassTree("heroes", heroesWin)
@@ -813,10 +831,6 @@ local function SetTokenSurprised(tok, surprised)
     end
 end
 
-local g_selectedTokensOpenInitiative = nil
-local g_playerTokensOpenInitiative = nil
-local g_monsterTokensOpenInitiative = nil
-
 local function ShowCombatSetupDialog(selectedTokens)
     local m_encounterStrength = 0
     local m_encounterStrengthSingleHero = 0
@@ -1401,10 +1415,10 @@ local function ShowCombatSetupDialog(selectedTokens)
                 end
             end
 
-            if selectedTokens == nil and partyid ~= nil then
+            if partyid ~= nil then
                 local partyTable = dmhub.GetTable(Party.tableName)
                 local party = partyTable[partyid]
-                --if we don't have selected tokens and the party is non-combatant then they are non-combatants.
+                --if the party is non-combatant then they are non-combatants.
                 if party ~= nil then
                     selected = not party.noncombatant
                 end
@@ -1629,7 +1643,11 @@ local function ShowCombatSetupDialog(selectedTokens)
     GameHud.instance:ShowModal(dialog)
 end
 
-Commands.rollinitiative = function(str)
+Commands.RegisterMacro{
+    name = "rollinitiative",
+    summary = "start combat",
+    doc = "Usage: /rollinitiative [x1 y1 x2 y2]\nStarts combat with selected tokens, or tokens in a rectangular area if coordinates are given.",
+    command = function(str)
     local args = string.split(str or "", " ")
 
     local tokens = dmhub.selectedTokens
@@ -1729,7 +1747,8 @@ Commands.rollinitiative = function(str)
     CharacterResource.SetVillainActions(1)
 
     info.UploadInitiative()
-end
+    end,
+}
 
 LaunchablePanel.Register{
 	name = "DrawSteel",

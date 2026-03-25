@@ -21,7 +21,9 @@ local mod = dmhub.GetModLoading()
 --- @field tokenToTier table
 --- @field inflictedConditions table
 --- @field retargets table
+--- @field forcedMovementDamageDealt number
 --- @field forcedMovementPaths table
+--- @field forcedMovementCreatureIds table
 --- @field ability ActivatedAbility
 --- @field auraObject false|table
 ActivatedAbilityCast = RegisterGameType("ActivatedAbilityCast")
@@ -44,6 +46,7 @@ ActivatedAbilityCast.opportunityAttacksTriggered = 0
 ActivatedAbilityCast.targets = {}
 ActivatedAbilityCast.auraObject = false
 ActivatedAbilityCast.forcedMovementCollision = false
+ActivatedAbilityCast.forcedMovementDamageDealt = 0
 
 --a table of custom memory for this cast.
 ActivatedAbilityCast.memory = false
@@ -233,6 +236,19 @@ ActivatedAbilityCast.helpSymbols = {
         name = "Forced Movement Collision",
         type = "boolean",
         desc = "True if any forced movement caused by this ability collided with a creature or object.",
+    },
+
+    forcedmovementcreaturecount = {
+        name = "Forced Movement Creature Count",
+        type = "number",
+        desc = "The number of unique creatures that were actually force moved by this ability (excludes creatures that resisted due to stability or could not be moved).",
+    },
+
+    forcedmovementdamagedealt = {
+        name = "Forced Movement Damage Dealt",
+        type = "number",
+        desc = "The amount of damage dealt by forced movement collisions while using this ability.",
+        examples = {"Forced Movement Damage Dealt > 0"},
     },
 }
 
@@ -453,6 +469,19 @@ ActivatedAbilityCast.lookupSymbols = {
     forcedmovementcollision = function(c)
         return c.forcedMovementCollision
     end,
+
+    forcedmovementcreaturecount = function(c)
+        local ids = c:try_get("forcedMovementCreatureIds", {})
+        local count = 0
+        for _ in pairs(ids) do
+            count = count + 1
+        end
+        return count
+    end,
+
+    forcedmovementdamagedealt = function(c)
+        return c.forcedMovementDamageDealt
+    end,
 }
 
 --- @param tokenid string
@@ -539,6 +568,10 @@ function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw)
 	self.damageTable[targetToken.charid].raw = self.damageTable[targetToken.charid].raw + damageRaw
 end
 
+function ActivatedAbilityCast:CountForcedMovementDamage(damageDealt)
+	self.forcedMovementDamageDealt = self.forcedMovementDamageDealt + damageDealt
+end
+
 function ActivatedAbilityCast:AddParam(args)
 	local params = self:get_or_add("params", {})
 	params[args.id] = params[args.id] or {}
@@ -560,6 +593,11 @@ end
 function ActivatedAbilityCast:RecordForcedMovementPath(path)
     local paths = self:get_or_add("forcedMovementPaths", {})
     paths[#paths+1] = path
+end
+
+function ActivatedAbilityCast:RecordForcedMovementCreature(charid)
+    local ids = self:get_or_add("forcedMovementCreatureIds", {})
+    ids[charid] = true
 end
 
 function ActivatedAbilityCast:GetVacatedSpaces()

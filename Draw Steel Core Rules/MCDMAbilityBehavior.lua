@@ -82,6 +82,15 @@ function ActivatedAbilityDrawSteelCommandBehavior:Cast(ability, casterToken, tar
 end
 
 local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken, abilityAttr, options)
+
+    local symbols = table.shallow_copy(options.symbols or {})
+
+    --make sure symbols don't have any recursive symbols.
+    symbols.cast = nil
+    symbols.caster = nil
+    symbols.target = nil
+    symbols.targets = nil
+
     local invocation = AbilityInvocation.new{
         timestamp = ServerTimestamp(),
         userid = casterToken.activeControllerId,
@@ -90,9 +99,15 @@ local function InvokeAbilityRemote(standardAbilityName, targetToken, casterToken
         targeting = "prompt",
         invokerid = casterToken.charid,
         casterid = targetToken.charid,
-        symbols = options.symbols,
+        symbols = symbols,
         abilityAttr = abilityAttr,
     }
+
+    --local debugInfo = DebugCheckTableSelfReference(invocation)
+    --if debugInfo then
+    --    print("InvokeAbilityRemote:: Detected self reference in invocation table:", debugInfo)
+    --    return
+    --end
 
     targetToken:ModifyProperties{
         description = "Invoke Ability",
@@ -1193,7 +1208,7 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
 
     rule = ActivatedAbilityDrawSteelCommandBehavior.NormalizeRuleTextForCreature(casterToken.properties, rule)
 
-    local gateMatch = regex.MatchGroups(rule, "^(?<head>.*)(?<cond>(?<attr>[marip]) ?< ?\\[?(?<gate>-?[0-9]+|weak|average|strong)\\]?,? )(?<tail>.*)$")
+    local gateMatch = regex.MatchGroups(rule, "^(?<head>.*)(?<cond>(?<attr>[marip]) ?< ?\\[?(?<gate>-?[0-9]+|weak|average|strong)\\]?,? )(?<tail>[^;]*)(?<rest>;.*)?$")
     if gateMatch ~= nil then
         --see if the condition gate is exceeded.
         local gate
@@ -1242,16 +1257,20 @@ function ActivatedAbilityDrawSteelCommandBehavior:ExecuteCommandInternal(ability
                 ability.RecordTokenMessage(targetToken, options, string.format("Resisted potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
             end
 
-            --resisted don't do the rest of it.
-            rule = gateMatch.head
+            --resisted don't do the gated part, but keep anything after the semicolon.
+            rule = gateMatch.head .. (gateMatch.rest or "")
         else
             if options.powerRollPass == "target" then
                 ability.RecordTokenMessage(targetToken, options, string.format("Did not resist potency: %s(%d)<%d", string.upper(gateMatch.attr), resistanceValue, gate))
             end
             --did not resist.
-            rule = gateMatch.head .. gateMatch.tail
+            rule = gateMatch.head .. gateMatch.tail .. (gateMatch.rest or "")
         end
     end
+
+    -- Clean up duplicate semicolons and leading semicolons left after gate removal
+    rule = rule:gsub(";%s*;", ";")
+    rule = rule:gsub("^%s*;%s*", "")
 
     local bestMatch = nil
     local bestMatchInfo = nil
@@ -1368,17 +1387,17 @@ function ActivatedAbilityDrawSteelCommandBehavior.ValidateRule(rule)
     local AddGate = function(str)
         return str
     end
-    local gateMatch = regex.MatchGroups(rule, "^(?<head>.*?)(?<gate>(<color=[^>]+>)?(<uppercase>)?[marip](</uppercase>)? ?< ?\\[?(-?[0-9]+|weak|average|strong)\\]?(</color>)?,? )(?<tail>.*)$")
+    local gateMatch = regex.MatchGroups(rule, "^(?<head>.*?)(?<gate>(<color=[^>]+>)?(<uppercase>)?[marip](</uppercase>)? ?< ?\\[?(-?[0-9]+|weak|average|strong)\\]?(</color>)?,? )(?<tail>[^;]*)(?<rest>;.*)?$")
     if gateMatch ~= nil then
         --print("Rule:: MATCHED GATE: head =", gateMatch.head, "tail =", gateMatch.tail, "gate =", gateMatch.gate)
         local startingRule = rule
-        rule = gateMatch.head .. gateMatch.tail
+        rule = gateMatch.head .. gateMatch.tail .. (gateMatch.rest or "")
         AddGate = function(str)
             if type(str) ~= "string" then
                 return str
             end
 
-            local insertIndex = #str - #gateMatch.tail
+            local insertIndex = #str - #gateMatch.tail - #(gateMatch.rest or "")
 
             if insertIndex <= 0 then
                 return str
@@ -1669,29 +1688,39 @@ function ActivatedAbilityDrawSteelCommandBehavior:EditorItems(parentPanel)
 	return result
 end
 
-Commands.download = function()
-    local classes = dmhub.GetTable("classes")
-    for k,v in pairs(classes) do
-        if v.name == "Fury" then
-            dmhub.DebugFileWriteObject("d:/dev/debug/class.json", v)
-        end
-    end
-end
-
-Commands.upload = function()
-    local classes = dmhub.GetTable("classes")
-    for k,v in pairs(classes) do
-        if v.name == "Fury" then
-            local obj = dmhub.DebugFileReadObject("d:/dev/debug/class.json")
-            if obj ~= nil then
-                dmhub.SetAndUploadTableItem("classes", obj)
-                print("Uploaded")
-                return
-            else
-                print("Object is null!")
+Commands.RegisterMacro{
+    name = "download",
+    summary = "debug export class",
+    doc = "Usage: /download\nExports the Fury class to a debug JSON file.",
+    command = function()
+        local classes = dmhub.GetTable("classes")
+        for k,v in pairs(classes) do
+            if v.name == "Fury" then
+                dmhub.DebugFileWriteObject("d:/dev/debug/class.json", v)
             end
         end
-    end
+    end,
+}
 
-    print("Could not upload")
-end
+Commands.RegisterMacro{
+    name = "upload",
+    summary = "debug import class",
+    doc = "Usage: /upload\nImports the Fury class from a debug JSON file.",
+    command = function()
+        local classes = dmhub.GetTable("classes")
+        for k,v in pairs(classes) do
+            if v.name == "Fury" then
+                local obj = dmhub.DebugFileReadObject("d:/dev/debug/class.json")
+                if obj ~= nil then
+                    dmhub.SetAndUploadTableItem("classes", obj)
+                    print("Uploaded")
+                    return
+                else
+                    print("Object is null!")
+                end
+            end
+        end
+
+        print("Could not upload")
+    end,
+}

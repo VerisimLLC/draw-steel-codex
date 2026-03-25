@@ -1,6 +1,5 @@
 local mod = dmhub.GetModLoading()
 
-
 Commands.Register{
     name = "Zoom In",
     menu = "tools",
@@ -155,18 +154,26 @@ Commands.Register{
 	icon = "panels/initiative/initiative-icon.png",
 }
 
-Commands.synccamera = function()
-    if not dmhub.isDM then
-        return
-    end
-    dmhub.SyncCamera{
-        speed = 1,
-    }
-    dmhub.Execute("ping")
-end
+Commands.RegisterMacro{
+    name = "synccamera",
+    summary = "sync player cameras",
+    doc = "Syncs the camera to the current view for all players.",
+    command = function()
+        if not dmhub.isDM then
+            return
+        end
+        dmhub.SyncCamera{
+            speed = 1,
+        }
+        dmhub.Execute("ping")
+    end,
+}
 
---cycle between tokens.
-Commands.next = function()
+Commands.RegisterMacro{
+    name = "next",
+    summary = "cycle between tokens",
+    doc = "Cycles between controllable tokens. Prioritizes tokens whose turn it is in initiative.",
+    command = function()
 
     local playerCharactersOffMap = {}
 
@@ -325,7 +332,8 @@ Commands.next = function()
         end)
     end
 
-end
+    end,
+}
 
 Commands.Register{
     name = "New Player Window",

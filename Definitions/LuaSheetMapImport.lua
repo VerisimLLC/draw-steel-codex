@@ -2,6 +2,7 @@
 --- @field errorMessage any 
 --- @field path any 
 --- @field paths any 
+--- @field imageFromId string Set the image to display from a cloud image ID (asset ID or md5:hash). This loads the image from the ImageManager cache instead of a local file path.
 --- @field pathIndex any 
 --- @field instructionsText any 
 --- @field haveConfirm any 
@@ -13,6 +14,9 @@
 --- @field tileType any 
 --- @field lockDimensions boolean 
 --- @field tileScaling number 
+--- @field imageDim any 
+--- @field imageWidth number 
+--- @field imageHeight number 
 LuaSheetMapImport = {}
 
 --- Next
@@ -45,6 +49,27 @@ end
 --- @param h any
 --- @return nil
 function LuaSheetMapImport:SetHeight(h)
+	-- dummy implementation for documentation purposes only
+end
+
+--- SetMapDimensions
+--- @param tilesW any
+--- @param tilesH any
+--- @return nil
+function LuaSheetMapImport:SetMapDimensions(tilesW, tilesH)
+	-- dummy implementation for documentation purposes only
+end
+
+--- GetCalibrationData
+--- @return any
+function LuaSheetMapImport:GetCalibrationData()
+	-- dummy implementation for documentation purposes only
+end
+
+--- ApplyCalibrationTo
+--- @param targetObj any
+--- @return nil
+function LuaSheetMapImport:ApplyCalibrationTo(targetObj)
 	-- dummy implementation for documentation purposes only
 end
 

@@ -1,5 +1,35 @@
 local mod = dmhub.GetModLoading()
 
+AudioObjectDestructionTypes = {
+    types = {
+        {
+            id = "none",
+            text = "None",
+            sound = nil,
+        },
+        {
+            id = "glass",
+            text = "Glass",
+            sound = "Obj.Break_GlassGnrcMed",
+        },
+        {
+            id = "metal",
+            text = "Metal",
+            sound = "Obj.Break_MetalGnrcMed",
+        },
+        {
+            id = "stone",
+            text = "Stone",
+            sound = "Obj.Break_StoneGnrcMed",
+        },
+        {
+            id = "wood",
+            text = "Wood",
+            sound = "Obj.Break_WoodGnrcMed",
+        },
+    },
+}
+
 AudioSurfaceTypes = {
     surfaces = {
         {

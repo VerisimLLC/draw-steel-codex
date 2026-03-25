@@ -119,3 +119,12 @@ end
 function MapFloorLua:ExecutePolygonOperation(options)
 	-- dummy implementation for documentation purposes only
 end
+
+--- BreakWallSegment: Break a wall segment, removing it from the map and optionally spawning a rubble object found by keyword.
+--- @param segLocVal any
+--- @param segDirVal any
+--- @param rubbleKeywordVal any
+--- @return nil
+function MapFloorLua:BreakWallSegment(segLocVal, segDirVal, rubbleKeywordVal)
+	-- dummy implementation for documentation purposes only
+end

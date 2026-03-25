@@ -710,6 +710,7 @@ function RegisterGoblinScriptSymbol(targetType, info)
 		name = info.name,
 		type = info.type,
 		desc = info.desc,
+		deprecated = info.deprecated,
 		seealso = info.seealso,
 		examples = info.examples,
 	}
@@ -2186,7 +2187,7 @@ function creature:GetModifiersForSavingThrowRoll(saveid, options)
 		local coverAmount = "none"
 
 		if casterToken ~= nil and ourToken ~= nil then
-			local coverInfo = dmhub.GetCoverInfo(casterToken, ourToken)
+			local coverInfo = dmhub.GetCoverInfo(casterToken, ourToken, casterToken.properties:GetPierceWalls())
 			if coverInfo ~= nil then
 				if coverInfo.cover == 1 then
 					coverTooltip = string.format("%s\n<color=#aaffaaff>There is a %s in the way, providing Half Cover.", coverTooltip, coverInfo.description)
@@ -3702,8 +3703,8 @@ function creature:GetActivatedAbilities(options)
 
 	if self:has_key("ongoingEffects") then
 		for i,cond in ipairs(self.ongoingEffects) do
-			if cond:try_get('endAbility') ~= nil and not cond:Expired() then
-				result[#result+1] = cond.endAbility
+			if cond:try_get('_tmp_endAbility') ~= nil and not cond:Expired() then
+				result[#result+1] = cond._tmp_endAbility
 			end
 		end
 	end
@@ -3800,54 +3801,63 @@ creature.selectedLoadout = 0
 creature.numLoadouts = 4
 
 
---implement the 'loadout' command to set current loadout.
-Commands.loadout = function(str)
-	local loadout = toint(str, 0)
-	local tokens = dmhub.selectedTokens
-	for _,tok in ipairs(tokens) do
-		tok:ModifyProperties{
-			description = "Change Loadout",
-			execute = function()
-				tok.properties.selectedLoadout = loadout
-			end,
-		}
+Commands.RegisterMacro{
+    name = "loadout",
+    summary = "set equipment loadout",
+    doc = "Usage: /loadout <number>\nSets the equipment loadout for selected tokens to the given slot number.",
+    command = function(str)
+        local loadout = toint(str, 0)
+        local tokens = dmhub.selectedTokens
+        for _,tok in ipairs(tokens) do
+            tok:ModifyProperties{
+                description = "Change Loadout",
+                execute = function()
+                    tok.properties.selectedLoadout = loadout
+                end,
+            }
 
-		--instantly refresh the token.
-		game.Refresh{
-			tokens = {tok.charid},
-		}
-	end
-end
+            --instantly refresh the token.
+            game.Refresh{
+                tokens = {tok.charid},
+            }
+        end
+    end,
+}
 
-Commands.light = function(str)
-    local tokenids = {}
-    for _,tok in ipairs(dmhub.selectedTokens) do
-        tokenids[#tokenids+1] = tok.charid
-        tok:ModifyProperties{
-            description = "Change Loadout to Light",
-            execute = function()
-                if tok.properties.selectedLoadout == 1 then
-                    tok.properties.selectedLoadout = 0
-					audio.DispatchSoundEvent("Ability.Torch_Off")
-                else
-                    if not tok.properties:try_get("initLight") then
-                        --set to our preferred light if we've never made a different explicit choice.
-                        local equipment = tok.properties:Equipment()
-                        equipment.mainhand1 = tok.properties:GetDefaultLightSource()
+Commands.RegisterMacro{
+    name = "light",
+    summary = "toggle light source",
+    doc = "Usage: /light\nToggles the light source loadout on selected tokens.",
+    command = function(str)
+        local tokenids = {}
+        for _,tok in ipairs(dmhub.selectedTokens) do
+            tokenids[#tokenids+1] = tok.charid
+            tok:ModifyProperties{
+                description = "Change Loadout to Light",
+                execute = function()
+                    if tok.properties.selectedLoadout == 1 then
+                        tok.properties.selectedLoadout = 0
+                        audio.DispatchSoundEvent("Ability.Torch_Off")
+                    else
+                        if not tok.properties:try_get("initLight") then
+                            --set to our preferred light if we've never made a different explicit choice.
+                            local equipment = tok.properties:Equipment()
+                            equipment.mainhand1 = tok.properties:GetDefaultLightSource()
+                        end
+
+                        tok.properties.selectedLoadout = 1
+                        audio.DispatchSoundEvent("Ability.Torch_On")
                     end
+                end,
+            }
+        end
 
-                    tok.properties.selectedLoadout = 1
-					audio.DispatchSoundEvent("Ability.Torch_On")
-                end
-            end,
+        --instantly refresh the token.
+        game.Refresh{
+            tokens = tokenids
         }
-    end
-
-    --instantly refresh the token.
-    game.Refresh{
-        tokens = tokenids
-    }
-end
+    end,
+}
 
 function creature:GetEquippedLightSource()
     if self:try_get("initLight") then
@@ -4331,6 +4341,7 @@ end
 function creature:GetCustomVisionSenses()
 	local result = {}
 	local darkvision = self:GetDarkvision()
+	local pierceWalls = self:GetPierceWalls() > 0
 
 	if darkvision ~= nil then
 		result[#result+1] = {
@@ -4338,7 +4349,7 @@ function creature:GetCustomVisionSenses()
 			radius = darkvision,
 			light = false,
 			dark = true,
-			penetrateWalls = false,
+			penetrateWalls = pierceWalls,
 			fieldOfView = true,
 		}
 	end
@@ -4353,7 +4364,7 @@ function creature:GetCustomVisionSenses()
 					radius = radius,
 					light = true,
 					dark = (v.type == "dark"),
-					penetrateWalls = v.penetrateWalls,
+					penetrateWalls = v.penetrateWalls or pierceWalls,
 					fieldOfView = v.fieldOfView,
 				}
 			end
@@ -5497,7 +5508,7 @@ function creature:GetModifiersForAttackAgainstUs(attacker, attack)
 		local coverTooltip = "The amount of cover the target has affects chance to hit."
 
 		if ourToken ~= nil and attackerToken ~= nil then
-			local coverInfo = dmhub.GetCoverInfo(attackerToken, ourToken)
+			local coverInfo = dmhub.GetCoverInfo(attackerToken, ourToken, attackerToken.properties:GetPierceWalls())
 			if coverInfo ~= nil then
 				if coverInfo.cover == 1 then
 					coverTooltip = string.format("%s\n<color=#ffaaaaff>There is a %s in the way, providing the target Half Cover.", coverTooltip, coverInfo.description)
@@ -5775,7 +5786,11 @@ function creature:OnMove(path)
         return
     end
 
+    --floorAltitude
+
     local immuneFromOpportunityAttacks = path.shifting or (self:CalculateNamedCustomAttribute("Immunity from Opportunity Attack") > 0)
+
+    local ourTileSize = ourToken.tileSize
 
 
     local allTokens = dmhub.allTokens
@@ -5799,6 +5814,9 @@ function creature:OnMove(path)
     local occupyingLocationMap = {}
     local adjacentLocationMap = {}
     for i,otherToken in ipairs(allTokens) do
+        local otherTokenTileSize = otherToken.tileSize
+        local otherTokenAltitude = otherToken.floorAltitude
+
         local adj = otherToken.properties:AdjacentLocations()
         print("LOCS:: OTHER TOKEN ADJACENT", #adj)
 
@@ -5807,7 +5825,7 @@ function creature:OnMove(path)
         for _,a in ipairs(adj) do
             if a.x >= minx and a.x <= maxx and a.y >= miny and a.y <= maxy then
                 for _,step in ipairs(steps) do
-                    if a.x == step.x and a.y == step.y and a.floor == step.floor then
+                    if a.x == step.x and a.y == step.y and a.floor == step.floor and (step.altitude + ourTileSize) >= otherTokenAltitude and step.altitude <= (otherTokenAltitude + otherTokenTileSize) then
                         moveNextTo = true
                         break
                     end
@@ -6249,7 +6267,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 					local condCasterInfo = cond:try_get("casterInfo")
 					if condCasterInfo ~= nil and condCasterInfo.tokenid == casterInfo.tokenid then
 						cond.stolenAbility = stolenAbility
-						cond.endAbility = ongoingEffect:GetEndAbility()
+						cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 						cond.casterInfo = casterInfo
 						cond.seq = highestSeq + 1
 						if options.stacks == nil then
@@ -6277,7 +6295,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
                 end
 
 				cond.stolenAbility = stolenAbility
-				cond.endAbility = ongoingEffect:GetEndAbility()
+				cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 				cond.casterInfo = casterInfo
 				cond.seq = highestSeq + 1
 				if options.stacks == nil then
@@ -6304,7 +6322,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
                 end
 
 				cond.stolenAbility = stolenAbility
-				cond.endAbility = ongoingEffect:GetEndAbility()
+				cond._tmp_endAbility = ongoingEffect:GetEndAbility()
 				cond.casterInfo = casterInfo
                 cond.bondid = bondid
 				cond.seq = highestSeq + 1
@@ -6320,7 +6338,6 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 			ongoingEffectid = ongoingEffectid,
 			duration = duration,
 			stolenAbility = stolenAbility,
-			endAbility = ongoingEffect:GetEndAbility(),
 			casterInfo = casterInfo,
 			stacks = cond(options.stacks == nil, 1, options.stacks),
 			seq = highestSeq + 1,
@@ -6330,6 +6347,7 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		}
 
 		result = ongoingEffects[#ongoingEffects]
+		result._tmp_endAbility = ongoingEffect:GetEndAbility()
 	end
 
     result.casterSet = casterSet
@@ -6419,14 +6437,21 @@ function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
 end
 
 --- Removes the specific ongoing effect instance identified by seq.
+--- When numStacks is provided and the instance has more stacks than that,
+--- only reduces the stack count rather than removing the instance entirely.
 --- @param seq number
-function creature:RemoveOngoingEffectBySeq(seq)
+--- @param numStacks number|nil
+function creature:RemoveOngoingEffectBySeq(seq, numStacks)
 	local ongoingEffects = self:get_or_add('ongoingEffects', {})
 	local newOngoingEffects = {}
 	for i,cond in ipairs(ongoingEffects) do
 		if cond.seq ~= seq then
 			newOngoingEffects[#newOngoingEffects+1] = cond
+		elseif numStacks ~= nil and cond.stacks ~= nil and numStacks < cond.stacks then
+			cond.stacks = cond.stacks - numStacks
+			newOngoingEffects[#newOngoingEffects+1] = cond
 		end
+		-- seq matches with no partial removal: drop entry (full removal)
 	end
 	self.ongoingEffects = newOngoingEffects
 end
@@ -6756,6 +6781,7 @@ creature.helpSymbols = {
 		name = "Hitpoints",
 		type = "number",
 		desc = "The current hitpoints of the creature.",
+		deprecated = true,
 		seealso = {"Maximum Hitpoints", "Temporary Hitpoints"},
 		examples = {"OBJ.Hitpoints > 10", "OBJ.Hitpoints < OBJ.Maximum Hitpoints"},
 	},
@@ -6764,6 +6790,7 @@ creature.helpSymbols = {
 		name = "Maximum Hitpoints",
 		type = "number",
 		desc = "The maximum hitpoints of the creature.",
+		deprecated = true,
 		seealso = {"Hitpoints", "Temporary Hitpoints"},
 		examples = {"OBJ.Maximum Hitpoints > 10", "OBJ.Hitpoints < OBJ.Maximum Hitpoints"},
 	},
@@ -6772,6 +6799,7 @@ creature.helpSymbols = {
 		name = "Weapons Wielded",
 		type = "number",
 		desc = "The number of weapons the creature is currently wielding in its hands.",
+		deprecated = true,
 		examples = {"Weapons Wielded = 1"},
 	},
 
@@ -6779,24 +6807,28 @@ creature.helpSymbols = {
 		name = "Two Handed",
 		type = "boolean",
 		desc = "True if the creature is currently wielding a two-handed weapon.",
+		deprecated = true,
 	},
 
 	hasmainhanditem = {
 		name = "Has Main Hand Item",
 		type = "boolean",
 		desc = "True if the creature is wielding an item in its primary hand.",
+		deprecated = true,
 	},
 
 	hasoffhanditem = {
 		name = "Has Off Hand Item",
 		type = "boolean",
 		desc = "True if the creature is wielding an item in its off hand.",
+		deprecated = true,
 	},
 
 	mainhanditem = {
 		name = "Main Hand Item",
 		type = "equipment",
 		desc = "The item the creature is wielding in its main hand, if any. Only valid if Has Main Hand Item is true.",
+		deprecated = true,
 		seealso = {"Has Main Hand Item", "Off Hand Item"},
 	},
 
@@ -6804,6 +6836,7 @@ creature.helpSymbols = {
 		name = "Off Hand Item",
 		type = "equipment",
 		desc = "The item the creature is wielding in its off hand, if any. Only valid if Has Off Hand Item is true.",
+		deprecated = true,
 		seealso = {"Has Off Hand Item", "Main Hand Item"},
 	},
 
@@ -6811,6 +6844,7 @@ creature.helpSymbols = {
 		name = "Has Shield",
 		type = "boolean",
 		desc = "True if the creature has a shield, false otherwise.",
+		deprecated = true,
 		seealso = {"Light Armor", "Medium Armor", "Heavy Armor", "Unarmored"},
 	},
 
@@ -6818,6 +6852,7 @@ creature.helpSymbols = {
 		name = "Shield",
 		type = "equipment",
 		desc = "The shield the creature is wielding, if any. Only valid if Has Shield is true.",
+		deprecated = true,
 		seealso = {"Has Shield"},
 	},
 
@@ -6826,6 +6861,7 @@ creature.helpSymbols = {
 		name = "Shield Bonus",
 		type = "number",
 		desc = "The armor class increase afforded by the shield the creature is currently wielding. Zero if the creature is not using a shield.",
+		deprecated = true,
 		seealso = {"Shield", "Has Shield"},
 	},
 
@@ -6833,6 +6869,7 @@ creature.helpSymbols = {
 		name = "Has Armor",
 		type = "boolean",
 		desc = "True if the creature is wearing armor, false otherwise.",
+		deprecated = true,
 		seealso = {"Has Shield", "Light Armor", "Medium Armor", "Heavy Armor", "Unarmored"},
 	},
 
@@ -6840,6 +6877,7 @@ creature.helpSymbols = {
 		name = "Armor",
 		type = "equipment",
 		desc = "The armor the creature is wearing, if any. Only valid if Has Armor is true.",
+		deprecated = true,
 		seealso = {"Has Armor"},
 	},
 
@@ -6876,6 +6914,7 @@ creature.helpSymbols = {
 		name = "Armor Class",
 		type = "number",
 		desc = "The Armor Class of the creature.",
+		deprecated = true,
 		seealso = {},
 		examples = {"OBJ.Armor Class > 10"},
 	},
@@ -6884,6 +6923,7 @@ creature.helpSymbols = {
 		name = "Proficiency Bonus",
 		type = "number",
 		desc = "The Proficiency Bonus of the creature.",
+		deprecated = true,
 		seealso = {},
 		examples = {"OBJ.Strength Modifier + OBJ.Proficiency Bonus"},
 	},
@@ -6892,6 +6932,7 @@ creature.helpSymbols = {
 		name = "Proficiency Modifier",
 		type = "number",
 		desc = "Synonym of Proficiency Bonus",
+		deprecated = true,
 		seealso = {},
 		examples = {"OBJ.Strength Modifier + OBJ.Proficiency Modifier"},
 	},
@@ -6922,6 +6963,7 @@ creature.helpSymbols = {
 		name = "Inventory Weight",
 		type = "number",
 		desc = "The total weight of the creature's inventory items.",
+		deprecated = true,
 		examples = {"Inventory Weight >= Carrying Capacity"},
 	},
 
@@ -7012,6 +7054,7 @@ creature.helpSymbols = {
 		name = "Spell Save DC",
 		type = "number",
 		desc = "The creature's Spellcasting Save DC. For multi-class characters this is the highest spellcasting ability modifier of any class they can cast spells in.",
+		deprecated = true,
 		seealso = {"Spellcasting Ability Modifier"},
 	},
 
@@ -7019,6 +7062,7 @@ creature.helpSymbols = {
 		name = "Spellcasting Ability Modifier",
 		type = "number",
 		desc = "The creature's Spellcasting Ability Modifier. For multi-class characters this is the highest spellcasting ability modifier of any class they can cast spells in.",
+		deprecated = true,
 		seealso = {"Proficiency Bonus"},
 		examples = {"8 + OBJ.Proficiency Bonus + OBJ.Spellcasting Ability Modifier"},
 	},
@@ -7027,12 +7071,14 @@ creature.helpSymbols = {
 		name = "Spellcasting Classes",
 		type = "number",
 		desc = "The number of classes from which the creature has spellcasting abilities from. For instance, a Paladin 4/Wizard 2 would have a value of 2. This is generally used to ensure rules regarding multiclass spellcasting work correctly.",
+		deprecated = true,
 	},
 
 	multiclass = {
 		name = "Multiclass",
 		type = "boolean",
 		desc = "True for characters that have levels in multiple different classes.",
+		deprecated = true,
 		seealso = {"Monoclass"},
 	},
 
@@ -7104,6 +7150,7 @@ creature.helpSymbols = {
 		name = "Proficient",
 		type = "function",
 		desc = "Given the name of a skill, an item, or item category will be true if the creature has proficiency with it, and false otherwise.",
+		deprecated = true,
 		examples = {'Proficient("Acrobatics")', 'Proficient("Heavy Armor")', 'Proficient("Longsword")', 'Proficient("Lyre")'},
 	},
 
@@ -7111,6 +7158,7 @@ creature.helpSymbols = {
 		name = "Skill Modifier",
 		type = "function",
 		desc = "Given the name of a skill, will return the creature's modifier for checks made using that skill.",
+		deprecated = true,
 		examples = {'Skill Modifier("Acrobatics")'},
 	},
 
@@ -7118,6 +7166,7 @@ creature.helpSymbols = {
 		name = "Save Modifier",
 		type = "function",
 		desc = "Given the name of an attribute, will return the creature's modifier for saving throws made using that attribute.",
+		deprecated = true,
 		examples = {'Save Modifier("dex")'},
 	},
 
@@ -7164,6 +7213,7 @@ creature.helpSymbols = {
 		name = "Ongoing DC",
 		type = "text",
 		desc = "The DC of the creatures current ongoing effect",
+		deprecated = true,
 		examples = {"ongoingDC('Stealth') > target.passive(\"perception\")" },
 	},
 
@@ -7171,6 +7221,7 @@ creature.helpSymbols = {
 		name = "Passive",
 		type = "text",
 		desc = "Get a passive mod of a creature",
+		deprecated = true,
 		examples = {"target.passive(\"perception\") > 25"},
 	},
 
@@ -8502,7 +8553,7 @@ function creature:DispatchEvent(eventName, info)
 			local triggeredEvents = self:get_or_add("triggeredEvents", {})
 
             --clear out any old or invalid events.
-            while #triggeredEvents > 0 and (triggeredEvents[1].timestamp == nil or TimestampAgeInSeconds(triggeredEvents[1].timestamp) > 30) do
+            while #triggeredEvents > 0 and (triggeredEvents[1] == nil or triggeredEvents[1].timestamp == nil or TimestampAgeInSeconds(triggeredEvents[1].timestamp) > 30) do
                 table.remove(triggeredEvents, 1)
             end
 
@@ -8558,6 +8609,7 @@ ActiveTrigger.charid = ""
 ActiveTrigger.free = true
 ActiveTrigger.timestamp = 0
 ActiveTrigger.heroicResourceCost = 0
+ActiveTrigger.epicResourceCost = 0
 ActiveTrigger.clearOnDismiss = false
 ActiveTrigger.dismissOnTrigger = false
 ActiveTrigger.powerRollModifier = false
@@ -8821,7 +8873,7 @@ function creature:Rest(restType)
 
 	if restType == 'long' then
 		if self.damage_taken > 0 then
-			self:Heal(self.damage_taken, "Long rest")
+			self:Heal(self.damage_taken, "Respite")
 		end
 
 		local victories = self:try_get("victories", 0)

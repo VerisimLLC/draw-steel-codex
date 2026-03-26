@@ -42,6 +42,8 @@ local TEMP_STAM = "#8B5CF6"
 local MOVE_HINDERED = "#E07070"
 local CHARACTERISTIC_BG = "#0B0F0D"
 
+local TRANSPARENCY = "06"
+
 local TacPanel = {}
 local TacPanelSizes = {}
 local TacPanelStyles = {}
@@ -325,7 +327,7 @@ TacPanelStyles.TokenBox = {
     {
         selectors = {"panel", "tokenbox", "heroic-resources"},
         borderColor = GOLD_BORDER,
-        bgcolor = GOLD_DARK_BG,
+        bgcolor = GOLD_BORDER .. TRANSPARENCY,
     },
     {
         selectors = {"label", "tokenbox"},
@@ -368,7 +370,7 @@ TacPanelStyles.TokenBox = {
     },
     {
         selectors = {"panel", "icon", "hero-tokens"},
-        bgimage = PLACEHOLDER_TOKEN,
+        bgimage = "drawsteel/hero-token.png",
         bgcolor = GOLD,
     },
     {
@@ -381,22 +383,20 @@ TacPanelStyles.TokenBox = {
         bgcolor = GOLD,
     },
     {
-        selectors = {"label", "tokenbox", "value"},
+        selectors = {"input", "tokenbox", "value"},
         width = "auto",
         height = "auto",
         valign = "top",
         tmargin = -4,
         hmargin = 6,
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
         fontFace = "Newzald",
         fontSize = 30,
-    },
-    {
-        selectors = {"label", "tokenbox", "value", "hero-tokens"},
-        color = GOLD,
-    },
-    {
-        selectors = {"label", "tokenbox", "value", "heroic-resources"},
-        color = GOLD,
+        textAlignment = "center",
+        color = CREAM,
     },
     {
         selectors = {"refresh-icon"},
@@ -433,29 +433,29 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "stamina-box", "harm"},
         borderColor = RED,
-        bgcolor = DARKRED,
+        bgcolor = RED .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "stamina-box", "stamina"},
         width = TacPanelSizes.Panels.stamBoxStam,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. "0F",
+        bgcolor = TEAL_HEAL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "stamina-box", "heal"},
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. "0F",
+        bgcolor = TEAL_HEAL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. "0F",
+        bgcolor = TEAL_HEAL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "stamina-box", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. "0F",
+        bgcolor = TEMP_STAM .. TRANSPARENCY,
     },
     {
         selectors = {"label", "stambox-title"},
@@ -514,14 +514,19 @@ TacPanelStyles.Stamina = {
         color = CREAM,
     },
     {
-        selectors = {"label", "stambox-stam", "current"},
+        selectors = {"input", "stambox-stam", "current"},
         height = "auto",
         width = "auto",
         valign = "center",
         halign = "left",
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
         fontFace = "Newzald",
-        fontSize = TacPanelSizes.Fonts.currentStam,
+        fontSize = TacPanelSizes.Fonts.currentStamina,
         color = CREAM,
+        textAlignment = "center",
     },
     {
         selectors = {"label", "stambox-stam", "max"},
@@ -542,22 +547,26 @@ TacPanelStyles.Stamina = {
         textAlignment = "center",
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.recoveryValue,
-        color = HEALTHY_FILL,
+        color = CREAM,
     },
     {
         selectors = {"label", "recovery-value", "hover"},
         brightness = 1.5,
     },
     {
-        selectors = {"label", "recovery-count"},
+        selectors = {"input", "recovery-count"},
         width = "auto",
         height = "auto",
         valign = "top",
         halign = "left",
+        pad = 0,
+        margin = 0,
+        border = 0,
+        bgcolor = "clear",
         textAlignment = "left",
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.recoveryCount,
-        color = HEALTHY_FILL,
+        color = CREAM,
     },
     {
         selectors = {"label", "recovery-max"},
@@ -689,12 +698,12 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "health-status", "winded"},
         borderColor = WINDED_FILL,
-        bgcolor = WINDED_FILL .. "0F",
+        bgcolor = WINDED_FILL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "health-status", "dying"},
         borderColor = DYING_FILL,
-        bgcolor = DYING_FILL .. "0F",
+        bgcolor = DYING_FILL .. TRANSPARENCY,
     },
     {   -- Status label inside the box
         selectors = {"label", "health-status-label"},
@@ -717,7 +726,7 @@ TacPanelStyles.Stamina = {
     {   -- Temp stam box: horizontal layout, TEMP_STAM colors
         selectors = {"panel", "health-status", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. "0F",
+        bgcolor = TEMP_STAM .. TRANSPARENCY,
         flow = "horizontal",
     },
     {   -- Temp HP value (Newzald 12pt white)
@@ -790,7 +799,7 @@ TacPanelStyles.CharacteristicsPanel = {
         hmargin = 4,
         flow = "vertical",
         bgimage = true,
-        bgcolor = CHARACTERISTIC_BG,
+        bgcolor = TEAL .. TRANSPARENCY, --CHARACTERISTIC_BG,
         borderColor = RULE,
         border = 1,
         cornerRadius = 4,
@@ -822,17 +831,17 @@ TacPanelStyles.CharacteristicsPanel = {
         halign = "center",
         valign = "top",
         -- tmargin = 4,
-        color = MUTED,
+        color = CREAM,
         fontFace = "Newzald",
         fontSize = TacPanelSizes.Fonts.charValue,
     },
     {
         selectors = {"label", "char-value", "positive"},
-        color = TEAL,
+        color = CREAM,
     },
     {
         selectors = {"label", "char-value", "negative"},
-        color = RED,
+        color = CREAM,
     }
 }
 TacPanelStyles.MovementPanel = {
@@ -885,7 +894,7 @@ TacPanelStyles.MovementPanel = {
     {
         selectors = {"label", "movebox-value", "hindered"},
         lmargin = 4,
-        color = MOVE_HINDERED,
+        color = RED,
     },
     {
         selectors = {"panel", "altitude-row"},
@@ -952,11 +961,11 @@ TacPanelStyles.HeroicResources = {
         border = 1,
         borderColor = GOLD,
         cornerRadius = 4,
-        bgcolor = GOLD .. "0F",
+        bgcolor = GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "hr-chip", "completed"},
-        bgcolor = DIMMER .. "0F",
+        bgcolor = DIMMER .. TRANSPARENCY,
         borderColor = DIM,
     },
     {
@@ -1022,7 +1031,7 @@ TacPanelStyles.HeroicResources = {
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
-        bgcolor = GOLD .. "0F",
+        bgcolor = GOLD .. TRANSPARENCY,
         borderColor = GOLD,
         border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
     },
@@ -1058,7 +1067,7 @@ TacPanelStyles.HeroicResources = {
     },
     {
         selectors = {"panel", "gr-row", "available"},
-        bgcolor = GOLD_LIGHT .. "0F"
+        bgcolor = GOLD_LIGHT .. TRANSPARENCY
     },
     {
         selectors = {"label", "gr-value"},
@@ -1078,14 +1087,14 @@ TacPanelStyles.HeroicResources = {
         bgimage = true,
         border = 1,
         borderColor = DIMMER,
-        bgcolor = DIMMER .. "0F",
+        bgcolor = DIMMER .. TRANSPARENCY,
         cornerRadius = {x1 = 0, x2 = 0, y1 = 4, y2 = 4},
     },
     {
         selectors = {"label", "gr-value", "parent:available"},
         color = GOLD,
         borderColor = GOLD,
-        bgcolor = GOLD .. "0F",
+        bgcolor = GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"label", "gr-text"},
@@ -1143,9 +1152,9 @@ TacPanelStyles.MultiEdit = {
       bgimage = "panels/square.png",
       border = 1, cornerRadius = 4, hmargin = 2 },
     { selectors = {"panel", "me-input-box", "heal"},
-      bgcolor = TEAL_HEAL .. "1A", borderColor = TEAL_HEAL },
+      bgcolor = TEAL_HEAL .. TRANSPARENCY, borderColor = TEAL_HEAL },
     { selectors = {"panel", "me-input-box", "damage"},
-      bgcolor = RED .. "1A", borderColor = RED },
+      bgcolor = RED .. TRANSPARENCY, borderColor = RED },
     { selectors = {"input", "me-input"},
       width = "100%", height = "100%",
       bgcolor = "clear", borderWidth = 0, borderColor = "clear",
@@ -1157,7 +1166,7 @@ TacPanelStyles.MultiEdit = {
     { selectors = {"panel", "me-condition-btn"},
       width = "30%", height = 28, halign = "center", valign = "center",
       bgimage = "panels/square.png",
-      bgcolor = DIM .. "1A", border = 1, borderColor = DIM,
+      bgcolor = DIM .. TRANSPARENCY, border = 1, borderColor = DIM,
       cornerRadius = 4, hmargin = 2 },
     { selectors = {"panel", "me-condition-btn", "hover"},
       brightness = 1.3, transitionTime = 0.2 },
@@ -1180,7 +1189,7 @@ TacPanelStyles.MultiEdit = {
       halign = "left", flow = "horizontal",
       tmargin = 4, lmargin = 6, hpad = 6, vpad = 3,
       bgimage = "panels/square.png",
-      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      bgcolor = DIMMER .. TRANSPARENCY, border = 1, borderColor = DIMMER,
       cornerRadius = 4 },
     { selectors = {"label", "me-squad-label"},
       width = "auto", height = "auto", valign = "center",
@@ -1192,7 +1201,7 @@ TacPanelStyles.MultiEdit = {
       halign = "left", flow = "horizontal",
       hpad = 6, vpad = 3,
       bgimage = "panels/square.png",
-      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      bgcolor = DIMMER .. TRANSPARENCY, border = 1, borderColor = DIMMER,
       cornerRadius = 4 },
     { selectors = {"label", "me-eds-label"},
       width = "auto", height = "auto", valign = "center",
@@ -1207,7 +1216,7 @@ TacPanelStyles.MultiEdit = {
       halign = "left", flow = "horizontal",
       lmargin = 4, hpad = 6, vpad = 3,
       bgimage = "panels/square.png",
-      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      bgcolor = DIMMER .. TRANSPARENCY, border = 1, borderColor = DIMMER,
       cornerRadius = 4 },
     { selectors = {"label", "me-ev-result"},
       width = "auto", height = "auto", valign = "center",
@@ -1224,12 +1233,12 @@ TacPanelStyles.Routines = {
       width = "auto", height = 28,
       flow = "horizontal", hpad = 8, vpad = 3,
       bgimage = "panels/square.png",
-      bgcolor = DIMMER .. "0F", border = 1, borderColor = DIMMER,
+      bgcolor = DIMMER .. TRANSPARENCY, border = 1, borderColor = DIMMER,
       cornerRadius = 4, lmargin = 6, tmargin = 4 },
     { selectors = {"panel", "rt-chip", "hover"},
       brightness = 1.3, transitionTime = 0.2 },
     { selectors = {"panel", "rt-chip", "selected"},
-      bgcolor = GOLD .. "1A", borderColor = GOLD },
+      bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD },
 
     -- Routine chip label
     { selectors = {"label", "rt-chip"},
@@ -1271,7 +1280,7 @@ TacPanelStyles.Conditions = {
         bgimage = true,
         border = 1,
         borderColor = GOLD,
-        bgcolor = GOLD .. "0F",
+        bgcolor = GOLD .. TRANSPARENCY,
         cornerRadius = 4,
     },
     {
@@ -1333,7 +1342,7 @@ TacPanelStyles.Conditions = {
         valign = "center",
         lmargin = 4,
         bgimage = true,
-        bgcolor = RED .. "0F",
+        bgcolor = RED .. TRANSPARENCY,
         border = 1,
         borderColor = RED,
         cornerRadius = 2,
@@ -1484,7 +1493,7 @@ TacPanelStyles.AddConditionMenu = {
         selectors = {"label", "menu-suboption", "disabled"},
         color = DIM,
         borderColor = DIM,
-        bgcolor = DIM .. "0F",
+        bgcolor = DIM .. TRANSPARENCY,
     },
     {   -- Search input
         selectors = {"input", "menu-search"},
@@ -1521,16 +1530,16 @@ TacPanelStyles.Resistances = {
     { selectors = {"label", "res-box", "weakness"},
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
-      bold = true, color = RED, bgimage = "panels/square.png",
-      bgcolor = RED .. "04", border = 1, borderColor = RED,
+      bold = false, color = CREAM, bgimage = "panels/square.png",
+      bgcolor = RED .. TRANSPARENCY, border = 1, borderColor = RED,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 
     -- Immunity box
     { selectors = {"label", "res-box", "immunity"},
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
-      bold = true, color = TEAL, bgimage = "panels/square.png",
-      bgcolor = TEAL_HEAL .. "04", border = 1, borderColor = TEAL_HEAL,
+      bold = false, color = CREAM, bgimage = "panels/square.png",
+      bgcolor = TEAL_HEAL .. TRANSPARENCY, border = 1, borderColor = TEAL_HEAL,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 }
 
@@ -1715,24 +1724,23 @@ function TacPanel.HeroTokenBox()
             gui.Panel{
                 classes = {"icon", "hero-tokens"},
             },
-            gui.Label{
+            gui.Input{
                 classes = {"tokenbox", "value", "hero-tokens"},
                 text = "0",
-                editable = true,
-                numeric = true,
                 characterLimit = 2,
+                selectAllOnFocus = true,
+                placeholderText = "--",
                 change = function(element)
                     local token = element.parent.parent.data.token
                     if token == nil then return end
-                    local n = tonumber(element.text)
-                    if n ~= nil and round(n) == n then
-                        n = math.max(0, n)
+                    local n = tonum(element.text, -1)
+                    if n >= 0 then
                         token.properties:SetHeroTokens(n, "Set manually")
                     end
-                    element.text = string.format("%d", token.properties:GetHeroTokens())
+                    element.textNoNotify = string.format("%d", token.properties:GetHeroTokens())
                 end,
                 refreshValue = function(element, token)
-                    element.text = tostring(token.properties:GetHeroTokens())
+                    element.textNoNotify = tostring(token.properties:GetHeroTokens())
                 end,
             },
         },
@@ -1818,22 +1826,21 @@ function TacPanel.SurgesBox()
                 classes = {"icon"},
                 bgimage = "game-icons/surge.png",
             },
-            gui.Label{
+            gui.Input{
                 classes = {"tokenbox", "value"},
-                text = "0",
-                editable = true,
-                numeric = true,
+                text = "",
                 characterLimit = 2,
+                selectAllOnFocus = true,
+                placeholderText = "--",
                 change = function(element)
                     local token = element.parent.parent.data.token
                     if token == nil then return end
-                    local amount = tonumber(element.text)
-                    if amount == nil then
-                        element.text = tostring(token.properties:GetAvailableSurges())
+                    local n = tonum(element.text, -1)
+                    if n < 0 then
+                        element.textNoNotify = tostring(token.properties:GetAvailableSurges())
                         return
                     end
-                    amount = math.max(0, round(amount))
-                    local diff = amount - token.properties:GetAvailableSurges()
+                    local diff = n - token.properties:GetAvailableSurges()
                     if diff ~= 0 then
                         token:ModifyProperties{
                             description = "Change Surges",
@@ -1842,14 +1849,16 @@ function TacPanel.SurgesBox()
                             end,
                         }
                     end
-                    element.text = tostring(token.properties:GetAvailableSurges())
+                    element.textNoNotify = tostring(token.properties:GetAvailableSurges())
                 end,
                 refreshValue = function(element, token)
                     local q = dmhub.initiativeQueue
                     if q == nil or q.hidden then
-                        element.text = "--"
+                        element.editable = false
+                        element.textNoNotify = ""
                     else
-                        element.text = tostring(token.properties:GetAvailableSurges())
+                        element.editable = true
+                        element.textNoNotify = tostring(token.properties:GetAvailableSurges())
                     end
                 end,
             },
@@ -1878,16 +1887,16 @@ function TacPanel.VictoriesBox()
             gui.Panel{
                 classes = {"icon", "victories"},
             },
-            gui.Label{
+            gui.Input{
                 classes = {"tokenbox", "value"},
                 text = "0",
-                editable = true,
-                numeric = true,
                 characterLimit = 2,
+                selectAllOnFocus = true,
+                placeholderText = "--",
                 data = { token = nil },
                 refreshCharacter = function(element, token)
                     element.data.token = token
-                    element.text = string.format("%d", token.properties:GetVictories())
+                    element.textNoNotify = string.format("%d", token.properties:GetVictories())
                 end,
                 refreshToken = function(element, token)
                     element:FireEvent("refreshCharacter", token)
@@ -1895,17 +1904,21 @@ function TacPanel.VictoriesBox()
                 change = function(element)
                     local token = element.data.token
                     if token == nil then return end
-                    local n = math.max(0, round(tonumber(element.text) or 0))
+                    local n = tonum(element.text, -1)
+                    if n < 0 then
+                        element:FireEvent("refreshCharacter", token)
+                        return
+                    end
                     if n ~= token.properties:GetVictories() then
                         token:ModifyProperties{
                             description = "Set Victories",
                             execute = function()
                                 token.properties:SetVictories(n)
-                                element.text = string.format("%d", token.properties:GetVictories())
+                                element.textNoNotify = string.format("%d", token.properties:GetVictories())
                             end,
                         }
                     else
-                        element.text = string.format("%d", token.properties:GetVictories())
+                        element.textNoNotify = string.format("%d", token.properties:GetVictories())
                     end
                 end,
                 refreshValue = function(element, token)
@@ -1975,20 +1988,22 @@ function TacPanel.HeroicResourcesBox()
                     element.selfStyle.bgimage = icon
                 end,
             },
-            gui.Label{
+            gui.Input{
                 classes = {"tokenbox", "value", "heroic-resources"},
-                text = "0",
-                editable = true,
-                numeric = true,
+                text = "",
                 characterLimit = 2,
+                selectAllOnFocus = true,
+                placeholderText = "--",
                 data = { token = nil },
                 refreshCharacter = function(element, token)
                     element.data.token = token
                     local q = dmhub.initiativeQueue
                     if q == nil or q.hidden then
-                        element.text = "--"
+                        element.editable = false
+                        element.textNoNotify = ""
                     else
-                        element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+                        element.editable = true
+                        element.textNoNotify = tostring(token.properties:GetHeroicOrMaliceResources())
                     end
                 end,
                 refreshToken = function(element, token)
@@ -1997,19 +2012,19 @@ function TacPanel.HeroicResourcesBox()
                 change = function(element)
                     local token = element.data.token
                     if token == nil then return end
-                    local amount = tonumber(element.text)
-                    if amount == nil then
+                    local n = tonum(element.text, nil)
+                    if n == nil then
                         element:FireEvent("refreshCharacter", token)
                         return
                     end
                     local creature = token.properties
                     if not creature:IsHero() and not creature:IsCompanion() then
-                        CharacterResource.SetMalice(math.max(0, amount), "Manually set")
+                        CharacterResource.SetMalice(math.max(0, n), "Manually set")
                         return
                     end
                     local resource = dmhub.GetTable(CharacterResource.tableName)[CharacterResource.heroicResourceId]
-                    amount = resource:ClampQuantity(token.properties, amount)
-                    local diff = amount - token.properties:GetHeroicOrMaliceResources()
+                    n = resource:ClampQuantity(token.properties, n)
+                    local diff = n - token.properties:GetHeroicOrMaliceResources()
                     if diff ~= 0 then
                         token:ModifyProperties{
                             description = "Change Heroic Resource",
@@ -2022,7 +2037,7 @@ function TacPanel.HeroicResourcesBox()
                             end,
                         }
                     end
-                    element.text = tostring(token.properties:GetHeroicOrMaliceResources())
+                    element.textNoNotify = tostring(token.properties:GetHeroicOrMaliceResources())
                 end,
             },
         },
@@ -2474,30 +2489,34 @@ function TacPanel.StaminaBox()
             flow = "horizontal",
             valign = "center",
             halign = "center",
-            gui.Label{
+            gui.Input{
                 classes = {"stambox-stam", "current"},
                 text = "0",
-                editable = true,
-                numeric = true,
+                characterLimit = 4,
+                selectAllOnFocus = true,
+                placeholderText = "--",
                 data = {
                     token = nil,
                 },
                 change = function(element)
                     local token = element.data.token
                     if token ~= nil and token.valid and token.properties ~= nil then
-                        token:ModifyProperties{
-                            description = "Set Stamina",
-                            execute = function()
-                                token.properties:SetCurrentHitpoints(element.text)
-                            end,
-                        }
+                        local n = tonum(element.text, -1)
+                        if n >= 0 then
+                            token:ModifyProperties{
+                                description = "Set Stamina",
+                                execute = function()
+                                    token.properties:SetCurrentHitpoints(n)
+                                end,
+                            }
+                        end
                     end
                 end,
                 refreshValue = function(element, token)
                     element.data.token = token
                     local text = tostring(token.properties:CurrentHitpoints())
                     element.selfStyle.fontSize = _fitFontSize(TacPanelSizes.Fonts.currentStamina, 3, #text)
-                    element.text = text
+                    element.textNoNotify = text
                 end,
             },
             gui.Label{
@@ -2688,17 +2707,17 @@ function TacPanel.RecoveriesBox()
                     valign = "top",
                     halign = "center",
                     flow = "horizontal",
-                    gui.Label{
+                    gui.Input{
                         classes = {"recovery-count"},
                         text = "0",
-                        editable = true,
-                        numeric = true,
                         characterLimit = 2,
+                        selectAllOnFocus = true,
+                        placeholderText = "--",
                         data = { token = nil },
                         refreshCharacter = function(element, token)
                             element.data.token = token
                             local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
-                            element.text = string.format("%d", quantity)
+                            element.textNoNotify = string.format("%d", quantity)
                         end,
                         setToken = function(element, token)
                             element.data.token = token
@@ -2706,13 +2725,13 @@ function TacPanel.RecoveriesBox()
                         change = function(element)
                             local token = element.data.token
                             if token == nil then return end
-                            local n = tonumber(element.text)
-                            if n == nil then
+                            local n = tonum(element.text, -1)
+                            if n < 0 then
                                 element:FireEvent("refreshCharacter", token)
                                 return
                             end
-                            n = math.max(0, round(n))
                             local nresources = token.properties:GetResources()[recoveryid] or 0
+                            n = math.min(n, nresources)
                             local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
                             local current = nresources - usage
                             local delta = n - current
@@ -3047,7 +3066,7 @@ function TacPanel.Resistances()
                         width = boxWidth,
                         textWrap = true,
                         markdown = true,
-                        text = string.format("**<color=%s>%s:</color>** %s", DIM, weakTitle, weakText),
+                        text = string.format("**<color=%s>%s:</color>** %s", DIMMER, weakTitle, weakText),
                     }
                 end
                 if hasImmune then
@@ -3057,7 +3076,7 @@ function TacPanel.Resistances()
                         width = boxWidth,
                         textWrap = true,
                         markdown = true,
-                        text = string.format("**<color=%s>%s:</color>** %s", DIM, immuneTitle, immuneText),
+                        text = string.format("**<color=%s>%s:</color>** %s", DIMMER, immuneTitle, immuneText),
                     }
                 end
                 element.children = children
@@ -3913,7 +3932,7 @@ function TacPanel.Routines()
                     text = "None",
                     selfStyle = noneSelected and {color = GOLD_LIGHT} or nil,
                 },
-                selfStyle = noneSelected and {bgcolor = GOLD .. "1A", borderColor = GOLD} or nil,
+                selfStyle = noneSelected and {bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD} or nil,
             }
 
             for _,routine in ipairs(routines) do

@@ -440,7 +440,7 @@ function ActivatedAbility:GenerateEditor()
 						},
 						gui.Label{
 							classes = "formLabel",
-							text = keyword,
+							text = ActivatedAbility.CanonicalKeyword(keyword),
 						},
 						gui.DeleteItemButton{
 							halign = "right",

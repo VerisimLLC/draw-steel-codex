@@ -253,7 +253,7 @@ function RoutineDisplay:Render(args)
             flow = "none",
             gui.Label{
                 halign = "left",
-                text = string.format("<b>Keywords:</b> %s", cond(#table.keys(self.keywords) == 0, "-", string.join(table.sort_and_return(table.keys(self.keywords)), ", "))),
+                text = string.format("<b>Keywords:</b> %s", cond(#table.keys(self.keywords) == 0, "-", string.join(table.sort_and_return(table.mapped_keys(self.keywords, ActivatedAbility.CanonicalKeyword)), ", "))),
             },
             gui.Label{
                 halign = "right",

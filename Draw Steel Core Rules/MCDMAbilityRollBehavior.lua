@@ -1380,7 +1380,7 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
 
 
                 triggerInfo.keywords = StringSet.new{
-                    strings = table.keys(ability.keywords)
+                    strings = table.mapped_keys(ability.keywords, ActivatedAbility.CanonicalKeyword)
                 }
 
                 local casterTokenForCommand = casterToken

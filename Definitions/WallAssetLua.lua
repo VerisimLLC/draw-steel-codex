@@ -29,6 +29,7 @@
 --- @field rubbleKeyword any 
 --- @field rubbleTerrainId any 
 --- @field breakSound any 
+--- @field replacementWallId any 
 WallAssetLua = {}
 
 --- Upload

@@ -166,13 +166,42 @@ CreateEditorPanel = function(key, monsterGroup)
                             flow = "horizontal",
 
                             gui.Label{
-                                width = 400,
+                                width = 200,
                                 height = 20,
                                 fontSize = 18,
                                 bold = true,
                                 color = "white",
                                 text = ability.name,
                                 lmargin = 4,
+                            },
+
+                            gui.Label{
+                                width = "auto",
+                                height = 20,
+                                fontSize = 14,
+                                color = "#aaaaaa",
+                                text = "Min Level:",
+                                lmargin = 10,
+                                valign = "center",
+                            },
+
+                            gui.Dropdown{
+                                width = 60,
+                                height = 22,
+                                fontSize = 14,
+                                valign = "center",
+                                idChosen = tostring(ability:try_get("minLevel", 1)),
+                                options = (function()
+                                    local opts = {}
+                                    for lvl = 1, 10 do
+                                        opts[#opts+1] = {id = tostring(lvl), text = tostring(lvl)}
+                                    end
+                                    return opts
+                                end)(),
+                                change = function(element)
+                                    ability.minLevel = tonumber(element.idChosen)
+                                    dmhub.SetAndUploadTableItem(MonsterGroup.tableName, monsterGroup)
+                                end,
                             },
 
                             gui.SettingsButton{

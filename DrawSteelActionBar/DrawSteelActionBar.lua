@@ -1504,7 +1504,10 @@ local function AbilityHeading(args)
                         return
                     end
 
-                    local keywords = table.keys(ability.keywords)
+                    local keywords = {}
+                    for k,_ in pairs(ability.keywords) do
+                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+                    end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
                 end,
@@ -3345,10 +3348,14 @@ CreateAbilityController = function()
 
             --if we have a 'duration effect' on this ability we apply it while casting,
             --so that we can get its effects during casting. E.g. if their movement increases
-            --for pathfinding. TODO: Make this more general than just looking for a specific
-            --behavior as the first behavior.
-            if #g_currentAbility.behaviors > 0 and g_currentAbility.behaviors[1].typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
-                g_castingDestructors[#g_castingDestructors + 1] = g_currentAbility.behaviors[1]:ApplyOnCasting(g_token)
+            --for pathfinding, or the Charging attribute blocks difficult terrain.
+            for _, behavior in ipairs(g_currentAbility.behaviors) do
+                if behavior.typeName == "ActivatedAbilityApplyAbilityDurationEffect" then
+                    local destructor = behavior:ApplyOnCasting(g_token)
+                    if destructor then
+                        g_castingDestructors[#g_castingDestructors + 1] = destructor
+                    end
+                end
             end
 
             gui.SetFocus(element)
@@ -4643,6 +4650,16 @@ local function CalculateSpellTargetFocusing(symbols)
                             failReason = "Out of range"
                         end
                     end
+
+                    --vertical range check: targets at a different altitude beyond the ability's range are out of range.
+                    if failReason == nil and spell.targetType ~= "areatemplate" and (not g_token.properties.minion) then
+                        local verticalDist = math.abs(g_token.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+                        if verticalDist >= range + dmhub.unitsPerSquare then
+                            local altDiff = math.abs(g_token.altitude - targetToken.altitude)
+                            failReason = string.format("Out of range (altitude difference: %d)", altDiff)
+                        end
+                    end
+
                     local valid = failReason == nil
 
                     if targetToken.valid and targetToken.sheet ~= nil then

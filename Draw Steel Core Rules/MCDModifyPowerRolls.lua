@@ -249,7 +249,7 @@ CharacterModifier.TypeInfo.power = {
                 if options.ability:HasKeyword(keyword) then
                     matchCount = matchCount + 1
                 else
-                    keywordFail[#keywordFail+1] = keyword
+                    keywordFail[#keywordFail+1] = ActivatedAbility.CanonicalKeyword(keyword)
                 end
             end
 

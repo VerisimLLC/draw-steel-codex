@@ -67,9 +67,12 @@ function monster:FillMonsterActivatedAbilities(options, result)
 
     local group = self:MonsterGroup()
     local foundDefaultMalice = false
+    local monsterLevel = self:Level()
     if group ~= nil then
         for _,ability in ipairs(group.maliceAbilities) do
-            result[#result+1] = ability:MakeTemporaryClone()
+            if monsterLevel >= ability:try_get("minLevel", 1) then
+                result[#result+1] = ability:MakeTemporaryClone()
+            end
         end
 
         --also get any malice abilities our band inherits. E.g. Bugbears can use Goblin malice abilities.
@@ -82,7 +85,9 @@ function monster:FillMonsterActivatedAbilities(options, result)
                 local parentGroup = MonsterGroup.Get(key)
                 if parentGroup ~= nil then
                     for _,ability in ipairs(parentGroup.maliceAbilities) do
-                        result[#result+1] = ability:MakeTemporaryClone()
+                        if monsterLevel >= ability:try_get("minLevel", 1) then
+                            result[#result+1] = ability:MakeTemporaryClone()
+                        end
                     end
                 end
             end
@@ -93,7 +98,9 @@ function monster:FillMonsterActivatedAbilities(options, result)
         local parentGroup = MonsterGroup.Get(g_defaultMonsterMaliceGroup)
         if parentGroup ~= nil then
             for _,ability in ipairs(parentGroup.maliceAbilities) do
-                result[#result+1] = ability:MakeTemporaryClone()
+                if monsterLevel >= ability:try_get("minLevel", 1) then
+                    result[#result+1] = ability:MakeTemporaryClone()
+                end
             end
         end
     end
@@ -365,7 +372,7 @@ function monster:Render(args, options)
 
     local keywordsSorted = {}
     for k,v in pairs(self.keywords) do
-        keywordsSorted[#keywordsSorted+1] = k
+        keywordsSorted[#keywordsSorted+1] = ActivatedAbility.CanonicalKeyword(k)
     end
 
     table.sort(keywordsSorted)
@@ -488,7 +495,7 @@ function monster:Render(args, options)
                                     
                                     local keywords = {}
                                     for k,_ in pairs(entry:try_get("keywords", {})) do
-                                        keywords[#keywords+1] = k
+                                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
                                     end
 
                                     table.sort(keywords)
@@ -514,10 +521,10 @@ function monster:Render(args, options)
                                         damageType = entry.damageType
                                         damageType = damageType:gsub("^%l", string.upper) .. " "
                                     end
-                                    
+
                                     local keywords = {}
                                     for k,_ in pairs(entry:try_get("keywords", {})) do
-                                        keywords[#keywords+1] = k
+                                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
                                     end
 
                                     table.sort(keywords)

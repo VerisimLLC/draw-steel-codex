@@ -121,6 +121,14 @@ function table.keys(t)
     return keys
 end
 
+function table.mapped_keys(t, fn)
+    local keys = {}
+    for k, _ in pairs(t) do
+        keys[#keys+1] = fn(k)
+    end
+    return keys
+end
+
 function table.values(t)
     local values = {}
     for _, v in pairs(t) do

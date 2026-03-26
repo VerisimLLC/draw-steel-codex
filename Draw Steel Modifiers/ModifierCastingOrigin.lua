@@ -64,7 +64,7 @@ CharacterModifier.TypeInfo.castingorigin = {
 					},
 					gui.Label{
 						classes = "formLabel",
-						text = kw,
+						text = ActivatedAbility.CanonicalKeyword(kw),
 					},
 					gui.DeleteItemButton{
 						halign = "right",
@@ -164,7 +164,11 @@ function ActivatedAbility:IsTargetInRangeOfCastingOrigins(casterToken, targetTok
 	local relayTokens = self:GetCastingOriginTokens(casterToken)
 	for _, relayToken in ipairs(relayTokens) do
 		if range + dmhub.unitsPerSquare > targetToken:Distance(relayToken) then
-			return true
+			--also check vertical range from the relay token.
+			local verticalDist = math.abs(relayToken.altitude - targetToken.altitude) * dmhub.unitsPerSquare
+			if verticalDist < range + dmhub.unitsPerSquare then
+				return true
+			end
 		end
 	end
 	return false

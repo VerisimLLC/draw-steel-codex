@@ -817,7 +817,9 @@ function equipment:RenderToMarkdown(options)
     end
     
     if EquipmentCategory.IsTreasure(self) then
-        tokens[#tokens+1] = string.format("**Keywords:** %s\n", table.set_to_ordered_csv(self:try_get("keywords", {}), "-"))
+        local kwList = table.mapped_keys(self:try_get("keywords", {}), ActivatedAbility.CanonicalKeyword)
+        table.sort(kwList)
+        tokens[#tokens+1] = string.format("**Keywords:** %s\n", #kwList > 0 and table.concat(kwList, ", ") or "-")
         tokens[#tokens+1] = string.format("**Item Prerequisites:** %s\n", self:try_get("itemPrerequisite", "None"))
         tokens[#tokens+1] = string.format("**Project Source:** %s\n", self:try_get("projectSource", "None"))
 

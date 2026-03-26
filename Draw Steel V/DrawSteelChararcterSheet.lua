@@ -356,7 +356,10 @@ local function CreateAbilityPanel()
                 classes = { "abilityInfoLabel" },
                 text = "Keywords",
                 ability = function(element, ability, c)
-                    local keywords = table.keys(ability.keywords)
+                    local keywords = {}
+                    for k,_ in pairs(ability.keywords) do
+                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+                    end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
                 end,
@@ -473,7 +476,10 @@ local function CreateTriggeredAbilityPanel()
                 hmargin = 8,
                 text = "Keywords",
                 triggeredAbility = function(element, ability, c)
-                    local keywords = table.keys(ability.keywords)
+                    local keywords = {}
+                    for k,_ in pairs(ability.keywords) do
+                        keywords[#keywords+1] = ActivatedAbility.CanonicalKeyword(k)
+                    end
                     table.sort(keywords)
                     element.text = string.join(keywords, ", ")
                 end,
@@ -1210,7 +1216,7 @@ function CharSheet.CharacterSheetAndAvatarPanel()
                                 end
 
                                 if not alreadyExists then
-                                    monsterKeywords[#monsterKeywords + 1] = { id = keyword, text = keyword }
+                                    monsterKeywords[#monsterKeywords + 1] = { id = keyword, text = ActivatedAbility.CanonicalKeyword(keyword) }
                                 end
                             end
 

@@ -26,7 +26,7 @@ end
 --If this effect applies to the caster then this is a way to out-of-line apply it, so
 --we can apply it while still preparing to cast and get the effect.
 function ActivatedAbilityApplyAbilityDurationEffect:ApplyOnCasting(casterToken)
-    if self.applyto == "caster" then
+    if self.applyto == "caster" or self.applyto == "caster_including_squad" then
         print("ApplyTo:: Applying effect")
         local result = casterToken.properties:ApplyTemporaryEffect(self.momentaryEffect)
         if result and result.cancel then

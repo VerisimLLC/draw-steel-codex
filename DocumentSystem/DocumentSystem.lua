@@ -572,7 +572,7 @@ function CustomDocument:CreateInterface(args)
 
 
 
-    if dmhub.isDM and not args.presentationMode then
+    if dmhub.isDM then --and not args.presentationMode then
         m_presentButton = gui.SimpleIconButton {
             escapeActivates = false,
             width = buttonSize,
@@ -759,8 +759,11 @@ function CustomDocument:CreateInterface(args)
 
     if not args.presentationMode then
         m_controlMenuButtons[#m_controlMenuButtons + 1] = m_playerPreviewButton
-        m_controlMenuButtons[#m_controlMenuButtons + 1] = m_presentButton
+    end
 
+    m_controlMenuButtons[#m_controlMenuButtons + 1] = m_presentButton
+
+    if not args.presentationMode then
         if self:HaveEditPermissions() then
             m_controlMenuButtons[#m_controlMenuButtons + 1] = gui.SimpleIconButton {
                 escapeActivates = false,

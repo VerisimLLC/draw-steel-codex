@@ -20,7 +20,7 @@ gui.KeywordSelector = function(args)
                 height = 14,
                 minHeight = 14,
                 gui.Label{
-                    text = keyword,
+                    text = ActivatedAbility.CanonicalKeyword(keyword),
                     width = "auto",
                     height = 14,
                     fontSize = 14,

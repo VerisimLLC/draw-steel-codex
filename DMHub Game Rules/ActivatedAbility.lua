@@ -1957,6 +1957,7 @@ local function DestroyLineOfSight(options)
 end
 
 function ActivatedAbility:RecordAbilityUsage(casterToken, options)
+    if not casterToken.valid then return end
     local params = {
         type = "use_ability",
         userid = dmhub.userid,

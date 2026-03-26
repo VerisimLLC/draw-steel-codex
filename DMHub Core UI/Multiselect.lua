@@ -41,6 +41,8 @@ local chipStyles = {
         width = "auto",
         height = "auto",
         valign = "center",
+        margin = 0,
+        pad = 0,
         fontFace = "Inter",
         fontSize = 14,
     },
@@ -73,6 +75,12 @@ local chipStyles = {
         height = "100%",
         halign = "center",
         valign = "center",
+        margin = 0,
+        -- lmargin = 0,
+        -- tmargin = 0,
+        pad = 0,
+        -- lpad = 0,
+        -- tpad = 0,
         textAlignment = "center",
         fontFace = "Inter",
         fontSize = 8,
@@ -155,7 +163,8 @@ local function _multiselect(args)
     local function buildDropdown()
         local dropdownOpts = opts.dropdown or {}
         opts.dropdown = nil
-        dropdownOpts.width = dropdownOpts.width or flow == "vertical" and "100%" or "50%"
+        dropdownOpts.width = dropdownOpts.width or flow == "vertical" and "auto" or "50%"
+        dropdownOpts.hasSearch = dropdownOpts.hasSearch == nil and true or dropdownOpts.hasSearch
         dropdownOpts.textDefault = dropdownOpts.textDefault or addItemText or opts.textDefault or "Select an item..."
         dropdownOpts.sort = dropdownOpts.sort or opts.sort or nil
         dropdownOpts.styles = dropdownOpts.styles or dropdownStyles
@@ -227,7 +236,8 @@ local function _multiselect(args)
         -- Calculate for the panel
         local chipPanelOpts = opts.chipPanel or {}
         opts.chipPanel = nil
-        chipPanelOpts.width = chipPanelOpts.width or flow == "vertical" and "100%" or "auto"
+        chipPanelOpts.width = chipPanelOpts.width or "auto"
+        chipPanelOpts.halign = chipPanelOpts.halign or (layoutVertical and "left" or nil)
         chipPanelOpts.height = "auto"
         chipPanelOpts.flow = chipPanelOpts.flow or "horizontal"
         chipPanelOpts.wrap = true
@@ -324,7 +334,7 @@ local function _multiselect(args)
 
         local panelOpts = opts or {}
         panelOpts.classes = controllerClasses
-        panelOpts.width = panelOpts.width or "100%"
+        panelOpts.width = panelOpts.width or "auto"
         panelOpts.height = panelOpts.height or "auto"
         panelOpts.flow = flow
         panelOpts.data = panelData
@@ -351,8 +361,10 @@ local function _multiselect(args)
             end
         end
         panelOpts.refreshSet = function(element, options, values)
-            m_options = shallow_copy_list(options)
-            element:FireEventTree("repaint", values)
+            if options then
+                m_options = shallow_copy_list(options)
+            end
+            element:FireEventTree("repaint", values or element.data.selected)
         end
         panelOpts.children = chipsBefore
             and {chipsPanel, dropdownPanel}
@@ -361,6 +373,11 @@ local function _multiselect(args)
         return gui.Panel(panelOpts)
     end
     m_panel = buildController()
+
+    -- Visually apply initial value (create chips, filter dropdown)
+    if next(initialValue) then
+        m_panel:FireEventTree("repaint", m_panel.data.selected)
+    end
 
     return m_panel
 end

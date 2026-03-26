@@ -2167,3 +2167,36 @@ if devmode() then
         end,
     }
 end
+
+Commands.RegisterMacro{
+    name = "settingid",
+    summary = "look up a setting's id by name",
+    doc = "Usage: /settingid <setting name>\nSearches the settings menu for a setting matching the given name and prints its id.",
+    command = function(str)
+        local needle = string.lower(str)
+        local matches = {}
+        for id, info in pairs(Settings) do
+            local desc = info.description or ""
+            if string.lower(desc) == needle then
+                matches[#matches+1] = {id = id, desc = desc, exact = true}
+            elseif string.find(string.lower(desc), needle, 1, true) then
+                matches[#matches+1] = {id = id, desc = desc, exact = false}
+            end
+        end
+
+        if #matches == 0 then
+            dmhub.Log("No setting found matching: " .. str)
+            return
+        end
+
+        -- Prefer exact matches
+        table.sort(matches, function(a, b)
+            if a.exact ~= b.exact then return a.exact end
+            return a.desc < b.desc
+        end)
+
+        for _, m in ipairs(matches) do
+            dmhub.Log(string.format('"%s"  -->  id: %s', m.desc, m.id))
+        end
+    end,
+}

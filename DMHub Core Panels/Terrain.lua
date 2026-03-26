@@ -1147,22 +1147,8 @@ CreateBuildingEditor = function()
                                 return
                             end
 
-                            local wallPanels = {}
-
-                            for _,p in ipairs(element.parent.children) do
-                                if p:HasClass("wallContainer") then
-                                    if p == element then
-                                        wallPanels[#wallPanels+1] = target
-                                    elseif p == target then
-                                        wallPanels[#wallPanels+1] = element
-                                    else
-                                        wallPanels[#wallPanels+1] = p
-                                    end
-                                end
-                            end
-
-                            local wallOrd = element.data.wall.ord
-                            local targetOrd = target.data.wall.ord
+                            local wallOrd = element.data.wall.ord or 0
+                            local targetOrd = target.data.wall.ord or 0
 
                             element.data.wall.ord = targetOrd
                             target.data.wall.ord = wallOrd
@@ -1238,11 +1224,11 @@ CreateBuildingEditor = function()
                     children[#children+1] = newWallItems[key]
                 end
 
-                table.sort(children, function(a,b) return a.data.wall.ord < b.data.wall.ord end)
-
-                for _,child in ipairs(children) do
-                    printf("WALL: %s -> %s", child.data.wall.description, json(child.data.wall.ord))
-                end
+                table.sort(children, function(a,b)
+                    local aord = a.data.wall.ord or 0
+                    local bord = b.data.wall.ord or 0
+                    return aord < bord or (aord == bord and a.data.wallid < b.data.wallid)
+                end)
 
                 children[#children+1] = addWallButton
 

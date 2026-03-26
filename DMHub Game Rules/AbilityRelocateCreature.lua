@@ -175,27 +175,18 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
 					local requestDist = math.min(loc:DistanceInTiles(path.origin), abilityDist)
 					local pathDist = path.destination:DistanceInTiles(path.origin)
 
-                    local overshoot = 0
-                    print("PATHFIND:: DIST =", pathDist, "requestDist=", requestDist)
+                    local freeMovement = path.freeMovementSteps
+                    local hasCollision = freeMovement < requestDist
+                    local collisionSpeed = requestDist - freeMovement
+                    print("PATHFIND:: DIST =", pathDist, "freeMovement=", freeMovement, "requestDist=", requestDist, "hasCollision=", hasCollision, "collisionSpeed=", collisionSpeed)
 
-					if pathDist < requestDist then
-						overshoot = abilityDist - pathDist
+					if hasCollision then
+						collisionInfo = {
+							speed = collisionSpeed,
+							collideWith = movementInfo.collideWith,
+						}
 
-						--subtract wall break stamina costs so they don't double-count as collision
-						if path.wallBreaks ~= nil then
-							for _,wb in ipairs(path.wallBreaks) do
-								overshoot = overshoot - wb.staminaCost
-							end
-						end
-
-						if overshoot > 0 then
-							collisionInfo = {
-								speed = overshoot,
-								collideWith = movementInfo.collideWith,
-							}
-
-							options.symbols.cast.forcedMovementCollision = true
-						end
+						options.symbols.cast.forcedMovementCollision = true
 					end
 
                     if movementType == "move" then
@@ -204,8 +195,8 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
                             hasattacker = options.symbols.invoker ~= nil,
                             type = options.symbols.forcedmovement or ability:try_get("forcedMovement", "slide"),
                             vertical = ability:try_get("forcedMovement", "slide") == "vertical_push" or ability:try_get("forcedMovement", "slide") == "vertical_pull",
-                            collision = overshoot,
-                            collidewithobject = overshoot > 0 and collisionInfo ~= nil and #(collisionInfo.collideWith or {}) == 0,
+                            collision = hasCollision and collisionSpeed or 0,
+                            collidewithobject = hasCollision and collisionInfo ~= nil and #(collisionInfo.collideWith or {}) == 0,
                         }
                         
                         --search for if one of the tokens is considered an object.

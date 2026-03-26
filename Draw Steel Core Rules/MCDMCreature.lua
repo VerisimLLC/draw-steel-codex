@@ -2036,10 +2036,11 @@ function creature.ResistanceEntries(self)
 
             if entry:try_get("keywords") ~= nil then
                 for keyword, _ in pairs(entry.keywords) do
+                    local canonical = ActivatedAbility.CanonicalKeyword(keyword)
                     if keywordDescription == "Damage" then
-                        keywordDescription = keyword
+                        keywordDescription = canonical
                     else
-                        keywordDescription = keywordDescription .. "/" .. keyword
+                        keywordDescription = keywordDescription .. "/" .. canonical
                     end
                 end
             end
@@ -3806,6 +3807,12 @@ function creature:CanNavigateDifficultTerrain(flags)
     if flags.shifting then
         local canShift = self:CalculateNamedCustomAttribute("Can Shift In Difficult Terrain")
         return GoblinScriptTrue(canShift)
+    end
+
+    -- Charging creatures cannot move through difficult terrain.
+    local chargingAttr = CustomAttribute.attributeInfoByLookupSymbol["charging"]
+    if chargingAttr ~= nil and self:GetCustomAttribute(chargingAttr) > 0 then
+        return false
     end
 
     return true

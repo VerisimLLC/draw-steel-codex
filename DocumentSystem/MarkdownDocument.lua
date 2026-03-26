@@ -718,7 +718,7 @@ local function TierRoll(n)
             height = CustomDocument.ScaleFontSize(30),
             textAlignment = "center",
             fontFace = "DrawSteelGlyphs",
-            text = string.format("%d", n),
+            text = cond(n == 1, '!', cond(n == 2, '@', '#')),
             fontSize = CustomDocument.ScaleFontSize(36),
             valign = "top",
         },

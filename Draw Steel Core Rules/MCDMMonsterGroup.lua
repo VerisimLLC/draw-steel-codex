@@ -76,6 +76,7 @@ end
 MaliceAbility = RegisterGameType("MaliceAbility", "ActivatedAbility")
 
 MaliceAbility.categorization = "Malice"
+MaliceAbility.minLevel = 1
 
 function MaliceAbility.Create(options)
 	local args = ActivatedAbility.StandardArgs()

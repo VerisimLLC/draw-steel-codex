@@ -216,6 +216,12 @@ ActivatedAbility.KeywordRemappings = {
     Attack = "Strike",
 }
 
+-- Returns the canonical display name for a keyword, applying any alias remapping.
+-- Use this whenever showing a keyword string to the user.
+function ActivatedAbility.CanonicalKeyword(keyword)
+    return ActivatedAbility.KeywordRemappings[keyword] or keyword
+end
+
 function ActivatedAbility.OnDeserialize(self)
     if not self:has_key("behaviors") then
         self.behaviors = {}
@@ -866,7 +872,7 @@ function ActivatedAbility:Render(options, params)
     local keywords = {}
 
     for keyword, _ in pairs(self.keywords) do
-        keywords[#keywords + 1] = keyword
+        keywords[#keywords + 1] = ActivatedAbility.CanonicalKeyword(keyword)
     end
 
     table.sort(keywords, function(a, b) return a < b end)
@@ -930,7 +936,7 @@ function ActivatedAbility:Render(options, params)
     local keywords = {}
 
     for keyword, _ in pairs(self.keywords) do
-        keywords[#keywords + 1] = keyword
+        keywords[#keywords + 1] = ActivatedAbility.CanonicalKeyword(keyword)
     end
 
     table.sort(keywords, function(a, b) return a < b end)

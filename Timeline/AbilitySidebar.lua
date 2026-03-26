@@ -257,7 +257,7 @@ local function CreateReadOnlyRollInfo(shareData)
                         bgimage = "drawsteel/Icons_Nav_CollapseArrow.png",
                         width = 16, height = 16,
                         bgcolor = "white",
-                        scale = isBane and {y=-1, x=1} or nil,
+                        scale = isBoon and {y=-1, x=1} or nil,
                         y = y,
                     }
                 end
@@ -281,7 +281,7 @@ local function CreateReadOnlyRollInfo(shareData)
                 cornerRadius = 6,
                 hpad = 6,
                 vmargin = 2,
-                iconPanel,
+                isBane and iconPanel or nil,
                 gui.Label{
                     text = g_readOnlyBoonsLabels[i],
                     color = Styles.textColor,
@@ -292,6 +292,7 @@ local function CreateReadOnlyRollInfo(shareData)
                     textAlignment = "center",
                     bold = isSelected,
                 },
+                isBoon and iconPanel or nil,
             }
         end
 
@@ -529,7 +530,7 @@ local function CreateReadOnlyRollInfo(shareData)
                     hpad = 0,
                     textAlignment = "left",
                     fontFace = "DrawSteelGlyphs",
-                    text = string.format("%d", i),
+                    text = cond(i == 1, '!', cond(i == 2, '@', '#')),
                     width = "16%",
                     fontSize = 34,
                     height = 20,

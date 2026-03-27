@@ -199,6 +199,20 @@ Commands.RegisterMacro{
     name = "collapsefloor",
     summary = "collapse a floor",
     doc = "Usage: /collapsefloor <floor name>\nCollapses given floor object and drops tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local floors = game.currentMap.floors
+        local result = {}
+        local seen = {}
+        for i = 1, #floors do
+            local desc = floors[i].description
+            if not seen[desc] then
+                seen[desc] = true
+                result[#result+1] = {text = desc, summary = "floor"}
+            end
+        end
+        return result
+    end,
     command = function(str)
         print("SEARCH:: FLOOR", str)
         for _, floor in ipairs(game.currentMap.floors) do
@@ -233,6 +247,20 @@ Commands.RegisterMacro{
     name = "uncollapsefloor",
     summary = "uncollapse a floor",
     doc = "Usage: /uncollapsefloor <floor name>\nUncollapses given floor object.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local floors = game.currentMap.floors
+        local result = {}
+        local seen = {}
+        for i = 1, #floors do
+            local desc = floors[i].description
+            if not seen[desc] then
+                seen[desc] = true
+                result[#result+1] = {text = desc, summary = "floor"}
+            end
+        end
+        return result
+    end,
     command = function(str)
         print("SEARCH:: FLOOR", str)
         for _, floor in ipairs(game.currentMap.floors) do
@@ -340,6 +368,26 @@ Commands.RegisterMacro{
     name = "objectcommand",
     summary = "run object command",
     doc = "Usage: /objectcommand <keyword[.component]> <command>\nExecutes a command on map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        end
+        return {}
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if (not args[1]) or (not args[2]) then
@@ -416,6 +464,28 @@ Commands.RegisterMacro{
     name = "activateobjects",
     summary = "toggle map objects",
     doc = "Usage: /activateobjects <keyword[.component]> [activate|deactivate|toggle]\nActivates, deactivates, or toggles map objects matching the keyword.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            local result = {}
+            local seen = {}
+            local objects = game.currentFloor.objects
+            for _, obj in pairs(objects) do
+                if obj.keywords then
+                    for kw, _ in pairs(obj.keywords) do
+                        if not seen[kw] then
+                            seen[kw] = true
+                            result[#result+1] = kw
+                        end
+                    end
+                end
+            end
+            table.sort(result)
+            return result
+        elseif argIndex == 2 then
+            return {{text = "activate", summary = "activate objects"}, {text = "deactivate", summary = "deactivate objects"}, {text = "toggle", summary = "toggle objects"}}
+        end
+        return {}
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if not args[1] then
@@ -495,6 +565,17 @@ Commands.RegisterMacro{
     name = "broadcast",
     summary = "broadcast a command",
     doc = "Usage: /broadcast <command>\nExecutes a command locally and broadcasts it to all other players.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        for name, _ in pairs(Commands) do
+            if type(Commands[name]) == "table" and Commands[name].command ~= nil then
+                result[#result+1] = "/" .. name
+            end
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         str = string.join(Commands.SplitArgs(str), " ")
         dmhub.Execute(str)
@@ -543,6 +624,7 @@ Commands.RegisterMacro{
     name = "togglefloorvisibility",
     summary = "toggle floor visibility",
     doc = "Usage: /togglefloorvisibility [floor name]\nToggles visibility of a floor. If no name is given, toggles the current floor.",
+    completions = floorCompletions,
     command = function(str)
         if not dmhub.isDM then return end
 
@@ -645,6 +727,19 @@ Commands.RegisterMacro{
     name = "move",
     summary = "move a token",
     doc = "Usage: /move <token name> <x> <y>\nMoves token(s) to given location.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
+        local seen = {}
+        for _, token in ipairs(dmhub.allTokens) do
+            local name = token.name or ""
+            if name ~= "" and not seen[name] then
+                seen[name] = true
+                result[#result+1] = name
+            end
+        end
+        return result
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local x = tonumber(args[2])
@@ -669,6 +764,109 @@ local function tokenNameCompletions(args, argIndex)
         if name ~= "" and not seen[name] then
             seen[name] = true
             result[#result+1] = name
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function tokenSearchCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {{text = "all", summary = "all tokens"}, {text = "heroes", summary = "hero tokens"}, {text = "monsters", summary = "monster tokens"}}
+    local seen = {}
+    for _, token in ipairs(dmhub.allTokens) do
+        local name = token.name or ""
+        if name ~= "" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    return result
+end
+
+local function monsterNameCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    local seen = {}
+    for _, monster in pairs(assets.monsters) do
+        local name = monster.properties:try_get("monster_type", "")
+        if name ~= "" and not seen[name] then
+            seen[name] = true
+            result[#result+1] = name
+        end
+    end
+    table.sort(result)
+    return result
+end
+
+local function itemCompletions(args, argIndex)
+    local items = dmhub.GetTable("tbl_Gear")
+    local result = {}
+    for k, v in unhidden_pairs(items) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function titleCompletions(args, argIndex)
+    local titles = dmhub.GetTable("titles")
+    local result = {}
+    for k, v in unhidden_pairs(titles) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function variableCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local doc = mod:GetDocumentSnapshot("variables")
+    local result = {}
+    for k, _ in pairs(doc.data) do
+        result[#result+1] = k
+    end
+    table.sort(result)
+    return result
+end
+
+local function audioCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for k, v in pairs(assets.audioTable) do
+        result[#result+1] = {text = k, summary = v.name or k}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function settingCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for id, info in pairs(Settings) do
+        local desc = info.description or id
+        result[#result+1] = {text = desc, summary = id}
+    end
+    table.sort(result, function(a, b) return a.text < b.text end)
+    return result
+end
+
+local function languageCompletions(args, argIndex)
+    local langTable = dmhub.GetTable(Language.tableName)
+    local result = {}
+    for k, v in unhidden_pairs(langTable) do
+        result[#result+1] = {text = k, summary = v.name}
+    end
+    table.sort(result, function(a, b) return a.summary < b.summary end)
+    return result
+end
+
+local function macroNameCompletions(args, argIndex)
+    if argIndex ~= 1 then return {} end
+    local result = {}
+    for name, _ in pairs(Commands) do
+        if type(Commands[name]) == "table" and Commands[name].command ~= nil then
+            result[#result+1] = "/" .. name
         end
     end
     table.sort(result)
@@ -809,6 +1007,7 @@ Commands.RegisterMacro{
     name = "monster",
     summary = "spawn a monster",
     doc = "Usage: /monster <monster name> <x> <y>\nSpawns the named monster from the bestiary to the given location.",
+    completions = monsterNameCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local monsterName = args[1]
@@ -844,6 +1043,7 @@ Commands.RegisterMacro{
     name = "spawn",
     summary = "spawn a character",
     doc = "Usage: /spawn <token name> <x> <y>\nSpawns any character(s) to given location.",
+    completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
@@ -947,6 +1147,7 @@ Commands.RegisterMacro{
     name = "audio",
     summary = "play audio",
     doc = "Usage: /audio <audio ID> <volume>\nPlays an audio asset at the given volume (default 50).",
+    completions = audioCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local audioID = args[1]
@@ -964,32 +1165,65 @@ Commands.RegisterMacro{
 Commands.RegisterMacro{
     name = "speak",
     summary = "speech bubble",
-    doc = "Usage: /speak <token name> <speech> <language ID>\nMakes a character speak with a speech bubble. Wrap speech in doublequotes. Language defaults to Caelian.",
-    command = function(str)
-        local args = Commands.SplitArgs(str)
-        local tokenName = args[1]
-        local speech = args[2]
-        local language = args[3]
-
-        if language == nil then
-            language = "c3c75399-6654-4ef6-a5f7-10653560f84"
+    doc = "Usage: /speak <speech>\nMakes the selected token speak with a speech bubble.\nAlternate: /speak \"<token name>\" \"<speech>\" [language ID]\nWrap token name and speech in doublequotes to target a specific token. Language defaults to Caelian.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 3 then
+            return languageCompletions(args, argIndex)
         end
+        return {}
+    end,
+    command = function(str)
+        local trimmedStr = trim(str)
+        local language = "c3c75399-6654-4ef6-a5f7-10653560f84"
 
-        local allTokens = dmhub.allTokens
+        -- If the input starts with a quote, use explicit "token name" "speech" [language] mode
+        if string.sub(trimmedStr, 1, 1) == '"' then
+            local args = Commands.SplitArgs(str)
+            local tokenName = args[1]
+            local speech = args[2]
+            if args[3] ~= nil then
+                language = args[3]
+            end
 
-        local tokens = tokenSearch(tokenName, allTokens)
+            local allTokens = dmhub.allTokens
+            local tokens = tokenSearch(tokenName, allTokens)
 
-        for _, token in pairs(tokens) do
-            token:ModifyProperties {
-                description = "Speech",
-                undoable = false,
-                execute = function()
-                    token.properties:CharacterSpeech {
-                        text = speech,
-                        langid = language,
-                    }
-                end,
-            }
+            for _, token in pairs(tokens) do
+                token:ModifyProperties {
+                    description = "Speech",
+                    undoable = false,
+                    execute = function()
+                        token.properties:CharacterSpeech {
+                            text = speech,
+                            langid = language,
+                        }
+                    end,
+                }
+            end
+        else
+            -- Default mode: use selected/primary token, entire input is speech
+            local selected = dmhub.selectedTokens
+            if #selected == 0 then
+                print("No token selected. Select a token first, or use /speak \"token name\" \"speech\".")
+                return
+            end
+
+            local speech = trimmedStr
+
+            for _, token in pairs(selected) do
+                token:ModifyProperties {
+                    description = "Speech",
+                    undoable = false,
+                    execute = function()
+                        token.properties:CharacterSpeech {
+                            text = speech,
+                            langid = language,
+                        }
+                    end,
+                }
+            end
         end
     end,
 }
@@ -998,6 +1232,14 @@ Commands.RegisterMacro{
     name = "giveitem",
     summary = "give an item",
     doc = "Usage: /giveitem <token name> <item ID> <quantity>\nGives item(s) to given character(s).",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 2 then
+            return itemCompletions(args, argIndex)
+        end
+        return {}
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
@@ -1020,6 +1262,7 @@ Commands.RegisterMacro{
     name = "havehero",
     summary = "check hero exists",
     doc = "Usage: /havehero <token name>\nChecks if a hero with the given name exists in the game. Returns true/false.",
+    completions = tokenSearchCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
 
@@ -1041,6 +1284,7 @@ Commands.RegisterMacro{
     name = "createcharacter",
     summary = "create a character",
     doc = "Usage: /createcharacter [CopyOf]\nCreates a new character assigned to the current user. If 'CopyOf' is provided, copies that character by name.",
+    completions = tokenSearchCompletions,
     command = function(str)
 
     local args = Commands.SplitArgs(str)
@@ -1143,6 +1387,14 @@ Commands.RegisterMacro{
     name = "granttitle",
     summary = "grant a title",
     doc = "Usage: /granttitle <token name> <title ID>\nGrants a title to given character(s).",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return tokenSearchCompletions(args, 1)
+        elseif argIndex == 2 then
+            return titleCompletions(args, argIndex)
+        end
+        return {}
+    end,
     command = function(str)
         local args = Commands.SplitArgs(str)
         local tokenName = args[1]
@@ -1169,6 +1421,7 @@ Commands.RegisterMacro{
     name = "setvar",
     summary = "set a variable",
     doc = "Usage: /setvar <name> <value>\nSets a shared variable to the given value (evaluated as a query).",
+    completions = variableCompletions,
     command = function(str)
         local args = Commands.SplitArgs(str)
         if #args ~= 2 then
@@ -1186,6 +1439,7 @@ Commands.RegisterMacro{
     name = "var",
     summary = "get a variable",
     doc = "Usage: /var <name>\nReturns the value of a shared variable.",
+    completions = variableCompletions,
     command = function(str)
         local doc = mod:GetDocumentSnapshot(g_varDocId)
         return doc.data[str]
@@ -1415,6 +1669,24 @@ Commands.RegisterMacro{
     name = "moveobject",
     summary = "move map object",
     doc = "Usage: /moveobject <keyword> <x> <y>\nMoves objects matching the keyword to the given position.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local seen = {}
+        local objects = game.currentFloor.objects
+        for _, obj in pairs(objects) do
+            if obj.keywords then
+                for kw, _ in pairs(obj.keywords) do
+                    if not seen[kw] then
+                        seen[kw] = true
+                        result[#result+1] = kw
+                    end
+                end
+            end
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         local args = string.split(str, " ")
         if #args ~= 3 then
@@ -2172,6 +2444,7 @@ Commands.RegisterMacro{
     name = "settingid",
     summary = "look up a setting's id by name",
     doc = "Usage: /settingid <setting name>\nSearches the settings menu for a setting matching the given name and prints its id.",
+    completions = settingCompletions,
     command = function(str)
         local needle = string.lower(str)
         local matches = {}

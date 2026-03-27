@@ -580,7 +580,6 @@ CreateTerrainEditor = function(options)
                                     end
                                     selectedTerrainPanel = element
                                     element:AddClass('selected')
-                                    dmhub.SetSettingValue(options.layer .. ':erase', false)
                                     gui.SetFocus(element)
                                     element.popup = nil
                                 end,
@@ -1006,7 +1005,6 @@ CreateBuildingEditor = function()
                                 selectedFloorPanel = element
                                 element:AddClass('selected')
                                 gui.SetFocus(element)
-                                dmhub.SetSettingValue('building:erase', false)
                                 element.popup = nil
                                 contentPanel:FireEventTree("changefloor", element.data.floorid)
                             end,
@@ -1196,7 +1194,6 @@ CreateBuildingEditor = function()
                                 end
                                 selectedWallPanel = element
                                 element:AddClass('selected')
-                                dmhub.SetSettingValue('building:erase', false)
                                 gui.SetFocus(element)
                                 contentPanel:FireEventTree("changewall", element.data.wallid)
                             end,

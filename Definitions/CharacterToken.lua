@@ -52,6 +52,7 @@
 --- @field altitudeInDeciTiles integer (Read-only) The altitude of the token in tenths of a tile. This is the altitude above the bottom of the bottom floor on the map.
 --- @field altitude integer (Read-only) The altitude of the token in tiles. This is the altitude above the bottom of the bottom floor on the map.
 --- @field floorAltitude integer (Read-only) The altitude of the token in tiles. This is relative to the 'zero point' altitude on the current floor.
+--- @field distanceBelowGround integer (Read-only) How many tiles below the ground or water surface the token is. Applies to both burrowing and underwater swimming. 0 if at or above surface.
 --- @field characterHeight number (read-only) the number of tiles tall the token is.
 --- @field loc Loc (Read-only) The location the token is at.
 --- @field locsOccupying Loc[] (Read-only) An array of locations the token is occupying. The number of items in this array will be based on the token's creature size.

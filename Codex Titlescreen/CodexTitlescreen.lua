@@ -2438,19 +2438,29 @@ function CreateTitlescreen(dialog, options)
                         },
                     },
 
-                    gui.ProgressDice{
+                    -- Viewport-sized container so the ProgressDice stays
+                    -- in the visible screen area at any aspect ratio.
+                    gui.Panel {
                         floating = true,
-                        halign = "right",
-                        valign = "bottom",
-                        hmargin = 28,
-                        vmargin = 28,
-                        width = 96,
-                        height = 96,
-                        thinkTime = 0.01,
-                        think = function(element)
-                            local progress = dmhub.gameLoadingProgress or 0
-                            element:FireEventTree("progress", progress)
-                        end,
+                        width = 1080 * (dmhub.screenDimensions.x / dmhub.screenDimensions.y),
+                        height = 1080,
+                        halign = "center",
+                        valign = "center",
+
+                        gui.ProgressDice{
+                            floating = true,
+                            halign = "right",
+                            valign = "bottom",
+                            hmargin = 28,
+                            vmargin = 28,
+                            width = 96,
+                            height = 96,
+                            thinkTime = 0.01,
+                            think = function(element)
+                                local progress = dmhub.gameLoadingProgress or 0
+                                element:FireEventTree("progress", progress)
+                            end,
+                        },
                     },
                 }
 

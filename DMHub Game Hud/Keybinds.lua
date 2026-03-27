@@ -367,6 +367,12 @@ Keybinds.Register{
 }
 
 Keybinds.Register{
+    command = "toggle gmbroadcastmouse",
+    name = tr("Toggle Broadcast Director Mouse Cursor"),
+    section = "system",
+}
+
+Keybinds.Register{
     command = "console",
     name = tr("Debug Console"),
     section = "system",

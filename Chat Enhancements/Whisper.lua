@@ -369,6 +369,10 @@ Commands.RegisterMacro{
     name = "w2debug",
     summary = "whisper debug toggle",
     doc = "Usage: /w2debug [t|f]\nToggles or sets the whisper debug flag. Pass t/true or f/false.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {{text = "t", summary = "enable debug"}, {text = "f", summary = "disable debug"}}
+    end,
     command = function(args)
         local lowered = args and args:lower()
         if lowered == "t" or lowered == "true" then
@@ -420,6 +424,14 @@ Commands.RegisterMacro{
     name = "w",
     summary = "whisper message",
     doc = "Usage: /w <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
+        for _, player in ipairs(dmhub.players) do
+            result[#result+1] = {text = player.nick, summary = "player"}
+        end
+        return result
+    end,
     command = function(args)
         doWhisper(args)
     end,
@@ -429,6 +441,14 @@ Commands.RegisterMacro{
     name = "whisper",
     summary = "whisper message",
     doc = "Usage: /whisper <recipients>: <message>\nWhisper to players. Recipients can be names or dm/gm/director. Separate multiple with commas.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {{text = "dm", summary = "the Director"}, {text = "gm", summary = "the Director"}, {text = "director", summary = "the Director"}}
+        for _, player in ipairs(dmhub.players) do
+            result[#result+1] = {text = player.nick, summary = "player"}
+        end
+        return result
+    end,
     command = function(args)
         doWhisper(args)
     end,

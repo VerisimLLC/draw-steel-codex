@@ -2328,7 +2328,7 @@ setting{
 
 setting{
 	id = "gmbroadcastmouse",
-	description = "GM Mouse Position Shared",
+	description = "Director Mouse Cursor Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
@@ -2338,7 +2338,7 @@ setting{
 
 setting{
 	id = "playerbroadcastmouse",
-	description = "Player Mouse Positions Shared",
+	description = "Player Mouse Cursors Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,

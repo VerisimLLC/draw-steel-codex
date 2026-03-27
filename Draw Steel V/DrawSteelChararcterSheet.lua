@@ -2414,17 +2414,25 @@ local function DSCharSheet()
 
                                 press = function(element)
                                     local token = CharacterSheet.instance.data.info.token
-                                    local size = token.properties:GetBaseCreatureSizeNumber()
-                                    local modifications = token.properties:DescribeModifications("creatureSize", size)
-                                    gui.PopupOverrideAttribute {
-                                        parentElement = element,
-                                        token = token,
-                                        attributeName = "Size",
-                                        baseValue = size,
-                                        modifications = modifications,
-                                        characterSheet = true,
-                                        namingTable = creature.sizes,
-                                    }
+                                    if token.properties:IsMonster() then
+                                        gui.PopupMonsterSize {
+                                            parentElement = element,
+                                            token = token,
+                                            characterSheet = true,
+                                        }
+                                    else
+                                        local size = token.properties:GetBaseCreatureSizeNumber()
+                                        local modifications = token.properties:DescribeModifications("creatureSize", size)
+                                        gui.PopupOverrideAttribute {
+                                            parentElement = element,
+                                            token = token,
+                                            attributeName = "Size",
+                                            baseValue = size,
+                                            modifications = modifications,
+                                            characterSheet = true,
+                                            namingTable = creature.sizes,
+                                        }
+                                    end
                                     CharacterSheet.instance:FireEvent('refreshAll')
                                 end,
 
@@ -2472,6 +2480,15 @@ local function DSCharSheet()
                             bgcolor = "clear",
                             halign = "center",
 
+                            press = function(element)
+                                local token = CharacterSheet.instance.data.info.token
+                                gui.PopupMovementSpeed {
+                                    parentElement = element,
+                                    token = token,
+                                    characterSheet = true,
+                                }
+                            end,
+
                             gui.Panel {
 
                                 width = "100%",
@@ -2486,21 +2503,6 @@ local function DSCharSheet()
 
                                 halign = "center",
 
-                                press = function(element)
-                                    local token = CharacterSheet.instance.data.info.token
-                                    if token.properties:IsMonster() then
-                                        return
-                                    end
-                                    gui.PopupOverrideAttribute {
-                                        parentElement = element,
-                                        token = token,
-                                        attributeName = "Speed",
-                                        baseValue = token.properties:GetBaseSpeed(),
-                                        modifications = token.properties:DescribeSpeedModifications(),
-                                        characterSheet = true,
-                                    }
-                                end,
-
                                 gui.Label {
                                     text = "4",
                                     fontSize = 20,
@@ -2512,20 +2514,8 @@ local function DSCharSheet()
                                     valign = "center",
                                     characterLimit = 2,
 
-                                    change = function(element)
-                                        local n = tonumber(element.text)
-                                        if n ~= nil then
-                                            n = math.max(0, round(n))
-                                            local creature = CharacterSheet.instance.data.info.token.properties
-                                            creature.walkingSpeed = n
-                                        end
-
-                                        CharacterSheet.instance:FireEvent("refreshAll")
-                                    end,
-
                                     refreshToken = function(element, info)
                                         local creature = CharacterSheet.instance.data.info.token.properties
-                                        element.editable = creature:IsMonster()
                                         element.text = creature:CurrentMovementSpeed()
                                     end,
                                 },
@@ -2567,10 +2557,6 @@ local function DSCharSheet()
 
                                 halign = "center",
                                 valign = "bottom",
-
-
-
-
 
                             },
 

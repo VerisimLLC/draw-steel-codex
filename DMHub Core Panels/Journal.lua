@@ -10,6 +10,16 @@ Commands.RegisterMacro{
     name = "doc",
     summary = "open a document",
     doc = "Usage: /doc <document ID> [page]\nOpens the given document (PDF or custom document) by ID.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local docs = dmhub.GetTable("documents")
+        for k, v in unhidden_pairs(docs) do
+            result[#result+1] = {text = k, summary = v.name or k}
+        end
+        table.sort(result, function(a, b) return a.summary < b.summary end)
+        return result
+    end,
     command = function(str)
         local args = str:split(" ")
 
@@ -79,6 +89,20 @@ Commands.RegisterMacro{
     name = "setadventuredocument",
     summary = "set adventure doc",
     doc = "Usage: /setadventuredocument <order> <document name>\nSets a document as a 'current' adventure document. Use 'off' for order to remove.",
+    completions = function(args, argIndex)
+        if argIndex == 1 then
+            return {{text = "off", summary = "remove document"}, {text = "0", summary = "slot 0"}, {text = "1", summary = "slot 1"}, {text = "2", summary = "slot 2"}, {text = "3", summary = "slot 3"}, {text = "4", summary = "slot 4"}}
+        elseif argIndex == 2 then
+            local result = {}
+            local docs = dmhub.GetTable("documents")
+            for k, v in unhidden_pairs(docs) do
+                result[#result+1] = {text = v.name or k, summary = "document"}
+            end
+            table.sort(result, function(a, b) return a.text < b.text end)
+            return result
+        end
+        return {}
+    end,
     command = function(str)
 
     local args = Commands.SplitArgs(str)

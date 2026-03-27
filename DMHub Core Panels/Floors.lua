@@ -459,7 +459,7 @@ CreateLayersPanel = function()
 						halign = 'center',
 						valign = 'center',
 						color = Styles.textColor,
-						text = "Ground",
+						text = "Ground Level",
 					},
 				}
 			end
@@ -648,14 +648,12 @@ CreateLayersPanel = function()
 							},
 							gui.Label{
 								classes = {"floorLabel"},
+                                text = "Height",
 								width = 44,
 								height = 20,
 								halign = "left",
 								fontSize = 11,
                                 minFontSize = 8,
-								elevation = function(element, amount)
-									element.text = MeasurementSystem.NativeToDisplayUnits(amount*dmhub.unitsPerSquare)
-								end,
 							},
 						}
 
@@ -1691,6 +1689,8 @@ CreateLayersList = function(parentFloor)
 			halign = 'right',
 			valign = 'bottom',
 			margin = 0,
+            width = 8,
+            height = 8,
 			click = function(element)
 				game.currentMap:CreateFloor{
                     parentFloor = parentFloor.floorid

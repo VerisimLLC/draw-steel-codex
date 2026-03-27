@@ -1443,28 +1443,36 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     local tabScrollLeft = gui.PagingArrow {
         facing = -1,
-        -- width = TAB_ARROW_WIDTH,
         height = TAB_BAR_HEIGHT / 2,
         valign = "center",
         halign = "right",
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
-            v.data.scrollOffset = math.max(0, v.data.scrollOffset - 1)
-            refreshTabVisibility(v)
+            local tabs = v.data.tabs
+            for i, tab in ipairs(tabs) do
+                if tab.docId == v.data.activeDocId and i > 1 then
+                    v:FireEvent("switchToTab", tabs[i - 1].docId)
+                    break
+                end
+            end
         end,
     }
 
     local tabScrollRight = gui.PagingArrow {
         facing = 1,
-        -- width = TAB_ARROW_WIDTH,
         height = TAB_BAR_HEIGHT / 2,
         valign = "center",
         halign = "right",
         hmargin = 8,
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
-            v.data.scrollOffset = v.data.scrollOffset + 1
-            refreshTabVisibility(v)
+            local tabs = v.data.tabs
+            for i, tab in ipairs(tabs) do
+                if tab.docId == v.data.activeDocId and i < #tabs then
+                    v:FireEvent("switchToTab", tabs[i + 1].docId)
+                    break
+                end
+            end
         end,
     }
 
@@ -1498,6 +1506,15 @@ function CustomDocument.GetOrCreateTabbedViewer()
         local offset = element.data.scrollOffset
         local panelWidth = tabButtonsPanel.renderedWidth or (dialogWidth - 60)
 
+        -- Find active tab index
+        local activeIdx = 0
+        for i, tab in ipairs(tabs) do
+            if tab.docId == element.data.activeDocId then
+                activeIdx = i
+                break
+            end
+        end
+
         -- Find how many tabs fit starting from offset
         local visibleCount = 0
         local usedWidth = 0
@@ -1511,21 +1528,31 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end
         visibleCount = math.max(visibleCount, 1)
 
+        -- Ensure active tab and its neighbors are within the visible window
+        if activeIdx > 0 then
+            local needFirst = activeIdx > 1 and activeIdx - 1 or activeIdx
+            local needLast = activeIdx < #tabs and activeIdx + 1 or activeIdx
+            if needFirst - 1 < offset then
+                offset = needFirst - 1
+            elseif needLast > offset + visibleCount then
+                offset = needLast - visibleCount
+            end
+        end
+
         -- Clamp offset
         local maxOffset = math.max(0, #tabs - visibleCount)
         if offset > maxOffset then
             offset = maxOffset
-            element.data.scrollOffset = offset
         end
+        element.data.scrollOffset = offset
 
         -- Set visibility
-        local hasOverflow = #tabs > visibleCount or offset > 0
         for i, tab in ipairs(tabs) do
             tab.tabButton:SetClass("collapsed", i - 1 < offset or i - 1 >= offset + visibleCount)
         end
 
-        tabScrollLeft:SetClass("hidden", not hasOverflow or offset <= 0)
-        tabScrollRight:SetClass("hidden", not hasOverflow or offset >= maxOffset)
+        tabScrollLeft:SetClass("hidden", activeIdx <= 1)
+        tabScrollRight:SetClass("hidden", activeIdx >= #tabs or #tabs <= 1)
 
         element.data.visibleCount = visibleCount
     end
@@ -1688,18 +1715,9 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
         switchToTab = function(element, docId)
             element.data.activeDocId = docId
-            for i, tab in ipairs(element.data.tabs) do
+            for _, tab in ipairs(element.data.tabs) do
                 tab.contentPanel:SetClass("collapsed", tab.docId ~= docId)
                 tab.tabButton:SetClass("selected", tab.docId == docId)
-                if tab.docId == docId then
-                    local idx = i - 1
-                    local vc = element.data.visibleCount or 5
-                    if idx < element.data.scrollOffset then
-                        element.data.scrollOffset = idx
-                    elseif idx >= element.data.scrollOffset + vc then
-                        element.data.scrollOffset = idx - vc + 1
-                    end
-                end
             end
             refreshTabVisibility(element)
             syncNavState(element)

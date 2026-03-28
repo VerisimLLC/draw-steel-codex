@@ -6095,6 +6095,7 @@ function TacPanel.AddConditionMenu(args)
         initialLabels[i] = makeStatusLabel(d.key, d.effect)
     end
 
+    local statusExpanded = false
     local statusContent = gui.Panel{
         width = "100%",
         height = "auto",
@@ -6110,6 +6111,7 @@ function TacPanel.AddConditionMenu(args)
             lmargin = 8,
             swallowPress = true,
             press = function(element)
+                statusExpanded = true
                 local allLabels = {}
                 for i = 1, #statusEffectData do
                     local d = statusEffectData[i]
@@ -6156,6 +6158,15 @@ function TacPanel.AddConditionMenu(args)
             hasFocus = true,
             data = { searchedOption = nil },
             edit = function(element)
+                if not statusExpanded and #statusEffectData > initialCount then
+                    statusExpanded = true
+                    local allLabels = {}
+                    for i = 1, #statusEffectData do
+                        local d = statusEffectData[i]
+                        allLabels[i] = makeStatusLabel(d.key, d.effect)
+                    end
+                    statusContent.children = allLabels
+                end
                 element.parent:FireEventTree("searchText", string.lower(element.text))
                 element.data.searchedOption = nil
                 local found = element.text == ""

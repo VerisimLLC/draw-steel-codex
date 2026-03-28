@@ -313,8 +313,7 @@ function InitiativeQueue.NextTurn(self, initiativeid)
 	local entry = self.entries[initiativeid]
 	if entry ~= nil then
         local startTimestamp = entry:try_get("startTurnTimestamp")
-        local endTimestamp = ServerTimestamp()
-        local turnDuration = (startTimestamp ~= nil and startTimestamp > 0) and (endTimestamp - startTimestamp) or nil
+        local turnDuration = (startTimestamp ~= nil and type(startTimestamp) == "number") and TimestampAgeInSeconds(startTimestamp) or nil
 
         local isPlayer = self:IsEntryPlayer(initiativeid)
         local tokenName = "unknown"

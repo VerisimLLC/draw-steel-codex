@@ -4979,7 +4979,7 @@ function TacPanel.MultiEdit()
     }
 
     return gui.Panel{
-        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit},
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit, TacPanelStyles.ControlButtons},
         classes = {"tacpanel", "alt-bg", "collapsed"},
         tokens = function(element, tokens)
             m_tokens = tokens

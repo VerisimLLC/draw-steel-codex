@@ -179,7 +179,7 @@ function CustomDocument:Render()
 end
 
 function CustomDocument:PreviewDescription()
-    return string.format("Click to View '%s'", self.description)
+    return string.format("Click to view '%s'", self.description)
 end
 
 function CustomDocument:Upload(originalDocument)
@@ -1646,6 +1646,14 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end,
         click = function(element)
             element:SetAsLastSibling()
+        end,
+
+        captureEscape = true,
+        escapePriority = EscapePriority.EXIT_DIALOG,
+        escape = function(element)
+            if element.data.activeDocId then
+                element:FireEvent("closeTab", element.data.activeDocId)
+            end
         end,
 
         data = {

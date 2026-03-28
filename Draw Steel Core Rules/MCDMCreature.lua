@@ -2037,43 +2037,99 @@ function creature.ResistanceEntries(self)
         return {}
     end
 
-    local items = {}
+    -- Build a canonical key for an entry based on damageType and keywords.
+    local function entryKey(entry)
+        local parts = {entry:try_get("damageType", "all")}
+        local kws = entry:try_get("keywords")
+        if kws ~= nil then
+            local sorted = {}
+            for kw, _ in pairs(kws) do
+                sorted[#sorted+1] = kw
+            end
+            table.sort(sorted)
+            for _, kw in ipairs(sorted) do
+                parts[#parts+1] = kw
+            end
+        end
+        return table.concat(parts, "|")
+    end
 
-    --handle damage reduction portion.
-    local damageReductionEntries = {}
+    -- For non-stacking entries, keep only the best per (damageType, keywords) group:
+    -- highest immunity (max dr >= 0) and worst weakness (min dr < 0) tracked separately.
+    local stackingEntries = {}
+    -- nonStacking maps key -> {immunity = entry or nil, weakness = entry or nil}
+    local nonStacking = {}
+
     for _, entry in ipairs(entries) do
         if entry.apply == 'Damage Reduction' then
-            local keywordDescription = "Damage"
-
-            if entry:try_get("keywords") ~= nil then
-                for keyword, _ in pairs(entry.keywords) do
-                    local canonical = ActivatedAbility.CanonicalKeyword(keyword)
-                    if keywordDescription == "Damage" then
-                        keywordDescription = canonical
-                    else
-                        keywordDescription = keywordDescription .. "/" .. canonical
+            if entry:try_get("stacks", false) then
+                stackingEntries[#stackingEntries+1] = entry
+            else
+                local key = entryKey(entry)
+                local dr = entry:try_get("dr", 0)
+                if nonStacking[key] == nil then
+                    nonStacking[key] = {}
+                end
+                local group = nonStacking[key]
+                if dr >= 0 then
+                    if group.immunity == nil or dr > group.immunity:try_get("dr", 0) then
+                        group.immunity = entry
+                    end
+                else
+                    if group.weakness == nil or dr < group.weakness:try_get("dr", 0) then
+                        group.weakness = entry
                     end
                 end
             end
-
-            local damageTypeDescription = ""
-
-            if entry:has_key("damageType") and string.lower(entry.damageType) ~= "all" then
-                damageTypeDescription = entry.damageType .. " "
-            end
-
-            --upper case the first character of damage type description.
-            if damageTypeDescription ~= "" then
-                damageTypeDescription = string.upper(string.sub(damageTypeDescription, 1, 1)) ..
-                    string.sub(damageTypeDescription, 2)
-            end
-
-            items[#items + 1] = {
-                text = string.format("%s%s %s %d.", damageTypeDescription, keywordDescription,
-                    cond(entry:try_get("dr", 0) < 0, "weakness", "immunity"), math.abs(entry:try_get("dr", 0))),
-                entry = entry,
-            }
         end
+    end
+
+    -- Collect all entries to format: stacking first, then best non-stacking.
+    local toFormat = {}
+    for _, entry in ipairs(stackingEntries) do
+        toFormat[#toFormat+1] = entry
+    end
+    for _, group in pairs(nonStacking) do
+        if group.immunity ~= nil then
+            toFormat[#toFormat+1] = group.immunity
+        end
+        if group.weakness ~= nil then
+            toFormat[#toFormat+1] = group.weakness
+        end
+    end
+
+    local items = {}
+    for _, entry in ipairs(toFormat) do
+        local keywordDescription = "Damage"
+
+        if entry:try_get("keywords") ~= nil then
+            for keyword, _ in pairs(entry.keywords) do
+                local canonical = ActivatedAbility.CanonicalKeyword(keyword)
+                if keywordDescription == "Damage" then
+                    keywordDescription = canonical
+                else
+                    keywordDescription = keywordDescription .. "/" .. canonical
+                end
+            end
+        end
+
+        local damageTypeDescription = ""
+
+        if entry:has_key("damageType") and string.lower(entry.damageType) ~= "all" then
+            damageTypeDescription = entry.damageType .. " "
+        end
+
+        --upper case the first character of damage type description.
+        if damageTypeDescription ~= "" then
+            damageTypeDescription = string.upper(string.sub(damageTypeDescription, 1, 1)) ..
+                string.sub(damageTypeDescription, 2)
+        end
+
+        items[#items + 1] = {
+            text = string.format("%s%s %s %d.", damageTypeDescription, keywordDescription,
+                cond(entry:try_get("dr", 0) < 0, "weakness", "immunity"), math.abs(entry:try_get("dr", 0))),
+            entry = entry,
+        }
     end
 
     return items

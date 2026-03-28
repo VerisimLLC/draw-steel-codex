@@ -6239,6 +6239,19 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		return nil
 	end
 
+	if options.transformid ~= nil and self:has_key("transformInfo") then
+		for _, mod in ipairs(ongoingEffect:try_get("modifiers", {})) do
+			if mod.behavior == "transform" and mod:try_get("transformSize") ~= false then
+				local monsterInfo = assets.monsters[self.transformInfo.transformid]
+				if monsterInfo ~= nil then
+					self.transformInfo.originalSize = self:try_get("creatureSize")
+					self.creatureSize = monsterInfo.properties:GetBaseCreatureSize()
+				end
+				break
+			end
+		end
+	end
+
 	if ongoingEffect.condition ~= "none" then
 		local immunities = self:GetConditionImmunities()
 		if immunities[ongoingEffect.condition] then
@@ -6429,6 +6442,9 @@ function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
 	end
 
 	if self:has_key("transformInfo") and self.transformInfo.ongoingEffect == ongoingEffectid then
+		if self.transformInfo.originalSize ~= nil then
+			self.creatureSize = self.transformInfo.originalSize
+		end
 		self.transformInfo = nil
 	end
 

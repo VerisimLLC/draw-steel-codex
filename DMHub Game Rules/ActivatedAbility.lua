@@ -1672,21 +1672,31 @@ function ActivatedAbility:GetCost(casterToken, options)
 
 		--look for any resources of this type in the level progression and spend the first one we find.
 		--the common case is for the progression to just be one resource.
-		local resourceLevels = CharacterResource.GetLevelProgression(self.resourceCost)
+		--Remap heroic resource to the creature's actual resource (e.g. malice for monsters).
+		local effectiveResourceCost = self.resourceCost
+		if effectiveResourceCost == CharacterResource.heroicResourceId and creature.resourceid ~= CharacterResource.heroicResourceId then
+			effectiveResourceCost = creature.resourceid
+		end
+		local resourceLevels = CharacterResource.GetLevelProgression(effectiveResourceCost)
 
 		local mode = options.mode or 1
 		local resourceNum = ExecuteGoblinScript(self.resourceNumber, casterToken.properties:LookupSymbol{mode = mode}, 0, "Determine resource number for " .. self.name)
 
 		if resourceNum == 0 then
 			-- zero cost, no payment needed
-		elseif #resourceLevels > 1 and self.resourceCost == CharacterResource.heroicResourceId then
+		elseif #resourceLevels > 1 and effectiveResourceCost == CharacterResource.heroicResourceId then
 			-- Heroic/epic split: spend base resource first, supplement with epic for the remainder.
 			local paymentOptions = {}
 			local remaining = resourceNum
 			for _, levelResourceId in ipairs(resourceLevels) do
 				local resourceInfo = resourcesTable[levelResourceId]
 				if resourceInfo ~= nil then
-					local max = resourcesAvailable[levelResourceId] or 0
+					local max
+					if resourceInfo.usageLimit == "global" then
+						max = CharacterResource.GetGlobalResource(levelResourceId)
+					else
+						max = resourcesAvailable[levelResourceId] or 0
+					end
 					local usage = creature:GetResourceUsage(levelResourceId, resourceInfo.usageLimit)
 					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
 					local use = math.min(available, remaining)
@@ -1701,17 +1711,22 @@ function ActivatedAbility:GetCost(casterToken, options)
 			end
 			local canAfford = remaining <= 0
 			resourceDetails = {
-				cost = self.resourceCost,
+				cost = effectiveResourceCost,
 				quantity = resourceNum,
 				canAfford = canAfford,
 				paymentOptions = cond(canAfford, paymentOptions, {}),
-				expendedOptions = cond(not canAfford, {resourceid = self.resourceCost, quantity = resourceNum}, {}),
+				expendedOptions = cond(not canAfford, {resourceid = effectiveResourceCost, quantity = resourceNum}, {}),
 			}
 		else
 			for levelNum,resourceCost in ipairs(resourceLevels) do
 				local resourceInfo = resourcesTable[resourceCost]
 				if resourceInfo ~= nil then
-					local max = resourcesAvailable[resourceCost] or 0
+					local max
+					if resourceInfo.usageLimit == "global" then
+						max = CharacterResource.GetGlobalResource(resourceCost)
+					else
+						max = resourcesAvailable[resourceCost] or 0
+					end
 					local usage = creature:GetResourceUsage(resourceCost, resourceInfo.usageLimit)
 					local available = (max - usage) + resourceInfo:AllowResourceBelowZero(casterToken.properties)
 					local canAfford = available >= resourceNum
@@ -1720,7 +1735,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 					--set to the highest resource we have, and being affordable we short-circuit immediately.
 					if resourceDetails == nil or max > 0 or canAfford then
 						resourceDetails = {
-							cost = self.resourceCost,
+							cost = effectiveResourceCost,
 							quantity = resourceNum,
 							canAfford = canAfford,
 							paymentOptions = cond(canAfford, {{resourceid = resourceCost, quantity = resourceNum}}, {}),

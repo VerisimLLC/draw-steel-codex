@@ -1631,6 +1631,8 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
         local before = string.sub(rule, 1, -#text - 1)
 
         --print("Rule:: rule = ", rule, "text = ", text, "before = ", before)
+        -- Use original-case suffix for display; text (lowercased) is only used for structural matching below.
+        local displayText = string.sub(rule, #before + 1)
         text = text:gsub("<color=[^>]+>", "")
         text = text:gsub("</color>", "")
 
@@ -1638,10 +1640,14 @@ function ActivatedAbilityDrawSteelCommandBehavior.FormatRuleValidation(rule)
         if matchLiteral ~= nil then
             print("Rule:: FORMAT ALPHA")
             --this alpha marks stop parsing rules.
+            local origMatchLiteral = regex.MatchGroups(displayText, "^[;,]?(?<whitespace>\\s*)#(?<text>.*)\\s*$")
+            if origMatchLiteral ~= nil then
+                return string.format("%s<alpha=#00><alpha=#ff>%s%s", before, origMatchLiteral.whitespace, origMatchLiteral.text)
+            end
             return string.format("%s<alpha=#00><alpha=#ff>%s%s", before, matchLiteral.whitespace, matchLiteral.text)
         end
 
-        local result = string.format("%s<alpha=#55>%s", before, text)
+        local result = string.format("%s<alpha=#55>%s", before, displayText)
 
        --print("Rule:: Validation: result = ", result)
         --print(string.format("Rule:: Validation: rule = (%s); text = (%s); before = (%s); result = (%s)", rule, text, before, result))

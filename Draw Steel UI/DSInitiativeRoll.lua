@@ -1739,6 +1739,8 @@ Commands.RegisterMacro{
         g_selectedTokensOpenInitiative = nil
     end
 
+    local isNewCombat = next(info.initiativeQueue.entries) == nil
+
     local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens)
     chat.SendCustom(message)
 
@@ -1785,8 +1787,10 @@ Commands.RegisterMacro{
 
     averageVictories = math.floor(averageVictories)
 
-    CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
-    CharacterResource.SetVillainActions(1)
+    if isNewCombat then
+        CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
+        CharacterResource.SetVillainActions(1)
+    end
 
     info.UploadInitiative()
     end,

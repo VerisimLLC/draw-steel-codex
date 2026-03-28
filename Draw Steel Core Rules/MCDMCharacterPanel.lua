@@ -73,7 +73,7 @@ TacPanelSizes.Panels = {
     condChipHeight = 16,
 }
 TacPanelSizes.Fonts = {
-    panelTitle = 14,
+    panelTitle = 16,
     charName = 28,          -- Summary info panel
     charLevel = 18,
     charClass = 26,
@@ -198,8 +198,12 @@ TacPanelStyles.TacPanel = {
       width = 14, height = 14,
       halign = "left", valign = "center",
       hmargin = 4 },
-    { selectors = {"tp-drag-handle", "drag-target"},
-      bgcolor = TEAL },
+    { selectors = {"panel", "tp-title-bar", "drag-target-hover"},
+      tmargin = 4,
+      vpad = 4,
+      border = { x1 = 0, x2 = 0, y1 = 0, y2 = 4 },
+      borderColor = CREAM,
+      bgimage = true,},
 }
 TacPanelStyles.Tooltip = {
     {
@@ -282,26 +286,23 @@ TacPanelStyles.SummaryInfo = {
         color = MUTED,
     },
 
-    -- Control buttons below portrait
+}
+TacPanelStyles.ControlButtons = {
     {
         selectors = {"toggle-btn"},
         halign = "left",
         valign = "top",
-        pad = 4,
-        border = 1,
-        cornerRadius = 4,
-        borderColor = GRAY02,
     },
     {
         selectors = {"toggle-btn", "hover"},
         brightness = 1.5,
-        transitionTime = 0.2,
+        soundEvent = "Mouse.Hover",
     },
     {
         selectors = {"toggle-btn", "press"},
         brightness = 0.5,
+        soundEvent = "Mouse.Click",
     },
-    -- Light toggle button
     {
         selectors = {"light-btn"},
         bgimage = "drawsteel/light-off.png",
@@ -466,6 +467,15 @@ TacPanelStyles.Stamina = {
         width = TacPanelSizes.Panels.stamBoxRecoveries,
         borderColor = TEAL_HEAL,
         bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
+    },
+    {
+        selectors = {"panel", "stamina-box", "recoveries", "hover"},
+        brightness = 1.5,
+        soundEvent = "Mouse.Hover",
+    },
+    {
+        selectors = {"panel", "stamina-box", "recoveries", "press"},
+        soundEvent = "Mouse.Click",
     },
     {
         selectors = {"panel", "stamina-box", "temp"},
@@ -822,6 +832,11 @@ TacPanelStyles.CharacteristicsPanel = {
     {
         selectors = {"panel", "characteristic-box", "hover"},
         brightness = 1.5,
+        soundEvent = "Mouse.Hover",
+    },
+    {
+        selectors = {"panel", "characteristic-box", "press"},
+        soundEvent = "Mouse.Click",
     },
     {
         selectors = {"label", "char-title"},
@@ -2210,10 +2225,12 @@ function TacPanel.Summary()
         },
         -- Control buttons below portrait
         gui.Panel{
+            styles = TacPanelStyles.ControlButtons,
             classes = {"container"},
             flow = "horizontal",
             outlineButton(gui.EnhIconButton{
                 classes = {"toggle-btn"},
+                hoverCursor = "pressbutton",
                 bgimage = "panels/initiative/initiative-icon.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2244,6 +2261,7 @@ function TacPanel.Summary()
             }),
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "light-btn"},
+                hoverCursor = "pressbutton",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
                 bgimage = "drawsteel/light-off.png",
@@ -2264,6 +2282,7 @@ function TacPanel.Summary()
             }),
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "collapsed"},
+                hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2633,6 +2652,7 @@ function TacPanel.RecoveriesBox()
 
     return gui.Panel{
         classes = {"stamina-box", "recoveries"},
+        hoverCursor = "pressbutton",
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
@@ -2644,6 +2664,78 @@ function TacPanel.RecoveriesBox()
         end,
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
+        end,
+        linger = function(element)
+            local token = element.data.token
+            if token == nil or not token.valid or token.properties == nil then return end
+            local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+            local maxRec = token.properties:GetResources()[recoveryid] or 0
+            local quantity = maxRec - usage
+            local usageNote = "Use a recovery"
+            if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                usageNote = "Already at maximum stamina"
+            elseif quantity <= 0 then
+                if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
+                    usageNote = "Click to spend 2 hero tokens as a Recovery"
+                else
+                    usageNote = "No Recoveries left"
+                end
+            end
+            gui.Tooltip(usageNote)(element)
+        end,
+        press = function(element)
+            local token = element.data.token
+            if token == nil then return end
+
+            local useHeroTokens = false
+            local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+            if quantity <= 0 then
+                if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                    return
+                end
+                useHeroTokens = true
+            end
+
+            if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                return
+            end
+
+            token:ModifyProperties{
+                description = "Use Recovery",
+                execute = function()
+                    token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
+                    if useHeroTokens then
+                        token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
+                    else
+                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                    end
+                end,
+            }
+            if useHeroTokens then
+                local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                track("hero_token_change", {
+                    change = -2,
+                    source = "recovery",
+                    class = classInfo and classInfo.name or "unknown",
+                    dailyLimit = 30,
+                })
+            end
+
+            local remaining = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+            if useHeroTokens then
+                remaining = remaining
+            else
+                remaining = remaining - 1
+            end
+            local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+            local q = dmhub.initiativeQueue
+            track("recovery_spend", {
+                class = classInfo and classInfo.name or "unknown",
+                level = token.properties:CharacterLevel(),
+                remaining = max(0, remaining),
+                context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
+                dailyLimit = 20,
+            })
         end,
         gui.Label{
             classes = {"stambox-title", "heal"},
@@ -2672,85 +2764,8 @@ function TacPanel.RecoveriesBox()
                 gui.Label{
                     classes = {"recovery-value"},
                     text = "+0",
-                    data = { token = nil },
                     refreshCharacter = function(element, token)
-                        element.data.token = token
                         element.text = string.format("%+d", token.properties:RecoveryAmount())
-                    end,
-                    setToken = function(element, token)
-                        element.data.token = token
-                    end,
-                    linger = function(element)
-                        local token = element.data.token
-                        if token == nil or not token.valid or token.properties == nil then return end
-                        local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
-                        local maxRec = token.properties:GetResources()[recoveryid] or 0
-                        local quantity = maxRec - usage
-                        local usageNote = "Use a recovery"
-                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
-                            usageNote = "Already at maximum stamina"
-                        elseif quantity <= 0 then
-                            if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
-                                usageNote = "Click to spend 2 hero tokens as a Recovery"
-                            else
-                                usageNote = "No Recoveries left"
-                            end
-                        end
-                        gui.Tooltip(usageNote)(element)
-                    end,
-                    press = function(element)
-                        local token = element.data.token
-                        if token == nil then return end
-
-                        local useHeroTokens = false
-                        local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
-                        if quantity <= 0 then
-                            if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
-                                return
-                            end
-                            useHeroTokens = true
-                        end
-
-                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
-                            return
-                        end
-
-                        token:ModifyProperties{
-                            description = "Use Recovery",
-                            execute = function()
-                                token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
-                                if useHeroTokens then
-                                    token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
-                                else
-                                    token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
-                                end
-                            end,
-                        }
-                        if useHeroTokens then
-                            local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
-                            track("hero_token_change", {
-                                change = -2,
-                                source = "recovery",
-                                class = classInfo and classInfo.name or "unknown",
-                                dailyLimit = 30,
-                            })
-                        end
-
-                        local remaining = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
-                        if useHeroTokens then
-                            remaining = remaining
-                        else
-                            remaining = remaining - 1
-                        end
-                        local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
-                        local q = dmhub.initiativeQueue
-                        track("recovery_spend", {
-                            class = classInfo and classInfo.name or "unknown",
-                            level = token.properties:CharacterLevel(),
-                            remaining = max(0, remaining),
-                            context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
-                            dailyLimit = 20,
-                        })
                     end,
                 },
             },
@@ -3507,6 +3522,7 @@ end
 function TacPanel.CharacteristicBox(attrInfo)
     return gui.Panel{
         classes = {"characteristic-box"},
+        hoverCursor = "pressbutton",
         data = { token = nil },
         press = function(element)
             local token = element.data.token
@@ -3840,19 +3856,18 @@ function TacPanel.CollapsiblePanel(args)
         allStyles[#allStyles+1] = s
     end
 
-    -- Drag handle for reorderable sections
-    -- Drag handle for reorderable sections
-    local dragHandle = sectionId and gui.Panel{
-        classes = {"tp-drag-handle"},
-        draggable = true,
-        dragTarget = true,
+    -- Title bar (always child[1]): drag handle icon, title label, collapse arrow
+    local titleBar = gui.Panel{
+        classes = {"tp-title-bar"},
+        draggable = sectionId ~= nil,
+        dragTarget = sectionId ~= nil,
         canDragOnto = function(element, target)
-            return target:HasClass("tp-drag-handle")
+            return target:HasClass("tp-title-bar") and target ~= element
         end,
         drag = function(element, target)
             if target == nil then return end
-            local draggedSection = element.parent.parent
-            local targetSection = target.parent.parent
+            local draggedSection = element.parent
+            local targetSection = target.parent
             if draggedSection == nil or targetSection == nil then return end
             if draggedSection.data == nil or targetSection.data == nil then return end
             local container = draggedSection.parent
@@ -3862,22 +3877,14 @@ function TacPanel.CollapsiblePanel(args)
                     targetSection.data.sectionId)
             end
         end,
-        linger = function(element)
-            gui.Tooltip("Drag to reorder sections")(element)
-        end,
-    } or nil
-
-    -- Collapse bar: title + expando arrow, handles expand/collapse on click
-    local collapseBar = gui.Panel{
-        classes = {"tp-collapse-bar"},
-        width = dragHandle and "100%-22" or "100%",
-        height = "auto",
-        halign = "right",
-        press = function(element)
-            local outer = element.parent.parent
+        click = function(element)
+            local outer = element.parent
             outer.data.collapsed = not outer.data.collapsed
             outer:FireEventTree("setCollapse", outer.data.collapsed)
         end,
+        sectionId and gui.Panel{
+            classes = {"tp-drag-handle"},
+        } or nil,
         gui.Label{
             classes = {"panel-title"},
             text = title,
@@ -3891,13 +3898,6 @@ function TacPanel.CollapsiblePanel(args)
                 element:SetClass("collapseSet", collapsed)
             end,
         },
-    }
-
-    -- Title bar (always child[1])
-    local titleBar = gui.Panel{
-        classes = {"tp-title-bar"},
-        dragHandle,
-        collapseBar,
     }
 
     -- Collect content children from array entries into a single wrapper
@@ -3946,6 +3946,7 @@ function TacPanel.Routines()
         sectionId = "routines",
         styles = {TacPanelStyles.Routines},
         classes = {"collapsed"},
+        altBg = false,
         title = "ROUTINES",
         data = { routinePanels = {} },
         setCollapse = function(element)
@@ -4171,6 +4172,7 @@ function TacPanel.HeroicResources()
     return TacPanel.CollapsiblePanel{
         sectionId = "heroicresources",
         classes = {"collapsed"},
+        altBg = false,
         title = "HEROIC RESOURCES",
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
@@ -4257,6 +4259,7 @@ end
 function TacPanel.SkillLanguages()
     return TacPanel.CollapsiblePanel{
         sectionId = "skilllanguages",
+        altBg = false,
         title = "SKILLS & LANGUAGES",
         gui.Panel{
             styles = TacPanelStyles.SkillsLanguages,
@@ -4328,6 +4331,7 @@ function TacPanel.Features()
         sectionId = "features",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
+        altBg = false,
         title = "FEATURES",
         data = { token = nil },
 
@@ -4419,6 +4423,7 @@ function TacPanel.Notes()
         sectionId = "notes",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
+        altBg = false,
         title = "NOTES",
         data = { token = nil },
 
@@ -4974,7 +4979,7 @@ function TacPanel.MultiEdit()
     }
 
     return gui.Panel{
-        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit},
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit, TacPanelStyles.ControlButtons},
         classes = {"tacpanel", "alt-bg", "collapsed"},
         tokens = function(element, tokens)
             m_tokens = tokens
@@ -5477,6 +5482,7 @@ function TacPanel.AurasEmitting()
         sectionId = "aurasemitting",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
+        altBg = false,
         title = "AURAS EMITTING",
         data = { token = nil },
         refreshCharacter = function(element, token)
@@ -6014,6 +6020,7 @@ function TacPanel.PersistentAbilities()
         sectionId = "persistentabilities",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
+        altBg = false,
         title = "PERSISTENT ABILITIES",
         data = { token = nil },
 
@@ -6155,6 +6162,7 @@ function TacPanel.Conditions()
     return TacPanel.CollapsiblePanel{
         sectionId = "conditions",
         styles = {TacPanelStyles.Conditions},
+        altBg = false,
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
         refreshCharacter = function(element, token)

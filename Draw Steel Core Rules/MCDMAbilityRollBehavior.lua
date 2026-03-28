@@ -1889,7 +1889,7 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
             gui.Label{ text = tier },
             gui.Input{
                 text = self.tiers[i],
-                characterLimit = 160,
+                characterLimit = 256,
                 halign = "right",
                 change = function(element)
                     self.tiers[i] = element.text

@@ -545,14 +545,14 @@ end
 --- @param rollFaces integer
 --- @return integer rollFaces
 function CharacterBuilder._validateRollFaces(rollFaces)
-    local validFaces = {2, 3, 6, 8, 10, 12, 20, 100}
+    local validFaces = {2, 3, 6, 8, 10, 12, 20}
     for _, faces in ipairs(validFaces) do
         if faces >= rollFaces then
             if faces == 10 then return 20 end -- Djordice, obvs
             return faces
         end
     end
-    return 100
+    return 20
 end
 
 --[[

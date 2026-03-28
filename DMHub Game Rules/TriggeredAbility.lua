@@ -984,10 +984,11 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid }
 		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 		if not needCoroutine then
-			if options.pay and not options.alreadyPaid then
+			if not options.alreadyPaid then
 				self:ConsumeResources(casterToken, {
 					costOverride = options.costOverride,
 				})
+				options.alreadyPaid = true
 
 			end
 

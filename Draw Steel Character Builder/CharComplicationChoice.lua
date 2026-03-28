@@ -19,7 +19,7 @@ function CharacterComplicationChoice.CreateNew(hero)
         selected[#selected+1] = id
     end
 
-    return CharacterComplicationChoice.new{
+    local obj = CharacterComplicationChoice.new{
         guid = CharacterBuilder.SELECTOR.COMPLICATION,
         name = "Complication",
         options = options,
@@ -28,6 +28,15 @@ function CharacterComplicationChoice.CreateNew(hero)
         numSelected = #selected,
         selected = selected,
     }
+
+    local rollTable = CharacterComplicationChoice._buildRollTable(options)
+    if rollTable then
+        obj.characteristic = {
+            GetRollTable = function() return rollTable end,
+        }
+    end
+
+    return obj
 end
 
 function CharacterComplicationChoice:CanRepeat()
@@ -77,6 +86,37 @@ function CharacterComplicationChoice:SaveSelection(hero, option)
     return true
 end
 
+function CharacterComplicationChoice._buildRollTable(options)
+    if #options == 0 then return nil end
+
+    local rows = {}
+    for i, opt in ipairs(options) do
+        rows[i] = {
+            id = opt.guid,
+            value = { ToString = function() return opt.name end },
+        }
+    end
+
+    return {
+        rows = rows,
+        CalculateRollInfo = function(self)
+            local n = #self.rows
+            local rollRanges = {}
+            for i = 1, n do
+                rollRanges[i] = { min = i, max = i }
+            end
+            return {
+                roll = string.format("1d%d", n),
+                rollFaces = n,
+                rollRanges = rollRanges,
+            }
+        end,
+        RowIndexFromDiceResult = function(self, total)
+            return math.max(1, math.min(total, #self.rows))
+        end,
+    }
+end
+
 function CharacterComplicationChoice._optionsAndChoices(hero)
     local options = {}
     local choices = {}
@@ -89,6 +129,7 @@ function CharacterComplicationChoice._optionsAndChoices(hero)
         if passFilter then
             local renderFn = function() return item:Render() end
             options[#options+1] = {
+                id = id,
                 guid = id,
                 name = item.name,
                 description = nil,

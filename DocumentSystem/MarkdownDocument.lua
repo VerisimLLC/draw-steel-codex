@@ -1442,7 +1442,7 @@ function MarkdownDocument.DisplayPanel(self, args)
                             element.popup = gui.ContextMenu {
                                 entries = {
                                     {
-                                        text = "Open in New Window",
+                                        text = "Open in New Tab",
                                         click = function()
                                             element.popup = nil
                                             CustomDocument.OpenContent(doc)

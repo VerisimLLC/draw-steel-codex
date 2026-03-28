@@ -2103,7 +2103,9 @@ CharacterModifier.TypeInfo.transform = {
 			if self:try_get("gainCreatureVisuals") ~= false then
 				creature._tmp_appearance = monsterInfo.appearance
 			end
-			creature._tmp_creaturesize = monsterInfo.info.creatureSize
+			if self:try_get("transformSize") ~= false then
+				creature._tmp_creaturesize = monsterInfo.properties:GetBaseCreatureSize()
+			end
 		end
 	end,
 
@@ -2251,6 +2253,7 @@ CharacterModifier.TypeInfo.transform = {
 		return self:try_get("banequipment")
 	end,
 
+
 	createEditor = function(modifier, element)
 		local Refresh
 		Refresh = function()
@@ -2299,6 +2302,11 @@ CharacterModifier.TypeInfo.transform = {
 					text = "Gain Creature Visuals",
 				},
 				{
+					id = "transformSize",
+					text = "Transform Size",
+					defaultTrue = true,
+				},
+				{
 					id = "overrideMovement",
 					text = "Override Movement",
 				},
@@ -2329,7 +2337,10 @@ CharacterModifier.TypeInfo.transform = {
 					halign = "left",
 					text = capability.text,
 
-					value = modifier:try_get(capability.id) == true,
+					value = cond(capability.defaultTrue,
+						modifier:try_get(capability.id) ~= false,
+						modifier:try_get(capability.id) == true
+					),
 					change = function(element)
 						modifier[capability.id] = element.value
 					end,

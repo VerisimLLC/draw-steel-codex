@@ -3968,7 +3968,6 @@ function TacPanel.Routines()
             element:SetClass("collapsed", false)
 
             if element.data.collapsed then
-                element:FireEventTree("setContent", {})
                 return
             end
 

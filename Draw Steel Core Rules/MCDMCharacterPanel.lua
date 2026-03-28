@@ -4597,6 +4597,80 @@ function TacPanel.Notes()
     }
 end
 
+--- Display the Perks panel (heroes only)
+--- @return Panel
+function TacPanel.Perks()
+    return TacPanel.CollapsiblePanel{
+        sectionId = "perks",
+        styles = {TacPanelStyles.Notes},
+        classes = {"collapsed"},
+        altBg = false,
+        title = "PERKS",
+        data = { token = nil },
+
+        refreshCharacter = function(element, token)
+            if token == nil or not token.valid or token.properties == nil then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element.data.token = token
+            local creature = token.properties
+            if not creature:IsHero() then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            local charid = token.charid
+            local entries = {}
+            local seen = {}
+            local levelChoices = creature:GetLevelChoices() or {}
+            local featTable = dmhub.GetTableVisible(CharacterFeat.tableName)
+            for _,choices in pairs(levelChoices) do
+                for _,guid in ipairs(choices) do
+                    if not seen[guid] then
+                        seen[guid] = true
+                        local featItem = featTable[guid]
+                        if featItem then
+                            entries[#entries+1] = TacPanel.CollapsibleEntry{
+                                entryKey = "perks",
+                                entryId  = guid,
+                                charid   = charid,
+                                title    = featItem.name,
+                                body     = featItem.description,
+                            }
+                        end
+                    end
+                end
+            end
+
+            if #entries == 0 then
+                element:SetClass("collapsed", true)
+                return
+            end
+
+            element:SetClass("collapsed", false)
+            element:FireEventTree("setContent", entries)
+        end,
+        refreshToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+        setToken = function(element, token)
+            element:FireEvent("refreshCharacter", token)
+        end,
+
+        gui.Panel{
+            classes = {"container"},
+            width = "100%",
+            height = "auto",
+            flow = "vertical",
+            setContent = function(element, newChildren)
+                element.children = newChildren
+            end,
+        },
+    }
+end
+
 --- Multi-token selection panel
 --- @return Panel
 function TacPanel.MultiEdit()
@@ -8090,6 +8164,7 @@ local TACPANEL_DEFAULT_ORDER = {
     "conditions",
     "skilllanguages",
     "features",
+    "perks",
     "notes",
 }
 
@@ -8102,6 +8177,7 @@ local TACPANEL_FACTORIES = {
     conditions = TacPanel.Conditions,
     skilllanguages = TacPanel.SkillLanguages,
     features = TacPanel.Features,
+    perks = TacPanel.Perks,
     notes = TacPanel.Notes,
 }
 

@@ -290,7 +290,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
                 goto continue_duplicate
             end
 
-            token = game.SpawnTokenFromBestiaryLocally(bestiaryId, loc, {
+            token = game.SpawnTokenFromBestiaryLocally(bestiaryId, loc.withGroundAltitude, {
                 fitLocation = true,
             })
 
@@ -365,7 +365,7 @@ function ActivatedAbilitySummonBehavior:CastDuplicate(ability, casterToken, targ
 
             newChar:UploadToken()
             game.UpdateCharacterTokens()
-            newChar:ChangeLocation(core.Loc{x = loc.x, y = loc.y})
+            newChar:ChangeLocation(core.Loc{x = loc.x, y = loc.y}.withGroundAltitude)
 
             --wait for the token to be fully created and available on the map,
             --following the same pattern as follower creation in DSFollower.lua.
@@ -624,7 +624,7 @@ function ActivatedAbilitySummonBehavior:Cast(ability, casterToken, targets, args
                 loc = casterToken.loc
             end
 
-            local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc, {
+            local token = game.SpawnTokenFromBestiaryLocally(chosenOption.id, loc.withGroundAltitude, {
                 fitLocation = not self.replaceCaster,
             })
             token.ownerId = newOwner

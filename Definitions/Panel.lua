@@ -207,6 +207,13 @@ function Panel:IsDescendantOf(other)
 	-- dummy implementation for documentation purposes only
 end
 
+--- transferDragTo: Transfers the active drag from this panel to the target panel. The current drag ends silently (no 'drag' event fired) and a new drag begins on the target panel from the current mouse position.
+--- @param targetValue any
+--- @return nil
+function Panel:transferDragTo(targetValue)
+	-- dummy implementation for documentation purposes only
+end
+
 --- Get: Finds and returns the panel in the hierarchy that has the given id. Returns nil if no such panel is found. The id must be an exact match. The entire hierarchy from the root is searched (not just the descendants of this panel). However, other hierarchies within the app are not searched.
 --- @param id string The id of the panel to get.
 --- @return Panel|nil

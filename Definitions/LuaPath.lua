@@ -1,4 +1,6 @@
 --- @class LuaPath 
+--- @field hasCollision boolean 
+--- @field freeMovementSteps number 
 --- @field wallBreaks nil|table[] 
 --- @field movementType string 
 --- @field shifting boolean 

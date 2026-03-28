@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- @class ActivatedAbilityDrawSteelCommandBehavior:ActivatedAbilityBehavior
 --- @field summary string Short label shown in behavior lists.
 --- @field rule string GoblinScript rule expression executed when this behavior fires.
@@ -663,6 +674,17 @@ local g_rulePatterns = {
                                     },
                                     riders = riders,
                                     cast = options.symbols.cast,
+                                })
+                                local casterClassInfo = casterToken.properties:IsHero() and casterToken.properties:GetClass() or nil
+                                local targetClassInfo = targetToken.properties:IsHero() and targetToken.properties:GetClass() or nil
+                                track("condition_apply", {
+                                    condition = k,
+                                    sourceAbility = ability.name,
+                                    sourceCaster = casterClassInfo and casterClassInfo.name or casterToken.properties:try_get("monster_type", "monster"),
+                                    target = targetClassInfo and targetClassInfo.name or targetToken.properties:try_get("monster_type", "monster"),
+                                    targetIsHero = targetToken.properties:IsHero(),
+                                    stacks = 1,
+                                    dailyLimit = 50,
                                 })
                                 break
                             end

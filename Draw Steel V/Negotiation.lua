@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateNegotiationDialog
 
 LaunchablePanel.Register {
@@ -49,6 +60,21 @@ CreateNegotiationDialog = function(options)
 
 	local revealed = false
 
+	local negotiationStartInterest = token.properties.negotiation.interest
+	local negotiationStartPatience = token.properties.negotiation.patience
+
+	local participantCount = 0
+	for _, t in ipairs(dmhub.allTokens) do
+		if t.properties:IsHero() then
+			participantCount = participantCount + 1
+		end
+	end
+
+	track("negotiation_start", {
+		participants = participantCount,
+		dailyLimit = 5,
+	})
+
 	local dialog
 
 
@@ -58,6 +84,27 @@ CreateNegotiationDialog = function(options)
 		monitorGame = token.monitorPath,
 		refreshGame = function(self)
 			self:FireEventTree("characterupdated")
+		end,
+
+		destroy = function(self)
+			local negotiation = token.properties.negotiation
+			local interest = negotiation and negotiation.interest or 0
+			local patience = negotiation and negotiation.patience or 0
+			local interestDelta = interest - negotiationStartInterest
+			local patienceDelta = patience - negotiationStartPatience
+			local result = "unknown"
+			if interest >= 5 then
+				result = "full_interest"
+			elseif patience <= 0 then
+				result = "out_of_patience"
+			elseif interestDelta > 0 then
+				result = "partial_interest"
+			end
+			track("negotiation_end", {
+				result = result,
+				rounds = math.abs(interestDelta) + math.abs(patienceDelta),
+				dailyLimit = 5,
+			})
 		end,
 
 		revealed = function(self)

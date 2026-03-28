@@ -5,6 +5,17 @@ local _getHero = CharacterBuilder._getHero
 local _getToken = CharacterBuilder._getToken
 local SEL = CharacterBuilder.SELECTOR
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- Minimal implementation for the center panel. Non-reactive.
 --- @return Panel
 function CharacterBuilder._detailPanel()
@@ -50,7 +61,14 @@ function CharacterBuilder.CreatePanel()
             if ancestryId then
                 local hero = _getHero()
                 if hero then
+                    local previousValue = hero:try_get("raceid")
                     hero.raceid = ancestryId
+                    track("build_change", {
+                        changeType = "ancestry",
+                        newValue = ancestryId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -61,7 +79,14 @@ function CharacterBuilder.CreatePanel()
             if careerId then
                 local hero = _getHero()
                 if hero then
+                    local previousValue = hero:try_get("backgroundid")
                     hero.backgroundid = careerId
+                    track("build_change", {
+                        changeType = "career",
+                        newValue = careerId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end
@@ -74,6 +99,7 @@ function CharacterBuilder.CreatePanel()
                 local hero = _getHero()
                 if hero then
                     local classes = hero:get_or_add("classes", {})
+                    local previousValue = classes[1] and classes[1].classid or nil
                     classes[1] = {
                         classid = classId,
                         level = hero:CharacterLevel(),
@@ -95,6 +121,12 @@ function CharacterBuilder.CreatePanel()
                         end
                     end
 
+                    track("build_change", {
+                        changeType = "class",
+                        newValue = classId,
+                        previousValue = previousValue,
+                        dailyLimit = 10,
+                    })
                     element:FireEvent("tokenDataChanged")
                 end
             end

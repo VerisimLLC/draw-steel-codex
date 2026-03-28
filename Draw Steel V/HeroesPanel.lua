@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local CreateHeroesPanel
 
 DockablePanel.Register {
@@ -10,6 +21,10 @@ DockablePanel.Register {
     dmonly = false,
     minHeight = 68,
     content = function()
+        track("panel_open", {
+            panel = "Heroes",
+            dailyLimit = 30,
+        })
         return CreateHeroesPanel()
     end,
 }
@@ -368,8 +383,9 @@ local CreateDirectorPanel = function(userid)
 
                             local peerToPeerInfo = "Peer-to-peer: no connection"
                             if sessionInfo.p2pheartbeat ~= nil then
-                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago", sessionInfo
-                                    .p2pheartbeat)
+                                local connType = sessionInfo.p2pconnection or "unknown"
+                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago (%s)", sessionInfo
+                                    .p2pheartbeat, connType)
                             end
                             gui.Tooltip(string.format(
                                 'Version %s\n%s\n%s\nPerf: min=%dms; max=%dms; median=%dms; mean=%dms; cpu=%dms; gpu=%dms; res=%dx%d',
@@ -389,6 +405,7 @@ local CreateDirectorPanel = function(userid)
                         end
 
                         local p2pping = nil
+                        local p2pconntype = nil
 
                         element.data.pingTime = t
                         element.data.pingSeq = 1
@@ -405,7 +422,8 @@ local CreateDirectorPanel = function(userid)
 
                                 local p2ptext = ""
                                 if p2pping ~= nil then
-                                    p2ptext = string.format("\nPeer-to-peer: %.2f seconds", p2pping)
+                                    local connLabel = p2pconntype or "unknown"
+                                    p2ptext = string.format("\nPeer-to-peer: %.2f seconds (%s)", p2pping, connLabel)
                                 end
 
                                 element:PulseClassTree("pingsuccess")
@@ -414,9 +432,10 @@ local CreateDirectorPanel = function(userid)
                                 end
                             end,
 
-                            function(p2ptime)
+                            function(p2ptime, conntype)
                                 p2pping = p2ptime
-                                print("PING:: Got peertopeer ping time:", p2ptime)
+                                p2pconntype = conntype
+                                print("PING:: Got peertopeer ping time:", p2ptime, "connection:", conntype)
                             end)
                     end,
 
@@ -797,8 +816,9 @@ local CreatePlayerPanel = function(userid)
 
                             local peerToPeerInfo = "Peer-to-peer: no connection"
                             if sessionInfo.p2pheartbeat ~= nil then
-                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago", sessionInfo
-                                    .p2pheartbeat)
+                                local connType = sessionInfo.p2pconnection or "unknown"
+                                peerToPeerInfo = string.format("Peer-to-peer: %.2f seconds ago (%s)", sessionInfo
+                                    .p2pheartbeat, connType)
                             end
                             gui.Tooltip(string.format(
                                 'Version %s\n%s\n%s\nPerf: min=%dms; max=%dms; median=%dms; mean=%dms; cpu=%dms; gpu=%dms; res=%dx%d',
@@ -819,6 +839,7 @@ local CreatePlayerPanel = function(userid)
 
                         local delta = nil
                         local p2pping = nil
+                        local p2pconntype = nil
 
                         element.data.pingTime = t
                         element.data.pingSeq = 1
@@ -832,7 +853,8 @@ local CreatePlayerPanel = function(userid)
                             end
                             local p2ptext = ""
                             if p2pping ~= nil then
-                                p2ptext = string.format("Peer-to-peer: %.2f seconds", p2pping)
+                                local connLabel = p2pconntype or "unknown"
+                                p2ptext = string.format("Peer-to-peer: %.2f seconds (%s)", p2pping, connLabel)
                             end
 
                             element:PulseClassTree("pingsuccess")
@@ -851,9 +873,10 @@ local CreatePlayerPanel = function(userid)
                                 onping()
                             end,
 
-                            function(p2ptime)
+                            function(p2ptime, conntype)
                                 p2pping = p2ptime
-                                print("PING:: Got peertopeer ping time:", p2ptime)
+                                p2pconntype = conntype
+                                print("PING:: Got peertopeer ping time:", p2ptime, "connection:", conntype)
                                 onping()
                             end)
                     end,

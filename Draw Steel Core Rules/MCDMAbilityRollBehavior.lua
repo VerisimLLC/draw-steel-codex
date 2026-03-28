@@ -666,6 +666,65 @@ function creature:HasBanesOnGenericFreeStrike(targetToken)
     return string.find(string.lower(roll), "bane") ~= nil
 end
 
+--Returns a list of modifier descriptions that would apply to an ability's
+--power roll against a given target. Returns an empty list if the ability
+--has no power roll behavior.
+--- @param ability ActivatedAbility
+--- @param targetToken CharacterToken
+--- @return table
+function creature:DescribeModifiersOnTarget(ability, targetToken)
+    local result = {}
+
+    --check if this ability has a power roll behavior.
+    local hasPowerRoll = false
+    for _,behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            hasPowerRoll = true
+            break
+        end
+    end
+
+    if not hasPowerRoll then
+        return result
+    end
+
+    local targetCreature = targetToken.properties
+
+    --caster's modifiers.
+    local modifiersOnCaster = self:GetActiveModifiers()
+    for _,mod in ipairs(modifiersOnCaster) do
+        local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
+
+        if m ~= nil then
+            m.hint = m.modifier:HintModifyPowerRolls(mod, self, "ability_power_roll", {
+                ability = ability,
+                target = targetCreature,
+            })
+            if m.hint ~= nil and m.hint.result then
+                result[#result+1] = m
+            end
+        end
+    end
+
+    --target's modifiers.
+    local modifiersOnTarget = targetCreature:GetActiveModifiers()
+    for _,mod in ipairs(modifiersOnTarget) do
+        local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
+
+        if m ~= nil then
+            m.hint = m.modifier:HintModifyPowerRolls(mod, self, "enemy_ability_power_roll", {
+                ability = ability,
+                target = targetCreature,
+            })
+            if m.hint ~= nil and m.hint.result then
+                result[#result+1] = m
+            end
+        end
+    end
+
+    return result
+end
+
 
 local g_activeRoll = nil --the active roll object of the roll we are currently doing.
 local g_activeRollPanel = nil --the panel showing the roll that is currently active.

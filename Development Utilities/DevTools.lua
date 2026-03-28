@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 DockablePanel.Register{
     name = "Development Info",
 
@@ -7,6 +18,10 @@ DockablePanel.Register{
 	folder = "Development Tools",
 
 	content = function()
+        track("panel_open", {
+            panel = "Development Info",
+            dailyLimit = 30,
+        })
         local m_coroutinePanels = {}
         return gui.Panel{
             width = "100%",
@@ -100,6 +115,10 @@ DockablePanel.Register{
 	folder = "Development Tools",
 
 	content = function()
+        track("panel_open", {
+            panel = "Brightness Test",
+            dailyLimit = 30,
+        })
         return gui.Panel{
             width = "100%",
             height = "auto",
@@ -136,6 +155,10 @@ DockablePanel.Register{
     vscroll = false,
 	folder = "Development Tools",
     content = function()
+        track("panel_open", {
+            panel = "Network Debugger",
+            dailyLimit = 30,
+        })
         local filter = {}
         local resultPanel
         local scrollPanel
@@ -371,6 +394,10 @@ DockablePanel.Register{
 	minHeight = 200,
 	folder = "Development Tools",
 	content = function()
+        track("panel_open", {
+            panel = "Sheet Perf",
+            dailyLimit = 30,
+        })
         local resultPanel
         resultPanel = gui.Panel{
             width = "100%",
@@ -439,6 +466,10 @@ DockablePanel.Register{
 	minHeight = 200,
 	folder = "Development Tools",
 	content = function()
+        track("panel_open", {
+            panel = "Texture Load",
+            dailyLimit = 30,
+        })
         local resultPanel = gui.Panel{
             width = "100%",
             height = "100%",

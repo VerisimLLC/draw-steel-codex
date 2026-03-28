@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 -- Triangle icon styles for character expand/collapse (based on QuestTrackerPanel pattern)
 local characterTriangleStyles = {
     gui.Style{
@@ -96,6 +107,10 @@ function DTDirectorPanel:Register()
         minHeight = 100,
         maxHeight = 600,
         content = function()
+            track("panel_open", {
+                panel = "Downtime Projects",
+                dailyLimit = 30,
+            })
             local panel = directorPanel:_buildMainPanel()
             directorPanel.panelElement = panel
             return panel

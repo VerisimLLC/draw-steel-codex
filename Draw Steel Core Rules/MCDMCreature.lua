@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- @field creature.minion boolean
 creature.minion = false
 
@@ -2270,14 +2281,14 @@ function creature:GetActivatedAbilities(options)
         end
     end
 
-    for i, aura in ipairs(self:try_get("auras", {})) do
+    --for i, aura in ipairs(self:try_get("auras", {})) do
         --aura:FillActivatedAbilities(self, result)
-    end
+    --end
 
     if options.manualTriggers then
         local triggeredAbilities = self:GetTriggeredAbilities()
         for i, trigger in ipairs(triggeredAbilities) do
-            if trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
+            if trigger.ability:try_get("hasManualVersion", false) and trigger.ability:try_get("mandatory") ~= "local" then
                 --- @type TriggeredAbility
                 local ability = trigger.ability:GenerateManualVersion()
                 result[#result + 1] = ability
@@ -3562,6 +3573,34 @@ function creature.TakeDamage(self, amount, note, info)
     local damage_taken_maybe_negative = self.damage_taken
     self:CheckBelowZeroHitpoints()
 
+    if amount > 0 then
+        local attackerClassInfo = nil
+        local attackerLabel = "unknown"
+        if info.attacker ~= nil and info.attacker ~= self then
+            attackerClassInfo = info.attacker.properties:IsHero() and info.attacker.properties:GetClass() or nil
+            attackerLabel = attackerClassInfo and attackerClassInfo.name or info.attacker.properties:try_get("monster_type", "monster")
+        end
+        local targetClassInfo = self:IsHero() and self:GetClass() or nil
+        local abilityName = nil
+        if info.ability ~= nil then
+            abilityName = info.ability.name
+        end
+        local roundNumber = nil
+        if dmhub.initiativeQueue ~= nil then
+            roundNumber = dmhub.initiativeQueue.round
+        end
+        track("damage_dealt", {
+            damage = amount,
+            damageType = info.damagetype or "untyped",
+            attacker = attackerLabel,
+            target = targetClassInfo and targetClassInfo.name or self:try_get("monster_type", "monster"),
+            targetIsHero = self:IsHero(),
+            ability = abilityName,
+            roundNumber = roundNumber,
+            dailyLimit = 50,
+        })
+    end
+
     local eventArg = shallow_copy_table(info)
     if eventArg.attacker == self then
         --we don't ever regard us as attacking ourselves. This would make conditions doing damage to us trigger an attack on ourselves.
@@ -3600,6 +3639,35 @@ function creature.TakeDamage(self, amount, note, info)
     elseif isBelowZeroNow then
         if not isBelowZeroAtStart then
             audio.DispatchSoundEvent("Notify.Status_Dying_Hero", {})
+
+            if self:IsHero() then
+                local heroClass = self:GetClass()
+                local attackerLabel = nil
+                if eventArg.attacker ~= nil then
+                    local aClassInfo = eventArg.attacker:IsHero() and eventArg.attacker:GetClass() or nil
+                    attackerLabel = aClassInfo and aClassInfo.name or eventArg.attacker:try_get("monster_type", "monster")
+                end
+                local abilityName = nil
+                if eventArg.ability ~= nil then
+                    abilityName = eventArg.ability.name
+                end
+                local roundNumber = nil
+                if dmhub.initiativeQueue ~= nil then
+                    roundNumber = dmhub.initiativeQueue.round
+                end
+                track("hero_down", {
+                    class = heroClass and heroClass.name or "unknown",
+                    level = self:try_get("level", 1),
+                    ancestry = self:try_get("ancestry", "unknown"),
+                    damage = eventArg.damage,
+                    damageType = eventArg.damagetype or "untyped",
+                    attacker = attackerLabel,
+                    ability = abilityName,
+                    roundNumber = roundNumber,
+                    dailyLimit = 20,
+                })
+            end
+
             self:DispatchEvent("dying", eventArg)
             print("DYING:: FIRED")
         end
@@ -3655,6 +3723,32 @@ function creature.TakeDamage(self, amount, note, info)
                 --DispatchEvent does not currently have support for dispatching
                 --creature objects and other self-referential objects.
                 eventArg.attacker:TriggerEvent("kill", eventArg)
+            end
+
+            if not self:IsHero() then
+                local killerLabel = nil
+                if eventArg.attacker ~= nil then
+                    local kClassInfo = eventArg.attacker:IsHero() and eventArg.attacker:GetClass() or nil
+                    killerLabel = kClassInfo and kClassInfo.name or eventArg.attacker:try_get("monster_type", "monster")
+                end
+                local killerAbility = nil
+                if eventArg.ability ~= nil then
+                    killerAbility = eventArg.ability.name
+                end
+                local roundNumber = nil
+                if dmhub.initiativeQueue ~= nil then
+                    roundNumber = dmhub.initiativeQueue.round
+                end
+                track("monster_killed", {
+                    monster = self:try_get("monster_type", "unknown"),
+                    role = self:try_get("role", ""),
+                    killer = killerLabel,
+                    killerAbility = killerAbility,
+                    damage = eventArg.damage,
+                    damageType = eventArg.damagetype or "untyped",
+                    roundNumber = roundNumber,
+                    dailyLimit = 50,
+                })
             end
 
             eventArg.victim = nil

@@ -586,6 +586,18 @@ TriggeredAbility.RegisterTrigger{
 }
 
 TriggeredAbility.RegisterTrigger{
+    id = "startrespite",
+    text = "Start Respite",
+    symbols = {}
+}
+
+TriggeredAbility.RegisterTrigger{
+    id = "startdowntime",
+    text = "Start Downtime",
+    symbols = {}
+}
+
+TriggeredAbility.RegisterTrigger{
     id = "endrespite",
     text = "End Respite",
     symbols = {

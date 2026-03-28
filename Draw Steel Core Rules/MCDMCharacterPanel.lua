@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 setting{
     id = "oldTacPanel",
     description = "Use the old tactical panel",
@@ -10,6 +21,7 @@ setting{
 }
 
 local PLACEHOLDER_TOKEN = "game-icons/griffin-symbol.png"
+local TRANSPARENT_BG = false
 
 local g_refreshChecklistName = {
     encounter = "encounter",
@@ -19,7 +31,7 @@ local g_refreshChecklistName = {
 -- Commonly used colors
 local GRAY02 = "#666663"
 local RICH_BLACK = "#040807"
-local PANEL = "#0b0f0d"
+local TEAL_BLACK = "#0b0f0d"
 local GOLD = "#966D4B"
 local GOLD_LIGHT = "#C49A5A"
 local GOLD_DARK_BG = "#140d00"
@@ -37,7 +49,10 @@ local DYING_FILL = "#6B2020"
 local WINDED_FILL = "#7A4A18"
 local HEALTHY_FILL = "#2D6A4F"
 local SURGE_BORDER = "#2E3F38"
-local DARKRED = "#140A0A"
+local DARKRED = "#481c1a"
+local DARKTEAL = "#002222"
+local DARKPURPLE = "#331133"
+local DARKBROWN = "#443322"
 local TEMP_STAM = "#8B5CF6"
 local MOVE_HINDERED = "#E07070"
 local CHARACTERISTIC_BG = "#0B0F0D"
@@ -58,7 +73,7 @@ TacPanelSizes.Panels = {
     condChipHeight = 16,
 }
 TacPanelSizes.Fonts = {
-    panelTitle = 14,
+    panelTitle = 16,
     charName = 28,          -- Summary info panel
     charLevel = 18,
     charClass = 26,
@@ -142,13 +157,13 @@ TacPanelStyles.TacPanel = {
         vpad = 8,
         flow = "vertical",
         bgimage = "panels/square.png",
-        bgcolor = RICH_BLACK,
+        bgcolor = TRANSPARENT_BG and "clear" or RICH_BLACK,
         borderColor = GRAY02,
         border = { x1 = 0, y1 = 1, x2 = 0, y2 = 0 },
     },
     {
         selectors = {"panel", "tacpanel", "alt-bg"},
-        bgcolor = PANEL,
+        bgcolor = TRANSPARENT_BG and "clear" or TEAL_BLACK,
     },
     {
         selectors = {"panel", "container"},
@@ -183,8 +198,12 @@ TacPanelStyles.TacPanel = {
       width = 14, height = 14,
       halign = "left", valign = "center",
       hmargin = 4 },
-    { selectors = {"tp-drag-handle", "drag-target"},
-      bgcolor = TEAL },
+    { selectors = {"panel", "tp-title-bar", "drag-target-hover"},
+      tmargin = 4,
+      vpad = 4,
+      border = { x1 = 0, x2 = 0, y1 = 0, y2 = 4 },
+      borderColor = CREAM,
+      bgimage = true,},
 }
 TacPanelStyles.Tooltip = {
     {
@@ -267,26 +286,23 @@ TacPanelStyles.SummaryInfo = {
         color = MUTED,
     },
 
-    -- Control buttons below portrait
+}
+TacPanelStyles.ControlButtons = {
     {
         selectors = {"toggle-btn"},
         halign = "left",
         valign = "top",
-        pad = 4,
-        border = 1,
-        cornerRadius = 4,
-        borderColor = GRAY02,
     },
     {
         selectors = {"toggle-btn", "hover"},
         brightness = 1.5,
-        transitionTime = 0.2,
+        soundEvent = "Mouse.Hover",
     },
     {
         selectors = {"toggle-btn", "press"},
         brightness = 0.5,
+        soundEvent = "Mouse.Click",
     },
-    -- Light toggle button
     {
         selectors = {"light-btn"},
         bgimage = "drawsteel/light-off.png",
@@ -327,7 +343,7 @@ TacPanelStyles.TokenBox = {
     {
         selectors = {"panel", "tokenbox", "heroic-resources"},
         borderColor = GOLD_BORDER,
-        bgcolor = GOLD_BORDER .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD_BORDER .. TRANSPARENCY),
     },
     {
         selectors = {"label", "tokenbox"},
@@ -433,29 +449,38 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "stamina-box", "harm"},
         borderColor = RED,
-        bgcolor = RED .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "stamina"},
         width = TacPanelSizes.Panels.stamBoxStam,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "heal"},
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
     },
     {
         selectors = {"panel", "stamina-box", "recoveries"},
         width = TacPanelSizes.Panels.stamBoxRecoveries,
         borderColor = TEAL_HEAL,
-        bgcolor = TEAL_HEAL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY),
+    },
+    {
+        selectors = {"panel", "stamina-box", "recoveries", "hover"},
+        brightness = 1.5,
+        soundEvent = "Mouse.Hover",
+    },
+    {
+        selectors = {"panel", "stamina-box", "recoveries", "press"},
+        soundEvent = "Mouse.Click",
     },
     {
         selectors = {"panel", "stamina-box", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKPURPLE or (TEMP_STAM .. TRANSPARENCY),
     },
     {
         selectors = {"label", "stambox-title"},
@@ -698,12 +723,12 @@ TacPanelStyles.Stamina = {
     {
         selectors = {"panel", "health-status", "winded"},
         borderColor = WINDED_FILL,
-        bgcolor = WINDED_FILL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or WINDED_FILL .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "health-status", "dying"},
         borderColor = DYING_FILL,
-        bgcolor = DYING_FILL .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or DYING_FILL .. TRANSPARENCY,
     },
     {   -- Status label inside the box
         selectors = {"label", "health-status-label"},
@@ -726,7 +751,7 @@ TacPanelStyles.Stamina = {
     {   -- Temp stam box: horizontal layout, TEMP_STAM colors
         selectors = {"panel", "health-status", "temp"},
         borderColor = TEMP_STAM,
-        bgcolor = TEMP_STAM .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKPURPLE or TEMP_STAM .. TRANSPARENCY,
         flow = "horizontal",
     },
     {   -- Temp HP value (Newzald 12pt white)
@@ -799,7 +824,7 @@ TacPanelStyles.CharacteristicsPanel = {
         hmargin = 4,
         flow = "vertical",
         bgimage = true,
-        bgcolor = TEAL .. TRANSPARENCY, --CHARACTERISTIC_BG,
+        bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL .. TRANSPARENCY), --CHARACTERISTIC_BG,
         borderColor = RULE,
         border = 1,
         cornerRadius = 4,
@@ -807,6 +832,11 @@ TacPanelStyles.CharacteristicsPanel = {
     {
         selectors = {"panel", "characteristic-box", "hover"},
         brightness = 1.5,
+        soundEvent = "Mouse.Hover",
+    },
+    {
+        selectors = {"panel", "characteristic-box", "press"},
+        soundEvent = "Mouse.Click",
     },
     {
         selectors = {"label", "char-title"},
@@ -961,7 +991,7 @@ TacPanelStyles.HeroicResources = {
         border = 1,
         borderColor = GOLD,
         cornerRadius = 4,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"panel", "hr-chip", "completed"},
@@ -1031,7 +1061,7 @@ TacPanelStyles.HeroicResources = {
         vpad = 4,
         flow = "horizontal",
         bgimage = true,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
         borderColor = GOLD,
         border = {x1 = 0, y1 = 1, x2 = 0, y2 = 0},
     },
@@ -1067,7 +1097,7 @@ TacPanelStyles.HeroicResources = {
     },
     {
         selectors = {"panel", "gr-row", "available"},
-        bgcolor = GOLD_LIGHT .. TRANSPARENCY
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD_LIGHT .. TRANSPARENCY
     },
     {
         selectors = {"label", "gr-value"},
@@ -1094,7 +1124,7 @@ TacPanelStyles.HeroicResources = {
         selectors = {"label", "gr-value", "parent:available"},
         color = GOLD,
         borderColor = GOLD,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or GOLD .. TRANSPARENCY,
     },
     {
         selectors = {"label", "gr-text"},
@@ -1152,9 +1182,9 @@ TacPanelStyles.MultiEdit = {
       bgimage = "panels/square.png",
       border = 1, cornerRadius = 4, hmargin = 2 },
     { selectors = {"panel", "me-input-box", "heal"},
-      bgcolor = TEAL_HEAL .. TRANSPARENCY, borderColor = TEAL_HEAL },
+      bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY), borderColor = TEAL_HEAL },
     { selectors = {"panel", "me-input-box", "damage"},
-      bgcolor = RED .. TRANSPARENCY, borderColor = RED },
+      bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY), borderColor = RED },
     { selectors = {"input", "me-input"},
       width = "100%", height = "100%",
       bgcolor = "clear", borderWidth = 0, borderColor = "clear",
@@ -1238,7 +1268,7 @@ TacPanelStyles.Routines = {
     { selectors = {"panel", "rt-chip", "hover"},
       brightness = 1.3, transitionTime = 0.2 },
     { selectors = {"panel", "rt-chip", "selected"},
-      bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD },
+      bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY), borderColor = GOLD },
 
     -- Routine chip label
     { selectors = {"label", "rt-chip"},
@@ -1280,7 +1310,7 @@ TacPanelStyles.Conditions = {
         bgimage = true,
         border = 1,
         borderColor = GOLD,
-        bgcolor = GOLD .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY),
         cornerRadius = 4,
     },
     {
@@ -1342,7 +1372,7 @@ TacPanelStyles.Conditions = {
         valign = "center",
         lmargin = 4,
         bgimage = true,
-        bgcolor = RED .. TRANSPARENCY,
+        bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY),
         border = 1,
         borderColor = RED,
         cornerRadius = 2,
@@ -1531,7 +1561,7 @@ TacPanelStyles.Resistances = {
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
       bold = false, color = CREAM, bgimage = "panels/square.png",
-      bgcolor = RED .. TRANSPARENCY, border = 1, borderColor = RED,
+      bgcolor = TRANSPARENT_BG and DARKRED or (RED .. TRANSPARENCY), border = 1, borderColor = RED,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 
     -- Immunity box
@@ -1539,7 +1569,7 @@ TacPanelStyles.Resistances = {
       width = "47%", height = "auto", halign = "center",
       fontFace = "Berling", fontSize = TacPanelSizes.Fonts.resEntry,
       bold = false, color = CREAM, bgimage = "panels/square.png",
-      bgcolor = TEAL_HEAL .. TRANSPARENCY, border = 1, borderColor = TEAL_HEAL,
+      bgcolor = TRANSPARENT_BG and DARKTEAL or (TEAL_HEAL .. TRANSPARENCY), border = 1, borderColor = TEAL_HEAL,
       cornerRadius = 4, hpad = 6, vpad = 4, hmargin = 4 },
 }
 
@@ -1735,7 +1765,17 @@ function TacPanel.HeroTokenBox()
                     if token == nil then return end
                     local n = tonum(element.text, -1)
                     if n >= 0 then
+                        local prev = token.properties:GetHeroTokens()
                         token.properties:SetHeroTokens(n, "Set manually")
+                        if n ~= prev then
+                            local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                            track("hero_token_change", {
+                                change = n - prev,
+                                source = "manual",
+                                class = classInfo and classInfo.name or "unknown",
+                                dailyLimit = 30,
+                            })
+                        end
                     end
                     element.textNoNotify = string.format("%d", token.properties:GetHeroTokens())
                 end,
@@ -1758,12 +1798,22 @@ function TacPanel.HeroTokenBox()
                 local token = element.parent.data.token
                 if token ~= nil then
                     local n = dmhub.GetSettingValue("numheroes")
+                    local prev = token.properties:GetHeroTokens()
                     token:ModifyProperties{
                         description = "Reset Hero Tokens",
                         execute = function()
                             token.properties:SetHeroTokens(n, "Session Reset")
                         end,
                     }
+                    if n ~= prev then
+                        local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                        track("hero_token_change", {
+                            change = n - prev,
+                            source = "session_reset",
+                            class = classInfo and classInfo.name or "unknown",
+                            dailyLimit = 30,
+                        })
+                    end
                 end
             end,
             linger = function(element)
@@ -2175,10 +2225,12 @@ function TacPanel.Summary()
         },
         -- Control buttons below portrait
         gui.Panel{
+            styles = TacPanelStyles.ControlButtons,
             classes = {"container"},
             flow = "horizontal",
             outlineButton(gui.EnhIconButton{
                 classes = {"toggle-btn"},
+                hoverCursor = "pressbutton",
                 bgimage = "panels/initiative/initiative-icon.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2209,6 +2261,7 @@ function TacPanel.Summary()
             }),
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "light-btn"},
+                hoverCursor = "pressbutton",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
                 bgimage = "drawsteel/light-off.png",
@@ -2229,6 +2282,7 @@ function TacPanel.Summary()
             }),
             outlineButton(gui.Panel{
                 classes = {"toggle-btn", "collapsed"},
+                hoverCursor = "pressbutton",
                 bgimage = "ui-icons/eye.png",
                 width = TacPanelSizes.VisionBtn.size,
                 height = TacPanelSizes.VisionBtn.size,
@@ -2598,6 +2652,7 @@ function TacPanel.RecoveriesBox()
 
     return gui.Panel{
         classes = {"stamina-box", "recoveries"},
+        hoverCursor = "pressbutton",
         data = { token = nil },
         refreshCharacter = function(element, token)
             element.data.token = token
@@ -2609,6 +2664,78 @@ function TacPanel.RecoveriesBox()
         end,
         setToken = function(element, token)
             element:FireEvent("refreshCharacter", token)
+        end,
+        linger = function(element)
+            local token = element.data.token
+            if token == nil or not token.valid or token.properties == nil then return end
+            local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
+            local maxRec = token.properties:GetResources()[recoveryid] or 0
+            local quantity = maxRec - usage
+            local usageNote = "Use a recovery"
+            if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                usageNote = "Already at maximum stamina"
+            elseif quantity <= 0 then
+                if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
+                    usageNote = "Click to spend 2 hero tokens as a Recovery"
+                else
+                    usageNote = "No Recoveries left"
+                end
+            end
+            gui.Tooltip(usageNote)(element)
+        end,
+        press = function(element)
+            local token = element.data.token
+            if token == nil then return end
+
+            local useHeroTokens = false
+            local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+            if quantity <= 0 then
+                if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
+                    return
+                end
+                useHeroTokens = true
+            end
+
+            if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
+                return
+            end
+
+            token:ModifyProperties{
+                description = "Use Recovery",
+                execute = function()
+                    token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
+                    if useHeroTokens then
+                        token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
+                    else
+                        token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
+                    end
+                end,
+            }
+            if useHeroTokens then
+                local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+                track("hero_token_change", {
+                    change = -2,
+                    source = "recovery",
+                    class = classInfo and classInfo.name or "unknown",
+                    dailyLimit = 30,
+                })
+            end
+
+            local remaining = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+            if useHeroTokens then
+                remaining = remaining
+            else
+                remaining = remaining - 1
+            end
+            local classInfo = token.properties:IsHero() and token.properties:GetClass() or nil
+            local q = dmhub.initiativeQueue
+            track("recovery_spend", {
+                class = classInfo and classInfo.name or "unknown",
+                level = token.properties:CharacterLevel(),
+                remaining = max(0, remaining),
+                context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
+                dailyLimit = 20,
+            })
         end,
         gui.Label{
             classes = {"stambox-title", "heal"},
@@ -2637,60 +2764,8 @@ function TacPanel.RecoveriesBox()
                 gui.Label{
                     classes = {"recovery-value"},
                     text = "+0",
-                    data = { token = nil },
                     refreshCharacter = function(element, token)
-                        element.data.token = token
                         element.text = string.format("%+d", token.properties:RecoveryAmount())
-                    end,
-                    setToken = function(element, token)
-                        element.data.token = token
-                    end,
-                    linger = function(element)
-                        local token = element.data.token
-                        if token == nil or not token.valid or token.properties == nil then return end
-                        local usage = token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0
-                        local maxRec = token.properties:GetResources()[recoveryid] or 0
-                        local quantity = maxRec - usage
-                        local usageNote = "Use a recovery"
-                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
-                            usageNote = "Already at maximum stamina"
-                        elseif quantity <= 0 then
-                            if token.properties:IsHero() and token.properties:GetHeroTokens() >= 2 then
-                                usageNote = "Click to spend 2 hero tokens as a Recovery"
-                            else
-                                usageNote = "No Recoveries left"
-                            end
-                        end
-                        gui.Tooltip(usageNote)(element)
-                    end,
-                    press = function(element)
-                        local token = element.data.token
-                        if token == nil then return end
-
-                        local useHeroTokens = false
-                        local quantity = max(0, (token.properties:GetResources()[recoveryid] or 0) - (token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
-                        if quantity <= 0 then
-                            if (not token.properties:IsHero()) or token.properties:GetHeroTokens() < 2 then
-                                return
-                            end
-                            useHeroTokens = true
-                        end
-
-                        if token.properties:CurrentHitpoints() >= token.properties:MaxHitpoints() then
-                            return
-                        end
-
-                        token:ModifyProperties{
-                            description = "Use Recovery",
-                            execute = function()
-                                token.properties:Heal(token.properties:RecoveryAmount(), "Use Recovery")
-                                if useHeroTokens then
-                                    token.properties:SetHeroTokens(token.properties:GetHeroTokens() - 2, "Used to Recover")
-                                else
-                                    token.properties:ConsumeResource(recoveryid, recoveryInfo.usageLimit, 1, "Used Recovery")
-                                end
-                            end,
-                        }
                     end,
                 },
             },
@@ -2796,15 +2871,15 @@ function TacPanel.HealthBar()
     }
 
     -- Diamond positioned via floating wrapper inside barRow
-    local diamond = gui.Panel{
-        classes = {"panel", "health-diamond"},
-        rotate = 45,
-    }
-    local diamondPositioner = gui.Panel{
-        classes = {"panel", "health-diamond-positioner"},
-        floating = true,
-        diamond,
-    }
+    -- local diamond = gui.Panel{
+    --     classes = {"panel", "health-diamond"},
+    --     rotate = 45,
+    -- }
+    -- local diamondPositioner = gui.Panel{
+    --     classes = {"panel", "health-diamond-positioner"},
+    --     floating = true,
+    --     diamond,
+    -- }
 
     -- Status boxes: appear below bar segment when health is in that range
     local windedStatus = gui.Panel{
@@ -2881,7 +2956,7 @@ function TacPanel.HealthBar()
         dyingColumn,
         windedColumn,
         healthyColumn,
-        diamondPositioner,
+        -- diamondPositioner,
     }
 
     local function pct(value)
@@ -2944,11 +3019,11 @@ function TacPanel.HealthBar()
             local diamondPct = isHero
                 and ((currentHP + bloodied) / totalRange * 100)
                 or (currentHP / totalRange * 100)
-            diamondPct = math.max(0, math.min(100, diamondPct))
-            diamondPositioner.selfStyle.width = pct(diamondPct)
+            -- diamondPct = math.max(0, math.min(100, diamondPct))
+            -- diamondPositioner.selfStyle.width = pct(diamondPct)
 
             -- Diamond color: white normally, TEMP_STAM when temp HP > 0
-            diamond:SetClass("has-temp", tempHP > 0)
+            -- diamond:SetClass("has-temp", tempHP > 0)
 
             -- Status boxes: show when health is in that segment's range (mutually exclusive)
             local inDyingRange = isHero and currentHP < 0
@@ -3447,6 +3522,7 @@ end
 function TacPanel.CharacteristicBox(attrInfo)
     return gui.Panel{
         classes = {"characteristic-box"},
+        hoverCursor = "pressbutton",
         data = { token = nil },
         press = function(element)
             local token = element.data.token
@@ -3780,19 +3856,18 @@ function TacPanel.CollapsiblePanel(args)
         allStyles[#allStyles+1] = s
     end
 
-    -- Drag handle for reorderable sections
-    -- Drag handle for reorderable sections
-    local dragHandle = sectionId and gui.Panel{
-        classes = {"tp-drag-handle"},
-        draggable = true,
-        dragTarget = true,
+    -- Title bar (always child[1]): drag handle icon, title label, collapse arrow
+    local titleBar = gui.Panel{
+        classes = {"tp-title-bar"},
+        draggable = sectionId ~= nil,
+        dragTarget = sectionId ~= nil,
         canDragOnto = function(element, target)
-            return target:HasClass("tp-drag-handle")
+            return target:HasClass("tp-title-bar") and target ~= element
         end,
         drag = function(element, target)
             if target == nil then return end
-            local draggedSection = element.parent.parent
-            local targetSection = target.parent.parent
+            local draggedSection = element.parent
+            local targetSection = target.parent
             if draggedSection == nil or targetSection == nil then return end
             if draggedSection.data == nil or targetSection.data == nil then return end
             local container = draggedSection.parent
@@ -3802,22 +3877,14 @@ function TacPanel.CollapsiblePanel(args)
                     targetSection.data.sectionId)
             end
         end,
-        linger = function(element)
-            gui.Tooltip("Drag to reorder sections")(element)
-        end,
-    } or nil
-
-    -- Collapse bar: title + expando arrow, handles expand/collapse on click
-    local collapseBar = gui.Panel{
-        classes = {"tp-collapse-bar"},
-        width = dragHandle and "100%-22" or "100%",
-        height = "auto",
-        halign = "right",
-        press = function(element)
-            local outer = element.parent.parent
+        click = function(element)
+            local outer = element.parent
             outer.data.collapsed = not outer.data.collapsed
             outer:FireEventTree("setCollapse", outer.data.collapsed)
         end,
+        sectionId and gui.Panel{
+            classes = {"tp-drag-handle"},
+        } or nil,
         gui.Label{
             classes = {"panel-title"},
             text = title,
@@ -3831,13 +3898,6 @@ function TacPanel.CollapsiblePanel(args)
                 element:SetClass("collapseSet", collapsed)
             end,
         },
-    }
-
-    -- Title bar (always child[1])
-    local titleBar = gui.Panel{
-        classes = {"tp-title-bar"},
-        dragHandle,
-        collapseBar,
     }
 
     -- Collect content children from array entries into a single wrapper
@@ -3886,6 +3946,7 @@ function TacPanel.Routines()
         sectionId = "routines",
         styles = {TacPanelStyles.Routines},
         classes = {"collapsed"},
+        altBg = false,
         title = "ROUTINES",
         data = { routinePanels = {} },
         setCollapse = function(element)
@@ -3932,7 +3993,7 @@ function TacPanel.Routines()
                     text = "None",
                     selfStyle = noneSelected and {color = GOLD_LIGHT} or nil,
                 },
-                selfStyle = noneSelected and {bgcolor = GOLD .. TRANSPARENCY, borderColor = GOLD} or nil,
+                selfStyle = noneSelected and {bgcolor = TRANSPARENT_BG and DARKBROWN or (GOLD .. TRANSPARENCY), borderColor = GOLD} or nil,
             }
 
             for _,routine in ipairs(routines) do
@@ -4111,6 +4172,7 @@ function TacPanel.HeroicResources()
     return TacPanel.CollapsiblePanel{
         sectionId = "heroicresources",
         classes = {"collapsed"},
+        altBg = false,
         title = "HEROIC RESOURCES",
         refreshCharacter = function(element, token)
             if token == nil or not token.valid or token.properties == nil then
@@ -4197,6 +4259,7 @@ end
 function TacPanel.SkillLanguages()
     return TacPanel.CollapsiblePanel{
         sectionId = "skilllanguages",
+        altBg = false,
         title = "SKILLS & LANGUAGES",
         gui.Panel{
             styles = TacPanelStyles.SkillsLanguages,
@@ -4268,6 +4331,7 @@ function TacPanel.Features()
         sectionId = "features",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
+        altBg = false,
         title = "FEATURES",
         data = { token = nil },
 
@@ -4359,6 +4423,7 @@ function TacPanel.Notes()
         sectionId = "notes",
         styles = {TacPanelStyles.Notes},
         classes = {"collapsed"},
+        altBg = false,
         title = "NOTES",
         data = { token = nil },
 
@@ -4914,7 +4979,7 @@ function TacPanel.MultiEdit()
     }
 
     return gui.Panel{
-        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit},
+        styles = {TacPanelStyles.TacPanel, TacPanelStyles.MultiEdit, TacPanelStyles.ControlButtons},
         classes = {"tacpanel", "alt-bg", "collapsed"},
         tokens = function(element, tokens)
             m_tokens = tokens
@@ -5417,6 +5482,7 @@ function TacPanel.AurasEmitting()
         sectionId = "aurasemitting",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
+        altBg = false,
         title = "AURAS EMITTING",
         data = { token = nil },
         refreshCharacter = function(element, token)
@@ -5954,6 +6020,7 @@ function TacPanel.PersistentAbilities()
         sectionId = "persistentabilities",
         styles = {TacPanelStyles.Conditions},
         classes = {"collapsed"},
+        altBg = false,
         title = "PERSISTENT ABILITIES",
         data = { token = nil },
 
@@ -6095,6 +6162,7 @@ function TacPanel.Conditions()
     return TacPanel.CollapsiblePanel{
         sectionId = "conditions",
         styles = {TacPanelStyles.Conditions},
+        altBg = false,
         title = "AURAS, CONDITIONS, & EFFECTS",
         data = { token = nil },
         refreshCharacter = function(element, token)
@@ -9008,7 +9076,25 @@ function CharacterPanel.DecorateHitpointsPanel()
 
                 if useHeroTokens then
                     m_token.properties:SetHeroTokens(m_token.properties:GetHeroTokens()-2, "Used to Recover")
+                    local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
+                    track("hero_token_change", {
+                        change = -2,
+                        source = "recovery",
+                        class = classInfo and classInfo.name or "unknown",
+                        dailyLimit = 30,
+                    })
                 end
+
+                local remaining = max(0, (m_token.properties:GetResources()[recoveryid] or 0) - (m_token.properties:GetResourceUsage(recoveryid, recoveryInfo.usageLimit) or 0))
+                local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
+                local q = dmhub.initiativeQueue
+                track("recovery_spend", {
+                    class = classInfo and classInfo.name or "unknown",
+                    level = m_token.properties:CharacterLevel(),
+                    remaining = remaining,
+                    context = (q ~= nil and not q.hidden and q:try_get("gameMode") == "combat") and "combat" or "rest",
+                    dailyLimit = 20,
+                })
 			end,
 
 			rightClick = function(element)
@@ -9225,7 +9311,17 @@ function CharacterPanel.DecoratePortraitPanel(token)
                             items[#items+1] = {
                                 text = string.format("Reset Hero Tokens For Session (%d heroes)", n),
                                 click = function()
+                                    local prev = m_token.properties:GetHeroTokens()
                                     m_token.properties:SetHeroTokens(n, "Session Reset")
+                                    if n ~= prev then
+                                        local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
+                                        track("hero_token_change", {
+                                            change = n - prev,
+                                            source = "session_reset",
+                                            class = classInfo and classInfo.name or "unknown",
+                                            dailyLimit = 30,
+                                        })
+                                    end
                                     element.popup = nil
                                 end,
                             }
@@ -9284,7 +9380,17 @@ function CharacterPanel.DecoratePortraitPanel(token)
                         local n = tonumber(element.text)
                         if n ~= nil and round(n) == n then
                             n = math.max(0, n)
+                            local prev = m_token.properties:GetHeroTokens()
                             m_token.properties:SetHeroTokens(n, "Set manually")
+                            if n ~= prev then
+                                local classInfo = m_token.properties:IsHero() and m_token.properties:GetClass() or nil
+                                track("hero_token_change", {
+                                    change = n - prev,
+                                    source = "manual",
+                                    class = classInfo and classInfo.name or "unknown",
+                                    dailyLimit = 30,
+                                })
+                            end
                         end
                         element.text = string.format("%d", m_token.properties:GetHeroTokens())
                     end,

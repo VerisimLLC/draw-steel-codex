@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --- @class follower:monster
 --- @field availableRolls number Number of rolls this follower has available.
 --- @field followerType string Follower sub-type: "artisan", "sage", or "retainer".
@@ -227,7 +238,15 @@ CreateFollowerMonster = function(followerInfo, followerType, mentorToken, option
                     --Set skills and languages for followers
                     newFollowerCreature.skillRatings = followerInfo.skills or {}
                     newFollowerCreature.innateLanguages = followerInfo.languages or {}
-                    
+
+                    track("character_create", {
+                        ancestry = ancestry and ancestry.name or "",
+                        class = followerType or "",
+                        kit = "",
+                        method = "follower",
+                        dailyLimit = 5,
+                    })
+
                     newFollower:UploadToken()
                     game.UpdateCharacterTokens()
                     newFollower:ChangeLocation(core.Loc{x = loc.x, y = loc.y})

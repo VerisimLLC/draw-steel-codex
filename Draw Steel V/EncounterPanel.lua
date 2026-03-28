@@ -51,6 +51,17 @@ local g_numHeroesSetting = setting{
 --
 
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local CreateEncounterPanel
 
 
@@ -60,6 +71,10 @@ DockablePanel.Register {
     minHeight = 200,
     vscroll = true,
     content = function()
+        track("panel_open", {
+            panel = "Encounter creator",
+            dailyLimit = 30,
+        })
         return CreateEncounterPanel()
     end,
 }
@@ -487,8 +502,25 @@ local function createGroupPanel(encounter)
 
                                     edit = function(element)
                                         element.parent:FireEventTree("search", string.lower(element.text))
-                                    end
+                                    end,
 
+                                    confirm = function(element)
+                                        local query = element.text
+                                        if query ~= "" then
+                                            local resultCount = 0
+                                            for _, child in ipairs(monsterlist.children) do
+                                                if not child:HasClass("collapsed") then
+                                                    resultCount = resultCount + 1
+                                                end
+                                            end
+                                            track("search_query", {
+                                                query = query,
+                                                resultCount = resultCount,
+                                                context = "encounter",
+                                                dailyLimit = 20,
+                                            })
+                                        end
+                                    end,
 
                                 },
 
@@ -1095,8 +1127,25 @@ function Encounter.Editor(self, options)
 
                             edit = function(element)
                                 element.parent:FireEventTree("search", string.lower(element.text))
-                            end
+                            end,
 
+                            confirm = function(element)
+                                local query = element.text
+                                if query ~= "" then
+                                    local resultCount = 0
+                                    for _, child in ipairs(monsterlist.children) do
+                                        if not child:HasClass("collapsed") then
+                                            resultCount = resultCount + 1
+                                        end
+                                    end
+                                    track("search_query", {
+                                        query = query,
+                                        resultCount = resultCount,
+                                        context = "encounter_add_monster",
+                                        dailyLimit = 20,
+                                    })
+                                end
+                            end,
 
                         },
 

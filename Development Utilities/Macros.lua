@@ -68,6 +68,16 @@ Commands.RegisterMacro{
     name = "skillfind",
     summary = "find skill by name",
     doc = "Usage: /skillfind <name>\nLooks up a skill by name and prints it.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local skills = dmhub.GetTable("Skills")
+        local result = {}
+        for k, v in unhidden_pairs(skills) do
+            result[#result+1] = v.name
+        end
+        table.sort(result)
+        return result
+    end,
     command = function(str)
         local s = Skill.FindByName(str)
         print("SKILL::", s)
@@ -78,6 +88,10 @@ Commands.RegisterMacro{
     name = "showtriggers",
     summary = "show token triggers",
     doc = "Usage: /showtriggers <event name>\nPrints all active triggered modifiers matching the given event name on selected tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {"damaged", "attack", "attacked", "kill", "power_roll", "forced_move", "start_turn", "end_turn", "spend_recovery", "gain_condition", "lose_condition", "dying"}
+    end,
     command = function(str)
         local tokens = dmhub.selectedTokens
         for _,tok in ipairs(tokens) do

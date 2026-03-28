@@ -28,7 +28,19 @@
 ]]
 CBFeatureSelector = RegisterGameType("CBFeatureSelector")
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local SELECT_MODES = {SELECT = "SELECT", REMOVE = "REMOVE"}
+local EMPTY_SLOT_TEXT = "Unassigned"
 
 local _fireControllerEvent = CharacterBuilder._fireControllerEvent
 local _functionOrValue = CharacterBuilder._functionOrValue
@@ -230,7 +242,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 end
 
                 local option = element.data.option
-                local name = option and option:GetName() or "Empty Slot"
+                local name = option and option:GetName() or EMPTY_SLOT_TEXT
                 if cachedFeature and option then
                     name = cachedFeature:GetOptionDisplayName(option)
                 end
@@ -284,7 +296,7 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 },
                 gui.Label{
                     classes = {"builder-base", "label", "feature-target"},
-                    text = "Empty Slot",
+                    text = EMPTY_SLOT_TEXT,
                     updateName = function(element, text)
                         if element.text ~= text then element.text = text end
                     end,
@@ -477,7 +489,24 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local state = _getState()
                 if state == nil then return end
                 local blockSel = state:Get(selector .. ".blockFeatureSelection") == true
-                if blockSel then return end
+                if blockSel then
+                    local selectedItem = state:Get(selector .. ".selectedItem")
+                    if selectedItem == nil then return end
+
+                    local selectorName = CharacterBuilder._ucFirst(selector)
+                    local controller = CharacterBuilder._getController()
+                    if controller then
+                        controller:AddChild(CharacterBuilder._confirmDialog{
+                            title = string.format("Apply %s", selectorName),
+                            message = string.format("Set your %s to %s?", selectorName, selectedItem.name),
+                            onConfirm = function()
+                                _fireControllerEvent("applyCurrent" .. selectorName)
+                                element:FireEvent("selectItem")
+                            end,
+                        })
+                    end
+                    return
+                end
 
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature == nil then return end
@@ -608,6 +637,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 if cachedFeature then
                     local actionComplete = cachedFeature:SaveSelection(hero, option)
                     if actionComplete then
+                        track("builder_selection", {
+                            featureId = element.data.featureId,
+                            optionId = option:GetGuid(),
+                            optionName = option:GetName(),
+                            isFinal = true,
+                            dailyLimit = 20,
+                        })
                         _fireControllerEvent("tokenDataChanged")
                     end
                 end
@@ -621,6 +657,12 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 if cachedFeature then
                     local actionComplete = cachedFeature:RemoveSelection(hero, option)
                     if actionComplete then
+                        track("ability_respec", {
+                            featureId = element.data.featureId,
+                            removedOptionId = option:GetGuid(),
+                            removedOptionName = option:GetName(),
+                            dailyLimit = 10,
+                        })
                         _fireControllerEvent("tokenDataChanged")
                     end
                 end
@@ -632,6 +674,13 @@ function CBFeatureSelector.SelectionPanel(selector, feature)
                 local cachedFeature = getCachedFeature(state, element.data.featureId)
                 if cachedFeature then
                     if cachedFeature:SetSelectedOption(itemId) then
+                        local option = cachedFeature:GetOption(itemId)
+                        track("builder_ability_view", {
+                            featureId = element.data.featureId,
+                            optionId = itemId,
+                            optionName = option and option:GetName() or nil,
+                            dailyLimit = 20,
+                        })
                         element:FireEventTree("setSelectMode", SELECT_MODES.SELECT)
                         element:FireEventTree("refreshBuilderState", state)
                     end

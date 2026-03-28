@@ -48,6 +48,17 @@ setting{
 	},
 }
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateMapSettings
 local CreateEditorSettings
 
@@ -58,6 +69,10 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 100,
 	content = function()
+		track("panel_open", {
+			panel = "Map Settings",
+			dailyLimit = 30,
+		})
 		return CreateMapSettings()
 	end,
 }
@@ -70,6 +85,10 @@ DockablePanel.Register{
     dmonly = true,
 	minHeight = 100,
 	content = function()
+		track("panel_open", {
+			panel = "Editor Settings",
+			dailyLimit = 30,
+		})
 		return CreateEditorSettings()
 	end,
 }

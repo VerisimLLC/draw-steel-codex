@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateChatPanel
 
 DockablePanel.Register{
@@ -8,6 +19,10 @@ DockablePanel.Register{
 	minHeight = 200,
 	vscroll = false,
 	content = function()
+		track("panel_open", {
+			panel = "Action Log",
+			dailyLimit = 30,
+		})
 		return CreateChatPanel()
 	end,
 }
@@ -402,11 +417,20 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 
 			if outcomePanel ~= nil and message.properties ~= nil then
 				local outcome = message.properties:GetOutcome(message)
-				if outcome ~= nil and #outcome.outcome < 14 then
-					outcomePanel.selfStyle.color = outcome.color or "white"
-					outcomePanel.text = outcome.outcome
-				elseif outcome ~= nil then
-					longFormResultsLabel.text = outcome.outcome
+				if outcome ~= nil then
+					local outcomeText = outcome.outcome
+					if message.tokenid ~= nil then
+						local token = dmhub.GetCharacterById(message.tokenid)
+						if token ~= nil then
+							outcomeText = StringInterpolateGoblinScript(outcomeText, token.properties)
+						end
+					end
+					if #outcomeText < 14 then
+						outcomePanel.selfStyle.color = outcome.color or "white"
+						outcomePanel.text = outcomeText
+					else
+						longFormResultsLabel.text = outcomeText
+					end
 				end
 			elseif outcomePanel ~= nil and message.autofailure then
 				outcomePanel.selfStyle.color = "red"

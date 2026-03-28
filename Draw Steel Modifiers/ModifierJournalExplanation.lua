@@ -91,6 +91,7 @@ CharacterModifier.TypeInfo.journalexplanation = {
 					verticalScrollbar = true,
 					text = modifier.explanationText,
 					placeholderText = "Markdown-formatted explanation text...",
+					characterLimit = 10000,
 					change = function(element)
 						modifier.explanationText = element.text
 					end,

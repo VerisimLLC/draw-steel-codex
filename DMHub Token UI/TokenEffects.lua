@@ -429,6 +429,16 @@ Commands.RegisterMacro{
     name = "tokeneffect",
     summary = "play token effect",
     doc = "Usage: /tokeneffect <effect name>\nPlays a visual effect on selected or primary tokens.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        local result = {}
+        local dataTable = assets.emojiTable
+        for k, emoji in pairs(dataTable) do
+            result[#result+1] = {text = k, summary = emoji.description or k}
+        end
+        table.sort(result, function(a, b) return a.summary < b.summary end)
+        return result
+    end,
     command = function(id)
         local tokens = dmhub.selectedOrPrimaryTokens
         for i,token in ipairs(tokens) do

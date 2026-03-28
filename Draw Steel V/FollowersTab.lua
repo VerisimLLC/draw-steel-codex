@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 --Called by CharSheet.FeaturesAndNotesPanel to create the Followers tab
 function CharSheet.CreateFollowersPanel()
     return gui.Panel {
@@ -441,6 +452,11 @@ function CharSheet.FollowersInnerPanel()
                 click = function(element)
                     local mentorToken = CharacterSheet.instance.data.info.token
                     CreateFollowerMonster(follower, newFollowerType, mentorToken, options)
+                    track("follower_action", {
+                        action = "summon",
+                        followerType = newFollowerType,
+                        dailyLimit = 10,
+                    })
                     CharacterSheet.instance:FireEvent("refreshAll")
                     element.parent:SetClass("collapsed", true)
                 end,
@@ -642,6 +658,15 @@ function CharSheet.FollowersInnerPanel()
                                                 followers[element.idChosen] = true
                                             end,
                                         }
+                                        local fType = "unknown"
+                                        if follower and follower.properties and follower.properties:has_key("followerType") then
+                                            fType = follower.properties.followerType
+                                        end
+                                        track("follower_action", {
+                                            action = "command",
+                                            followerType = fType,
+                                            dailyLimit = 10,
+                                        })
                                         CharacterSheet.instance:FireEvent("refreshAll")
                                     end
                                 end,
@@ -709,7 +734,17 @@ function CharSheet.FollowersInnerPanel()
                     if not child then
                         child = CreateFollowersSection(followerId, {
                             delete = function()
+                                local followerToken = dmhub.GetCharacterById(followerId)
+                                local fType = "unknown"
+                                if followerToken and followerToken.properties and followerToken.properties:has_key("followerType") then
+                                    fType = followerToken.properties.followerType
+                                end
                                 mentorToken.properties:RemoveFollowerFromMentor(followerId)
+                                track("follower_action", {
+                                    action = "dismiss",
+                                    followerType = fType,
+                                    dailyLimit = 10,
+                                })
                                 CharacterSheet.instance:FireEvent("refreshAll")
                             end,
                         })

@@ -67,6 +67,17 @@ function Commands.GetCurrentArg(text)
     return macroName, args, partial, argIndex
 end
 
+-- Register documentation for a built-in (C#) command without overriding its
+-- execution. Only populates _macros so the ChatPanel UI shows summary, doc,
+-- and argument completions.
+function Commands.RegisterBuiltinDoc(args)
+    Commands._macros[string.lower(args.name)] = {
+        doc = args.doc,
+        summary = args.summary,
+        completions = args.completions,
+    }
+end
+
 --- @param table table
 --- @param element any
 --- @return boolean

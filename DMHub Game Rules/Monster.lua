@@ -17,12 +17,17 @@ end
 
 local settingAssignMonstersNames = setting{
 	id = "assignmonstersnames",
-	description = "Monsters Name Generation",
+	description = "Monster Name Generation",
 	help = "When a monster is created from the bestiary or by duplication it will be given a unique name, typically something like Goblin 1, Goblin 2, etc.",
-	editor = "check",
+	editor = "dropdown",
 	default = true,
 	storage = "game",
 	section = "game",
+    enum = {
+        {value = false, text = "None"},
+        {value = true, text = "Numbered"},
+        {value = "table", text = "Pronoun Prefix"},
+    }
 }
 
 local settingAssignMonstersNamesPrivate = setting{
@@ -56,36 +61,40 @@ function monster.OnCreateFromBestiary(self, token)
         --solos and leaders just get named their type.
         token.name = self.monster_type
 	elseif settingAssignMonstersNames:Get() and self:has_key("monster_type") and (not self.minion) then
-		local tokens = dmhub.GetTokens{pending = true}
-		local nameGenerator = self:GetNameGeneratorTable()
-        local genericTable = false
-        if nameGenerator == nil and self.monster_type ~= "" then
-           nameGenerator = monster.AdjectivesNameGeneratorTable()
-            genericTable = true
-        end
-		local foundName = false
 		token.namePrivate = settingAssignMonstersNamesPrivate:Get()
-		if nameGenerator ~= nil then
-			--try rolling until we get a unique one.
-			for i=1,10 do
-				token.name = nameGenerator:Roll():JoinString(" ")
-                if genericTable then
-                    token.name = string.format("%s %s", token.name, self.monster_type)
-                end
-				local unique = true
-				for _,tok in ipairs(tokens) do
-					if tok.name == token.name then
-						unique = false
-						break
-					end
-				end
 
-				if unique then
-					foundName = true
-					break
-				end
-			end
-		end
+		local tokens = dmhub.GetTokens{pending = true}
+		local foundName = false
+
+        if settingAssignMonstersNames:Get() == "table" then
+            local nameGenerator = self:GetNameGeneratorTable()
+            local genericTable = false
+            if nameGenerator == nil and self.monster_type ~= "" then
+            nameGenerator = monster.AdjectivesNameGeneratorTable()
+                genericTable = true
+            end
+            if nameGenerator ~= nil then
+                --try rolling until we get a unique one.
+                for i=1,10 do
+                    token.name = nameGenerator:Roll():JoinString(" ")
+                    if genericTable then
+                        token.name = string.format("%s %s", token.name, self.monster_type)
+                    end
+                    local unique = true
+                    for _,tok in ipairs(tokens) do
+                        if tok.name == token.name then
+                            unique = false
+                            break
+                        end
+                    end
+
+                    if unique then
+                        foundName = true
+                        break
+                    end
+                end
+            end
+        end
 
 		if not foundName then
 			--no name generator or couldn't find a unique name, choose a generic name.

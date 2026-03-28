@@ -495,7 +495,8 @@ function GameHud:RequireRollListenerPanel()
 												
 												if rollInfo.properties then
 													local matchingOutcome = rollInfo.properties:GetOutcome(rollInfo)
-													if matchingOutcome then
+													if matchingOutcome and matchingOutcome.outcome ~= nil then
+														matchingOutcome.outcome = StringInterpolateGoblinScript(matchingOutcome.outcome, tok.properties)
 														req.info.tokens[tokid].outcome = matchingOutcome
 													end
 												end

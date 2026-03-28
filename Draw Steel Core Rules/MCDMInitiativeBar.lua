@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local g_triggeredResourceId = "b9bc06dd-80f1-4f33-bc55-25c114e3300c"
 
 local anthemLimited = setting{
@@ -362,6 +373,24 @@ local function CreateDrawSteelBubble()
 
 						if dmhub.initiativeQueue ~= nil then
 							UploadDayNightInfo()
+
+							local monsterCount = 0
+							for initiativeid,_ in pairs(dmhub.initiativeQueue.entries) do
+								local tokens = GameHud.instance:GetTokensForInitiativeId(GameHud.instance.initiativeInterface, initiativeid)
+								for _,tok in ipairs(tokens) do
+									if not tok.properties:IsHero() then
+										monsterCount = monsterCount + 1
+									end
+								end
+							end
+
+							track("malice_at_combat_end", {
+								maliceRemaining = CharacterResource.GetMalice(),
+								roundCount = dmhub.initiativeQueue.round,
+								monsterCount = monsterCount,
+								dailyLimit = 10,
+							})
+
 							dmhub.initiativeQueue.hidden = true
 							dmhub.initiativeQueue.gameMode = "exploration"
 							dmhub:UploadInitiativeQueue()
@@ -1245,6 +1274,29 @@ function GameHud.CreateInitiativeBar(self, info)
                                 Commands.rollinitiative()
                                 return
                             end
+
+							if info.initiativeQueue.gameMode == "downtime" then
+								local settings = DTSettings.CreateNew()
+								if settings then
+									settings:SetPauseRolls(false)
+								end
+								for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+									token.properties:DispatchEvent("startdowntime", {})
+								end
+							else
+								local settings = DTSettings.CreateNew()
+								if settings then
+									settings:SetPauseRolls(true)
+								end
+							end
+
+							if info.initiativeQueue.gameMode == "respite" then
+								for _, token in pairs(dmhub.GetTokens({playerControlled = true})) do
+									token.properties:DispatchEvent("startrespite", {})
+								end
+							end
+							
+							
 
                         end,
                     }

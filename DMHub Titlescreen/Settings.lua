@@ -2328,7 +2328,7 @@ setting{
 
 setting{
 	id = "gmbroadcastmouse",
-	description = "GM Mouse Position Shared",
+	description = "Director Mouse Cursor Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
@@ -2338,7 +2338,7 @@ setting{
 
 setting{
 	id = "playerbroadcastmouse",
-	description = "Player Mouse Positions Shared",
+	description = "Player Mouse Cursors Shared",
 	classes = {"dmonly"},
 	section = "Game",
 	default = 1,
@@ -2480,4 +2480,14 @@ setting{
 			text = "140%",
 		},
 	},
+}
+
+setting{
+	id = "telemetry_enabled",
+	description = "Send Anonymous Usage Data",
+	help = "Help improve DMHub by sending anonymous usage statistics. No personal information is collected.",
+	storage = "preference",
+	section = "General",
+	editor = "check",
+	default = true,
 }

@@ -17,6 +17,10 @@ Commands.RegisterMacro{
     name = "fsci",
     summary = "FSCI debug toggle",
     doc = "Usage: /fsci [d] [v]\nToggles Forge Steel Character Importer debug (d) and verbose (v) modes.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {{text = "d", summary = "debug mode"}, {text = "v", summary = "verbose mode"}, {text = "dv", summary = "debug + verbose"}}
+    end,
     command = function(args)
         if args and #args then
             if string.find(args:lower(), "d") then FSCIUtils.ToggleDebugMode() end

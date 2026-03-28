@@ -578,6 +578,12 @@ function RollOnTableProperties:CustomPanel(message)
                 for _,item in ipairs(row.value.items) do
                     local s = item:ToString()
                     if s ~= nil then
+                        if message.tokenid ~= nil then
+                            local token = dmhub.GetCharacterById(message.tokenid)
+                            if token ~= nil then
+                                s = StringInterpolateGoblinScript(s, token.properties)
+                            end
+                        end
                         element:FireEventTree("setText", s)
                         break
                     end

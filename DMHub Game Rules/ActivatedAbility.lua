@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 --This file implements *activated abilities*. Note that spells are a type of activated ability (though see the spells
 --file, since they override some behavior). Attacks are also a type of activated ability.
 --Activated abilities have different behaviors and you can use the examples in here to define your own.
@@ -1982,6 +1993,24 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
         if cast.spacesMoved > 0 then
             params.spacesMoved = cast.spacesMoved
         end
+
+        if cast.healing > 0 then
+            params.totalHealing = cast.healing
+        end
+
+        local targetCount = 0
+        for _,target in ipairs(cast:try_get("targets", {})) do
+            if target.token ~= nil then
+                targetCount = targetCount + 1
+            end
+        end
+        if targetCount > 0 then
+            params.targetCount = targetCount
+        end
+
+        if cast.heroicresourcesgained > 0 then
+            params.surgesGained = cast.heroicresourcesgained
+        end
     end
 
     if dmhub.isDM then
@@ -2006,11 +2035,28 @@ function ActivatedAbility:RecordAbilityUsage(casterToken, options)
             end
         end
 
+        local heroLevel = casterToken.properties:Level()
+        if heroLevel > 0 then
+            params.heroLevel = heroLevel
+        end
+
     elseif casterToken.properties:IsMonster() then
         params.monster = casterToken.properties:try_get("monster_type")
     end
 
-    analytics.Event(params)
+    local q = dmhub.initiativeQueue
+    if q ~= nil and not q.hidden then
+        params.roundNumber = q.round
+        params.turnInRound = q.turn
+    end
+
+    if game.currentMap ~= nil then
+        params.mapName = game.currentMap.description
+    end
+
+    if dmhub.GetSettingValue("telemetry_enabled") ~= false then
+        analytics.Event(params)
+    end
 end
 
 function ActivatedAbility:FinishCast(casterToken, options)
@@ -3509,6 +3555,7 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
                         healAmount = math.floor(healAmount / 2)
                     end
 
+                    local damageBefore = targetCreature.damage_taken
                     ability.RecordTokenMessage(target.token, options, string.format("Regained %d Stamina", healAmount))
 					target.token:ModifyProperties{
 						description = "Regained Stamina",
@@ -3518,6 +3565,33 @@ function ActivatedAbilityHealBehavior:Cast(ability, casterToken, targets, option
 					}
 
 					options.symbols.cast.healing = options.symbols.cast.healing + healAmount
+
+					local overheal = math.max(0, healAmount - damageBefore)
+					local healParams = {
+						ability = ability.name,
+						amount = healAmount,
+						dailyLimit = 50,
+					}
+					if casterToken.properties:IsHero() then
+						local classInfo = casterToken.properties:GetClass()
+						if classInfo ~= nil then
+							healParams.source = classInfo.name
+						end
+					elseif casterToken.properties:IsMonster() then
+						healParams.source = casterToken.properties:try_get("monster_type")
+					end
+					if targetCreature:IsHero() then
+						local targetClass = targetCreature:GetClass()
+						if targetClass ~= nil then
+							healParams.target = targetClass.name
+						end
+					elseif targetCreature:IsMonster() then
+						healParams.target = targetCreature:try_get("monster_type")
+					end
+					if overheal > 0 then
+						healParams.overheal = overheal
+					end
+					track("healing_done", healParams)
 				end
 			end
 

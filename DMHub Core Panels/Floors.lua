@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local CreateLayersPanel
 
 DockablePanel.Register{
@@ -9,6 +20,10 @@ DockablePanel.Register{
 	vscroll = false,
 	dmonly = true,
 	content = function()
+		track("panel_open", {
+			panel = "Floors & Layers",
+			dailyLimit = 30,
+		})
 		return CreateLayersPanel()
 	end,
 }
@@ -459,7 +474,7 @@ CreateLayersPanel = function()
 						halign = 'center',
 						valign = 'center',
 						color = Styles.textColor,
-						text = "Ground",
+						text = "Ground Level",
 					},
 				}
 			end
@@ -648,14 +663,12 @@ CreateLayersPanel = function()
 							},
 							gui.Label{
 								classes = {"floorLabel"},
+                                text = "Height",
 								width = 44,
 								height = 20,
 								halign = "left",
 								fontSize = 11,
                                 minFontSize = 8,
-								elevation = function(element, amount)
-									element.text = MeasurementSystem.NativeToDisplayUnits(amount*dmhub.unitsPerSquare)
-								end,
 							},
 						}
 
@@ -1691,6 +1704,8 @@ CreateLayersList = function(parentFloor)
 			halign = 'right',
 			valign = 'bottom',
 			margin = 0,
+            width = 8,
+            height = 8,
 			click = function(element)
 				game.currentMap:CreateFloor{
                     parentFloor = parentFloor.floorid

@@ -4,6 +4,17 @@ local g_selectedTokensOpenInitiative = nil
 local g_playerTokensOpenInitiative = nil
 local g_monsterTokensOpenInitiative = nil
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local function createDrawSteelBanner(options)
     print("BANNER:: CREATE")
 
@@ -183,6 +194,37 @@ local function createDrawSteelBanner(options)
                         info.initiativeQueue.playersGoFirst = m_heroesWin
                         info.initiativeQueue.playersTurn = m_heroesWin
                         Commands.rollinitiative()
+
+                        -- Track encounter_start event
+                        local heroCount = 0
+                        local monsterCount = 0
+                        local monsterTypes = {}
+                        local monsterRoles = {}
+                        for charid,_ in pairs(g_playerTokensOpenInitiative or {}) do
+                            heroCount = heroCount + 1
+                        end
+                        for charid,_ in pairs(g_monsterTokensOpenInitiative or {}) do
+                            monsterCount = monsterCount + 1
+                            local tok = dmhub.GetCharacterById(charid)
+                            if tok ~= nil and tok.valid then
+                                local monsterType = tok.properties:try_get("monster_type", "unknown")
+                                monsterTypes[#monsterTypes+1] = monsterType
+                                local role = tok.properties:try_get("role", "")
+                                if role ~= "" then
+                                    monsterRoles[#monsterRoles+1] = role
+                                end
+                            end
+                        end
+                        track("encounter_start", {
+                            heroCount = heroCount,
+                            monsterCount = monsterCount,
+                            monsterTypes = table.concat(monsterTypes, ","),
+                            monsterRoles = table.concat(monsterRoles, ","),
+                            roundNumber = 1,
+                            mapId = game.currentMapId,
+                            mapName = (game.currentMap and game.currentMap.description) or "unknown",
+                            dailyLimit = 10,
+                        })
                     end
 
                     self:DestroySelf()

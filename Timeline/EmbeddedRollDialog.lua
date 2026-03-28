@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 --This file implements the main roll prompt dialog that appears when you get a dice roll prompt.
 
 local g_holdingRollOpen = false
@@ -3980,6 +3991,14 @@ function GameHud.CreateEmbeddedRollDialog()
                                 end,
                             }
                         end
+                        local classInfo = creatureUsed:IsHero() and creatureUsed:GetClass() or nil
+                        track("resource_change", {
+                            resource = "surge",
+                            change = -surgesUsed,
+                            source = m_options and m_options.description or "unknown",
+                            class = classInfo and classInfo.name or "unknown",
+                            dailyLimit = 50,
+                        })
                     end
 
                     local ongoingEffects = {}

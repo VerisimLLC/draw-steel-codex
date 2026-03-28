@@ -11,6 +11,25 @@ local _hasFn = CharacterBuilder._hasFn
 local _safeFeatureName = CharacterBuilder._safeFeatureName
 local _safeGet = CharacterBuilder._safeGet
 
+-- Controls the ordering of choices in column 2 and the build summary
+local typeOrderTable = {
+    -- Low numbers are reserved - stay between 100 & 998
+    CharacterCultureAggregateChoice     = 102,
+    CharacterAspectChoice               = 103,
+    CharacterComplicationChoice         = 105,
+    CharacterAncestryInheritanceChoice  = 110,
+    CharacterCharacteristicChoice       = 120,
+    CharacterDeityChoice                = 130,
+    CharacterDomainChoice               = 140,
+    CharacterSubclassChoice             = 150,
+    SignatureAbilityPlaceholder         = 155,
+    CharacterFeatureChoice              = 160,
+    CharacterSkillChoice                = 170,
+    CharacterLanguageChoice             = 180,
+    CharacterFeatChoice                 = 190,
+    CharacterIncidentChoice             = 200,
+}
+
 --[[
     Feature Cache
 ]]
@@ -196,8 +215,6 @@ end
 --- @return CBFeatureWrapper|nil
 function CBFeatureWrapper.CreateNew(hero, feature, level)
     if not feature.IsDerivedFrom("CharacterChoice") then return nil end
-
-    -- if feature.name == "Zeitgeist" then print("THC:: FEATURE::", json(feature)) end
 
     local category = CBFeatureWrapper._deriveCategory(feature)
     local nameOrder, categoryOrder = CBFeatureWrapper._deriveOrder(feature, category, level)
@@ -563,6 +580,24 @@ function CBFeatureWrapper._deriveCategory(feature)
     return catName:sub(1,1).. catName:sub(2):gsub("(%u)", " %1")
 end
 
+--- Determine whether a table has a signature ability categorization within it, anywhere
+--- @param t table
+--- @return boolean
+function CBFeatureWrapper._hasSignature(t)
+    local searchText = "Signature Ability"
+    if _safeGet(t, "categorization") == searchText then return true end
+
+    for _,v in pairs(t) do
+        if type(v) == "table" then
+            if CBFeatureWrapper._hasSignature(v) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
 --- Derive sort order from feature type
 --- @param feature CharacterChoice
 --- @param category string
@@ -570,24 +605,14 @@ end
 --- @return string nameOrder
 --- @return string categoryOrder
 function CBFeatureWrapper._deriveOrder(feature, category, level)
-    local typeOrderTable = {
-        -- Low numbers are reserved - stay between 100 & 998
-        CharacterCultureAggregateChoice     = 102,
-        CharacterAspectChoice               = 103,
-        CharacterComplicationChoice         = 105,
-        CharacterAncestryInheritanceChoice  = 110,
-        CharacterCharacteristicChoice       = 120,
-        CharacterDeityChoice                = 130,
-        CharacterDomainChoice               = 140,
-        CharacterSubclassChoice             = 150,
-        CharacterFeatureChoice              = 160,
-        CharacterSkillChoice                = 170,
-        CharacterLanguageChoice             = 180,
-        CharacterFeatChoice                 = 190,
-        CharacterIncidentChoice             = 200,
-    }
 
-    local typeOrder = typeOrderTable[feature.typeName] or 999
+    local hasSignature = false
+    local options = feature:try_get("options")
+    if options ~= nil and #options > 0 then
+        hasSignature = CBFeatureWrapper._hasSignature(options[1])
+    end
+    local typeName = hasSignature and "SignatureAbilityPlaceholder" or feature.typeName
+    local typeOrder =typeOrderTable[typeName] or 999
     local levelOrder = level or 99
     local nameOrder = _formatOrder(levelOrder, _formatOrder(typeOrder, _safeFeatureName(feature)))
     local catOrder = _formatOrder(typeOrder, category)

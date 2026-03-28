@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 CharacterPanel = {}
 
 local CreateCharacterPanel
@@ -29,6 +40,10 @@ DockablePanel.Register {
     vscroll = true,
     hideObjectsOutOfScroll = false,
     content = function()
+        track("panel_open", {
+            panel = "Character",
+            dailyLimit = 30,
+        })
         return CreateCharacterPanel()
     end,
     hasNewContent = function()
@@ -44,6 +59,10 @@ DockablePanel.Register {
     vscroll = true,
     hideObjectsOutOfScroll = false,
     content = function()
+        track("panel_open", {
+            panel = "Bestiary",
+            dailyLimit = 30,
+        })
         return CreateBestiaryPanel()
     end,
     hasNewContent = function()
@@ -2614,6 +2633,18 @@ CharacterPanel.CreateCharacterEntry = function(charid, party)
                                 {
                                     text = "Delete",
                                     execute = function()
+                                        for _, cid in ipairs(charids) do
+                                            local tok = dmhub.GetCharacterById(cid)
+                                            if tok ~= nil then
+                                                local classInfo = tok.properties:GetClass()
+                                                track("character_delete", {
+                                                    class = classInfo and classInfo.name or "",
+                                                    ancestry = tok.properties:RaceOrMonsterType() or "",
+                                                    level = tok.properties:CharacterLevel(),
+                                                    dailyLimit = 5,
+                                                })
+                                            end
+                                        end
                                         game.DeleteCharacters(charids)
                                         gui.SetFocus(nil)
                                     end,
@@ -2923,6 +2954,14 @@ CharacterPanel.CreatePartyCharacters = function(partyid)
                                         if corpse ~= nil then
                                             corpse.objectInstance:Destroy()
                                         end
+
+                                        local classInfo = tok.properties:GetClass()
+                                        track("character_delete", {
+                                            class = classInfo and classInfo.name or "",
+                                            ancestry = tok.properties:RaceOrMonsterType() or "",
+                                            level = tok.properties:CharacterLevel(),
+                                            dailyLimit = 5,
+                                        })
                                     end
                                     game.DeleteCharacters(charids)
                                     element.popup = nil
@@ -3106,6 +3145,13 @@ local CreateBestiaryAndPartyPanel = function(noBestiary)
                             element.data.newcharTime = dmhub.Time()
                             element.monitorGame = string.format("/characters/%s", charid)
                             mod.shared.CompleteTutorial("Create a Character")
+                            track("character_create", {
+                                ancestry = "",
+                                class = "",
+                                kit = "",
+                                method = "panel",
+                                dailyLimit = 5,
+                            })
                         end
 
                         local menuItems = {}

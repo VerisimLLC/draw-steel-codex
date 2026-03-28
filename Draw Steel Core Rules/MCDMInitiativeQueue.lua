@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 -- The InitiativeQueue records the initiative of any tokens that have been given initiative. It is
 -- stored in the Game Document and thus networked between systems. The initiative queue can be nil,
 -- which means that there is currently no initiative and players move with free movement.
@@ -224,6 +235,7 @@ function InitiativeQueue:SelectTurn(initiativeid)
 
 	entry.turn = self.turn
 	self.turn = self.turn + 1
+	entry.startTurnTimestamp = ServerTimestamp()
 
 	self.currentTurn = initiativeid
 end
@@ -300,6 +312,34 @@ function InitiativeQueue.NextTurn(self, initiativeid)
 	--find this entry and increment the round it moves at.
 	local entry = self.entries[initiativeid]
 	if entry ~= nil then
+        local startTimestamp = entry:try_get("startTurnTimestamp")
+        local turnDuration = (startTimestamp ~= nil and type(startTimestamp) == "number") and TimestampAgeInSeconds(startTimestamp) or nil
+
+        local isPlayer = self:IsEntryPlayer(initiativeid)
+        local tokenName = "unknown"
+        local isHero = false
+        local tokens = self.GetTokensForInitiativeId(initiativeid)
+        if tokens ~= nil and #tokens > 0 then
+            local tok = tokens[1]
+            if tok.properties:IsHero() then
+                isHero = true
+                local classInfo = tok.properties:GetClass()
+                tokenName = classInfo and classInfo.name or "hero"
+            else
+                tokenName = tok.properties:try_get("monster_type", "monster")
+            end
+        end
+
+        track("turn_end", {
+            turnDurationSeconds = turnDuration and math.floor(turnDuration) or nil,
+            tokenName = tokenName,
+            isHero = isHero,
+            isDirector = isPlayer == false,
+            roundNumber = self.round,
+            turnInRound = entry.turn,
+            dailyLimit = 100,
+        })
+
         InitiativeQueue.SetTurnTaken(self, entry)
 	end
 

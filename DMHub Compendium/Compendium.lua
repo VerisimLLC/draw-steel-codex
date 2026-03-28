@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+    if dmhub.GetSettingValue("telemetry_enabled") == false then
+        return
+    end
+    fields.type = eventType
+    fields.userid = dmhub.userid
+    fields.gameid = dmhub.gameid
+    fields.version = dmhub.version
+    analytics.Event(fields)
+end
+
 local AddButton = function(options)
 	local args = {
 		style = {
@@ -5135,7 +5146,14 @@ local LibraryPanel = function()
 
 			if info.click ~= nil then
 				local fn = info.click
+				local sectionName = section
+				local itemName = key
 				info.click = function()
+					track("compendium_view", {
+						section = sectionName,
+						item = itemName,
+						dailyLimit = 30,
+					})
 					fn(contentPanel)
 				end
 			end

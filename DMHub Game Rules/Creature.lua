@@ -449,6 +449,12 @@ function creature:CanFly()
 	return self:GetSpeed("fly") > 0
 end
 
+--- If the creature has a swim speed.
+--- @return boolean
+function creature:CanSwim()
+	return self:GetSpeed("swim") > 0
+end
+
 --- If the creature has a burrow speed.
 --- @return boolean
 function creature:CanBurrow()
@@ -3805,6 +3811,10 @@ Commands.RegisterMacro{
     name = "loadout",
     summary = "set equipment loadout",
     doc = "Usage: /loadout <number>\nSets the equipment loadout for selected tokens to the given slot number.",
+    completions = function(args, argIndex)
+        if argIndex ~= 1 then return {} end
+        return {{text = "0", summary = "loadout 0"}, {text = "1", summary = "loadout 1"}, {text = "2", summary = "loadout 2"}, {text = "3", summary = "loadout 3"}}
+    end,
     command = function(str)
         local loadout = toint(str, 0)
         local tokens = dmhub.selectedTokens
@@ -6771,6 +6781,13 @@ creature.helpSymbols = {
         seealso = {"AltitudeInDeciTiles"},
     },
 
+    distancebelowground = {
+        name = "Distance Below Ground",
+        type = "number",
+        desc = "How many tiles below the ground or water surface the creature is. Applies to both burrowing and underwater swimming. 0 if the creature is at or above surface level.",
+        seealso = {"Altitude", "Movement Type"},
+    },
+
     height = {
         name = "Height",
         type = "number",
@@ -7424,6 +7441,14 @@ creature.lookupSymbols = {
 			return token.altitude
 		end
 
+        return 0
+    end,
+
+    distancebelowground = function(c)
+        local token = dmhub.LookupToken(c)
+        if token ~= nil then
+            return token.distanceBelowGround
+        end
         return 0
     end,
 

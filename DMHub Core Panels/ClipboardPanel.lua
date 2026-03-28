@@ -1,5 +1,16 @@
 local mod = dmhub.GetModLoading()
 
+local function track(eventType, fields)
+	if dmhub.GetSettingValue("telemetry_enabled") == false then
+		return
+	end
+	fields.type = eventType
+	fields.userid = dmhub.userid
+	fields.gameid = dmhub.gameid
+	fields.version = dmhub.version
+	analytics.Event(fields)
+end
+
 local Selection = dmhub.Selection
 
 local CreateClipboard
@@ -13,6 +24,10 @@ DockablePanel.Register{
 	maxHeight = 250,
 	folder = "Map Editing",
 	content = function()
+		track("panel_open", {
+			panel = "Clipboard",
+			dailyLimit = 30,
+		})
 		return CreateClipboard{
 			title = "Clipboard",
 		}

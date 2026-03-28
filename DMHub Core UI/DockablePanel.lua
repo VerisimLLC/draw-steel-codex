@@ -1255,7 +1255,31 @@ CreateDockablePanelTabbedContainer = function(options)
 				return target.parent == tabPanel
 			end,
 
+			beginDrag = function(element)
+				element.data.dragStartMouseY = gui.GetMousePosition().y
+			end,
+
+			drag = function(element, target)
+				DockablePanel.Serialize()
+			end,
+
 			dragging = function(element, target)
+				-- Detect vertical drag-off: detach tab into a solo panel and transfer drag
+				local mouseY = gui.GetMousePosition().y
+				local verticalDelta = mouseY - (element.data.dragStartMouseY or mouseY)
+				if math.abs(verticalDelta) > 30 and #panelInstances > 1 then
+					local panelInstance = DetachPanelInstance(element)
+					if panelInstance ~= nil then
+						local newPanel = CreateDockablePanelTabbedContainer{
+							panelInstances = {panelInstance},
+						}
+						dock:FireEvent("addPanel", newPanel)
+						DockablePanel.Serialize()
+						element:transferDragTo(newPanel.data.dragGhost)
+					end
+					return
+				end
+
 				if target == nil or target == buttonContainer then
 					return
 				end
@@ -1272,18 +1296,22 @@ CreateDockablePanelTabbedContainer = function(options)
 				end
 
 				if i1 ~= nil and i2 ~= nil then
+					-- Only swap in the direction we're dragging to prevent oscillation
+					local dragX = element.xdrag
+					if (i2 > i1 and dragX <= 0) or (i2 < i1 and dragX >= 0) then
+						return
+					end
+
 					local tmp = panelInstances[i1]
 					panelInstances[i1] = panelInstances[i2]
 					panelInstances[i2] = tmp
 					contentPanel.children = panelInstances
-					
+
 					local tabs = tabPanel.children
 					tmp = tabs[i1]
 					tabs[i1] = tabs[i2]
 					tabs[i2] = tmp
 					tabPanel.children = tabs
-
-					DockablePanel.Serialize()
 				end
 			end,
 
@@ -1465,6 +1493,7 @@ CreateDockablePanelTabbedContainer = function(options)
 			minHeight = metrics.minHeight,
 			maxHeight = metrics.maxHeight,
 			locked = false,
+			dragGhost = dragGhost,
 
 			GetPanelInstances = function()
 				return panelInstances

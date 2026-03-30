@@ -1607,7 +1607,7 @@ function ActivatedAbility:GetCost(casterToken, options)
 	local actionResource = self:ActionResource()
 	if actionResource ~= nil and actionResource ~= "none" and resourcesTable[actionResource] ~= nil then
 		local max = resourcesAvailable[actionResource] or 0
-		local usage = creature:GetResourceUsage(actionResource, "round")
+		local usage = creature:GetResourceUsage(actionResource, resourcesTable[actionResource].usageLimit)
 		local available = max - usage
 
 		local numberOfActions = self:GetNumberOfActionsCost(creature, { mode = (options or {}).mode or 1 })

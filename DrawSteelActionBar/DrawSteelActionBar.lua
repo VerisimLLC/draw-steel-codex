@@ -1744,6 +1744,7 @@ ActionMenu = function()
     local m_args
     local resultPanel
     local m_showingAbility = false
+    local m_commonSignatureWrapper = nil
 
     local g_manualSetResourcePanel = gui.Label {
         classes = { "abilityHeading" },
@@ -1952,6 +1953,50 @@ ActionMenu = function()
             table.sort(children, function(a, b)
                 return a.data.ord < b.data.ord
             end)
+
+            -- Stack Common Abilities on top of Signature Abilities in one column
+            local commonSub = m_submenus["Abilities"]
+            local sigSub = m_submenus["Signature Abilities"]
+            if commonSub and sigSub then
+                if m_commonSignatureWrapper == nil then
+                    m_commonSignatureWrapper = gui.Panel {
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        valign = "bottom",
+                    }
+                    m_commonSignatureWrapper.data.spacer = gui.Panel {
+                        width = 205,
+                        height = 16,
+                        bgimage = true,
+                        bgcolor = "clear",
+                    }
+                end
+                m_commonSignatureWrapper.children = { commonSub, m_commonSignatureWrapper.data.spacer, sigSub }
+                m_commonSignatureWrapper.data.ord = sigSub.data.ord
+
+                local merged = {}
+                for _, child in ipairs(children) do
+                    if child ~= commonSub and child ~= sigSub then
+                        merged[#merged + 1] = child
+                    end
+                end
+
+                -- Insert wrapper at sorted position
+                local inserted = false
+                local result = {}
+                for _, child in ipairs(merged) do
+                    if not inserted and m_commonSignatureWrapper.data.ord < child.data.ord then
+                        result[#result + 1] = m_commonSignatureWrapper
+                        inserted = true
+                    end
+                    result[#result + 1] = child
+                end
+                if not inserted then
+                    result[#result + 1] = m_commonSignatureWrapper
+                end
+                children = result
+            end
 
             if element.data.triggerPanel == nil then
                 element.data.triggerPanel = PowerRollTriggersSubmenu()

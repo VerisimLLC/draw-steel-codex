@@ -860,19 +860,21 @@ GameSystem.RegisterAbilityCategorization{category = "Heroic Ability", grouping =
 GameSystem.RegisterAbilityCategorization{category = "Villain Action", grouping = "Villain Actions"}
 GameSystem.RegisterAbilityCategorization{category = "Malice", grouping = "Malice Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Signature Ability", grouping = "Signature Abilities"}
-GameSystem.RegisterAbilityCategorization{category = "Ability", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Common Ability", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Ability", grouping = "Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Trigger", grouping = "Triggers"}
-GameSystem.RegisterAbilityCategorization{category = "Skill", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Skill", grouping = "Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Basic Attack", grouping = "Common Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Move", grouping = "Move"}
-GameSystem.RegisterAbilityCategorization{category = "Hidden", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Hidden", grouping = "Abilities"}
 
 GameSystem.ActionBarGroupings = {
     ["Heroic Abilities"] = 1,
     ["Malice Abilities"] = 2,
     ["Signature Abilities"] = 3,
-    ["Common Abilities"] = 4,
-    ["Triggers"] = 5,
+    ["Abilities"] = 4,
+    ["Common Abilities"] = 5,
+    ["Triggers"] = 6,
 }
 
 function GameSystem.GetAbilityCategoryInfo(category)
@@ -2331,19 +2333,21 @@ GameSystem.RegisterAbilityCategorization{category = "Heroic Ability", grouping =
 GameSystem.RegisterAbilityCategorization{category = "Villain Action", grouping = "Villain Actions"}
 GameSystem.RegisterAbilityCategorization{category = "Malice", grouping = "Malice Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Signature Ability", grouping = "Signature Abilities"}
-GameSystem.RegisterAbilityCategorization{category = "Ability", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Common Ability", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Ability", grouping = "Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Trigger", grouping = "Triggers"}
-GameSystem.RegisterAbilityCategorization{category = "Skill", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Skill", grouping = "Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Basic Attack", grouping = "Common Abilities"}
 GameSystem.RegisterAbilityCategorization{category = "Move", grouping = "Move"}
-GameSystem.RegisterAbilityCategorization{category = "Hidden", grouping = "Common Abilities"}
+GameSystem.RegisterAbilityCategorization{category = "Hidden", grouping = "Abilities"}
 
 GameSystem.ActionBarGroupings = {
     ["Heroic Abilities"] = 1,
     ["Malice Abilities"] = 2,
     ["Signature Abilities"] = 3,
-    ["Common Abilities"] = 4,
-    ["Triggers"] = 5,
+    ["Abilities"] = 4,
+    ["Common Abilities"] = 5,
+    ["Triggers"] = 6,
 }
 
 function GameSystem.GetAbilityCategoryInfo(category)

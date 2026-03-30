@@ -1924,7 +1924,7 @@ ActionMenu = function()
             local abilitiesByGrouping = {}
 
             for _, ability in ipairs(abilities) do
-                local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Common Abilities"
+                local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Abilities"
                 if grouping == "Common Abilities" and ability.actionResourceId == CharacterResource.freeManeuverResourceId then
                     grouping = "Free Maneuvers"
                 end

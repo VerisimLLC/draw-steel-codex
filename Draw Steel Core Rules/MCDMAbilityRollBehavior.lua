@@ -369,7 +369,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
 
                     local critEligible = false
-                    if options.ability ~= nil then
+                    if options ~= nil and options.ability ~= nil then
                         critEligible = options.ability:HasKeyword("Strike") or options.ability:IsAction()
                     end
 

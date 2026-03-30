@@ -2635,9 +2635,29 @@ GameSystem.RegisterGoblinScriptField {
     type = "boolean",
     desc = "True if this ability was stolen from another creature.",
     seealso = {},
-    examples = {"self.Stolen"},
+    examples = {"Ability.Stolen"},
     calculate = function(c)
         return c:has_key("stolenFrom") and c.stolenFrom ~= nil and c.stolenFrom ~= ""
+    end,
+}
+
+GameSystem.RegisterGoblinScriptField {
+    target = ActivatedAbility,
+    name = "Test",
+    type = "boolean",
+    desc = "True if this ability contains a power roll that is a test.",
+    seealso = {},
+    examples = {"Ability.Test"},
+    calculate = function(c)
+        if c:try_get("isTest", false) then
+            return true
+        end
+        for _, behavior in ipairs(c.behaviors) do
+            if behavior.typeName == "ActivatedAbilityPowerRollBehavior" and behavior:try_get("isTest", false) then
+                return true
+            end
+        end
+        return false
     end,
 }
 

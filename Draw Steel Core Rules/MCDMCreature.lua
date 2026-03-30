@@ -3364,6 +3364,7 @@ end
 
 function creature:ShowCharacteristicRollDialog(attrid)
     local attrInfo = creature.attributesInfo[attrid]
+    local title = string.format("%s Test", attrInfo.description)
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -3377,24 +3378,85 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local roll = string.format("2d10 + %d", self:GetAttribute(attrid):Modifier())
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
 
-    GameHud.instance.rollDialog.data.ShowDialog {
-        title = string.format("%s Test", attrInfo.description),
-        description = string.format("%s Test", attrInfo.description),
-        creature = self,
+    local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
+    local token = dmhub.LookupToken(self)
 
-        type = rollType,
-        roll = roll,
-        modifiers = modifiers,
+    local displaying = false
+    if token ~= nil then
+        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true})
+    end
 
-        rollProperties = rollProperties,
-        PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+    local function ShowRollDialog(dialog)
+        if dialog == nil or not dialog.valid then
+            dialog = GameHud.instance.rollDialog
+        end
+        if not dialog.valid then return end
 
-        completeRoll = function(rollInfo)
-        end,
+        dialog.data.ShowDialog {
+            title = title,
+            description = title,
+            creature = self,
+            ability = syntheticAbility,
 
-        cancelRoll = function()
-        end,
-    }
+            type = rollType,
+            roll = roll,
+            modifiers = modifiers,
+            showDialogDuringRoll = true,
+            amendable = true,
+
+            rollProperties = rollProperties,
+            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+            completeRoll = function(rollInfo)
+                if displaying then
+                    CharacterPanel.HideAbility(syntheticAbility)
+                end
+                if token == nil or token.properties == nil then return end
+
+                local d10Results = {}
+                for _, r in ipairs(rollInfo.rolls or {}) do
+                    if not r.dropped and r.numFaces == 10 then
+                        table.insert(d10Results, r.result)
+                    end
+                end
+                local highroll = 0
+                local lowroll = 0
+                if #d10Results >= 2 then
+                    highroll = math.max(d10Results[1], d10Results[2])
+                    lowroll = math.min(d10Results[1], d10Results[2])
+                end
+
+                local tier = RollUtils.DiceResultToTier(rollInfo)
+
+                token.properties:DispatchEvent("rollpower", {
+                    surges = 0,
+                    tierone = tier == 1,
+                    tiertwo = tier == 2,
+                    tierthree = tier == 3,
+                    naturalroll = rollInfo.naturalRoll,
+                    highroll = highroll,
+                    lowroll = lowroll,
+                    ability = syntheticAbility,
+                })
+            end,
+
+            cancelRoll = function()
+                if displaying then
+                    CharacterPanel.HideAbility(syntheticAbility)
+                end
+            end,
+        }
+    end
+
+    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+    if embeddedDialog ~= nil then
+        dmhub.Schedule(0.05, function()
+            if mod.unloaded then return end
+            ShowRollDialog(embeddedDialog)
+        end)
+    else
+        ShowRollDialog(nil)
+    end
 end
 
 --hitpoints handling overridden. We include handling of minions.

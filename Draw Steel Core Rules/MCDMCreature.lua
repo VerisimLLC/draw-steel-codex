@@ -2909,6 +2909,13 @@ function creature:GetConditionCasterTime(conditionid, casterid)
         return math.huge
     end
 
+    if a ~= nil and type(a) ~= "number" then
+        a = 0
+    end
+    if b ~= nil and type(b) ~= "number" then
+        b = 0
+    end
+
     return math.max(a or 0, b or 0)
 end
 

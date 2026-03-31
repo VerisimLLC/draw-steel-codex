@@ -2064,7 +2064,7 @@ function CreateTokenHud(token)
                     for i=#damageEntries,1,-1 do
                         local entry = damageEntries[i]
                         local forceDelay = false
-                        if lowestSeq ~= nil and entry.seq > lowestSeq then
+                        if lowestSeq ~= nil and entry.seq ~= nil and entry.seq > lowestSeq then
                             forceDelay = true
                         end
 						element:FireEvent("damageentry", entry, forceDelay)

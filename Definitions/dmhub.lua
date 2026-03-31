@@ -117,8 +117,8 @@
 --- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
 --- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
 --- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
---- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates. (x1,y1) is bottom-left, (x2,y2) is top-right.
---- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates. This is the 'world' area between the left and right docks.
+--- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates as a table {x1, y1, x2, y2} where (x1,y1) is the bottom-left corner and (x2,y2) is the top-right corner.
+--- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates as a table {x1, y1, x2, y2}. This is the 'world' area between the left and right docks.
 --- @field uiVerticalScale number (Read-only) The vertical scale factor of the UI compared to a reference 1920x1080 resolution.
 --- @field uiVerticalScaleBelowTitleBar number (Read-only) The vertical scale factor of the UI below the title bar compared to a reference 1920x1080 resolution.
 --- @field uiscale number (Read-only) the amount the ui is being scaled by horizontally.

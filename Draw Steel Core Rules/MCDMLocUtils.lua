@@ -7,6 +7,9 @@ MCDMLocUtils = {}
 --- @return Loc[]
 MCDMLocUtils.GetTokenAdjacentLocsInOpposingPairs = function(token)
     local locs = token.locsOccupying
+    if locs == nil or #locs == 0 then
+        return {}
+    end
     local topLeft = locs[1]
     local bottomRight = locs[1]
 

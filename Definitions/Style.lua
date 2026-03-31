@@ -92,6 +92,7 @@
 --- @field borderFade boolean (Default=false) When set, the border will fade out along its dimensions.
 --- @field nostretch boolean (Default=false) When set, the bgimage will not be stretched across the panel. Instead, if the aspect ratio of the panel and the bgimage don't match, only part of the bgimage will be displayed, but it won't be stretched.
 --- @field worldspace boolean (Experimental!) If set, the panel is placed in world space rather than in UI space.
+--- @field borderBox boolean (Default=false) When set, the panel uses border-box sizing: the specified width and height include padding. Without this flag (the default content-box behavior), padding is added on top of the specified width/height.
 Style = {}
 
 --- @class StyleArgs 
@@ -188,4 +189,5 @@ Style = {}
 --- @field borderFade nil|boolean (Default=false) When set, the border will fade out along its dimensions.
 --- @field nostretch nil|boolean (Default=false) When set, the bgimage will not be stretched across the panel. Instead, if the aspect ratio of the panel and the bgimage don't match, only part of the bgimage will be displayed, but it won't be stretched.
 --- @field worldspace nil|boolean (Experimental!) If set, the panel is placed in world space rather than in UI space.
+--- @field borderBox nil|boolean (Default=false) When set, the panel uses border-box sizing: the specified width and height include padding. Without this flag (the default content-box behavior), padding is added on top of the specified width/height.
 StyleArgs = {}

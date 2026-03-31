@@ -1836,7 +1836,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             element:FireEventTree("refreshNavButtons")
         end,
 
-        DialogResizePanel(nil, dialogWidth, dialogHeight),
+        gui.DialogResizePanel(nil, dialogWidth, dialogHeight),
 
         innerPanel,
     }

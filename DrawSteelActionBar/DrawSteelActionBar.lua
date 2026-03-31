@@ -4223,14 +4223,19 @@ CreateAbilityController = function()
             local selfTarget = g_currentAbility.selfTarget
             local targetTokens = dmhub.tokenInfo.TokensInShape(g_pointTargeting.shape)
 
-            --if we target the entire map, do not target creatures not in initiative.
-            if g_currentAbility.targetType == "map" and dmhub.initiativeQueue ~= nil and (not dmhub.initiativeQueue.hidden) then
+            --if we target the entire map or burst, do not target creatures on other floors unless they are in initiative.
+            if (g_currentAbility.targetType == "map" or g_currentAbility.targetType == "all") and dmhub.initiativeQueue ~= nil and (not dmhub.initiativeQueue.hidden) then
+                local casterFloorIndex = g_token.floorIndex
                 for tokenid,targetToken in pairs(targetTokens) do
                     if not targetToken.isObject then
+                        local isOtherFloor = targetToken.floorIndex ~= casterFloorIndex
+                        local requireInitiative = g_currentAbility.targetType == "map" or isOtherFloor
 
-                        local initiativeid = InitiativeQueue.GetInitiativeId(targetToken)
-                        if not dmhub.initiativeQueue:HasInitiative(initiativeid) then
-                            targetTokens[tokenid] = nil
+                        if requireInitiative then
+                            local initiativeid = InitiativeQueue.GetInitiativeId(targetToken)
+                            if not dmhub.initiativeQueue:HasInitiative(initiativeid) then
+                                targetTokens[tokenid] = nil
+                            end
                         end
                     end
                 end
@@ -4259,8 +4264,8 @@ CreateAbilityController = function()
                 g_pointTargeting.label = nil
             end
 
-            --draw the shape, disabled for 'all creatures on map' or 'all'
-            if g_pointTargeting.shape ~= nil and g_currentAbility.targetType ~= "map" and g_currentAbility.targetType ~= "all" then
+            --draw the shape, disabled for 'all creatures on map'
+            if g_pointTargeting.shape ~= nil and g_currentAbility.targetType ~= "map" then
                 local video = "divinationline.webm"
                 local school = string.lower(g_currentAbility:try_get("school", ""))
                 if school == "Evocation" then

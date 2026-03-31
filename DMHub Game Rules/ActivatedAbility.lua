@@ -935,6 +935,9 @@ function ActivatedAbility:GetNumTargets(casterToken, symbols)
 
         return 1
     end
+	if casterToken.properties == nil then
+		return 1
+	end
 	local targets = ExecuteGoblinScript(self.numTargets, casterToken.properties:LookupSymbol(symbols))
 	return targets
 end
@@ -1275,6 +1278,9 @@ end
 --- @return boolean
 function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
 	local numTargets = self:GetNumTargets(casterToken, symbols)
+	if type(numTargets) ~= "number" then
+		return false
+	end
 	if self.sequentialTargeting and #targets == 1 then
 		return false
 	end
@@ -1508,6 +1514,7 @@ function ActivatedAbility:CommitToPaying(casterToken, options)
 end
 
 function ActivatedAbility:FireUseAbility(casterToken, options)
+	if casterToken == nil then return end
 	if (not options.firedUseAbility) and self:CountsAsRegularAbilityCast() then
 		options.firedUseAbility = true
 

@@ -65,6 +65,7 @@ TokenUI.RegisterIcon{
 
         --get the movetype of the creature and return an icon entry based on it.
 		local movetype = creature:CurrentMoveTypeInfo()
+		if movetype == nil then return nil end
 
         if creature:CurrentMoveType() == "walk" then
             --'walk' is the regular way a creature moves, so don't display an icon.

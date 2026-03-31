@@ -2586,6 +2586,7 @@ TriggeredAbility.RegisterTrigger{
 }
 
 GameSystem.OnEndCastActivatedAbility = function(casterToken, ability, options)
+    if casterToken == nil then return end
     if not ability:CountsAsRegularAbilityCast() then
         return
     end

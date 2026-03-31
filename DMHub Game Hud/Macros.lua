@@ -5,6 +5,12 @@ Commands.RegisterMacro{
     summary = "toggle token vision",
     doc = "Usage: /toggletokenvision\nToggles viewing the map from selected tokens' perspective. DM only.",
     command = function(s)
+
+        if dmhub.tokenVision ~= nil then
+            dmhub.tokenVision = nil
+            return
+        end
+
         if not dmhub.isDM then
             return
         end

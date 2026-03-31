@@ -590,7 +590,6 @@ function GameHud:RequireRollListenerPanel()
 										end,
 									}
 
-                                    print("SHOWDIALOG:: PARAMS", json(dialogParams))
 
 									if check:CustomInfo() ~= nil and check:CustomInfo().ShowDialog ~= nil then
 										showingRollId = check:CustomInfo().ShowDialog(check, dialogParams)

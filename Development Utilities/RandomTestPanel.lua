@@ -23,64 +23,61 @@ DockablePanel.Register{
 			panel = "Random Test Panel",
 			dailyLimit = 30,
 		})
+
         return gui.Panel{
             width = "100%",
             height = "auto",
             flow = "vertical",
+			hpad = 4,
 
-            gui.Button{
-                text = "Change Elevation",
-                width = 200,
-                height = 50,
+			gui.Label{
+				text = "borderBox Tests",
+				fontSize = 18,
+				bold = true,
+				color = "#ffcc44",
+				width = "auto",
+				height = "auto",
+				halign = "center",
+				vmargin = 8,
+			},
+
+            gui.Panel{
                 halign = "center",
-                valign = "center",
-                click = function()
-                    game.currentFloor:ChangeElevation{
-                        type = "ellipse",
-                        center = {x = 0, y = 0},
-                        radius = 4,
-                        opacity = 1,
-                        height = 2,
-                        add = true,
-                    }
+                height = 50,
+                width = 180,
+                bgimage = true,
+                bgcolor = "green",
 
-                    for _,tok in ipairs(dmhub.allTokens) do
-                        tok:RecalculateElevation()
-                    end
-                end,
+                gui.Panel{
+                    height = 25,
+                    width = "100%",
+                    hpad = 10,
+                    bgimage = true,
+                    bgcolor = "red",
+                    valign = "center",
+                    halign = "center",
+                }
             },
 
-            gui.Button{
-                text = "Draw Terrain",
-                width = 200,
-                height = 50,
+            gui.Panel{
                 halign = "center",
-                valign = "center",
-                click = function()
-                    game.currentFloor:ExecutePolygonOperation{
-                        points = {{-3,-3,3,-3,3,3,-3,3}},
-                        closed = true,
-                        tileid = "-MCZRJ4qqI-Rz9rKbAdr",
-                        terrain = true,
-                    }
-                end,
+                height = 50,
+                width = 180,
+                bgimage = true,
+                bgcolor = "green",
+
+                gui.Panel{
+                    height = 25,
+                    width = "100%",
+                    hpad = 10,
+                    bgimage = true,
+                    bgcolor = "red",
+                    valign = "center",
+                    halign = "center",
+                    borderBox = true,
+                }
             },
 
-
-            gui.Button{
-                text = "Recalculate",
-                width = 200,
-                height = 50,
-                halign = "center",
-                valign = "center",
-                click = function()
-                    for _,tok in ipairs(dmhub.allTokens) do
-                        --tok:RecalculateElevation()
-                        tok:TryFall()
-                    end
-
-                end,
-            },
 
         }
 	end,

@@ -73,6 +73,103 @@ local CreateCustomMessagePanel = function(message)
     return panel
 end
 
+-- Determines if a token is acting out of turn (e.g. triggered ability / reaction).
+local function IsOutOfTurn(token)
+    if token == nil then
+        return false
+    end
+    local q = dmhub.initiativeQueue
+    if q == nil or q.hidden then
+        return false
+    end
+    local currentId = q:CurrentInitiativeId()
+    if currentId == nil then
+        return false
+    end
+    return InitiativeQueue.GetInitiativeId(token) ~= currentId
+end
+
+-- Shared card wrapper for all action log entries.
+-- options:
+--   token: CharacterToken (for portrait, name, player color)
+--   content: gui element or table of elements for the card body
+--   classes: additional CSS classes (optional)
+--   nameOverride: string to use instead of token name (optional)
+--   hidePortrait: bool (optional)
+--   hideName: bool (optional)
+function CreateActionLogCard(options)
+    local token = options.token
+    local outOfTurn = IsOutOfTurn(token)
+
+    local playerColor = "#AA0000"
+    if token ~= nil and token.valid and token.playerControlled then
+        playerColor = token.playerColor
+    end
+
+    local portraitPanel = nil
+    if token ~= nil and token.valid and not options.hidePortrait then
+        portraitPanel = gui.CreateTokenImage(token, {
+            classes = {"action-log-portrait"},
+        })
+    end
+
+    local nameLabel = nil
+    if not options.hideName then
+        local name = options.nameOverride
+        if name == nil and token ~= nil and token.valid then
+            name = token.name
+            if not token.canLocalPlayerSeeName then
+                name = "Unknown"
+            end
+        end
+        if name ~= nil then
+            nameLabel = gui.Label{
+                classes = {"action-log-name"},
+                text = name,
+            }
+        end
+    end
+
+    local content = options.content or {}
+
+    local contentChildren = {}
+    if nameLabel then
+        contentChildren[#contentChildren+1] = nameLabel
+    end
+    for _,child in ipairs(content) do
+        contentChildren[#contentChildren+1] = child
+    end
+
+    local cardClasses = {"action-log-card", cond(outOfTurn, "out-of-turn")}
+    for _,cls in ipairs(options.classes or {}) do
+        cardClasses[#cardClasses+1] = cls
+    end
+
+    return gui.Panel{
+        classes = cardClasses,
+
+        -- Color accent bar (floating so it doesn't affect horizontal flow sizing)
+        gui.Panel{
+            classes = {"action-log-color-bar"},
+            floating = true,
+            bgcolor = playerColor,
+        },
+
+        gui.Panel{
+            classes = {"action-log-card-header"},
+
+            -- Portrait
+            portraitPanel,
+
+            -- Content area
+            gui.Panel{
+                classes = {"action-log-content"},
+                children = contentChildren,
+            },
+        },
+    }
+end
+
 local CreateRollCategoryPanel = function(cat, catInfo)
 
 	local headingLabel = nil
@@ -486,99 +583,149 @@ local CreateRollMessagePanel = function(message, adoptiveParentPanel)
 	local avatar = nil
 
 	local avatarPanel = nil
-    
+    local m_cardToken = nil
+
     if not adopted then
         avatarPanel = gui.Panel{
-            classes = {'roll-avatar-panel'},
+            classes = {"action-log-portrait"},
 
             refreshMessage = function(element, message)
                 if avatar == nil and message.tokenid ~= nil then
                     local token = dmhub.GetCharacterById(message.tokenid)
                     if token ~= nil then
+                        m_cardToken = token
                         avatar = gui.CreateTokenImage(token, {
-                            width = 48,
-                            height = 48,
+                            width = 40,
+                            height = 40,
                             valign = "center",
                             halign = "center",
                         })
 
                         element:AddChild(avatar)
-
-                        local name = token:GetNameMaxLength(12)
-                        if name ~= nil and name ~= "" and token.canLocalPlayerSeeName then
-                            element:AddChild(gui.Label{
-                                text = name,
-                                fontSize = 14,
-                                color = message.nickColor,
-                                width = "auto",
-                                height = "auto",
-                                halign = "center",
-                                maxWidth = 60,
-                                textWrap = false,
-                            })
-                        end
                     end
                 end
             end
         }
     end
 
+    local rollContentPanel = gui.Panel{
+        classes = {'chat-message-panel', 'roll-message-panel'},
+        width = "100%-12",
+        halign = "right",
+        gui.Panel{
+            width = "100%",
+            height = "auto",
+            flow = "horizontal",
+            vmargin = 0,
+            hmargin = 0,
+            panel,
+        },
 
-    local separator = nil
-    if not adopted then
-	    separator = gui.Panel{
-		    classes = {'separator'},
-	    }
+        forceShowResult = function(element)
+            element:FireEventTree("showresult")
+        end,
+
+        longFormResultsLabel,
+    }
+
+
+    local customPanelWrapper = nil
+    if customPanel ~= nil then
+        customPanelWrapper = gui.Panel{
+            classes = {"action-log-card-custom"},
+            customPanel,
+        }
     end
 
-
     local chatMessagePanel
-	chatMessagePanel = gui.Panel{
-		classes = {"chat-message-panel"},
-		bgimage = "panels/square.png",
-		bgcolor = "clear",
-		flow = "vertical",
-
-		refreshMessage = function(element, message)
-			currentMessage = message
-			panel:FireEvent("refreshMessage", message)
-            if avatarPanel ~= nil then
-			    avatarPanel:FireEventTree("refreshMessage", message)
-            end
-
-            if adopted then
-                chatMessagePanel:SetClassTree("adopted", true)
-            end
-
-
-		end,
-
-        separator,
-
-		gui.Panel{
-			classes = {'chat-message-panel', 'roll-message-panel'},
-			gui.Panel{
-				width = "100%",
-				height = "auto",
-				flow = "horizontal",
-				vmargin = 0,
-				hmargin = 0,
-				avatarPanel,
-				panel,
-			},
-
-			--force the result to show even if it's not complete yet. Useful to allow the user to see it and able to modify it.
-			forceShowResult = function(element)
-				element:FireEventTree("showresult")
-			end,
-
-			longFormResultsLabel,
-			customPanel,
-		},
-	}
-
     if adopted then
+        -- Wrap rollContentPanel in a container that matches the standalone
+        -- card's action-log-content width so dice align consistently.
+        local adoptedRollContent = gui.Panel{
+            width = "100%-70",
+            height = "auto",
+            halign = "right",
+            flow = "vertical",
+            rollContentPanel,
+        }
+
+        chatMessagePanel = gui.Panel{
+            classes = {"chat-message-panel"},
+            flow = "vertical",
+
+            refreshMessage = function(element, message)
+                currentMessage = message
+                panel:FireEvent("refreshMessage", message)
+                chatMessagePanel:SetClassTree("adopted", true)
+            end,
+
+            adoptedRollContent,
+            customPanelWrapper,
+        }
         chatMessagePanel:SetClassTree("adopted", true)
+    else
+        -- Standalone roll: wrap in card layout
+        -- We build the card container and inject content on refreshMessage
+        -- since we need the token from the message.
+        local colorBar = gui.Panel{
+            classes = {"action-log-color-bar"},
+            floating = true,
+            bgcolor = "#888888",
+        }
+
+        local rollNameLabel = gui.Label{
+            classes = {"action-log-name"},
+            text = "",
+        }
+
+        chatMessagePanel = gui.Panel{
+            classes = {"chat-message-panel"},
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+
+            refreshMessage = function(element, message)
+                currentMessage = message
+                panel:FireEvent("refreshMessage", message)
+                rollContentPanel:SetClassTree("adopted", true)
+                avatarPanel:FireEventTree("refreshMessage", message)
+
+                if m_cardToken ~= nil then
+                    if m_cardToken ~= nil and m_cardToken.valid and m_cardToken.playerControlled then
+                        colorBar.selfStyle.bgcolor = m_cardToken.playerColor
+                    else
+                        local monsterColor = "#AA0000"
+                        colorBar.selfStyle.bgcolor = monsterColor
+                    end
+                    element:SetClass("out-of-turn", IsOutOfTurn(m_cardToken))
+                    if m_cardToken.canLocalPlayerSeeName then
+                        rollNameLabel.text = m_cardToken.name
+                    else
+                        rollNameLabel.text = "Unknown"
+                    end
+                else
+                    rollNameLabel.text = message.playerName or ""
+                end
+            end,
+
+            gui.Panel{
+                classes = {"action-log-card"},
+
+                colorBar,
+
+                gui.Panel{
+                    classes = {"action-log-card-header"},
+                    avatarPanel,
+
+                    gui.Panel{
+                        classes = {"action-log-content"},
+                        rollNameLabel,
+                        rollContentPanel,
+                    },
+                },
+                customPanelWrapper,
+            },
+        }
     end
 
 	return chatMessagePanel
@@ -672,6 +819,93 @@ CreateChatPanel = function()
 				bgcolor = Styles.textColor,
 				gradient = Styles.horizontalGradient,
 			},
+
+            -- Action log card styles
+            {
+                selectors = {"action-log-card"},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                bgimage = "panels/square.png",
+                bgcolor = "#1a1a1a",
+                cornerRadius = 4,
+                vmargin = 2,
+            },
+            {
+                selectors = {"action-log-card", "out-of-turn"},
+                lmargin = 20,
+                width = "100%-20",
+            },
+            {
+                selectors = {"action-log-color-bar"},
+                width = 6,
+                height = "100%",
+                bgimage = "panels/square.png",
+                halign = "left",
+                valign = "top",
+            },
+            {
+                selectors = {"action-log-card-header"},
+                flow = "horizontal",
+                width = "100%",
+                height = "auto",
+            },
+            {
+                selectors = {"action-log-portrait"},
+                width = 40,
+                height = 40,
+                halign = "left",
+                valign = "top",
+                lmargin = 10,
+                tmargin = 6,
+                bmargin = 6,
+                rmargin = 4,
+            },
+            {
+                selectors = {"action-log-content"},
+                flow = "vertical",
+                width = "100%-70",
+                height = "auto",
+                halign = "right",
+                vpad = 4,
+            },
+            {
+                selectors = {"action-log-card-custom"},
+                flow = "vertical",
+                width = "100%",
+                height = "auto",
+                hpad = 10,
+                bmargin = 4,
+                borderBox = true,
+            },
+            {
+                selectors = {"action-log-name"},
+                fontSize = 14,
+                bold = true,
+                color = "white",
+                width = "auto",
+                height = "auto",
+                maxWidth = "100%",
+                halign = "left",
+            },
+            {
+                selectors = {"action-log-detail"},
+                fontSize = 12,
+                color = "#cccccc",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+            },
+            {
+                selectors = {"action-log-subtext"},
+                fontSize = 11,
+                color = "#999999",
+                width = "100%",
+                height = "auto",
+                halign = "left",
+                textAlignment = "left",
+            },
 			{
 				selectors = {'visibilityPanel'},
 				halign = "right",
@@ -690,9 +924,8 @@ CreateChatPanel = function()
 			},
             {
                 selectors = {'chat-message-panel', 'adopted'},
-                tmargin = -16,
+                tmargin = 0,
             },
-
 			{
 				selectors = {'chat-message-panel', 'roll-message-panel'},
 				flow = 'vertical',
@@ -708,9 +941,9 @@ CreateChatPanel = function()
 			{
 				selectors = {'roll-main-panel'},
 				flow = 'vertical',
-				width = "80%",
+				width = "100%",
 				height = "auto",
-				halign = "right",
+				halign = "left",
 			},
 			{
 				selectors = {'roll-message-outcome'},
@@ -753,7 +986,6 @@ CreateChatPanel = function()
                 selectors = {"rolls-panel", "adopted"},
                 uiscale = 0.7,
                 width = "60%",
-                halign = "right",
             },
 			{
 				selectors = {'roll-category-label'},

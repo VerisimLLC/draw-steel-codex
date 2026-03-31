@@ -1774,10 +1774,18 @@ function GameHud.CreateInitiativeBarChoicePanel(self, info)
 							info.UploadInitiative()
 
 							local tokens = self:GetTokensForInitiativeId(info, v.initiativeid)
+							local tokenIds = {}
 							for i,tok in ipairs(tokens) do
 								if tok.properties ~= nil then
 									tok.properties:BeginTurn()
+									tokenIds[#tokenIds+1] = tok.charid
 								end
+							end
+
+							if #tokenIds > 0 then
+								chat.SendCustom(StartOfTurnChatMessage.new{
+									tokenids = tokenIds,
+								})
 							end
 						end,
 					})
@@ -1990,7 +1998,7 @@ BeginRoundChatMessage = RegisterGameType("BeginRoundChatMessage")
 BeginRoundChatMessage.round = 0
 function BeginRoundChatMessage.Render(self, message)
 
-    local isNew = true --TimestampAgeInSeconds(message.timestamp) < 5
+    local isNew = true
     local newStyle = cond(isNew, "new")
 
     local resultPanel
@@ -2001,20 +2009,23 @@ function BeginRoundChatMessage.Render(self, message)
         flow = "vertical",
         width = "100%",
         height = "auto",
-        gui.Panel{
-			classes = {'separator'},
-		},
+        vmargin = 6,
+
         gui.Panel{
             flow = "horizontal",
-            width = "auto",
+            width = "100%",
             height = "auto",
             halign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#111111",
+            cornerRadius = 4,
+            vpad = 4,
 
             gui.Panel{
                 classes = {"leftSword", newStyle},
                 bgimage = "panels/initiative/drawsteel-sword.png",
                 bgcolor = "white",
-                width = 80,
+                width = 60,
                 height = "50% width",
                 valign = "center",
                 halign = "center",
@@ -2022,21 +2033,22 @@ function BeginRoundChatMessage.Render(self, message)
 
             gui.Label{
                 classes = {newStyle,"chat-message-text"},
-                text = string.format("Round %d", self.round),
+                text = cond(self.round == 1, "Draw Steel!", string.format("TURN %d", self.round)),
                 bold = true,
                 width = "auto",
                 height = "auto",
                 fontSize = 16,
-                color = Styles.textColor,
+                color = "white",
                 valign = "center",
                 halign = "center",
+                hmargin = 8,
             },
 
             gui.Panel{
                 classes = {"rightSword", newStyle},
                 bgimage = "panels/initiative/drawsteel-sword.png",
                 bgcolor = "white",
-                width = 80,
+                width = 60,
                 height = "50% width",
                 valign = "center",
                 halign = "center",
@@ -2046,6 +2058,47 @@ function BeginRoundChatMessage.Render(self, message)
     }
 
     resultPanel:SetClassTree("new", false)
+
+    return resultPanel
+end
+
+--- @class StartOfTurnChatMessage
+StartOfTurnChatMessage = RegisterGameType("StartOfTurnChatMessage")
+StartOfTurnChatMessage.tokenids = {}
+
+function StartOfTurnChatMessage.Render(self, message)
+    local tokens = {}
+    for _,charid in ipairs(self.tokenids) do
+        local tok = dmhub.GetCharacterById(charid)
+        if tok ~= nil and tok.valid then
+            tokens[#tokens+1] = tok
+        end
+    end
+
+    local primaryToken = tokens[1]
+    if primaryToken == nil then
+        return gui.Panel{width = 0, height = 0}
+    end
+
+    local card = CreateActionLogCard{
+        token = primaryToken,
+        content = {
+            gui.Label{
+                classes = {"action-log-subtext"},
+                text = "Start of Turn",
+            },
+        },
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
 
     return resultPanel
 end

@@ -1025,6 +1025,18 @@ local function _inputStyles()
             height = 48,
             fontSize = 20,
         },
+        {
+            selectors = {"charname"},
+            width = "80%",
+            height = "auto",
+            halign = "center",
+            valign = "top",
+            bgcolor = "clear",
+            textAlignment = "center",
+            fontSize = 24,
+            tmargin = 6,
+            vpad = 2,
+        },
         -- {
         --     selectors = {"secondary"},
         --     height = 36,

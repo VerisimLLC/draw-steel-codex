@@ -147,6 +147,9 @@ function ActivatedAbilityRelocateCreatureBehavior:Cast(ability, casterToken, tar
         elseif movementType == "jump" then
             print("JUMP:: TARGET =", targets[1].loc.floor)
 		    local path = casterToken:Move(targets[#targets].loc, { ignoreFalling = true, straightline = true, moveThroughFriends = true, ignorecreatures = true, maxCost = 30000, movementType = "jump" })
+            if path ~= nil then
+                options.symbols.cast.spacesMoved = options.symbols.cast.spacesMoved + path.numSteps
+            end
 		else
 
             if options.symbols.invoker ~= nil then

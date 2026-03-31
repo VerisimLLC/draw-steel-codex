@@ -354,10 +354,11 @@ function CharacterToken:ShowSheet(tabid)
 	-- dummy implementation for documentation purposes only
 end
 
---- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible.
+--- GetLineOfSight: The vision of the other token you have. 1 = full vision. 0 = complete occlusion. 0.5 = half visible. Optionally pass pierceSurfaces to ignore thin walls.
 --- @param otherToken any
+--- @param pierceSurfacesArg any?
 --- @return number
-function CharacterToken:GetLineOfSight(otherToken)
+function CharacterToken:GetLineOfSight(otherToken, pierceSurfacesArg)
 	-- dummy implementation for documentation purposes only
 end
 

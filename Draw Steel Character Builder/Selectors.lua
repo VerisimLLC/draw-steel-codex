@@ -369,7 +369,7 @@ function CBSelectors._career()
             return nil
         end,
         button = {
-            text = "Culture",
+            text = "Career",
         }
     }
 end

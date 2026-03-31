@@ -47,6 +47,10 @@ mod.shared.ImportMapDialog = function(paths, options)
 
     local tileType = options.tileType or "squares"
 
+    -- 140 PPS auto-detection state.
+    local perfectFitChecked = false
+    local perfectFitActive = false
+
 
     local confirmButton = gui.PrettyButton{
         classes = {"hidden"},
@@ -230,6 +234,100 @@ mod.shared.ImportMapDialog = function(paths, options)
         instructionsText,
         gridlessChoice,
         matchMapPanel,
+    }
+
+    -- "A Perfect Fit!" panel for 140 PPS auto-detection.
+    local perfectFitPanel
+    perfectFitPanel = gui.Panel{
+        classes = {"hidden"},
+        flow = "vertical",
+        width = 400,
+        height = "auto",
+        halign = "left",
+        valign = "top",
+
+        gui.Label{
+            width = 400,
+            height = "auto",
+            fontSize = 28,
+            bold = true,
+            color = "#66dd66",
+            text = "A Perfect Fit!",
+            vmargin = 4,
+        },
+
+        gui.Label{
+            id = "perfectFitDescription",
+            width = 380,
+            height = "auto",
+            fontSize = 16,
+            color = "#cccccc",
+            wrap = true,
+            text = "",
+            vmargin = 8,
+        },
+
+        gui.Label{
+            id = "perfectFitDimensions",
+            width = 380,
+            height = "auto",
+            fontSize = 20,
+            color = "white",
+            text = "",
+            vmargin = 4,
+        },
+
+        gui.Panel{
+            width = 1,
+            height = 24,
+        },
+
+        gui.PrettyButton{
+            id = "perfectFitAccept",
+            text = "Accept",
+            width = 200,
+            height = 50,
+            halign = "left",
+            fontSize = 22,
+            click = function(element)
+                -- Trigger the same confirm flow as the Finish button.
+                resultPanel.children = {
+                    ProgressPanel()
+                }
+                importPanel:Confirm(function(progress, info)
+                    if progress == nil then
+                        local imgW = importPanel.imageWidth
+                        local imgH = importPanel.imageHeight
+                        gui.CloseModal()
+                        g_modalDialog = nil
+                        if options.finish ~= nil then
+                            info.paths = paths
+                            info.imageWidth = imgW
+                            info.imageHeight = imgH
+                            options.finish(info)
+                        end
+                        return
+                    end
+                    resultPanel:FireEventTree("progress", progress)
+                end)
+            end,
+        },
+
+        gui.PrettyButton{
+            text = "Customize Grid...",
+            width = 200,
+            height = 40,
+            halign = "left",
+            fontSize = 16,
+            vmargin = 8,
+            click = function(element)
+                perfectFitActive = false
+                perfectFitPanel:SetClass("hidden", true)
+                instructionsPanel:SetClass("hidden", false)
+                importPanel:ClearMarkers()
+                gridlessChoice.value = true
+            end,
+        },
     }
 
     local statusWidth = gui.Input{
@@ -714,6 +812,53 @@ mod.shared.ImportMapDialog = function(paths, options)
         thinkTime = 0.05,
 
         think = function(element)
+            -- One-shot 140 PPS detection.
+            if not perfectFitChecked and not options.floorImport and tileType == "squares" then
+                local imgW = element.imageWidth
+                local imgH = element.imageHeight
+                if imgW ~= nil and imgW > 0 and imgH ~= nil and imgH > 0 then
+                    perfectFitChecked = true
+                    local pps = 140
+                    local tilesW = imgW / pps
+                    local tilesH = imgH / pps
+                    local rW = math.abs(tilesW - math.floor(tilesW + 0.5))
+                    local rH = math.abs(tilesH - math.floor(tilesH + 0.5))
+                    if rW < 0.01 and rH < 0.01 then
+                        tilesW = math.floor(tilesW + 0.5)
+                        tilesH = math.floor(tilesH + 0.5)
+                        if tilesW >= 1 and tilesH >= 1 then
+                            perfectFitActive = true
+
+                            -- Configure the grid preview at detected dimensions.
+                            element:CreateGridless()
+                            element:SetMapDimensions(tilesW, tilesH)
+
+                            -- Populate the panel text.
+                            perfectFitPanel:Get("perfectFitDescription").text = string.format(
+                                "This image is %dx%d pixels, which perfectly fits a %dx%d tile grid at 140 pixels per square -- the standard used by most professional map creators.",
+                                imgW, imgH, tilesW, tilesH
+                            )
+                            perfectFitPanel:Get("perfectFitDimensions").text = string.format(
+                                "%d x %d tiles", tilesW, tilesH
+                            )
+
+                            -- Show perfect fit panel, hide normal instructions.
+                            perfectFitPanel:SetClass("hidden", false)
+                            instructionsPanel:SetClass("hidden", true)
+                        end
+                    end
+                end
+            end
+
+            -- While perfect fit is active, hide the normal calibration controls.
+            if perfectFitActive then
+                previousButton:SetClass("hidden", true)
+                continueButton:SetClass("hidden", true)
+                confirmButton:SetClass("hidden", true)
+                statusPanel:SetClass("hidden", true)
+                return
+            end
+
             gridlessChoice:SetClass("hidden", gridlessChoice.value and (element.haveNext or element.havePrevious or element.haveConfirm or not string.starts_with(element.instructionsText, "Pick a grid square")))
             previousButton:SetClass("hidden", not element.havePrevious)
             continueButton:SetClass("hidden", not element.haveNext)
@@ -800,6 +945,7 @@ mod.shared.ImportMapDialog = function(paths, options)
         importPanel,
         buttonsPanel,
         instructionsPanel,
+        perfectFitPanel,
         statusPanel,
     }
 

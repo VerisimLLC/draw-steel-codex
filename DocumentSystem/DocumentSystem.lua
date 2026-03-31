@@ -1392,13 +1392,13 @@ local function DialogResizePanel(self, dialogWidth, dialogHeight)
 
 end
 
-local function CreateTabButton(doc, tabbedViewer)
+local function CreateTabButton(doc, tabbedViewer, tabId)
     local tabButton
     tabButton = gui.Panel {
         classes = {"panel", "journalTab"},
-        data = { docId = doc.id },
+        data = { tabId = tabId, docId = doc.id },
         press = function(element)
-            tabbedViewer:FireEvent("switchToTab", element.data.docId)
+            tabbedViewer:FireEvent("switchToTab", element.data.tabId)
         end,
 
         gui.Label {
@@ -1414,7 +1414,7 @@ local function CreateTabButton(doc, tabbedViewer)
         gui.Panel {
             classes = {"panel", "journalTabClose"},
             press = function(element)
-                tabbedViewer:FireEvent("closeTab", tabButton.data.docId)
+                tabbedViewer:FireEvent("closeTab", tabButton.data.tabId)
             end,
             gui.Label {
                 classes = {"label", "journalTabCloseLabel"},
@@ -1450,8 +1450,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
             for i, tab in ipairs(tabs) do
-                if tab.docId == v.data.activeDocId and i > 1 then
-                    v:FireEvent("switchToTab", tabs[i - 1].docId)
+                if tab.tabId == v.data.activeTabId and i > 1 then
+                    v:FireEvent("switchToTab", tabs[i - 1].tabId)
                     break
                 end
             end
@@ -1468,8 +1468,8 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
             for i, tab in ipairs(tabs) do
-                if tab.docId == v.data.activeDocId and i < #tabs then
-                    v:FireEvent("switchToTab", tabs[i + 1].docId)
+                if tab.tabId == v.data.activeTabId and i < #tabs then
+                    v:FireEvent("switchToTab", tabs[i + 1].tabId)
                     break
                 end
             end
@@ -1509,7 +1509,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         -- Find active tab index
         local activeIdx = 0
         for i, tab in ipairs(tabs) do
-            if tab.docId == element.data.activeDocId then
+            if tab.tabId == element.data.activeTabId then
                 activeIdx = i
                 break
             end
@@ -1584,7 +1584,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     local function findActiveTab(element)
         for _, tab in ipairs(element.data.tabs) do
-            if tab.docId == element.data.activeDocId then
+            if tab.tabId == element.data.activeTabId then
                 return tab
             end
         end
@@ -1651,14 +1651,15 @@ function CustomDocument.GetOrCreateTabbedViewer()
         captureEscape = true,
         escapePriority = EscapePriority.EXIT_DIALOG,
         escape = function(element)
-            if element.data.activeDocId then
-                element:FireEvent("closeTab", element.data.activeDocId)
+            if element.data.activeTabId then
+                element:FireEvent("closeTab", element.data.activeTabId)
             end
         end,
 
         data = {
             tabs = {},
-            activeDocId = nil,
+            activeTabId = nil,
+            nextTabId = 1,
             scrollOffset = 0,
             history = {},
             forwardHistory = {},
@@ -1667,7 +1668,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         addTab = function(element, doc, args)
             for _, tab in ipairs(element.data.tabs) do
                 if tab.docId == doc.id then
-                    element:FireEvent("switchToTab", doc.id)
+                    element:FireEvent("switchToTab", tab.tabId)
                     return
                 end
             end
@@ -1678,15 +1679,17 @@ function CustomDocument.GetOrCreateTabbedViewer()
             tabArgs.suppressCloseButton = true
 
             local tabData = {
+                tabId = element.data.nextTabId,
                 docId = doc.id,
                 history = {},
                 forwardHistory = {},
             }
+            element.data.nextTabId = element.data.nextTabId + 1
 
             tabArgs.close = function()
                 local idx = nil
                 for i, t in ipairs(element.data.tabs) do
-                    if t.docId == tabData.docId then
+                    if t.tabId == tabData.tabId then
                         idx = i
                         break
                     end
@@ -1703,9 +1706,9 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     return
                 end
 
-                if element.data.activeDocId == tabData.docId then
+                if element.data.activeTabId == tabData.tabId then
                     local newIndex = math.min(idx, #element.data.tabs)
-                    element:FireEvent("switchToTab", element.data.tabs[newIndex].docId)
+                    element:FireEvent("switchToTab", element.data.tabs[newIndex].tabId)
                 else
                     refreshTabVisibility(element)
                 end
@@ -1715,7 +1718,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             local contentPanel = doc:CreateInterface(tabArgs)
             contentPanel:SetClass("collapsed", true)
 
-            local tabButton = CreateTabButton(doc, viewer)
+            local tabButton = CreateTabButton(doc, viewer, tabData.tabId)
 
             tabData.tabButton = tabButton
             tabData.contentPanel = contentPanel
@@ -1725,23 +1728,23 @@ function CustomDocument.GetOrCreateTabbedViewer()
             contentArea:AddChild(contentPanel)
 
             refreshTabVisibility(element)
-            element:FireEvent("switchToTab", doc.id)
+            element:FireEvent("switchToTab", tabData.tabId)
         end,
 
-        switchToTab = function(element, docId)
-            element.data.activeDocId = docId
+        switchToTab = function(element, tabId)
+            element.data.activeTabId = tabId
             for _, tab in ipairs(element.data.tabs) do
-                tab.contentPanel:SetClass("collapsed", tab.docId ~= docId)
-                tab.tabButton:SetClass("selected", tab.docId == docId)
+                tab.contentPanel:SetClass("collapsed", tab.tabId ~= tabId)
+                tab.tabButton:SetClass("selected", tab.tabId == tabId)
             end
             refreshTabVisibility(element)
             syncNavState(element)
             element:FireEventTree("refreshNavButtons")
         end,
 
-        closeTab = function(element, docId)
+        closeTab = function(element, tabId)
             for _, tab in ipairs(element.data.tabs) do
-                if tab.docId == docId then
+                if tab.tabId == tabId then
                     tab.contentPanel:FireEvent("closetab")
                     return
                 end
@@ -1770,7 +1773,6 @@ function CustomDocument.GetOrCreateTabbedViewer()
             replaceTabContent(activeTab, newDoc, navArgs)
 
             tabButtonsPanel:FireEventTree("refreshTabTitle", docId, newDoc.description or "Untitled")
-            element.data.activeDocId = docId
 
             syncNavState(element)
             element:FireEventTree("refreshNavButtons")
@@ -1800,7 +1802,6 @@ function CustomDocument.GetOrCreateTabbedViewer()
             replaceTabContent(activeTab, prevDoc, navArgs)
 
             tabButtonsPanel:FireEventTree("refreshTabTitle", prevDocId, prevDoc.description or "Untitled")
-            element.data.activeDocId = prevDocId
 
             syncNavState(element)
             element:FireEventTree("refreshNavButtons")
@@ -1830,7 +1831,6 @@ function CustomDocument.GetOrCreateTabbedViewer()
             replaceTabContent(activeTab, nextDoc, navArgs)
 
             tabButtonsPanel:FireEventTree("refreshTabTitle", nextDocId, nextDoc.description or "Untitled")
-            element.data.activeDocId = nextDocId
 
             syncNavState(element)
             element:FireEventTree("refreshNavButtons")

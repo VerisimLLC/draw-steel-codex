@@ -303,6 +303,19 @@ local ShowWallTooltip = function(parentPanel, element)
         text = coverText,
     }
 
+    if node.climbable ~= nil and node.climbable ~= "NotClimbable" then
+        local climbText
+        if node.climbable == "AllCreatures" then
+            climbText = "<b>Climbable</b>: Any creature adjacent to this wall can climb it."
+        else
+            climbText = "<b>Climbable (Climbers Only)</b>: Only creatures with a climb speed can climb this wall."
+        end
+        rulesPanels[#rulesPanels+1] = gui.Label{
+            classes = {"description"},
+            text = climbText,
+        }
+    end
+
     element.tooltip = gui.Panel{
 		pad = 24,
 		cornerRadius = 10,

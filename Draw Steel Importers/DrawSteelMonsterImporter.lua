@@ -1163,7 +1163,7 @@ MCDMImporter.ParseCreatureAbilities = function(bestiaryEntry, inputLines, knownA
                 }
 
                 abilities[#abilities+1] = currentAbility
-            elseif (not hasTags) and currentAbility ~= nil and #currentAbility.attributes == 0 then
+            elseif (not hasTags) and currentAbility ~= nil and next(currentAbility.attributes) == nil then
                 currentAbility.flavor = line
             elseif regex.MatchGroups(line, "^\\s*$") == nil then
                 status = "error"

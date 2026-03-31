@@ -984,7 +984,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 		local options = { symbols = symbols, alreadyPaid = argOptions.alreadyPaid }
 		local needCoroutine = self:CastInstantPortion(casterToken, targets, options)
 		if not needCoroutine then
-			if options.pay and not options.alreadyPaid then
+			if not options.alreadyPaid then
 				self:ConsumeResources(casterToken, {
 					costOverride = options.costOverride,
 				})
@@ -992,6 +992,13 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
 			end
 
 			return
+		end
+
+		--For the coroutine path, consume resources upfront if behaviors
+		--may not call CommitToPaying (e.g. triggers without damage/invoke behaviors).
+		if not argOptions.alreadyPaid then
+			self:ConsumeResources(casterToken, {})
+			argOptions.alreadyPaid = true
 		end
 
 		local nframe = dmhub.FrameCount()
@@ -1193,6 +1200,7 @@ function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraCont
                 else
                     symbols.mode = 1
                 end
+
 				dmhub.Schedule(0.01, function() --make execute in the main thread with a schedule.
 					executeTrigger()
 				end)

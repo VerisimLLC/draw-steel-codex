@@ -803,13 +803,279 @@ RollInitiativeChatMessage.playerTokenIds = {}
 RollInitiativeChatMessage.monsterTokenIds = {}
 
 function RollInitiativeChatMessage.Render(selfInput, message)
-    return gui.Panel{width = 0, height = 0}
+    local winnerText
+    if selfInput.winner == "players" then
+        winnerText = "Heroes win initiative!"
+    else
+        winnerText = "Monsters win initiative!"
+    end
+
+    -- Collect all tokens and sort by playerControlled
+    local playerTokenPanels = {}
+    local monsterTokenPanels = {}
+
+    local allTokens = {}
+    for _,tok in ipairs(selfInput:GetPlayerTokens()) do
+        if tok ~= nil and tok.valid then
+            allTokens[#allTokens+1] = tok
+        end
+    end
+    for _,tok in ipairs(selfInput:GetMonsterTokens()) do
+        if tok ~= nil and tok.valid then
+            allTokens[#allTokens+1] = tok
+        end
+    end
+
+    local portraitHeight = 44
+    local portraitAspect = 0.75
+    local portraitWidth = math.floor(portraitHeight * portraitAspect)
+
+    local function CreatePortraitPanel(tok, quantity)
+        local portrait = tok.offTokenPortrait
+        local imageRect = nil
+        if portrait == tok.portrait or tok.popoutPortrait then
+            imageRect = tok:GetPortraitRectForAspect(portraitAspect, portrait)
+        end
+
+        local quantityLabel = nil
+        if quantity ~= nil and quantity > 1 then
+            quantityLabel = gui.Label{
+                floating = true,
+                halign = "right",
+                valign = "bottom",
+                width = "auto",
+                height = "auto",
+                fontSize = 10,
+                bold = true,
+                color = "white",
+                text = string.format("x%d", quantity),
+                textOutlineWidth = 1,
+                textOutlineColor = "black",
+            }
+        end
+
+        return gui.Panel{
+            width = portraitWidth,
+            height = portraitHeight,
+            bgimage = portrait,
+            bgcolor = "white",
+            cornerRadius = 4,
+            imageRect = imageRect,
+            hmargin = 1,
+            vmargin = 1,
+            interactable = true,
+            hover = gui.Tooltip(tok.name),
+            quantityLabel,
+        }
+    end
+
+    -- Group monsters by portrait + monster_type to collapse duplicates
+    local monsterGroups = {} -- key -> {tok, count}
+    local monsterGroupOrder = {}
+
+    local q = dmhub.initiativeQueue
+
+    for _,tok in ipairs(allTokens) do
+        print("INIT:: TOKEN:", tok.charid)
+        if table.contains(selfInput.playerTokenIds, tok.charid) then
+            print("INIT:: IS CHAR")
+            playerTokenPanels[#playerTokenPanels+1] = CreatePortraitPanel(tok)
+        elseif table.contains(selfInput.monsterTokenIds, tok.charid) then
+            print("INIT:: IS MONSTER")
+            local monsterType = tok.properties:try_get("monster_type", "")
+            local groupKey = tostring(tok.portrait) .. "|" .. monsterType
+            if monsterGroups[groupKey] == nil then
+                monsterGroups[groupKey] = {tok = tok, count = 1}
+                monsterGroupOrder[#monsterGroupOrder+1] = groupKey
+            else
+                monsterGroups[groupKey].count = monsterGroups[groupKey].count + 1
+            end
+        else
+            print("INIT:: IS NEUTRAL")
+        end
+    end
+
+    for _,groupKey in ipairs(monsterGroupOrder) do
+        local group = monsterGroups[groupKey]
+        monsterTokenPanels[#monsterTokenPanels+1] = CreatePortraitPanel(group.tok, group.count)
+    end
+
+    -- Balance items into rows so each row has roughly equal count
+    local function BalancedGrid(panels, maxPerRow, gridHalign)
+        local n = #panels
+        if n == 0 then
+            return gui.Panel{width = 0, height = 0}
+        end
+        local cols = math.min(n, maxPerRow)
+        if n > maxPerRow then
+            cols = math.ceil(math.sqrt(n))
+            if cols > maxPerRow then cols = maxPerRow end
+        end
+        return gui.Panel{
+            width = "auto",
+            height = "auto",
+            halign = gridHalign,
+            flow = "horizontal",
+            wrap = true,
+            maxWidth = cols * (portraitWidth + 2),
+            children = panels,
+        }
+    end
+
+    local playersPanel = gui.Panel{
+        width = "45%",
+        height = "auto",
+        halign = "left",
+        valign = "center",
+        BalancedGrid(playerTokenPanels, 4, "right"),
+    }
+
+    local vsLabel = gui.Label{
+        text = "vs",
+        fontSize = 11,
+        color = "#999999",
+        width = "auto",
+        height = "auto",
+        halign = "center",
+        valign = "center",
+        hmargin = 4,
+        italics = true,
+    }
+
+    local monstersPanel = gui.Panel{
+        width = "45%",
+        height = "auto",
+        halign = "right",
+        valign = "center",
+        BalancedGrid(monsterTokenPanels, 4, "left"),
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        vmargin = 6,
+
+        styles = {
+            {
+                selectors = {"leftSword", "animate-in"},
+                x = 80,
+                opacity = 0,
+                transitionTime = 0.6,
+                easing = "easeOutCubic",
+            },
+            {
+                selectors = {"rightSword", "animate-in"},
+                x = -80,
+                opacity = 0,
+                transitionTime = 0.6,
+                easing = "easeOutCubic",
+            },
+            {
+                selectors = {"drawsteel-text", "animate-in"},
+                opacity = 0,
+                scale = 0.5,
+                transitionTime = 0.4,
+            },
+        },
+
+        refreshMessage = function(element, message)
+        end,
+
+        gui.Panel{
+            flow = "vertical",
+            width = "100%",
+            height = "auto",
+            halign = "center",
+            bgimage = "panels/square.png",
+            bgcolor = "#111111",
+            cornerRadius = 4,
+            vpad = 8,
+
+            -- Swords + Draw Steel image
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+
+                gui.Panel{
+                    classes = {"leftSword"},
+                    bgimage = "panels/initiative/drawsteel-sword.png",
+                    bgcolor = "white",
+                    width = 50,
+                    height = "50% width",
+                    valign = "center",
+                    halign = "center",
+                },
+
+                gui.Panel{
+                    classes = {"drawsteel-text"},
+                    bgimage = "panels/initiative/drawsteel-text.png",
+                    bgcolor = "white",
+                    width = 160,
+                    height = 22,
+                    valign = "center",
+                    halign = "center",
+                    hmargin = 4,
+                },
+
+                gui.Panel{
+                    classes = {"rightSword"},
+                    bgimage = "panels/initiative/drawsteel-sword.png",
+                    bgcolor = "white",
+                    width = 50,
+                    height = "50% width",
+                    valign = "center",
+                    halign = "center",
+                    scale = {x = -1, y = 1},
+                },
+            },
+
+            -- Winner text
+            gui.Label{
+                text = winnerText,
+                fontSize = 12,
+                color = "#cccccc",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+            },
+
+            -- Players vs Monsters
+            gui.Panel{
+                flow = "horizontal",
+                width = "auto",
+                height = "auto",
+                halign = "center",
+                tmargin = 4,
+                bmargin = 2,
+
+                playersPanel,
+                vsLabel,
+                monstersPanel,
+            },
+        },
+
+        create = function(element)
+            element:SetClassTree("animate-in", true)
+            element:ScheduleEvent("animate-done", 0.05)
+        end,
+
+        ["animate-done"] = function(element)
+            element:SetClassTree("animate-in", false)
+        end,
+    }
+
+    return resultPanel
 end
 
 --- @param initiativeQueue InitiativeQueue
 --- @param tokens CharacterToken[]
 --- @return RollInitiativeChatMessage
-function RollInitiativeChatMessage.Create(initiativeQueue, tokens)
+function RollInitiativeChatMessage.Create(initiativeQueue, tokens, playerids, monsterids)
     local tokensByInitiative = {}
     for _,tok in ipairs(tokens) do
         local initiativeid = InitiativeQueue.GetInitiativeId(tok)
@@ -820,20 +1086,9 @@ function RollInitiativeChatMessage.Create(initiativeQueue, tokens)
         end
     end
 
-    local playerTokens = {}
-    local monsterTokens = {}
-
-    for key,tok in pairs(tokensByInitiative) do
-        if initiativeQueue:IsEntryPlayer(key) then
-            playerTokens[#playerTokens+1] = tok.charid
-        else
-            monsterTokens[#monsterTokens+1] = tok.charid
-        end
-    end
-
     return RollInitiativeChatMessage.new{
-        playerTokenIds = playerTokens,
-        monsterTokenIds = monsterTokens,
+        playerTokenIds = playerids,
+        monsterTokenIds = monsterids,
         winner = initiativeQueue.playersGoFirst and "players" or "monsters",
     }
 end
@@ -1441,6 +1696,9 @@ local function ShowCombatSetupDialog(selectedTokens)
         if tok ~= nil and tok.valid then
             local partyid = tok.partyId
             local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
+            if not playerSide and tok.playerControlled then
+                playerSide = true
+            end
 
             local initiativeId = InitiativeQueue.GetInitiativeId(tok)
             groupings[initiativeId] = groupings[initiativeId] or { playerSide = playerSide, tokens = {}}
@@ -1739,8 +1997,10 @@ Commands.RegisterMacro{
         g_selectedTokensOpenInitiative = nil
     end
 
-    local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens)
-    chat.SendCustom(message)
+    local isNewCombat = next(info.initiativeQueue.entries) == nil
+
+    local playerids = {}
+    local monsterids = {}
 
     local playerPartyId = GetDefaultPartyID()
     local playerParty = GetParty(GetDefaultPartyID())
@@ -1749,6 +2009,9 @@ Commands.RegisterMacro{
         if tok ~= nil and tok.valid then
             local partyid = tok.partyId
             local playerSide = partyid ~= nil and ((partyid == playerPartyId) or (playerParty ~= nil and playerParty:GetAllyParties()[partyid] ~= nil))
+            if not playerSide and tok.playerControlled then
+                playerSide = true
+            end
 
             if g_playerTokensOpenInitiative ~= nil and g_playerTokensOpenInitiative[tok.charid] then
                 playerSide = true
@@ -1764,13 +2027,23 @@ Commands.RegisterMacro{
             local entry = info.initiativeQueue:SetInitiative(initiativeId, 0, 0)
             entry.player = playerSide
 
+            if playerSide then
+                playerids[#playerids+1] = tok.charid
+            else
+                monsterids[#monsterids+1] = tok.charid
+            end
 
             tok.properties:DispatchEvent("rollinitiative", {})
             tok.properties:DispatchEvent("beginround")
         end
     end
 
-    print("DISPATCH:: OBJECT BEGIN ROUND", #dmhub.allObjectTokens)
+    if isNewCombat then
+        local message = RollInitiativeChatMessage.Create(info.initiativeQueue, tokens, playerids, monsterids)
+        chat.SendCustom(message)
+    end
+
+
     for _,tok in ipairs(dmhub.allObjectTokens) do
         tok.properties:DispatchEvent("beginround")
     end
@@ -1785,8 +2058,10 @@ Commands.RegisterMacro{
 
     averageVictories = math.floor(averageVictories)
 
-    CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
-    CharacterResource.SetVillainActions(1)
+    if isNewCombat then
+        CharacterResource.SetMalice(CharacterResource.GetMalice() + averageVictories + info.initiativeQueue:CalculateMaliceGain(), "Start of Combat Malice")
+        CharacterResource.SetVillainActions(1)
+    end
 
     info.UploadInitiative()
     end,

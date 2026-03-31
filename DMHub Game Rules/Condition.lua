@@ -283,6 +283,7 @@ local SetData = function(tableName, conditionPanel, condid)
 		gui.Input{
 			text = condition.description,
 			multiline = true,
+			characterLimit = 600,
 			minHeight = 50,
 			height = 'auto',
 			width = 400,

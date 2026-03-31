@@ -263,7 +263,7 @@ local SettingsEditors = {
 				end,
 
                 change = function(element)
-                    dmhub.SetSettingValue(var.id, element.data.value)
+                    dmhub.SetSettingValue(var.id, element:GetValue())
                     if var.onchange then
                         var.onchange()
                     end
@@ -580,7 +580,7 @@ function CreateSettingsDisplay(var, options)
 		multimonitor = var.monitorVisible,
 		monitor = function(element)
 			if setting.visible ~= nil then
-				panel:SetClass('collapsed', not setting.visible())
+				element:SetClass('collapsed', not setting.visible())
 			end
 
 			element.text = GetSettingPrettyValue(setting)

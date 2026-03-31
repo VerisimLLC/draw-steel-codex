@@ -1311,6 +1311,10 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 		undoValues.shadowGlowThickness = asset.shadowGlowThickness
 	end
 
+	if undoValues.climbable == nil then
+		undoValues.climbable = asset.climbable
+	end
+
 
 	local buttonPanel = gui.Panel{
 		id = 'BottomButtons',
@@ -2314,6 +2318,29 @@ mod.shared.EditWallAssetDialog = function(tileid, startingValues)
 						},
 					},
 				},
+			},
+
+			gui.Dropdown{
+				id = "climbableDropdown",
+				idChosen = asset.climbable or "NotClimbable",
+				options = {
+					{
+						id = "NotClimbable",
+						text = "Not Climbable",
+					},
+					{
+						id = "ClimbersOnly",
+						text = "Climbable (Climbers Only)",
+					},
+					{
+						id = "AllCreatures",
+						text = "Climbable (All Creatures)",
+					},
+				},
+				change = function(element)
+					asset.climbable = element.idChosen
+					RefreshAssets()
+				end,
 			},
 
 			--padding until the buttons.

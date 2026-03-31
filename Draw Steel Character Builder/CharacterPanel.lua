@@ -872,29 +872,27 @@ function CBCharPanel._headerPanel()
         end,
     }
 
-    local characterName = gui.Label {
-        classes = {"builder-base", "label", "charname"},
-        text = "calculating...",
-        editable = true,
-        data = {
-            text = "",
-        },
+    local characterName = gui.Input{
+        classes = {"builder-base", "input", "primary", "charname"},
+        placeholderText = "Character Name",
+        editlag = 0.5,
         change = function(element)
-            if element.data.text ~= element.text then
-                element.data.text = element.text
-                local token = _getToken(element)
-                if token then
-                    if token.name ~= element.data.text then
-                        token.name = element.data.text
-                        _fireControllerEvent("tokenDataChanged")
-                    end
-                end
+            local token = _getToken(element)
+            if token and token.name ~= element.text then
+                token.name = element.text
+                token:UploadAppearance()
             end
+        end,
+        edit = function(element)
+            element:FireEvent("change")
         end,
         refreshBuilderState = function(element, state)
             local token = _getToken()
-            element.data.text = (token and token.name and #token.name > 0) and token.name or "Unnamed Character"
-            element.text = string.upper(element.data.text)
+            if token and token.name and #token.name > 0 then
+                element.text = token.name
+            else
+                element.text = ""
+            end
         end,
     }
 

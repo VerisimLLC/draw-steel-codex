@@ -16,7 +16,7 @@ UI is declarative: you construct trees of panels using `gui.Panel{}`, `gui.Label
 
 Key properties:
 - Layout: `flow` ("vertical"/"horizontal"/"none"), `width`, `height`, `halign`, `valign`
-- Spacing: `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`
+- Spacing: `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `borderBox`
 - Visual: `bgcolor`, `bgimage`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `opacity`
 - Behavior: `vscroll` (scrollable), `interactable`, `classes`, `styles`, `data`
 - Inline-only: `floating`, `rotate` (NEVER put these in styles)
@@ -32,7 +32,7 @@ Key methods:
 - `PulseClass(name)` -- briefly add then remove (used for fade-in animations)
 
 Key fields:
-- `children` -- table of child panels (can be reassigned to swap content)
+- `children` -- table of child panels (can be reassigned, but see **Orphaned Panels** below)
 - `parent` -- parent panel reference
 - `data` -- custom data storage table
 - `selfStyle` -- mutable inline style overrides (use sparingly)
@@ -314,7 +314,7 @@ gui.Panel{
 
 ### Available Style Properties
 
-Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`
+Layout: `width`, `height`, `flow`, `halign`, `valign`, `pad`, `hpad`, `vpad`, `margin`, `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`, `maxWidth`, `maxHeight`, `borderBox`
 
 Visual: `bgcolor`, `bgimage`, `bgslice`, `border`, `borderColor`, `borderWidth`, `cornerRadius`, `gradient`, `opacity`, `brightness`, `shadow`, `hueshift`
 
@@ -481,19 +481,25 @@ end
 - Inner (padding): `pad` (all), `hpad` (left+right), `vpad` (top+bottom)
 - Outer (margin): `margin` (all), `hmargin`, `vmargin`, `tmargin`, `bmargin`, `lmargin`, `rmargin`
 
-**Important gotcha:** `hpad` and `vpad` add to the element's size -- they do not shrink the content area. An element with `width = "100%"` and `hpad = 10` will be 20px wider than its parent (10px on each side).
+**Box sizing:** By default (content-box behavior), `hpad` and `vpad` add to the element's rendered size -- they do not shrink the content area. This means an element with `width = 200` and `hpad = 10` will render 220px wide (200 content + 10 on each side), which is rarely the intent.
 
-To keep a padded element within its parent, subtract the padding from the width:
+**Always set `borderBox = true` on new panels that use padding.** This makes the specified width/height include padding, so the element stays the size you declared and the content area shrinks inward instead. This matches CSS `box-sizing: border-box` and avoids overflow surprises.
 
 ```lua
--- WRONG: overflows parent by 20px
-gui.Panel{ width = "100%", hpad = 10 }
+-- CORRECT: borderBox makes padding shrink the content area inward.
+-- The panel renders exactly 200px wide; content area is 180px.
+gui.Panel{ width = 200, hpad = 10, borderBox = true }
 
--- CORRECT: fits exactly within parent
+-- LEGACY: without borderBox, the panel renders 220px wide (200 + 2*10).
+-- Avoid this pattern in new code.
+gui.Panel{ width = 200, hpad = 10 }
+
+-- ALSO WORKS: manually subtract padding from width.
+-- Use borderBox = true instead when possible.
 gui.Panel{ width = "100%-20", hpad = 10 }
 ```
 
-The same applies to `vpad` and `height`.
+The same applies to `vpad` and `height`. `borderBox` works with both fixed pixel widths and percentage widths.
 
 ### Scrolling
 
@@ -646,6 +652,38 @@ dmhub.Schedule(1.0, function()
     end
 end)
 ```
+
+---
+
+## Orphaned Panels
+
+**When a panel is removed from the UI tree (orphaned), the engine automatically destroys it.** This means you cannot remove a panel from its parent and later re-add it -- the panel will be invalid after removal.
+
+This commonly happens when assigning `element.children = { ... }` -- any previous children not included in the new list are orphaned and destroyed. Do **not** store references to panels and attempt to swap them back in later.
+
+Instead, use the `collapsed` class to show/hide panels while keeping them in the tree:
+
+```lua
+-- WRONG: swapping children destroys the removed panels
+showSettings = function(element)
+    element.children = { settingsPanel }  -- chatPanel is now destroyed!
+end,
+closeSettings = function(element)
+    element.children = { chatPanel }      -- ERROR: chatPanel is invalid
+end,
+
+-- RIGHT: toggle visibility, all panels stay in the tree
+showSettings = function(element)
+    chatArea:SetClass("collapsed", true)
+    settingsArea:SetClass("collapsed", false)
+end,
+closeSettings = function(element)
+    chatArea:SetClass("collapsed", false)
+    settingsArea:SetClass("collapsed", true)
+end,
+```
+
+This applies to any scenario where you want to switch between views -- always keep both views as children and toggle `collapsed` rather than swapping the children list.
 
 ---
 

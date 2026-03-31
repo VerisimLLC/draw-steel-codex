@@ -3109,6 +3109,7 @@ function gui.AudioEditor(args)
 			textAlignment = "center",
 			text = "Sound",
 			fontSize = 16 * scaling,
+            characterLimit = 48,
 
 			styles = {
 				{
@@ -3124,7 +3125,7 @@ function gui.AudioEditor(args)
 				if value == nil or assets.audioTable[value] == nil then
 					element.text = "(No Sound)"
 				else
-					element.text = assets.audioTable[value].description
+					element.text = string.sub(assets.audioTable[value].description or "", 1, 48)
 				end
 			end,
 			changeValue = function(element)

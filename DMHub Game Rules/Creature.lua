@@ -473,6 +473,13 @@ function creature:CanClimb()
     return not self:try_get("_tmp_prone")
 end
 
+--- Whether this creature is a natural climber (climb speed >= walk speed).
+--- Used to determine eligibility for climbers-only surfaces.
+--- @return boolean
+function creature:IsClimber()
+    return self:GetSpeed("climb") >= self:GetSpeed("walk")
+end
+
 
 --- Calculates the movement cost to climb a height difference.
 --- @param heightDifference number
@@ -5833,9 +5840,9 @@ function creature:OnMove(path)
         local moveNextTo = false
 
         for _,a in ipairs(adj) do
-            if a.x >= minx and a.x <= maxx and a.y >= miny and a.y <= maxy then
+            if a.x >= minx and a.x <= maxx + (ourTileSize - 1) and a.y >= miny and a.y <= maxy + (ourTileSize - 1) then
                 for _,step in ipairs(steps) do
-                    if a.x == step.x and a.y == step.y and a.floor == step.floor and (step.altitude + ourTileSize) >= otherTokenAltitude and step.altitude <= (otherTokenAltitude + otherTokenTileSize) then
+                    if a.x >= step.x and a.x < step.x + ourTileSize and a.y >= step.y and a.y < step.y + ourTileSize and a.floor == step.floor and (step.altitude + ourTileSize) >= otherTokenAltitude and step.altitude <= (otherTokenAltitude + otherTokenTileSize) then
                         moveNextTo = true
                         break
                     end
@@ -6232,6 +6239,19 @@ function creature:ApplyOngoingEffect(ongoingEffectid, duration, casterInfo, opti
 		return nil
 	end
 
+	if options.transformid ~= nil and self:has_key("transformInfo") then
+		for _, mod in ipairs(ongoingEffect:try_get("modifiers", {})) do
+			if mod.behavior == "transform" and mod:try_get("transformSize") ~= false then
+				local monsterInfo = assets.monsters[self.transformInfo.transformid]
+				if monsterInfo ~= nil then
+					self.transformInfo.originalSize = self:try_get("creatureSize")
+					self.creatureSize = monsterInfo.properties:GetBaseCreatureSize()
+				end
+				break
+			end
+		end
+	end
+
 	if ongoingEffect.condition ~= "none" then
 		local immunities = self:GetConditionImmunities()
 		if immunities[ongoingEffect.condition] then
@@ -6422,6 +6442,9 @@ function creature:RemoveOngoingEffect(ongoingEffectid, numStacks)
 	end
 
 	if self:has_key("transformInfo") and self.transformInfo.ongoingEffect == ongoingEffectid then
+		if self.transformInfo.originalSize ~= nil then
+			self.creatureSize = self.transformInfo.originalSize
+		end
 		self.transformInfo = nil
 	end
 

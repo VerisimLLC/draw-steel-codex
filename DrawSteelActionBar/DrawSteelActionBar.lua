@@ -606,6 +606,7 @@ local function ActionBarDrawer(args)
 
 
         refresh = function(element)
+            if g_token == nil then return end
             local newToken = g_token.charid ~= element.data.lastcharid
 
             element.data.lastcharid = g_token.charid
@@ -849,6 +850,7 @@ local function ActionBarDrawer(args)
                 m_usedAbilityIcon,
                 swallowPress = true,
                 press = function(element)
+                    if g_creature == nil or g_token == nil then return end
                     if m_resourceid ~= nil then
                         local usage = g_creature:GetResourceUsage(m_resourceid, m_resourceInfo.usageLimit)
                         local available = (g_resources[m_resourceid] or 0) - usage
@@ -1291,7 +1293,7 @@ local function AbilityHeading(args)
         press = function(element)
             audio.FireSoundEvent("Mouse.Click")
             --this will be adopted by the ability controller
-            assert(g_abilityController ~= nil)
+            if g_abilityController == nil then return end
             local menu = element:FindParentWithClass("actionMenu")
             if menu ~= nil then
                 print("MENU:: ONCAST")
@@ -1742,6 +1744,7 @@ ActionMenu = function()
     local m_args
     local resultPanel
     local m_showingAbility = false
+    local m_commonSignatureWrapper = nil
 
     local g_manualSetResourcePanel = gui.Label {
         classes = { "abilityHeading" },
@@ -1754,6 +1757,7 @@ ActionMenu = function()
         bold = true,
 
         press = function(element)
+            if g_token == nil then return end
             g_token:ModifyProperties {
                 description = "Manually Set Trigger Resource",
                 execute = function()
@@ -1864,7 +1868,7 @@ ActionMenu = function()
 
             g_triggerPanel:SetClass("hidden", true)
 
-            g_abilityController:FireEvent("cancelCasting")
+            if g_abilityController ~= nil then g_abilityController:FireEvent("cancelCasting") end
 
             --parent to the drawer firing us.
             element:Unparent()
@@ -1921,7 +1925,7 @@ ActionMenu = function()
             local abilitiesByGrouping = {}
 
             for _, ability in ipairs(abilities) do
-                local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Common Abilities"
+                local grouping = GameSystem.GetAbilityCategoryInfo(ability.categorization).grouping or "Abilities"
                 if grouping == "Common Abilities" and ability.actionResourceId == CharacterResource.freeManeuverResourceId then
                     grouping = "Free Maneuvers"
                 end
@@ -1949,6 +1953,50 @@ ActionMenu = function()
             table.sort(children, function(a, b)
                 return a.data.ord < b.data.ord
             end)
+
+            -- Stack Common Abilities on top of Signature Abilities in one column
+            local commonSub = m_submenus["Abilities"]
+            local sigSub = m_submenus["Signature Abilities"]
+            if commonSub and sigSub then
+                if m_commonSignatureWrapper == nil then
+                    m_commonSignatureWrapper = gui.Panel {
+                        flow = "vertical",
+                        width = "auto",
+                        height = "auto",
+                        valign = "bottom",
+                    }
+                    m_commonSignatureWrapper.data.spacer = gui.Panel {
+                        width = 205,
+                        height = 16,
+                        bgimage = true,
+                        bgcolor = "clear",
+                    }
+                end
+                m_commonSignatureWrapper.children = { commonSub, m_commonSignatureWrapper.data.spacer, sigSub }
+                m_commonSignatureWrapper.data.ord = sigSub.data.ord
+
+                local merged = {}
+                for _, child in ipairs(children) do
+                    if child ~= commonSub and child ~= sigSub then
+                        merged[#merged + 1] = child
+                    end
+                end
+
+                -- Insert wrapper at sorted position
+                local inserted = false
+                local result = {}
+                for _, child in ipairs(merged) do
+                    if not inserted and m_commonSignatureWrapper.data.ord < child.data.ord then
+                        result[#result + 1] = m_commonSignatureWrapper
+                        inserted = true
+                    end
+                    result[#result + 1] = child
+                end
+                if not inserted then
+                    result[#result + 1] = m_commonSignatureWrapper
+                end
+                children = result
+            end
 
             if element.data.triggerPanel == nil then
                 element.data.triggerPanel = PowerRollTriggersSubmenu()
@@ -1979,20 +2027,64 @@ ActionMenu = function()
     return resultPanel
 end
 
+-- Check if an ability deals damage (has Strike keyword, damage behavior, or power roll tiers with damage).
+local function AbilityDoesDamage(ability)
+    if ability:HasKeyword("Strike") then
+        return true
+    end
+
+    for _, behavior in ipairs(ability.behaviors) do
+        if behavior.typeName == "ActivatedAbilityDamageBehavior" then
+            return true
+        end
+        if behavior.typeName == "ActivatedAbilityPowerRollBehavior" then
+            for _, entry in ipairs(behavior.tiers) do
+                if regex.MatchGroups(entry, " damage") ~= nil then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+-- Determine arrow color based on the ability and the relationship between caster and target.
+-- Red = abilities that deal damage, Green = ally-targeting non-damage abilities, Black = other.
+local function GetArrowColor(ability, sourceToken, targetToken)
+    if ability == nil or sourceToken == nil or targetToken == nil then
+        return "red"
+    end
+
+    if AbilityDoesDamage(ability) then
+        return "red"
+    end
+
+    -- Non-damage ability targeting a friend = green.
+    local isFriend = sourceToken:IsFriend(targetToken)
+    if isFriend then
+        return "green"
+    end
+
+    return "black"
+end
+
 local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability)
     if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
         return
     end
 
     local modifiers = sourceToken.properties:DescribeModifiersOnTarget(ability, targetToken)
+    printf("LABEL_DEBUG: AddModifierLabelsToMarker called, markers=%s, #modifiers=%d", tostring(markers), #modifiers)
     for _,m in ipairs(modifiers) do
         local modInfo = ActivatedAbilityPowerRollBehavior.s_modificationTypesById[m.modifier.modtype]
         local labelType = "neutral"
-        if modInfo ~= nil and modInfo.value > 0 then
+        if modInfo ~= nil and (modInfo.value or 0) > 0 then
             labelType = "buff"
-        elseif modInfo ~= nil and modInfo.value < 0 then
+        elseif modInfo ~= nil and (modInfo.value or 0) < 0 then
             labelType = "debuff"
         end
+        printf("LABEL_DEBUG: AddLabel('%s', '%s') modtype='%s'", m.modifier.name, labelType, tostring(m.modifier.modtype))
         markers:AddLabel(m.modifier.name, labelType)
     end
 end
@@ -2024,7 +2116,7 @@ local function ReplaceTargetLineOfSightRays(rays, ability)
         if m_targetLineOfSightRays[key] ~= nil then
             t[key] = m_targetLineOfSightRays[key]
         else
-            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
+            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b))
             AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability)
         end
         m_targetLineOfSightRays[key] = nil
@@ -2420,7 +2512,7 @@ local function CreateAltitudeController()
                     end
 
                     if element.data.currentLocInfo.loc ~= nil then
-                        assert(m_allowedAltitudeCalculator ~= nil, "Allowed altitude calculator is not set.")
+                        if m_allowedAltitudeCalculator == nil then return end
                         local minAltitude, maxAltitude = m_allowedAltitudeCalculator(element.data.currentLocInfo.loc)
                         alt = math.clamp(alt, minAltitude, maxAltitude)
                     end
@@ -2468,7 +2560,7 @@ local function CreateAltitudeController()
                 if info.loc == nil then
                     return
                 end
-                assert(m_allowedAltitudeCalculator ~= nil, "Allowed altitude calculator is not set.")
+                if m_allowedAltitudeCalculator == nil then return end
                 local minAltitude, maxAltitude = m_allowedAltitudeCalculator(info.loc)
                 local target = m_altitudeController.data.target
                 local alt = info.loc.altitude
@@ -2822,8 +2914,8 @@ CreateAbilityController = function()
         text = "Confirm",
         classes = { 'collapsed' },
         press = function(element)
-            assert(g_currentAbility ~= nil)
-            assert(g_abilityController ~= nil)
+            if g_currentAbility == nil then return end
+            if g_abilityController == nil then return end
 
             if g_currentAbility.targetType == 'all' or g_currentAbility.targetType == 'map' or g_currentAbility.targetType == 'areatemplate' then
                 --for 'all' types we have a fake map press. The map parameters don't matter.
@@ -2908,6 +3000,7 @@ CreateAbilityController = function()
                         end,
 
                         press = function(element)
+                            if g_currentAbility == nil then return end
                             g_currentSymbols.mode = i
 
                             g_currentAbility = g_currentAbility:SwitchModes(i)
@@ -3044,7 +3137,7 @@ CreateAbilityController = function()
         halign = "center",
         classes = { 'collapsed' },
         press = function(element)
-            assert(g_abilityController ~= nil)
+            if g_abilityController == nil then return end
             g_abilityController:FireEvent("cancelCasting")
         end,
     }
@@ -3142,7 +3235,7 @@ CreateAbilityController = function()
         },
 
         focusspell = function(element)
-            assert(g_token ~= nil)
+            if g_token == nil then return end
             if g_currentAbility == nil or g_currentAbility.channeledResource == "none" then
                 element:SetClass("collapsed", true)
                 return
@@ -3217,8 +3310,8 @@ CreateAbilityController = function()
         end,
 
         select = function(element, charges)
-            assert(g_channeledResourcePanel ~= nil)
-            assert(g_currentAbility ~= nil)
+            if g_channeledResourcePanel == nil then return end
+            if g_currentAbility == nil then return end
 
             --recalculate with the new cost proposal.
             g_currentCostProposal = g_currentAbility:GetCost(g_token, { charges = charges, mode = g_currentSymbols.mode })
@@ -3320,7 +3413,8 @@ CreateAbilityController = function()
 
             args = args or {}
 
-            assert(g_actionBar ~= nil)
+            if g_actionBar == nil then return end
+            if g_token == nil then return end
             g_actionBar:FireEventTree("closemenu")
 
             ability = ability:SwitchModes(1)
@@ -3626,12 +3720,12 @@ CreateAbilityController = function()
             element.mapfocus = false
             element.captureEscape = false
 
-            g_channeledResourcePanel:SetClass("collapsed", true)
+            if g_channeledResourcePanel ~= nil then g_channeledResourcePanel:SetClass("collapsed", true) end
             m_altitudeController:SetClass("collapsed", true)
             m_allowedAltitudeCalculator = nil
 
-            g_actionBar:SetClassTree("invokingAbility", false)
-            g_abilityController.mapfocus = false
+            if g_actionBar ~= nil then g_actionBar:SetClassTree("invokingAbility", false) end
+            if g_abilityController ~= nil then g_abilityController.mapfocus = false end
 
             ClearLineOfSightMark()
             ClearRadiusMarkers()
@@ -3651,7 +3745,7 @@ CreateAbilityController = function()
         end,
 
         chooseTarget = function(element, options)
-            assert(g_actionBar ~= nil)
+            if g_actionBar == nil then return end
             ClearRadiusMarkers()
 
             if options.sourceToken ~= nil and options.radius ~= nil then
@@ -3689,9 +3783,11 @@ CreateAbilityController = function()
                     element:DestroySelf()
                 end,
                 destroy = function()
-                    g_castMessage.data.promptText = ''
-                    g_castMessage:FireEvent("refresh")
-                    g_abilityController:SetClass("collapsed", true)
+                    if g_castMessage ~= nil then
+                        g_castMessage.data.promptText = ''
+                        g_castMessage:FireEvent("refresh")
+                    end
+                    if g_abilityController ~= nil then g_abilityController:SetClass("collapsed", true) end
                     ClearRadiusMarkers()
                     cancel()
                     for _, tok in ipairs(targets) do
@@ -3735,6 +3831,8 @@ CreateAbilityController = function()
         invokeAbility = function(element, casterToken, ability, symbols, invokerInfo, options)
             options = options or {}
             gui.SetFocus(nil)
+
+            if g_actionBar == nil then return end
 
             g_invokerInfo = invokerInfo
             symbols.invoked = true
@@ -3780,7 +3878,7 @@ CreateAbilityController = function()
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
                     if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls())
+                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b))
                         AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility)
                         m_markLineOfSightToken = targetToken
                         m_markLineOfSightSourceToken = g_token
@@ -3789,7 +3887,7 @@ CreateAbilityController = function()
                 end
             else
                 --we just target from the source to the target.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls())
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken))
                 if m_markLineOfSight ~= nil then
                     AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility)
                     m_markLineOfSightToken = targetToken
@@ -3815,13 +3913,13 @@ CreateAbilityController = function()
             element.data.lastHoverLoc = loc
             element.data.lastHoverPoint = point
 
-            assert(g_abilityController ~= nil)
+            if g_abilityController == nil then return end
             if g_token == nil or (not g_token.valid) then
                 g_abilityController:FireEvent("cancelCasting")
                 return
             end
 
-            assert(g_currentAbility ~= nil, "Current ability is not set.")
+            if g_currentAbility == nil then return end
 
             if g_pointTargeting == nil then
                 return
@@ -4007,7 +4105,7 @@ CreateAbilityController = function()
                                 prevOvershoot ~= g_pointTargeting.pathEndOvershoot
                             if not needRedraw then
                                 for i, loc in ipairs(prevPathEnd) do
-                                    if not loc.str == g_pointTargeting.shapePathEnd[i].str then
+                                    if loc.str ~= g_pointTargeting.shapePathEnd[i].str then
                                         needRedraw = true
                                         break
                                     end
@@ -4330,8 +4428,8 @@ CreateAbilityController = function()
                 return
             end
 
-            assert(g_token ~= nil)
-            assert(g_currentAbility ~= nil, "Current ability is not set.")
+            if g_token == nil then return end
+            if g_currentAbility == nil then return end
 
             local shape = g_currentAbility.targetType
 
@@ -4534,7 +4632,7 @@ CreateAbilityController = function()
                 m_markLineOfSight = nil
                 m_markLineOfSightToken = nil
                 m_markLineOfSightSourceToken = nil
-                g_abilityController:FireEvent("finishCasting")
+                if g_abilityController ~= nil then g_abilityController:FireEvent("finishCasting") end
             end
         end,
 
@@ -4563,7 +4661,7 @@ local function CalculateSpellTargetFocusing(symbols)
     local range = symbols.range
 
     local potentialTargetTokens = {}
-    assert(g_currentAbility ~= nil)
+    if g_currentAbility == nil then return potentialTargetTokens end
     local spell = g_currentAbility
     if (spell.targetType == 'self' or spell.targetType == 'target' or spell.targetType == 'all' or spell.targetType == 'areatemplate') and g_synthesizedSpellsPanel:HasClass("collapsed") then
 
@@ -4729,8 +4827,11 @@ local function CalculateSpellTargetFocusing(symbols)
 end
 
 CalculateSpellTargeting = function(forceCast, initialSetup)
-    assert(g_currentAbility ~= nil, "CalculateSpellTargeting called with nil g_currentAbility")
-    assert(g_skipButton ~= nil)
+    if g_currentAbility == nil then
+        dmhub.Debug("ActionBar: CalculateSpellTargeting called with nil g_currentAbility")
+        return
+    end
+    if g_skipButton == nil then return end
 
     if g_token == nil then
         dmhub.CloudError("nil token: " .. traceback())
@@ -4854,10 +4955,10 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
 
             g_currentAbility = nil
 
-            assert(g_abilityController ~= nil)
+            if g_abilityController == nil then return end
             g_abilityController:FireEvent("finishCasting")
         else
-            assert(g_ammoChoicePanel ~= nil and g_synthesizedSpellsPanel ~= nil and g_castChargesInput ~= nil)
+            if g_ammoChoicePanel == nil or g_synthesizedSpellsPanel == nil or g_castChargesInput == nil then return end
             g_ammoChoicePanel:FireEvent("refreshSpell")
             g_synthesizedSpellsPanel:FireEvent("refreshSpell")
             g_castChargesInput:FireEvent("refreshSpell")
@@ -4893,7 +4994,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                     AddRadiusMarker(loc, lineDistance, 'white')
                 end
                 
-            elseif (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") and (g_currentAbility:try_get("targeting", "direct") == "pathfind" or g_currentAbility:try_get("targeting", "direct") == "vacated" or g_currentAbility:try_get("targeting", "direct") == "vacated") then
+            elseif (g_currentAbility.targetType == "emptyspace" or g_currentAbility.targetType == "anyspace") and (g_currentAbility:try_get("targeting", "direct") == "pathfind" or g_currentAbility:try_get("targeting", "direct") == "vacated" or g_currentAbility:try_get("targeting", "direct") == "straightline") then
                 ClearRadiusMarkers()
 
                 local waypoints = {}
@@ -4959,7 +5060,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
                 end
             elseif g_currentAbility.targetType == 'all' or g_currentAbility.targetType == 'areatemplate' then
                 --synthesize a map hover event to highlight the area.
-                assert(g_abilityController ~= nil)
+                if g_abilityController == nil then return end
                 g_abilityController:FireEvent("maphover", nil, 'all')
             end
         end

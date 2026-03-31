@@ -12,7 +12,7 @@ Interactive = {
 
         local id = string.format("%s.%s", modid, args.id)
 
-        g_interactives = args
+        g_interactives[id] = args
     end,
 
 }
@@ -76,7 +76,7 @@ dmhub.ShowObjectInteractive = function(objid, interactiveid)
     end
 
     local CreateView = function()
-        local fn = info[mode]
+        local fn = info[currentMode]
         if fn == nil then
             return nil
         end
@@ -113,7 +113,7 @@ dmhub.ShowObjectInteractive = function(objid, interactiveid)
         },
 
         press = function(element)
-            self:CloseModal()
+            gui.CloseModal()
         end,
 
         escapeActivates = true,

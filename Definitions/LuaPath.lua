@@ -6,6 +6,7 @@
 --- @field shifting boolean 
 --- @field forced boolean 
 --- @field forcedDest nil|Loc 
+--- @field bounceCollisions any Array of collision records from rebound movement. Each entry has speed (int), collideWith (table of tokens), and destination (Loc).
 --- @field forcedMovementTotalDistance number 
 --- @field collisionSpeed number 
 --- @field hasClimbing boolean 

@@ -198,8 +198,15 @@ function MonsterAI:PlayTurnCoroutine(initiativeid)
                     end
                 end
 
-                token.properties._tmp_aicontrol = token.properties._tmp_aicontrol - 1
-                token.properties._tmp_aipromptCallback = nil
+                if #self.squadMembers > 0 then
+                    for _,member in ipairs(self.squadMembers) do
+                        member.token.properties._tmp_aicontrol = member.token.properties._tmp_aicontrol - 1
+                        member.token.properties._tmp_aipromptCallback = nil
+                    end
+                else
+                    token.properties._tmp_aicontrol = token.properties._tmp_aicontrol - 1
+                    token.properties._tmp_aipromptCallback = nil
+                end
             else
                 print("AI:: Token no longer valid for initiative ID", initiativeid)
             end

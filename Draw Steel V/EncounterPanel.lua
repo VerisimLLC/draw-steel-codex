@@ -243,7 +243,7 @@ local function createGroupPanel(encounter)
 
         },
 
-        width = "90%",
+        width = "96%",
         height = "auto",
         bgimage = true,
         bgcolor = "black",
@@ -260,7 +260,7 @@ local function createGroupPanel(encounter)
             for i, group in ipairs(encounter.groups) do
                 panels[#panels + 1] = gui.Panel {
 
-                    width = "90%",
+                    width = "85%",
                     height = "65",
                     border = 1,
                     borderColor = "white",
@@ -1394,7 +1394,7 @@ CreateEncounterPanel = function()
                         height = 110,
                         bgimage = true,
                         bgcolor = "black",
-                        halign = "center",
+                        halign = "left",
                         flow = 'vertical',
                         pad = 1,
                         bmargin = 8,

@@ -304,7 +304,7 @@ end
 -- Only runs if WHISPER_DEBUG is enabled.
 local function unitTest()
     if not WHISPER_DEBUG then 
-        sendTitledChatMessage("Enable Debug to run tests. /wdebug [t|f]", "whisper", "#e09c9c")
+        SendTitledChatMessage("Enable Debug to run tests. /wdebug [t|f]", "whisper", "#e09c9c")
         return
     end
 
@@ -380,7 +380,7 @@ Commands.RegisterMacro{
         elseif lowered == "f" or lowered == "false" then
             WHISPER_DEBUG = false
         end
-        sendTitledChatMessage(tostring(WHISPER_DEBUG), "wdebug", "#e09c9c")
+        SendTitledChatMessage(tostring(WHISPER_DEBUG), "wdebug", "#e09c9c")
     end,
 }
 

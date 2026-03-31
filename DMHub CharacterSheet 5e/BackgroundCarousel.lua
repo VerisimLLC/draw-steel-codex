@@ -130,9 +130,6 @@ function CharSheet.BackgroundChoicePanel(options)
                     SetTargetIndex(element.data.index)
                     resultPanel:FireEventTree("targetIndexChanged")
                 end,
-                data = {
-                    background = background,
-                },
                 classes = {"backgroundPanel"},
                 shadow,
                 portraitContainer,

@@ -10,6 +10,10 @@ function character:KitID()
 end
 
 function character:Kit()
+	if not self:CanHaveKits() then
+		return nil
+	end
+
 	local table = GetTableCached(Kit.tableName)
 	local kit = table[self:KitID()]
 	if kit ~= nil then

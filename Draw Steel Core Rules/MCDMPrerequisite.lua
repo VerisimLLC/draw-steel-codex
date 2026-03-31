@@ -74,11 +74,11 @@ function monster:GetDomains()
 end
 
 function creature:GetDeities()
-	return self:GetDeities()
+	return {}
 end
 
 function creature:GetDomains()
-	return self:GetDomains()
+	return {}
 end
 
 CharacterPrerequisite.Register{

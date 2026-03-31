@@ -128,9 +128,6 @@ function CharSheet.RaceChoicePanel(options)
                     SetTargetIndex(element.data.index)
                     resultPanel:FireEventTree("targetIndexChanged")
                 end,
-                data = {
-                    race = race,
-                },
                 classes = { "racePanel" },
                 shadow,
                 portraitContainer,

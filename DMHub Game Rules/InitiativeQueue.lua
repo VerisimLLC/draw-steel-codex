@@ -86,7 +86,10 @@ end
 
 function InitiativeQueue:DescribeEntry(initiativeid)
 	local entry = self.entries[initiativeid]
-	if entry == nil or entry:has_key("description") == false then
+	if entry == nil then
+		return "Unknown, possibly deleted character"
+	end
+	if entry:has_key("description") == false then
 		if string.startswith(entry.initiativeid, 'MONSTER-') then
 			return string.sub(entry.initiativeid, 9)
 		else
@@ -122,7 +125,7 @@ function InitiativeQueue.SetInitiative(self, initiativeid, value, dexterity)
 	else
 		entry.initiative = value
 		if dexterity ~= nil then
-			entry.dexterity = value
+			entry.dexterity = dexterity
 		end
 	end
 

@@ -20,11 +20,7 @@ ActivatedAbilityTemporaryStaminaChatMessage.casterid = ""
 ActivatedAbilityTemporaryStaminaChatMessage.targetids = {}
 
 function ActivatedAbilityTemporaryStaminaChatMessage:Render(message)
-    local resultPanel
-
     local token = self:GetCasterToken()
-    local targets = self:GetTargetTokens()
-
 
     if token == nil or (not token.valid) then
         return gui.Panel{
@@ -32,94 +28,60 @@ function ActivatedAbilityTemporaryStaminaChatMessage:Render(message)
         }
     end
 
-    local resultPanel
-
-    local tokenPanel = gui.CreateTokenImage(token,{
-        scale = 0.9,
-        valign = "center",
-        halign = "left",
-
-        interactable = true,
-        hover = gui.Tooltip(token.name),
-    })
-
     local targetTokenPanels = {}
     for _,tok in ipairs(self:GetTargetTokens()) do
         if tok.valid then
             targetTokenPanels[#targetTokenPanels+1] = gui.CreateTokenImage(tok, {
-                width = 32,
-                height = 32,
+                width = 28,
+                height = 28,
                 valign = "center",
                 halign = "left",
-
                 interactable = true,
                 hover = gui.Tooltip(tok.name),
             })
         end
     end
 
-    local messageText = string.format("%d temporary stamina", self.amount)
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail"},
+        text = self.chatMessage,
+    }
 
-    resultPanel = gui.Panel{
+    local staminaLabel = gui.Label{
+        classes = {"action-log-subtext"},
+        text = string.format("%d temporary stamina", self.amount),
+    }
+
+    local targetsPanel = nil
+    if #targetTokenPanels > 0 then
+        targetsPanel = gui.Panel{
+            floating = true,
+            width = "auto",
+            height = "auto",
+            halign = "right",
+            valign = "top",
+            flow = "horizontal",
+            wrap = true,
+            maxWidth = 90,
+            rmargin = 6,
+            tmargin = 2,
+            children = targetTokenPanels,
+        }
+    end
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, staminaLabel, targetsPanel},
+    }
+
+    local resultPanel = gui.Panel{
         classes = {"chat-message-panel"},
-
- 
         flow = "vertical",
         width = "100%",
         height = "auto",
-
         refreshMessage = function(element, message)
         end,
-
-        gui.Panel{
-			classes = {'separator'},
-		},
-
-        gui.Panel{
-
-            width = "100%",
-            height = "auto",
-            flow = "horizontal",
-
-            tokenPanel,
-
-            gui.Panel{
-                flow = "vertical",
-                width = "100%-80",
-                height = "auto",
-                halign = "right",
-                valign = "top",
-
-                gui.Label{
-                    fontSize = 14,
-                    width = "auto",
-                    height = "auto",
-                    maxWidth = 420,
-                    halign = "left",
-                    valign = "top",
-                    text = string.format("<b>%s</b>\n%s", self.chatMessage, messageText),
-                    hover = function(element)
-                        local token = self:GetCasterToken()
-                        if token == nil then
-                            return
-                        end
-	                    local dock = element:FindParentWithClass("dock")
-	                    element.tooltipParent = dock
-
-                        --TODO: show a more detailed breakdown of damage messaging.
-                    end,
-                },
-
-                gui.Panel{
-                    width = "50%",
-                    height = "auto",
-                    halign = "left",
-                    flow = "horizontal",
-                    wrap = true,
-                    children = targetTokenPanels,
-                }
-            },
-        },
+        card,
     }
 
     return resultPanel

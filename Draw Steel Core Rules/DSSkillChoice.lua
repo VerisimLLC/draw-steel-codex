@@ -36,8 +36,18 @@ dmhub.RegisterEventHandler("refreshTables", function(keys)
     g_optCache = {}
 end)
 
+function CharacterSkillChoice:HasFilters()
+    local cats = self:try_get("categories")
+    local ind = self:try_get("individualSkills")
+    return (cats ~= nil and next(cats) ~= nil) or (ind ~= nil and next(ind) ~= nil)
+end
+
 function CharacterSkillChoice:_cache()
-	if (g_tagCache[self.categories] ~= nil and g_optCache[self.categories] ~= nil) or (self.categories == nil and #g_allCache > 0) then return end
+	if self:HasFilters() then
+		if g_tagCache[self] ~= nil and g_optCache[self] ~= nil then return end
+	else
+		if #g_allCache > 0 then return end
+	end
 
     local all = {}
     local tags = {}
@@ -68,31 +78,32 @@ function CharacterSkillChoice:_cache()
 	end
 
     g_allCache = all
-	g_tagCache[self.categories] = tags
-    g_optCache[self.categories] = options
+	g_tagCache[self] = tags
+    g_optCache[self] = options
 end
 
 function CharacterSkillChoice:Choices(numOption, existingChoices, creature)
-    if self.categories == nil or next(self.categories) == nil then
+    if not self:HasFilters() then
         if #g_allCache == 0 then self:_cache() end
         return g_allCache
     end
-	if g_tagCache[self.categories] == nil then self:_cache() end
-	return g_tagCache[self.categories]
+	if g_tagCache[self] == nil then self:_cache() end
+	return g_tagCache[self]
 end
 
 function CharacterSkillChoice:GetOptions(choices)
-    if self.categories == nil or next(self.categories) == nil then
+    if not self:HasFilters() then
         if #g_allCache == 0 then self:_cache() end
         return g_allCache
     end
-    if g_optCache[self.categories] == nil then self:_cache() end
-    return g_optCache[self.categories]
+    if g_optCache[self] == nil then self:_cache() end
+    return g_optCache[self]
 end
 
 function CharacterSkillChoice:GetDescription()
     local function formatProperList(items)
         local count = #items
+        table.sort(items)
 
         if count == 0 then
             return ""
@@ -124,9 +135,9 @@ function CharacterSkillChoice:GetDescription()
         end
     end
 
-    local desc = string.format("Choose %d skill%s", numChoices, numChoices > 1 and "s" or "")
+    local desc = string.format("Choose %d skill%s from", numChoices, numChoices > 1 and "s" or "")
     if #cats > 0 then
-        desc = string.format("%s from the %s skill group%s", desc, formatProperList(cats), #cats > 1 and "s" or "")
+        desc = string.format("%s the %s skill group%s", desc, formatProperList(cats), #cats > 1 and "s" or "")
     end
     if #ind > 0 then
         if #cats > 0 then desc = desc .. " or" end
@@ -213,7 +224,7 @@ function CharacterSkillChoice:FillFeaturesRecursive(choices, result)
     local skillFeatures = self:GetSkillFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(skillFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end

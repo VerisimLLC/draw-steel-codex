@@ -143,7 +143,7 @@ function CharacterLanguageChoice:FillFeaturesRecursive(choices, result)
     local languageFeatures = self:GetLanguageFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(languageFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end

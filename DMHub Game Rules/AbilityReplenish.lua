@@ -48,9 +48,56 @@ function ResourceChatMessage:GetResource()
 end
 
 function ResourceChatMessage.Render(selfInput, message)
-    return gui.Panel{
-        width = 0, height = 0,
+    local token = selfInput:GetToken()
+    local resource = selfInput:GetResource()
+
+    if token == nil or (not token.valid) then
+        return gui.Panel{
+            width = 0, height = 0,
+        }
+    end
+
+    local resourceName = "Resource"
+    if resource ~= nil then
+        resourceName = resource.name
+    end
+
+    local modeText
+    if selfInput.mode == "replenish" then
+        modeText = string.format("+%d %s", selfInput.quantity, resourceName)
+    else
+        modeText = string.format("-%d %s", selfInput.quantity, resourceName)
+    end
+
+    local reasonLabel = nil
+    if selfInput.reason ~= "" then
+        reasonLabel = gui.Label{
+            classes = {"action-log-subtext"},
+            text = selfInput.reason,
+        }
+    end
+
+    local detailLabel = gui.Label{
+        classes = {"action-log-detail"},
+        text = modeText,
     }
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {detailLabel, reasonLabel},
+    }
+
+    local resultPanel = gui.Panel{
+        classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
+        refreshMessage = function(element, message)
+        end,
+        card,
+    }
+
+    return resultPanel
 end
 
 function ResourceChatMessage:Undo(message)
@@ -105,7 +152,7 @@ function ActivatedAbilityReplenishBehavior:Cast(ability, casterToken, targets, o
     if self.chooseResourceFromList then
         local resourceNames = {}
         for _,resourceid in ipairs(self:try_get("resourceOptions", {})) do
-            local resourceInfo = resourceTable[self.resourceid]
+            local resourceInfo = resourceTable[resourceid]
             if resourceInfo ~= nil then
                 resourceNames[#resourceNames+1] = resourceInfo.name
             end

@@ -226,6 +226,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
     --- @param castOptions table A table of options that go to an ability cast.
     applyTriggerToPowerRoll = function(self, token, casterToken, targetToken, ability, rollProperties, castOptions)
         local triggerInfo = g_idToTriggerChoice[self.trigger]
+        print("TRIGGER::", self.trigger, "->", triggerInfo)
         local triggerTarget = casterToken
         castOptions = castOptions or {}
         local symbols = castOptions.symbols or {}

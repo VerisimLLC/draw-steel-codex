@@ -94,6 +94,16 @@ audio.SoundEvent{
     ignoreDuplicates = 1,
 }
 
+
+
+audio.SoundEvent{
+    name = "Notify.LockIn",
+    mixgroup = "ui",
+    sounds = {"Notify_LockIn_v1_01.wav"},
+    volume = 0.3,
+    ignoreDuplicates = 1,
+}
+
 --Rewind/Undo actions
 
 audio.SoundEvent{

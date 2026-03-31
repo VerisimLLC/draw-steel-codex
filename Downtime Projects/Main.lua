@@ -101,7 +101,7 @@ local function _migrateFollowerRollsToHero()
                         for id,_ in pairs(followers) do
                             local follower = dmhub.GetCharacterById(id)
                             if follower and follower.properties and follower.properties:IsFollower() then
-                                local followerType = follower.typeName ~= nil and follower.try_get("followerType") or follower.followerType
+                                local followerType = follower.typeName ~= nil and follower.properties:try_get("followerType") or follower.followerType
                                 if followerType == "artisan" or followerType == "sage" then
                                     local legacyRolls = follower.properties:try_get(DTConstants.FOLLOWER_AVAILROLL_KEY, 0)
                                     migratedRolls[id] = legacyRolls

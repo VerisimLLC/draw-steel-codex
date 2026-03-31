@@ -465,6 +465,10 @@ function CharacterOngoingEffectInstance:Expired()
 	end
 
 	if self:has_key('duration') then
+		if self.time:try_get('queueguid') == nil then
+			--this effect was created outside of combat, so it should expire immediately.
+			return true
+		end
 		return self.time:RoundsSince() > self.duration
 	end
 

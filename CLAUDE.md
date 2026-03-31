@@ -134,6 +134,8 @@ mod:RegisterDocumentForCheckpointBackups("myDocId")
 ### UI (gui panels)
 UI is built with `gui.Panel(args)`, `gui.Label(args)`, `gui.Input(args)`, etc. Panels are declarative tables with style properties and event callbacks (`click`, `change`, `create`, `think`, `refreshGame`). Panels that need to react to data changes use `monitorstate` or `monitor` fields.
 
+**Important:** When using padding (`hpad`, `vpad`, `pad`), always set `borderBox = true` so that padding is included in the declared width/height rather than added on top. This prevents overflow and matches CSS border-box behavior. See the Spacing section in UI_BEST_PRACTICES.md for details.
+
 See **[UI_BEST_PRACTICES.md](UI_BEST_PRACTICES.md)** for detailed guidelines on building UI (rendering, performance, events, styling, layout, etc.).
 
 ### GoblinScript
@@ -162,7 +164,17 @@ local mySetting = setting{
 
 ## Lua File Constraints
 
-**ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0–127). Never use em dashes (`—`), curly quotes (`""`), ellipses (`…`), or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of `—`, `"` instead of curly quotes, `...` instead of `…`.
+**ASCII only.** The DMHub Lua runtime does not handle non-ASCII characters in source files. All Lua files — including comments and EmmyLua annotations — must contain only ASCII characters (bytes 0-127). Never use em dashes, curly quotes, ellipses, or any other Unicode punctuation. Use plain ASCII equivalents instead: `-` or `:` instead of em dashes, `"` instead of curly quotes, `...` instead of ellipses.
+
+**Forward-declare self-referencing locals.** In Lua, `local x = expr` does not bring `x` into scope until `expr` finishes evaluating. If a closure inside the initializer needs to reference the variable (common with gui panel event handlers like `click`, `change`, `think`), you must split declaration and assignment:
+```lua
+-- WRONG: panelVar is not in scope inside the click handler
+local panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
+
+-- RIGHT: forward-declare, then assign
+local panelVar
+panelVar = gui.Panel{ click = function() panelVar:SetClass("hidden", true) end }
+```
 
 ## Monster Reference Documentation
 

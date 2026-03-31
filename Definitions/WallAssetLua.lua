@@ -24,6 +24,7 @@
 --- @field taper any 
 --- @field parallax any 
 --- @field shadowGlowThickness any 
+--- @field climbable any 
 --- @field solidity any 
 --- @field breakStamina any 
 --- @field rubbleKeyword any 

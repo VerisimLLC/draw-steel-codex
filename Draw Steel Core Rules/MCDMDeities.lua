@@ -650,7 +650,7 @@ function CharacterDomainChoice:FillFeaturesRecursive(choices, result)
     local domainFeatures = self:GetDomainFeatures()
     for _,choiceid in ipairs(choiceidList) do
         for _,f in ipairs(domainFeatures) do
-            if choiceid.guid == choiceid then
+            if f.guid == choiceid then
                 f:FillFeaturesRecursive(choices, result)
             end
         end

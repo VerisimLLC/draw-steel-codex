@@ -293,6 +293,10 @@ function CharacterBuilder.CreatePanel()
             end
         end,
 
+        notifyChangeSound = function(element)
+            audio.FireSoundEvent("Notify.TempStamina_Gain")
+        end,
+
         refreshBuilderState = function(element, state)
             -- We shouldn't do anything here; we fire this event
             -- print("THC:: MAIN:: RBS::", json(state))
@@ -402,7 +406,7 @@ function CharacterBuilder.CreatePanel()
                     message = "Click Confirm to remove your Class and all related selections.",
                     onConfirm = function()
                         hero.classes = {}
-                        for _,attr in pairs(hero:try_get("attributes" or {})) do
+                        for _,attr in pairs(hero:try_get("attributes") or {}) do
                             attr.baseValue = 0
                         end
                         hero.attributeBuild = {}
@@ -673,6 +677,7 @@ function CharacterBuilder.CreatePanel()
         end,
 
         tokenDataChanged = function(element)
+            element:FireEvent("notifyChangeSound")
             local cs = CharacterBuilder._getCharacterSheet()
             if cs then
                 -- The character sheet fires refreshToken which in turn

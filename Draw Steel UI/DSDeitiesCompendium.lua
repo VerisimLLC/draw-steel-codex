@@ -153,6 +153,7 @@ local SetDeity = function(tableName, deityPanel, deityId)
                         currentDeity.domainList = {}
                         break
                     end
+                    goto continue_domain
                 end
                 --
 
@@ -174,6 +175,7 @@ local SetDeity = function(tableName, deityPanel, deityId)
                         end
                     }
                 }
+                ::continue_domain::
             end
 
             element.children = domainChildren

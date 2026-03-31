@@ -2891,22 +2891,6 @@ function CreateTitlescreen(dialog, options)
 
 
 
-                gui.Panel {
-
-                    bgimage = "panels/titlescreen/starttext.png",
-                    bgcolor = "white",
-
-                    valign = "center",
-                    halign = "center",
-                    width = 1648 * 0.5,
-                    height = 192 * 0.5,
-
-
-
-
-
-                },
-
 
 
 

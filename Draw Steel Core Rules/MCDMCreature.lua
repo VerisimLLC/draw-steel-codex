@@ -633,7 +633,7 @@ function creature:MinionDeath()
         return
     end
 
-    if self._tmp_minionSquad.liveMinions > 1 then
+    if (self._tmp_minionSquad.liveMinions or 0) > 1 then
         --we still have more minions so don't remove the captain yet.
         return
     end
@@ -782,7 +782,7 @@ function creature:RefreshSquadInfo(token)
         end
     end
 
-    if self._tmp_minionSquad.tokens[1].charid == token.charid then
+    if self._tmp_minionSquad.tokens[1] ~= nil and self._tmp_minionSquad.tokens[1].charid == token.charid then
         local onCurrentFloor = false
         local curFloor = dmhub.floorid
         for _, tok in ipairs(self._tmp_minionSquad.tokens) do
@@ -2037,43 +2037,99 @@ function creature.ResistanceEntries(self)
         return {}
     end
 
-    local items = {}
+    -- Build a canonical key for an entry based on damageType and keywords.
+    local function entryKey(entry)
+        local parts = {entry:try_get("damageType", "all")}
+        local kws = entry:try_get("keywords")
+        if kws ~= nil then
+            local sorted = {}
+            for kw, _ in pairs(kws) do
+                sorted[#sorted+1] = kw
+            end
+            table.sort(sorted)
+            for _, kw in ipairs(sorted) do
+                parts[#parts+1] = kw
+            end
+        end
+        return table.concat(parts, "|")
+    end
 
-    --handle damage reduction portion.
-    local damageReductionEntries = {}
+    -- For non-stacking entries, keep only the best per (damageType, keywords) group:
+    -- highest immunity (max dr >= 0) and worst weakness (min dr < 0) tracked separately.
+    local stackingEntries = {}
+    -- nonStacking maps key -> {immunity = entry or nil, weakness = entry or nil}
+    local nonStacking = {}
+
     for _, entry in ipairs(entries) do
         if entry.apply == 'Damage Reduction' then
-            local keywordDescription = "Damage"
-
-            if entry:try_get("keywords") ~= nil then
-                for keyword, _ in pairs(entry.keywords) do
-                    local canonical = ActivatedAbility.CanonicalKeyword(keyword)
-                    if keywordDescription == "Damage" then
-                        keywordDescription = canonical
-                    else
-                        keywordDescription = keywordDescription .. "/" .. canonical
+            if entry:try_get("stacks", false) then
+                stackingEntries[#stackingEntries+1] = entry
+            else
+                local key = entryKey(entry)
+                local dr = entry:try_get("dr", 0)
+                if nonStacking[key] == nil then
+                    nonStacking[key] = {}
+                end
+                local group = nonStacking[key]
+                if dr >= 0 then
+                    if group.immunity == nil or dr > group.immunity:try_get("dr", 0) then
+                        group.immunity = entry
+                    end
+                else
+                    if group.weakness == nil or dr < group.weakness:try_get("dr", 0) then
+                        group.weakness = entry
                     end
                 end
             end
-
-            local damageTypeDescription = ""
-
-            if entry:has_key("damageType") and string.lower(entry.damageType) ~= "all" then
-                damageTypeDescription = entry.damageType .. " "
-            end
-
-            --upper case the first character of damage type description.
-            if damageTypeDescription ~= "" then
-                damageTypeDescription = string.upper(string.sub(damageTypeDescription, 1, 1)) ..
-                    string.sub(damageTypeDescription, 2)
-            end
-
-            items[#items + 1] = {
-                text = string.format("%s%s %s %d.", damageTypeDescription, keywordDescription,
-                    cond(entry:try_get("dr", 0) < 0, "weakness", "immunity"), math.abs(entry:try_get("dr", 0))),
-                entry = entry,
-            }
         end
+    end
+
+    -- Collect all entries to format: stacking first, then best non-stacking.
+    local toFormat = {}
+    for _, entry in ipairs(stackingEntries) do
+        toFormat[#toFormat+1] = entry
+    end
+    for _, group in pairs(nonStacking) do
+        if group.immunity ~= nil then
+            toFormat[#toFormat+1] = group.immunity
+        end
+        if group.weakness ~= nil then
+            toFormat[#toFormat+1] = group.weakness
+        end
+    end
+
+    local items = {}
+    for _, entry in ipairs(toFormat) do
+        local keywordDescription = "Damage"
+
+        if entry:try_get("keywords") ~= nil then
+            for keyword, _ in pairs(entry.keywords) do
+                local canonical = ActivatedAbility.CanonicalKeyword(keyword)
+                if keywordDescription == "Damage" then
+                    keywordDescription = canonical
+                else
+                    keywordDescription = keywordDescription .. "/" .. canonical
+                end
+            end
+        end
+
+        local damageTypeDescription = ""
+
+        if entry:has_key("damageType") and string.lower(entry.damageType) ~= "all" then
+            damageTypeDescription = entry.damageType .. " "
+        end
+
+        --upper case the first character of damage type description.
+        if damageTypeDescription ~= "" then
+            damageTypeDescription = string.upper(string.sub(damageTypeDescription, 1, 1)) ..
+                string.sub(damageTypeDescription, 2)
+        end
+
+        items[#items + 1] = {
+            text = string.format("%s%s %s %d.", damageTypeDescription, keywordDescription,
+                cond(entry:try_get("dr", 0) < 0, "weakness", "immunity"), math.abs(entry:try_get("dr", 0))),
+            entry = entry,
+        }
     end
 
     return items
@@ -2288,11 +2344,14 @@ function creature:GetActivatedAbilities(options)
     if options.manualTriggers then
         local triggeredAbilities = self:GetTriggeredAbilities()
         for i, trigger in ipairs(triggeredAbilities) do
-            if trigger.ability:try_get("hasManualVersion", false) and trigger.ability:try_get("mandatory") ~= "local" then
-                --- @type TriggeredAbility
-                local ability = trigger.ability:GenerateManualVersion()
-                result[#result + 1] = ability
+            local ability
+            if trigger.ability.typeName == "ActivatedAbility" then
+                ability = DeepCopy(trigger.ability)
+                ability._tmp_temporaryClone = true
+            elseif trigger.ability:try_get("hasManualVersion", false) and not trigger.ability:IsLocalOnly() then
+                ability = trigger.ability:GenerateManualVersion()
             end
+            result[#result + 1] = ability
         end
     end
 
@@ -3305,6 +3364,7 @@ end
 
 function creature:ShowCharacteristicRollDialog(attrid)
     local attrInfo = creature.attributesInfo[attrid]
+    local title = string.format("%s Test", attrInfo.description)
 
     local rollProperties = RollPropertiesPowerTable.new {
         tiers = {
@@ -3318,24 +3378,85 @@ function creature:ShowCharacteristicRollDialog(attrid)
     local roll = string.format("2d10 + %d", self:GetAttribute(attrid):Modifier())
     local modifiers = self:GetModifiersForPowerRoll(roll, rollType, { attribute = attrid })
 
-    GameHud.instance.rollDialog.data.ShowDialog {
-        title = string.format("%s Test", attrInfo.description),
-        description = string.format("%s Test", attrInfo.description),
-        creature = self,
+    local syntheticAbility = ActivatedAbility.Create{ isTest = true, name = title }
+    local token = dmhub.LookupToken(self)
 
-        type = rollType,
-        roll = roll,
-        modifiers = modifiers,
+    local displaying = false
+    if token ~= nil then
+        displaying = CharacterPanel.DisplayAbility(token, syntheticAbility, nil, {lock = true})
+    end
 
-        rollProperties = rollProperties,
-        PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+    local function ShowRollDialog(dialog)
+        if dialog == nil or not dialog.valid then
+            dialog = GameHud.instance.rollDialog
+        end
+        if not dialog.valid then return end
 
-        completeRoll = function(rollInfo)
-        end,
+        dialog.data.ShowDialog {
+            title = title,
+            description = title,
+            creature = self,
+            ability = syntheticAbility,
 
-        cancelRoll = function()
-        end,
-    }
+            type = rollType,
+            roll = roll,
+            modifiers = modifiers,
+            showDialogDuringRoll = true,
+            amendable = true,
+
+            rollProperties = rollProperties,
+            PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties),
+
+            completeRoll = function(rollInfo)
+                if displaying then
+                    CharacterPanel.HideAbility(syntheticAbility)
+                end
+                if token == nil or token.properties == nil then return end
+
+                local d10Results = {}
+                for _, r in ipairs(rollInfo.rolls or {}) do
+                    if not r.dropped and r.numFaces == 10 then
+                        table.insert(d10Results, r.result)
+                    end
+                end
+                local highroll = 0
+                local lowroll = 0
+                if #d10Results >= 2 then
+                    highroll = math.max(d10Results[1], d10Results[2])
+                    lowroll = math.min(d10Results[1], d10Results[2])
+                end
+
+                local tier = RollUtils.DiceResultToTier(rollInfo)
+
+                token.properties:DispatchEvent("rollpower", {
+                    surges = 0,
+                    tierone = tier == 1,
+                    tiertwo = tier == 2,
+                    tierthree = tier == 3,
+                    naturalroll = rollInfo.naturalRoll,
+                    highroll = highroll,
+                    lowroll = lowroll,
+                    ability = syntheticAbility,
+                })
+            end,
+
+            cancelRoll = function()
+                if displaying then
+                    CharacterPanel.HideAbility(syntheticAbility)
+                end
+            end,
+        }
+    end
+
+    local embeddedDialog = CharacterPanel.EmbedDialogInAbility()
+    if embeddedDialog ~= nil then
+        dmhub.Schedule(0.05, function()
+            if mod.unloaded then return end
+            ShowRollDialog(embeddedDialog)
+        end)
+    else
+        ShowRollDialog(nil)
+    end
 end
 
 --hitpoints handling overridden. We include handling of minions.
@@ -3355,14 +3476,14 @@ function creature.SetCurrentHitpoints(self, amount, note)
     if (not mod.unloaded) and self.minion and self:has_key("_tmp_minionSquad") then
         local token = dmhub.LookupToken(self)
         if token ~= nil then
-            local damage_taken_seq = self._tmp_minionSquad.damage_taken_seq + 1
+            local damage_taken_seq = (self._tmp_minionSquad.damage_taken_seq or 0) + 1
             local damage_taken = self:MaxHitpoints() - amount
             if damage_taken < 0 then
                 damage_taken = 0
             end
 
             local tokenCount = 0
-            for _, tok in ipairs(self._tmp_minionSquad.tokens) do
+            for _, tok in ipairs(self._tmp_minionSquad.tokens or {}) do
                 if tok ~= nil and tok.valid then
                     tokenCount = tokenCount + 1
                 end
@@ -3371,7 +3492,7 @@ function creature.SetCurrentHitpoints(self, amount, note)
             self._tmp_minionSquad.damage_taken = damage_taken
             self._tmp_minionSquad.damage_time_pending = true
 
-            for _, tok in ipairs(self._tmp_minionSquad.tokens) do
+            for _, tok in ipairs(self._tmp_minionSquad.tokens or {}) do
                 if tok ~= nil and tok.valid then
                     tok:ModifyProperties {
                         description = note,
@@ -3577,8 +3698,8 @@ function creature.TakeDamage(self, amount, note, info)
         local attackerClassInfo = nil
         local attackerLabel = "unknown"
         if info.attacker ~= nil and info.attacker ~= self then
-            attackerClassInfo = info.attacker.properties:IsHero() and info.attacker.properties:GetClass() or nil
-            attackerLabel = attackerClassInfo and attackerClassInfo.name or info.attacker.properties:try_get("monster_type", "monster")
+            attackerClassInfo = info.attacker:IsHero() and info.attacker:GetClass() or nil
+            attackerLabel = attackerClassInfo and attackerClassInfo.name or info.attacker:try_get("monster_type", "monster")
         end
         local targetClassInfo = self:IsHero() and self:GetClass() or nil
         local abilityName = nil
@@ -3632,6 +3753,33 @@ function creature.TakeDamage(self, amount, note, info)
         if not isDeadAtStart then
             if self:IsHero() then
                 audio.DispatchSoundEvent("Notify.Status_Dead_Hero", {})
+
+                local heroClass = self:GetClass()
+                local attackerLabel = nil
+                if eventArg.attacker ~= nil then
+                    local aClassInfo = eventArg.attacker:IsHero() and eventArg.attacker:GetClass() or nil
+                    attackerLabel = aClassInfo and aClassInfo.name or eventArg.attacker:try_get("monster_type", "monster")
+                end
+                local abilityName = nil
+                if eventArg.ability ~= nil then
+                    abilityName = eventArg.ability.name
+                end
+                local roundNumber = nil
+                if dmhub.initiativeQueue ~= nil then
+                    roundNumber = dmhub.initiativeQueue.round
+                end
+
+                track("hero_dead", {
+                    class = heroClass and heroClass.name or "unknown",
+                    level = self:try_get("level", 1),
+                    ancestry = self:try_get("ancestry", "unknown"),
+                    damage = eventArg.damage,
+                    damageType = eventArg.damagetype or "untyped",
+                    attacker = attackerLabel,
+                    ability = abilityName,
+                    roundNumber = roundNumber,
+                    dailyLimit = 20,
+                })
             else
                 audio.DispatchSoundEvent("Notify.Status_Dead_Enemy", {})
             end
@@ -3655,6 +3803,7 @@ function creature.TakeDamage(self, amount, note, info)
                 if dmhub.initiativeQueue ~= nil then
                     roundNumber = dmhub.initiativeQueue.round
                 end
+
                 track("hero_down", {
                     class = heroClass and heroClass.name or "unknown",
                     level = self:try_get("level", 1),

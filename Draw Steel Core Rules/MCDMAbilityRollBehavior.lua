@@ -167,7 +167,7 @@ end
 -- Local alias so existing call sites in this file keep working.
 local DiceResultToTier = RollUtils.DiceResultToTier
 
-local g_TierNames = GameSystem.TierNames
+local g_TierNames = {"!", "@", "#"}
 
 ActivatedAbilityPowerRollBehavior.tierNames = g_TierNames
 
@@ -369,7 +369,7 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
 
                     local critEligible = false
-                    if options.ability ~= nil then
+                    if options ~= nil and options.ability ~= nil then
                         critEligible = options.ability:HasKeyword("Strike") or options.ability:IsAction()
                     end
 
@@ -465,7 +465,6 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
 
         local children = {}
         for i=1,#g_TierNames do
-            local tier = g_TierNames[i]
             local tierText = rollProperties.tiers[i]
 
             if caster ~= nil then
@@ -486,6 +485,10 @@ ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom = function(rollPro
                     m_rollInfo:UploadProperties(rollProperties)
 
                     element.parent:FireEventTree("tier", i, true)
+
+                    if options ~= nil and options.onTierOverride ~= nil then
+                        options.onTierOverride(i)
+                    end
                 end,
                 tier = function(element, tierNumber, finish, multitargets)
                     if (not finish) and (not g_animateTiers:Get()) then
@@ -694,6 +697,9 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnCaster = self:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnCaster) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, self, "ability_power_roll", {ability = ability, caster = self, target = targetCreature, attribute = self:try_get("attrid"), skills = {self:try_get("skillid")}})
+        if m == nil then
+            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for ability_power_roll")
+        end
 
         if m ~= nil then
             m.hint = m.modifier:HintModifyPowerRolls(mod, self, "ability_power_roll", {
@@ -701,7 +707,10 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
+                print("TARGETING_LABEL_DEBUG: caster modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
+            else
+                printf("TARGETING_LABEL_DEBUG: caster modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -710,14 +719,21 @@ function creature:DescribeModifiersOnTarget(ability, targetToken)
     local modifiersOnTarget = targetCreature:GetActiveModifiers()
     for _,mod in ipairs(modifiersOnTarget) do
         local m = mod.mod:DescribeModifyPowerRoll(mod, targetCreature, "enemy_ability_power_roll", {ability = ability, caster = self, target = targetCreature})
+        if m == nil then
+            print("TARGETING_LABEL_DEBUG: modifier '" .. mod.mod.name .. "' did not return a description for enemy_ability_power_roll")
+        end
 
         if m ~= nil then
-            m.hint = m.modifier:HintModifyPowerRolls(mod, self, "enemy_ability_power_roll", {
+            m.hint = m.modifier:HintModifyPowerRolls(mod, targetCreature, "enemy_ability_power_roll", {
                 ability = ability,
+                caster = self,
                 target = targetCreature,
             })
             if m.hint ~= nil and m.hint.result then
+                print("TARGETING_LABEL_DEBUG: target modifier '" .. m.modifier.name .. "' hint accepted: hint=" .. tostring(m.hint) .. " result=" .. tostring(m.hint.result) .. " justification=" .. (m.hint.justification and table.concat(m.hint.justification, "; ") or "nil"))
                 result[#result+1] = m
+            else
+                printf("TARGETING_LABEL_DEBUG: target modifier '%s' hint rejected: hint=%s result=%s justification=%s", m.modifier.name, tostring(m.hint), m.hint and tostring(m.hint.result) or "nil", m.hint and table.concat(m.hint.justification or {}, "; ") or "nil")
             end
         end
     end
@@ -1155,11 +1171,17 @@ function ActivatedAbilityPowerRollBehavior:Cast(ability, casterToken, targets, o
         creature = caster,
         targetCreature = appliedTargetCreature,
         symbols = options.symbols,
+        markLineOfSight = options.markLineOfSight,
 
         rollProperties = rollProperties,
 
         PopulateCustom = ActivatedAbilityPowerRollBehavior.GetPowerTablePopulateCustom(rollProperties, caster, {
             ability = ability,
+            onTierOverride = function(tier)
+                if dialog.valid and dialog.data and dialog.data.UpdateArrowLabels then
+                    dialog.data.UpdateArrowLabels()
+                end
+            end,
         }),
 
         rollActive = function(activeRoll)
@@ -1863,10 +1885,10 @@ function ActivatedAbilityPowerRollBehavior:EditorItems(parentPanel)
     for i=1,#g_TierNames do
         local tier = g_TierNames[i]
         rows[#rows+1] = gui.TableRow{
-            gui.Label{ text = tier },
+            gui.Label{ text = tier, fontFace = "DrawSteelGlyphs" },
             gui.Input{
                 text = self.tiers[i],
-                characterLimit = 160,
+                characterLimit = 256,
                 halign = "right",
                 change = function(element)
                     self.tiers[i] = element.text
@@ -2424,10 +2446,10 @@ function RollPropertiesPowerTable:CustomPanel(message)
                     if index == i or (not complete) then
                         m_rows[#m_rows+1] = gui.TableRow{
                             height = "auto",
-                            gui.Label{ text = g_TierNames[i], width = 90, height = "auto", },
+                            gui.Label{ text = g_TierNames[i], fontSize = 30, fontFace = "DrawSteelGlyphs", valign = "center", width = 60, height = 20, },
                             gui.Label{
                                 text = FormatTierText(tier),
-                                width = 240,
+                                width = "100%-60",
                                 height = "auto",
                                 refreshTiers = function(element)
                                     element.text = FormatTierText(self.tiers[i])

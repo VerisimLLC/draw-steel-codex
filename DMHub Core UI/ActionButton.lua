@@ -175,8 +175,8 @@ function gui.ActionButton(options)
     opts.SetValue = function(element, values)
         if not values or type(values) ~= "table" then return end
         if values.text then element:FireEvent("setText", values.text) end
-        if values.available then element.FireEvent("setAvailable", values.available) end
-        if values.selected then element.FireEvent("setSelected", values.selected) end
+        if values.available then element:FireEvent("setAvailable", values.available) end
+        if values.selected then element:FireEvent("setSelected", values.selected) end
     end
 
     opts.GetValue = function(element)
@@ -389,8 +389,8 @@ function gui.SelectorButton(options)
     opts.SetValue = function(element, values)
         if not values or type(values) ~= "table" then return end
         if values.text then element:FireEvent("setText", values.text) end
-        if values.available then element.FireEvent("setAvailable", values.available) end
-        if values.selected then element.FireEvent("setSelected", values.selected) end
+        if values.available then element:FireEvent("setAvailable", values.available) end
+        if values.selected then element:FireEvent("setSelected", values.selected) end
     end
 
     opts.GetValue = function(element)

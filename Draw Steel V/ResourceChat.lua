@@ -6,91 +6,78 @@ function ResourceChatMessage.Render(selfInput, message)
     local m_undone = self.undone
 
     local token = self:GetToken()
+    local resource = self:GetResource()
 
-    if token == nil then
+    if token == nil or resource == nil then
         return nil
     end
 
-    local tokenPanel = gui.CreateTokenImage(token,{
-
-        scale = 0.9,
-        valign = "center",
-        halign = "left",
-
-        interactable = true,
-        hover = gui.Tooltip(token.name),
-
-    })
-
     local resourceIconPanel = gui.Panel{
-
         refreshUndo = function(element)
             element.selfStyle.bgcolor = cond(self.undone, "grey", "white")
         end,
-
-
-        bgimage = self:GetResource().iconid,
-        bgcolor = "white",
-        height = "32",
-        width = "32",
-        valign = "center",
-
-
-
-
-
-    }
-
-    local movementLabel = gui.Label{
-
-        fontSize = 18,
-        minFontSize = 12,
-        width = "auto",
-        height = 20,
-        maxWidth = 220,
-        halign = "center",
-        valign = "bottom",
-        text = string.format(" %s", self.reason),
-
-    }
-
-    local resourceLabel = gui.Label{
-
-        refreshUndo = function(element)
-            element.selfStyle.strikethrough = cond(self.undone, true, false)
-            element.selfStyle.color = cond(self.undone, "grey", "white")
-        end,
-
-        fontSize = 18,
-        width = "auto",
-        height = "auto",
-        halign = "left",
-        text = string.format("%s: %s %d", token.properties:GetResourceName(self:GetResource().id), cond(self.mode == "replenish", tr("gain"), tr("consume")), self.quantity),
-        valign = "center",
-
-    }
-
-    local button = gui.Panel{
-
-        bgimage = "panels/hud/anticlockwise-rotation.png",
+        bgimage = resource.iconid,
         bgcolor = "white",
         height = 20,
         width = 20,
-        halign = "right",
-        floating = true,
+        valign = "center",
+    }
 
+    local resourceLabel = gui.Label{
+        classes = {"action-log-detail"},
+        refreshUndo = function(element)
+            element.selfStyle.strikethrough = cond(self.undone, true, false)
+            element.selfStyle.color = cond(self.undone, "grey", "#cccccc")
+        end,
+        text = string.format("%s: %s %d", token.properties:GetResourceName(resource.id), cond(self.mode == "replenish", tr("gain"), tr("consume")), self.quantity),
+    }
+
+    local reasonLabel = nil
+    if self.reason ~= "" then
+        reasonLabel = gui.Label{
+            classes = {"action-log-subtext"},
+            text = self.reason,
+        }
+    end
+
+    local undoButton = gui.Panel{
+        bgimage = "panels/hud/anticlockwise-rotation.png",
+        bgcolor = "white",
+        height = 16,
+        width = 16,
+        halign = "right",
+        valign = "top",
+        floating = true,
         refreshUndo = function(element)
             element.selfStyle.bgcolor = cond(self.undone, "grey", "white")
         end,
         click = function()
             self:Undo(m_message)
         end,
+    }
 
+    local resourceRow = gui.Panel{
+        width = "100%",
+        height = "auto",
+        flow = "horizontal",
+        resourceIconPanel,
+        gui.Panel{
+            width = 4,
+            height = 1,
+        },
+        resourceLabel,
+    }
+
+    local card = CreateActionLogCard{
+        token = token,
+        content = {resourceRow, reasonLabel, undoButton},
     }
 
     return gui.Panel{
-
         classes = {"chat-message-panel"},
+        flow = "vertical",
+        width = "100%",
+        height = "auto",
 
         refreshMessage = function(element, message)
             m_message = message
@@ -100,67 +87,7 @@ function ResourceChatMessage.Render(selfInput, message)
                 element:FireEventTree("refreshUndo")
             end
         end,
-        
-        flow = "vertical",
-        width = "100%",
-        height = "auto",
 
-        gui.Panel{
-			classes = {'separator'},
-		},
-
-        gui.Panel{
-
-            width = "100%",
-            height = 65,
-            flow = "horizontal",
-
-            tokenPanel,
-            gui.Panel{
-
-                width = "auto",
-                flow = "vertical",
-
-                gui.Panel{
-
-                    width = 270,
-                    height = 25,
-                    halign = "center",
-                    flow = "horizontal",
-
-                    movementLabel,
-                    button,
-
-                },
-
-
-
-                gui.Panel{
-
-                    width = "auto",
-                    height = 35,
-
-                    flow = "horizontal",
-
-                    resourceIconPanel,
-                    resourceLabel,
-
-
-
-                },
-
-        
-
-
-
-            }
-
-
-        },
-
-        
-
-
-
+        card,
     }
 end

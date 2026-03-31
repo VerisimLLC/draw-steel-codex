@@ -115,6 +115,10 @@
 --- @field mouseWheel @return number Returns a positive or negative number if the mousewheel has been moved this frame, based on the direction. Returns 0 if the mousewheel has not been moved this frame.
 --- @field screenDimensions Vector2 (Read-only) The current screen dimensions in pixels as a Vector2 (width, height).
 --- @field screenDimensionsBelowTitlebar Vector2 (Read-only) The screen dimensions in pixels below the title bar as a Vector2 (width, height).
+--- @field cameraPosition Vector2 (Read-only) The camera's center position in world coordinates as a Vector2 (x, y). This is the point in the game world that the camera is looking at.
+--- @field cameraZoom number (Read-only) The camera's orthographic size (half the visible height in world units). Smaller values mean more zoomed in. The full visible height is cameraZoom * 2.
+--- @field cameraBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The visible area of the screen in world coordinates. (x1,y1) is bottom-left, (x2,y2) is top-right.
+--- @field cameraUsableBounds {x1: number, y1: number, x2: number, y2: number} (Read-only) The usable visible area (excluding HUD docks) in world coordinates. This is the 'world' area between the left and right docks.
 --- @field uiVerticalScale number (Read-only) The vertical scale factor of the UI compared to a reference 1920x1080 resolution.
 --- @field uiVerticalScaleBelowTitleBar number (Read-only) The vertical scale factor of the UI below the title bar compared to a reference 1920x1080 resolution.
 --- @field uiscale number (Read-only) the amount the ui is being scaled by horizontally.
@@ -1442,11 +1446,12 @@ function dmhub.ClearSelectedObjects()
 	-- dummy implementation for documentation purposes only
 end
 
---- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them.
+--- GetCoverInfo: Given an attacker and a target, gets information about how much cover exists between them. Optionally pass pierceSurfaces to ignore thin walls.
 --- @param attacker CharacterToken
 --- @param target CharacterToken
+--- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
 --- @return {cover: number, coverModifier: number, description: string}
-function dmhub.GetCoverInfo(attacker, target)
+function dmhub.GetCoverInfo(attacker, target, pierceSurfacesArg)
 	-- dummy implementation for documentation purposes only
 end
 
@@ -1473,11 +1478,13 @@ function dmhub.HighlightLine(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker.
+--- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
+--- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
+--- @param arrowColor string? Arrow color: 'red' (default), 'green', or 'black'.
 --- @return LuaTargetingMarkers
-function dmhub.MarkLineOfSight(attacker, target)
+function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg)
 	-- dummy implementation for documentation purposes only
 end
 

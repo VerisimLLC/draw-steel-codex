@@ -306,7 +306,7 @@ import.Register{
             local function ParseNumericBonus(match, attrid)
                 local numMatch = regex.MatchGroups(match.value, "^\\+?(?<num>[0-9]+)( *per echelon)?$")
                 if numMatch == nil then
-                    import:Log(string.format("Unrecognized %s: %s", match.attrid, match.value))
+                    import:Log(string.format("Unrecognized %s: %s", match.attr, match.value))
                 else
                     rawset(newKit, attrid, tonumber(numMatch.num))
                 end
@@ -323,7 +323,7 @@ import.Register{
                     if damageTypeMatch ~= nil then
                         local damageMatch = regex.MatchGroups(bonusMatch.value, Kit.damageBonusMatchPattern)
                         if damageMatch == nil then
-                            import:Log(string.format("Unrecognized %s: %s", match.attrid, line))
+                            import:Log(string.format("Unrecognized %s: %s", bonusMatch.attr, line))
                         else
                             newKit:DamageBonuses()[string.lower(damageTypeMatch.attr)] = {tonumber(damageMatch.tier1), tonumber(damageMatch.tier2), tonumber(damageMatch.tier3)}
                         end

@@ -6125,7 +6125,7 @@ function TacPanel.AddConditionMenu(args)
         }
     end
 
-    local initialCount = math.min(10, #statusEffectData)
+    local initialCount = math.min(20, #statusEffectData)
     local initialLabels = {}
     for i = 1, initialCount do
         local d = statusEffectData[i]
@@ -6133,33 +6133,28 @@ function TacPanel.AddConditionMenu(args)
     end
 
     local statusExpanded = false
-    local statusContent = gui.Panel{
+    local statusContent
+    statusContent = gui.Panel{
         width = "100%",
         height = "auto",
         flow = "vertical",
+        create = function()
+            if #statusEffectData > initialCount then
+                dmhub.Schedule(0.1, function()
+                    if mod.unloaded or not statusContent.valid then return end
+                    if not statusExpanded then
+                        statusExpanded = true
+                        local allLabels = {}
+                        for i = 1, #statusEffectData do
+                            local d = statusEffectData[i]
+                            allLabels[i] = makeStatusLabel(d.key, d.effect)
+                        end
+                        statusContent.children = allLabels
+                    end
+                end)
+            end
+        end,
     }
-
-    if #statusEffectData > initialCount then
-        local moreButton = gui.Label{
-            classes = {"menu-suboption"},
-            text = "More...",
-            halign = "left",
-            tmargin = 4,
-            lmargin = 8,
-            swallowPress = true,
-            press = function(element)
-                statusExpanded = true
-                local allLabels = {}
-                for i = 1, #statusEffectData do
-                    local d = statusEffectData[i]
-                    allLabels[i] = makeStatusLabel(d.key, d.effect)
-                end
-                statusContent.children = allLabels
-                element:SetClass("collapsed", true)
-            end,
-        }
-        initialLabels[#initialLabels + 1] = moreButton
-    end
 
     statusContent.children = initialLabels
 

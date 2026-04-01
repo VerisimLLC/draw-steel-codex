@@ -1466,11 +1466,18 @@ function CustomDocument.GetOrCreateTabbedViewer()
 
     local refreshTabVisibility
 
+    local tabArrowDisabledStyle = gui.Style {
+        classes = {"tabArrowDisabled"},
+        opacity = 0.3,
+        -- interactable = false,
+    }
+
     local tabScrollLeft = gui.PagingArrow {
         facing = -1,
         height = TAB_BAR_HEIGHT / 2,
         valign = "center",
         halign = "right",
+        styles = {tabArrowDisabledStyle},
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
@@ -1489,6 +1496,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
         valign = "center",
         halign = "right",
         hmargin = 8,
+        styles = {tabArrowDisabledStyle},
         press = function(element)
             local v = element:FindParentWithClass("journalTabbedViewer")
             local tabs = v.data.tabs
@@ -1601,8 +1609,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
             tab.tabButton:SetClass("collapsed", i - 1 < offset or i - 1 >= offset + visibleCount)
         end
 
-        tabScrollLeft:SetClass("hidden", activeIdx <= 1)
-        tabScrollRight:SetClass("hidden", activeIdx >= #tabs or #tabs <= 1)
+        tabScrollLeft:SetClass("tabArrowDisabled", activeIdx <= 1)
+        tabScrollLeft.interactable = activeIdx > 1
+        tabScrollRight:SetClass("tabArrowDisabled", activeIdx >= #tabs or #tabs <= 1)
+        tabScrollRight.interactable = (#tabs > 1 and activeIdx < #tabs)
 
         element.data.visibleCount = visibleCount
     end

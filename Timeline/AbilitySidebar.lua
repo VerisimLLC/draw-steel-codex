@@ -1135,15 +1135,16 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                         panel = triggerInfo:Render { width = 340, valign = "center" }
                         panel:SetClass("hidden", false)
                         panel:SetClass("collapsed", false)
+                    else
+                        --cannot render an active trigger without a display.
+                        return
                     end
                 elseif ability.typeName == "TriggeredAbilityDisplay" then
                     panel = ability:Render { width = 340, valign = "center" }
-                else
-                    if ability.categorization == "Trigger" then
-                        local triggerInfo = token.properties:GetTriggeredActionInfo(ability.name)
-                        if triggerInfo ~= nil then
-                            panel = triggerInfo:Render { width = 340, valign = "center", token = token, ability = ability, symbols = symbols }
-                        end
+                elseif ability.categorization == "Trigger" then
+                    local triggerInfo = token.properties:GetTriggeredActionInfo(ability.name)
+                    if triggerInfo ~= nil then
+                        panel = triggerInfo:Render { width = 340, valign = "center", token = token, ability = ability, symbols = symbols }
                     end
                 end
             end

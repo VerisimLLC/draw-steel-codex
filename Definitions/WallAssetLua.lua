@@ -9,9 +9,9 @@
 --- @field brightness any 
 --- @field contrast any 
 --- @field invisible any 
---- @field visionOneWay any
---- @field visionWidth number Width of wall for vision/lighting occlusion (0 = use centerline).
---- @field movementOneWay any
+--- @field visionOneWay any 
+--- @field visionWidth any 
+--- @field movementOneWay any 
 --- @field occludesVision any 
 --- @field occludesLight any 
 --- @field renderParallax any 

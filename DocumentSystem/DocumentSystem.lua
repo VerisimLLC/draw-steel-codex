@@ -1501,17 +1501,34 @@ function CustomDocument.GetOrCreateTabbedViewer()
         end,
     }
 
+    local closeAllButton = gui.CloseButton {
+        valign = "center",
+        halign = "right",
+        height = 16,
+        width = 16,
+        rmargin = 16,
+        escapePriority = EscapePriority.EXIT_MODAL_DIALOG,
+        click = function(element)
+            local v = element:FindParentWithClass("journalTabbedViewer")
+            v:FireEvent("closeAllTabs")
+        end,
+        linger = function(element)
+            gui.Tooltip("Close all tabs")(element)
+        end,
+    }
+
     local tabButtonsPanel = gui.Panel {
         classes = {"panel", "journalTabBar"},
     }
 
     local tabArrowsPanel = gui.Panel {
-        width = 60,
+        width = 85,
         height = TAB_BAR_HEIGHT,
         halign = "right",
         flow = "horizontal",
         tabScrollLeft,
         tabScrollRight,
+        closeAllButton,
     }
 
     local tabBar = gui.Panel {
@@ -1738,6 +1755,10 @@ function CustomDocument.GetOrCreateTabbedViewer()
                 else
                     refreshTabVisibility(element)
                 end
+
+                if element.data.closeAllPending and #element.data.tabs > 0 then
+                    element:FireEvent("closeAllTabs")
+                end
             end
             tabData.close = tabArgs.close
 
@@ -1774,6 +1795,13 @@ function CustomDocument.GetOrCreateTabbedViewer()
                     tab.contentPanel:FireEvent("closetab")
                     return
                 end
+            end
+        end,
+
+        closeAllTabs = function(element)
+            element.data.closeAllPending = true
+            if element.data.activeTabId then
+                element:FireEvent("closeTab", element.data.activeTabId)
             end
         end,
 
@@ -1862,7 +1890,7 @@ function CustomDocument.GetOrCreateTabbedViewer()
             element:FireEventTree("refreshNavButtons")
         end,
 
-        gui.DialogResizePanel(nil, dialogWidth, dialogHeight),
+        gui.DialogResizePanel({}, dialogWidth, dialogHeight),
 
         innerPanel,
     }

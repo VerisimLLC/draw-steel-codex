@@ -1337,6 +1337,21 @@ Commands.RegisterMacro{
         bestobj:SetAndUploadZOrder(highestzorder + 1)
     end
 
+    local collide = true
+    while collide do
+        collide = false
+        --make sure the target location is unoccupied.
+        for _, token in ipairs(dmhub.allTokens) do
+            local locs = token.locsOccupying
+            for i,loc in ipairs(locs) do
+                if loc.x == targetLoc.x and loc.y == targetLoc.y then
+                    targetLoc.x = targetLoc.x + 1
+                    collide = true
+                    break
+                end
+            end
+        end
+    end
 
 
     if heroType ~= nil then

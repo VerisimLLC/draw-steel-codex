@@ -1148,13 +1148,17 @@ function GameHud:InitAbilityDisplayPanel(abilityDisplayPanel)
                 end
             end
 
-            if panel == nil then
+            if panel == nil and ability.typeName ~= "ActiveTrigger" then
                 needParent = false
                 panel = CreateAbilityTooltip(ability:GetActiveVariation(token),
                     { token = token, symbols = symbols, width = 346, bgcolor = "#222222e9", })
                 --Shwayguy: Entire panel cannot be made non-interactive
                 --Implementation chip hover requires it
                 panel:MakeNonInteractiveRecursive()
+            end
+
+            if panel == nil then
+                return
             end
 
             if needParent then

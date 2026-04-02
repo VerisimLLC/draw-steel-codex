@@ -530,9 +530,9 @@ function CreateSettingsScreen(dialog, args)
                             height = 30,
                             press = function(element)
                                 dmhub.SetSettingValue("backgroundfps", false)
-                                dmhub.SetSettingValue("perf:hdr", true)
                                 dmhub.SetSettingValue("perf:hidefdice", true)
                                 dmhub.SetSettingValue("perf:castshadows", true)
+                                dmhub.SetSettingValue("perf:hdr", true)
                                 local systemPower = dmhub.systemHardwareRating
                                 if systemPower < 1 then
                                     dmhub.SetSettingValue("perf:postprocess", false)

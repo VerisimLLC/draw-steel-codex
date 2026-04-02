@@ -199,7 +199,7 @@ local CalculateStatusIcons = function(token)
 
 				elseif v.Filter ~= nil and v.Filter(token.properties) then
 					local icon = v.icon
-					result[#result+1] = { id = k, icon = icon, style = v.style }
+					result[#result+1] = { id = k, icon = icon, style = v.style, hoverText = v.hoverText }
 				end
 			end
 		end
@@ -880,13 +880,17 @@ TokenHud.RegisterPanel{
 								end
 							end,
 							linger = function(element)
-								if icon.hoverText ~= nil then
-									gui.Tooltip{text = icon.hoverText, valign = "top",}(element)
+								local hoverText = icon.hoverText
+								if type(hoverText) == "function" and token ~= nil and token.valid and token.properties ~= nil then
+									hoverText = hoverText(token.properties)
+								end
+								if hoverText ~= nil then
+									gui.Tooltip{text = hoverText, valign = "top",}(element)
                                 elseif icon.hasAltitude and token ~= nil and token.valid then
                                     local movetype = token.properties:CurrentMoveTypeInfo()
                                     if movetype ~= nil and movetype.verb then
-                                        local hoverText = string.format("%s at altitude %d", movetype.verb, token.floorAltitude)
-									    gui.Tooltip{text = hoverText, valign = "top",}(element)
+                                        local altText = string.format("%s at altitude %d", movetype.verb, token.floorAltitude)
+									    gui.Tooltip{text = altText, valign = "top",}(element)
                                     end
 								end
 							end,

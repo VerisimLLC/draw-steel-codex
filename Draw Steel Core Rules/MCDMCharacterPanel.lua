@@ -131,6 +131,10 @@ TacPanelSizes.HealthBar = {
     statusBoxMargin = 4,
     clearBtnSize = 12,
 }
+TacPanelSizes.HealthIndicator = {
+    outerSize = 24,     -- Temp stam backing icon size
+    innerSize = 12,     -- Health state icon size
+}
 TacPanelSizes.TokenIcon = {
     height = 20,
     width = 20,
@@ -692,26 +696,43 @@ TacPanelStyles.Stamina = {
         bgimage = "panels/square.png",
         bgcolor = "white",
     },
-    {   -- Diamond positioner: floating panel whose width% positions the diamond
-        selectors = {"panel", "health-diamond-positioner"},
+    {   -- Health indicator positioner: floating panel whose width% positions the indicator
+        selectors = {"panel", "health-indicator-positioner"},
         height = TacPanelSizes.HealthBar.segmentHeight,
         halign = "left",
         valign = "top",
         flow = "none",
     },
-    {   -- The diamond itself: rotated square, offset by half its size
-        selectors = {"panel", "health-diamond"},
-        width = TacPanelSizes.HealthBar.diamondSize,
-        height = TacPanelSizes.HealthBar.diamondSize,
+    {   -- Bottom layer: temp stam backing icon, visible only with temp HP
+        selectors = {"panel", "health-indicator-temp"},
+        width = TacPanelSizes.HealthIndicator.outerSize,
+        height = TacPanelSizes.HealthIndicator.outerSize,
         halign = "right",
         valign = "center",
-        bgimage = "panels/square.png",
+        bgimage = "drawsteel/Icon_STA_TempBoost.png",
+        bgcolor = TEMP_STAM,
+        x = TacPanelSizes.HealthIndicator.outerSize / 2,
+    },
+    {   -- Top layer: health state icon (base, always white)
+        selectors = {"panel", "health-indicator-state"},
+        width = TacPanelSizes.HealthIndicator.innerSize,
+        height = TacPanelSizes.HealthIndicator.innerSize,
+        halign = "right",
+        valign = "center",
         bgcolor = "white",
-        x = TacPanelSizes.HealthBar.diamondSize / 2,
+        x = TacPanelSizes.HealthIndicator.innerSize / 2,
     },
     {
-        selectors = {"panel", "health-diamond", "has-temp"},
-        bgcolor = TEMP_STAM,
+        selectors = {"panel", "health-indicator-state", "healthy"},
+        bgimage = "drawsteel/Icon_STA_Healthy.png",
+    },
+    {
+        selectors = {"panel", "health-indicator-state", "winded"},
+        bgimage = "drawsteel/Icon_STA_Winded.png",
+    },
+    {
+        selectors = {"panel", "health-indicator-state", "dying"},
+        bgimage = "drawsteel/Icon_STA_Dying.png",
     },
     {   -- Status box base: outlined box with transparent fill, centered label
         selectors = {"panel", "health-status"},
@@ -2909,16 +2930,20 @@ function TacPanel.HealthBar()
         healthyFill,
     }
 
-    -- Diamond positioned via floating wrapper inside barRow
-    -- local diamond = gui.Panel{
-    --     classes = {"panel", "health-diamond"},
-    --     rotate = 45,
-    -- }
-    -- local diamondPositioner = gui.Panel{
-    --     classes = {"panel", "health-diamond-positioner"},
-    --     floating = true,
-    --     diamond,
-    -- }
+    -- 2-layer health indicator: temp stam backing + health state icon
+    local indicatorTemp = gui.Panel{
+        classes = {"panel", "health-indicator-temp", "collapsed"},
+    }
+    local indicatorState = gui.Panel{
+        classes = {"panel", "health-indicator-state"},
+        floating = true,
+    }
+    local indicatorPositioner = gui.Panel{
+        classes = {"panel", "health-indicator-positioner"},
+        floating = true,
+        indicatorTemp,
+        indicatorState,
+    }
 
     -- Status boxes: appear below bar segment when health is in that range
     local windedStatus = gui.Panel{
@@ -2995,7 +3020,7 @@ function TacPanel.HealthBar()
         dyingColumn,
         windedColumn,
         healthyColumn,
-        -- diamondPositioner,
+        indicatorPositioner,
     }
 
     local function pct(value)
@@ -3052,17 +3077,24 @@ function TacPanel.HealthBar()
             healthyFill.selfStyle.width = healthyRange > 0
                 and pct(healthyHP / healthyRange * 100) or "0%"
 
-            -- Diamond position: percentage across the full bar
+            -- Health indicator position: percentage across the full bar
             local totalRange = maxHP + (isHero and bloodied or 0)
             if totalRange <= 0 then totalRange = 1 end
-            local diamondPct = isHero
+            local indicatorPct = isHero
                 and ((currentHP + bloodied) / totalRange * 100)
                 or (currentHP / totalRange * 100)
-            -- diamondPct = math.max(0, math.min(100, diamondPct))
-            -- diamondPositioner.selfStyle.width = pct(diamondPct)
+            indicatorPct = math.max(0, math.min(100, indicatorPct))
+            indicatorPositioner.selfStyle.width = pct(indicatorPct)
 
-            -- Diamond color: white normally, TEMP_STAM when temp HP > 0
-            -- diamond:SetClass("has-temp", tempHP > 0)
+            -- Temp stam backing: show only when temp HP > 0
+            indicatorTemp:SetClass("collapsed", tempHP <= 0)
+
+            -- Health state icon: set class based on current HP range
+            local inDying = isHero and currentHP <= 0
+            local inWinded = (not inDying) and currentHP <= windedVal
+            indicatorState:SetClass("dying", inDying)
+            indicatorState:SetClass("winded", inWinded and not inDying)
+            indicatorState:SetClass("healthy", not inDying and not inWinded)
 
             -- Status boxes: show when health is in that segment's range (mutually exclusive)
             local inDyingRange = isHero and currentHP <= 0

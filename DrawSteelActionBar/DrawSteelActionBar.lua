@@ -4503,6 +4503,7 @@ CreateAbilityController = function()
                     end
 
                     local locs = g_pointTargeting.shape.locations
+                    if #locs == 0 then return end
                     local point = locs[1].withGroundAltitude.point3
                     local minx = point.x
                     local miny = point.y

@@ -174,9 +174,10 @@ function CharacterSkillChoice:GetSkillFeatures()
         self._tmp_skillFeatures = {}
     end
 
+    local hasFilters = self:HasFilters()
     local skillsTable = dmhub.GetTable(Skill.tableName)
     for k,skill in pairs(skillsTable) do
-        if (not skill:try_get("hidden", false)) and (self.categories[skill.category] or self.individualSkills[k]) then
+        if (not skill:try_get("hidden", false)) and (not hasFilters or self.categories[skill.category] or self.individualSkills[k]) then
             local feature = self._tmp_skillFeatures[skillFeatureIndex] or DeepCopy(MCDMImporter.GetStandardFeature("Skill"))
             skillFeatureIndex = skillFeatureIndex + 1
             feature.id = k

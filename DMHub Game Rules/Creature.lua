@@ -1044,11 +1044,14 @@ function creature:FillCalculatedStatusIcons(result)
 			local conditionInfo = conditionsTable[k]
             if conditionInfo ~= nil then
                 local sourceDescription = v.sourceDescription or ""
+                if sourceDescription ~= "" then
+                    sourceDescription = sourceDescription .. " -- "
+                end
                 local hoverText
                 if conditionInfo.stackable then
-                    hoverText = string.format("%s (%d): %s", conditionInfo.name, v.stacks, sourceDescription)
+                    hoverText = string.format("<b>%s</b> (%d): %s%s", conditionInfo.name, v.stacks, sourceDescription, conditionInfo.description)
                 else
-                    hoverText = string.format("%s: %s", conditionInfo.name, sourceDescription)
+                    hoverText = string.format("<b>%s</b>: %s%s", conditionInfo.name, sourceDescription, conditionInfo.description)
                 end
                 result[#result+1] = {
                     id = k,

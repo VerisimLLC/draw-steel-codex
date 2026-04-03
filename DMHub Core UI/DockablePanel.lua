@@ -922,10 +922,10 @@ CreateDockablePanelTabbedContainer = function(options)
                 index = cond(forceResult, #children+1, #children),
                 tab = false,
             }
-            
+
         end
 
-		local y = beginDragY + yoffset + resultPanel.data.startDragHeight/2
+		local y = beginDragY + yoffset + math.min(resultPanel.data.startDragHeight*0.5, 16)
 
 		local items = {}
 		for i,child in ipairs(children) do
@@ -934,49 +934,42 @@ CreateDockablePanelTabbedContainer = function(options)
 			end
 		end
 
-		local bestIndex = nil
-		local bestDelta = nil
-		local jointab = false
+		-- Zone-based approach: each panel's vertical region is divided into
+		-- three zones that scale with the panel's height:
+		--   Top 25%:    swap above (insert before this panel)
+		--   Middle 50%: tab (merge with this panel)
+		--   Bottom 25%: swap below (insert after this panel)
+		-- The area above all panels and below all panels is swap-only.
 
 		local ypos = 0
-		for i=1,#items+2 do
-			local delta = math.abs(y - ypos)
+		for i, item in ipairs(items) do
+			local itemTop = ypos
+			local itemBottom = ypos + item.data.startDragHeight
+			local tabTop = itemTop + item.data.startDragHeight * 0.25
+			local tabBottom = itemBottom - item.data.startDragHeight * 0.25
 
-			if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-				if bestDelta == nil or delta < bestDelta then
-					bestIndex = i
-					bestDelta = delta
-					jointab = false
-				end
+			if y >= itemTop and y < tabTop then
+				-- Top zone: insert before this panel.
+				return { index = i, tab = false }
+			elseif y >= tabTop and y < tabBottom then
+				-- Middle zone: tab with this panel.
+				return { index = i, tab = true }
+			elseif y >= tabBottom and y < itemBottom then
+				-- Bottom zone: insert after this panel.
+				return { index = i + 1, tab = false }
 			end
 
-			local item = items[i] or items[i-1]
-
-			if item ~= nil then
-				--consider dragging onto this item instead of between items, to make tabs.
-				ypos = ypos + item.data.startDragHeight/2
-				local delta = math.abs(y - ypos)
-				if delta < resultPanel.data.startDragHeight or forceResult then --only consider anything which we are actually overlapping.
-					if bestDelta == nil or delta < bestDelta then
-						bestIndex = i
-						bestDelta = delta
-						jointab = true
-					end
-				end
-
-
-				ypos = ypos + item.data.startDragHeight/2
-			end
+			ypos = itemBottom
 		end
 
-		if bestIndex == nil then
-			return nil
-		else
-			return {
-				index = bestIndex,
-				tab = jointab,
-			}
+		-- Past all panels or before all panels.
+		if y < 0 then
+			return { index = 1, tab = false }
+		elseif forceResult or y < ypos + resultPanel.data.startDragHeight then
+			return { index = #items + 1, tab = false }
 		end
+
+		return nil
 
 	end
 
@@ -1124,8 +1117,17 @@ CreateDockablePanelTabbedContainer = function(options)
 					end
 
 					if bestDrag.tab then
-						if dock ~= nil and (not dock.data.floating) and dock.data.childrenAtDragStart[bestDrag.index] ~= nil then
-							dock.data.childrenAtDragStart[bestDrag.index]:FireEvent("merge", resultPanel)
+						-- Build the same items list as CalculateBestDragPosition
+						-- (childrenAtDragStart minus the panel being dragged).
+						local items = {}
+						for _,child in ipairs(dock.data.childrenAtDragStart) do
+							if child ~= resultPanel then
+								items[#items+1] = child
+							end
+						end
+						local tabTarget = items[bestDrag.index] or items[bestDrag.index - 1]
+						if dock ~= nil and (not dock.data.floating) and tabTarget ~= nil then
+							tabTarget:FireEvent("merge", resultPanel)
 						end
 					else
 

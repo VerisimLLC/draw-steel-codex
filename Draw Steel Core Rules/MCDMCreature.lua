@@ -1202,6 +1202,19 @@ creature.RegisterSymbol {
 }
 
 creature.RegisterSymbol {
+    symbol = "maximumrecoveries",
+    lookup = function(c)
+        return c:GetResources()[CharacterResource.recoveryResourceId] or 0
+    end,
+    help = {
+        name = "Maximum Recoveries",
+        type = "number",
+        desc = "The maximum number of recoveries this creature has.",
+        seealso = { "Recoveries Available to Spend" },
+    }
+}
+
+creature.RegisterSymbol {
     symbol = "dead",
     lookup = function(c)
         return c:IsDead()

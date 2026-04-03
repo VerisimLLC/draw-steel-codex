@@ -4572,7 +4572,102 @@ function ActivatedAbilityForcedMovementBehavior:Cast(ability, casterToken, targe
 	for i,target in ipairs(targetsSorted) do
 		symbols.target = GenerateSymbols(target.properties)
 		local distance = ExecuteGoblinScript(self.distance, casterToken.properties:LookupSymbol(symbols), 0, string.format("Calculate %s distance: %s", self.moveType, ability.name))
-		target:ForcedPush(casterToken, distance*sign)
+
+		-- Convert to squares for modifier math
+		local distanceInSquares = distance / dmhub.unitsPerSquare
+
+		-- Big Versus Little: +1 square if Weapon+Melee and caster larger
+		local adjustments = {}
+		local sizeDifferenceBonus = 0
+		if ability.keywords["Weapon"] and ability.keywords["Melee"] then
+			local casterSize = casterToken.creatureSizeNumber
+			local targetSize = target.properties:CreatureSizeWhenBeingForceMoved()
+			if casterSize > targetSize then
+				sizeDifferenceBonus = 1
+				adjustments[#adjustments+1] = "Big Versus Little: +1"
+			end
+		end
+
+		-- Stability
+		local stability = target.properties:Stability()
+		if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+			stability = 0
+			adjustments[#adjustments+1] = "Ignoring Stability"
+		end
+
+		-- Forced Movement Increase (on target)
+		local forcedMovementIncrease = target.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+		if forcedMovementIncrease > 0 then
+			adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+		end
+
+		-- Forced Movement Bonus (on caster)
+		local forcedMovementBonus = casterToken.properties:ForcedMovementBonus(self.moveType)
+		if forcedMovementBonus > 0 then
+			local describe = casterToken.properties:DescribeForcedMovementBonus(self.moveType)
+			local textItems = {}
+			for _,entry in ipairs(describe) do
+				textItems[#textItems+1] = entry.key
+			end
+			if #textItems > 0 then
+				adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+			end
+		end
+
+		local range = math.max(0, distanceInSquares - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+		if range <= 0 then
+			if stability > 0 then
+				local abilityBase = MCDMUtils.GetStandardAbility("Too Much Stability")
+				if abilityBase then
+					local abilityClone = DeepCopy(abilityBase)
+					abilityClone.recordTargets = true
+					abilityClone.keywords = ability.keywords
+					abilityClone.notooltip = true
+					abilityClone.skippable = true
+					local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+					ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+				end
+			end
+		else
+			if stability > 0 then
+				adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+			end
+
+			local abilityName = "Forced Movement: " .. self.moveType
+			local description = string.format("You may %s the target %d square%s", self.moveType, range, range > 1 and "s" or "")
+
+			local abilityAttr = {
+				name = string.gsub(self.moveType, "^%l", string.upper) .. "!",
+				range = range,
+				description = description,
+				invoker = casterToken.properties,
+				promptOverride = description,
+			}
+
+			if #adjustments > 0 then
+				abilityAttr.promptOverride = abilityAttr.promptOverride .. " (" .. table.concat(adjustments, ", ") .. ")"
+			end
+
+			local abilityClone = DeepCopy(MCDMUtils.GetStandardAbility(abilityName))
+			if abilityClone ~= nil then
+				MCDMUtils.DeepReplace(abilityClone, "<<range>>", string.format("%d", range))
+				for k,v in pairs(abilityAttr) do
+					abilityClone[k] = v
+				end
+
+				abilityClone.recordTargets = true
+				abilityClone.keywords = ability.keywords
+				abilityClone.notooltip = true
+				abilityClone.skippable = true
+
+				local invokeSymbols = { invoker = GenerateSymbols(casterToken.properties), cast = symbols.cast, forcedMovementOrigin = symbols.forcedMovementOrigin }
+				ActivatedAbilityInvokeAbilityBehavior.ExecuteInvoke(casterToken, abilityClone, target, "prompt", invokeSymbols, options)
+			else
+				-- Fallback if standard ability template not found
+				target:ForcedPush(casterToken, range * dmhub.unitsPerSquare * sign)
+			end
+		end
 	end
 end
 

@@ -299,6 +299,61 @@ function ActivatedAbilityInvokeAbilityBehavior:Cast(ability, casterToken, target
                             abilityClone.promptOverride = StringInterpolateGoblinScript(self.promptText, casterToken.properties:LookupSymbol{})
                         end
 
+                        -- Apply forced movement bonuses if this is a forced movement ability
+                        local forcedMovementType = abilityClone:try_get("forcedMovement")
+                        if forcedMovementType ~= nil then
+                            local baseMoveType = string.gsub(forcedMovementType, "^vertical_", "")
+                            local baseRange = abilityClone:GetRange(casterToken.properties) / dmhub.unitsPerSquare
+
+                            local adjustments = {}
+                            local sizeDifferenceBonus = 0
+                            local parentKeywords = ability.keywords or {}
+                            if parentKeywords["Weapon"] and parentKeywords["Melee"] then
+                                local casterSize = casterToken.creatureSizeNumber
+                                local targetSize = target.token.properties:CreatureSizeWhenBeingForceMoved()
+                                if casterSize > targetSize then
+                                    sizeDifferenceBonus = 1
+                                    adjustments[#adjustments+1] = "Big Versus Little: +1"
+                                end
+                            end
+
+                            local stability = target.token.properties:Stability()
+                            if stability ~= 0 and casterToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+                                stability = 0
+                                adjustments[#adjustments+1] = "Ignoring Stability"
+                            end
+
+                            local forcedMovementIncrease = target.token.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+                            if forcedMovementIncrease > 0 then
+                                adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+                            end
+
+                            local forcedMovementBonus = casterToken.properties:ForcedMovementBonus(baseMoveType)
+                            if forcedMovementBonus > 0 then
+                                local describe = casterToken.properties:DescribeForcedMovementBonus(baseMoveType)
+                                local textItems = {}
+                                for _,entry in ipairs(describe) do
+                                    textItems[#textItems+1] = entry.key
+                                end
+                                if #textItems > 0 then
+                                    adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+                                end
+                            end
+
+                            local adjustedRange = math.max(0, baseRange - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+                            if stability > 0 then
+                                adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+                            end
+
+                            abilityClone.range = adjustedRange * dmhub.unitsPerSquare
+                            local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+                            if #adjustments > 0 then
+                                description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
+                            end
+                            abilityClone.promptOverride = description
+                        end
+
                         local autoTarget = self:try_get("autoTarget", true)
                         if autoTarget and not abilityClone:RequiresPromptWhenCast() then
                             abilityClone.castImmediately = true
@@ -877,6 +932,57 @@ function AbilityInvocation:Invoke()
 
 	for k,v in pairs(self:try_get("abilityAttr", {})) do
 		abilityClone[k] = v
+	end
+
+	-- Apply forced movement bonuses if this is a forced movement ability
+	local forcedMovementType = abilityClone:try_get("forcedMovement")
+	if forcedMovementType ~= nil then
+		-- In remote invocations, invokerToken is the pusher and casterToken is the target being moved
+		local pusherToken = invokerToken
+		local targetToken = casterToken
+
+		local baseMoveType = string.gsub(forcedMovementType, "^vertical_", "")
+		local baseRange = abilityClone:GetRange(pusherToken.properties) / dmhub.unitsPerSquare
+
+		local adjustments = {}
+		local sizeDifferenceBonus = 0
+		-- Big Versus Little check
+
+		local stability = targetToken.properties:Stability()
+		if stability ~= 0 and pusherToken.properties:CalculateNamedCustomAttribute("Ignore Stability") > 0 then
+			stability = 0
+			adjustments[#adjustments+1] = "Ignoring Stability"
+		end
+
+		local forcedMovementIncrease = targetToken.properties:CalculateNamedCustomAttribute("Forced Movement Increase")
+		if forcedMovementIncrease > 0 then
+			adjustments[#adjustments+1] = string.format("Forced Movement Increase: +%d", forcedMovementIncrease)
+		end
+
+		local forcedMovementBonus = pusherToken.properties:ForcedMovementBonus(baseMoveType)
+		if forcedMovementBonus > 0 then
+			local describe = pusherToken.properties:DescribeForcedMovementBonus(baseMoveType)
+			local textItems = {}
+			for _,entry in ipairs(describe) do
+				textItems[#textItems+1] = entry.key
+			end
+			if #textItems > 0 then
+				adjustments[#adjustments+1] = string.format("Forced Movement Bonus (%s): +%d", table.concat(textItems, ", "), forcedMovementBonus)
+			end
+		end
+
+		local adjustedRange = math.max(0, baseRange - stability + sizeDifferenceBonus + forcedMovementIncrease + forcedMovementBonus)
+
+		if stability > 0 then
+			adjustments[#adjustments+1] = string.format("Stability: -%d", stability)
+		end
+
+		abilityClone.range = adjustedRange * dmhub.unitsPerSquare
+		local description = string.format("You may %s the target %d square%s", baseMoveType, adjustedRange, adjustedRange > 1 and "s" or "")
+		if #adjustments > 0 then
+			description = description .. " (" .. table.concat(adjustments, ", ") .. ")"
+		end
+		abilityClone.promptOverride = description
 	end
 
 	local options = {

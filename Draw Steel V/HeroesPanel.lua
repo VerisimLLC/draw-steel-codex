@@ -889,47 +889,79 @@ local CreatePlayerPanel = function(userid)
             },
 
             --"NAME" label
-            gui.Label {
-
-                text = "Username",
-                fontFace = "Berling",
-                fontSize = 16,
-                minFontSize = 10,
-                color = "#A29078",
-                textOverflow = "ellipsis",
-                textWrap = false,
-
-                lmargin = -8,
-
-                width = "auto",
-                maxWidth = "90",
+            gui.Panel{
                 height = "100%",
+                width = "auto",
+                maxWidth = 90,
+                flow = "vertical",
 
-                bgimage = true,
-                bgcolor = "clear",
+                gui.Label{
+                    text = "Username",
+                    fontFace = "Berling",
+                    fontSize = 16,
+                    minFontSize = 10,
+                    color = "#A29078",
+                    textOverflow = "ellipsis",
+                    textWrap = false,
 
-                halign = "left",
-                valign = "top",
+                    lmargin = -8,
 
-                flow = "horizontal",
+                    width = "auto",
+                    maxWidth = "90",
+                    height = "60%",
 
-                update = function(element, info)
-                    element.text = info.displayName
-                    local token = nil
-                    if info.primaryCharacter ~= nil then
-                        token = dmhub.GetCharacterById(info.primaryCharacter)
-                    end
+                    bgimage = true,
+                    bgcolor = "clear",
 
-                    if token ~= nil then
-                        element.text = token.name
-                    end
-                    print("info:", info.primaryCharacter)
-                    element.data.info = info
-                end,
+                    halign = "left",
+                    valign = "top",
 
-                hover = function (element)
-                    gui.Tooltip(string.format("%s", element.data.info.displayName))(element)
-                end
+                    flow = "horizontal",
+
+                    update = function(element, info)
+                        element.text = info.displayName
+                        local token = nil
+                        if info.primaryCharacter ~= nil then
+                            token = dmhub.GetCharacterById(info.primaryCharacter)
+                        end
+
+                        if token ~= nil then
+                            element.text = token.name
+                        end
+                        print("info:", info.primaryCharacter)
+                        element.data.info = info
+                    end,
+                },
+
+                gui.Label{
+                    text = "Username",
+                    fontFace = "Berling",
+                    fontSize = 12,
+                    minFontSize = 10,
+                    color = "#A29078",
+                    textOverflow = "ellipsis",
+                    textWrap = false,
+                    bold = true,
+
+                    lmargin = -8,
+
+                    width = "auto",
+                    maxWidth = "90",
+                    height = "40%",
+
+                    bgimage = true,
+                    bgcolor = "clear",
+
+                    halign = "left",
+                    valign = "top",
+
+                    flow = "horizontal",
+
+                    update = function(element, info)
+                        element.text = info.displayName
+                    end,
+                },
+
             },
 
             --divider middle

@@ -1284,7 +1284,6 @@ function ActivatedAbility:CanSelectMoreTargets(casterToken, targets, symbols)
 	if self.sequentialTargeting and #targets == 1 then
 		return false
 	end
-    print("ABILITY::", self.name, "MORE TARGETS =", numTargets, ">", #targets)
 	return numTargets > #targets
 end
 

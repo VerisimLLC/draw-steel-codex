@@ -1787,6 +1787,7 @@ function TacPanel.HeroTokenBox()
                 characterLimit = 2,
                 selectAllOnFocus = true,
                 placeholderText = "--",
+                numeric = true,
                 change = function(element)
                     local token = element.parent.parent.data.token
                     if token == nil then return end
@@ -2565,6 +2566,7 @@ function TacPanel.StaminaBox()
                 characterLimit = 4,
                 selectAllOnFocus = true,
                 placeholderText = "--",
+                numeric = true,
                 data = {
                     token = nil,
                 },

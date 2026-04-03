@@ -128,13 +128,18 @@ SpellRenderStyles = {
         width = '96%',
     },
     gui.Style {
+        classes = { "label", "highlight" },
+        color = 'black',
+    },
+    gui.Style {
         classes = { "abilitySection" },
         bgimage = true,
         bgcolor = "clear",
     },
     gui.Style {
         classes = { "abilitySection", "highlight" },
-        bgcolor = "#6666ff",
+        bgcolor = Styles.Gold03,
+        color = "black",
     },
 
     -- Implementation chip styles
@@ -1465,14 +1470,14 @@ function ActivatedAbility:Render(options, params)
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "target" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
 
@@ -1496,8 +1501,8 @@ function ActivatedAbility:Render(options, params)
                     halign = "left",
                     height = 136 * 0.8,
                     width = 33 * 0.8,
-                    bgimage = mod.images.tabbg,
-                    bgcolor = 'white',
+                    bgimage = ActivatedAbility.TabBGImage(),
+                    bgcolor = Styles.Gold03,
 
                     gui.Label {
                         color = "black",
@@ -1843,14 +1848,14 @@ function ActivatedAbility:Render(options, params)
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "main" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
 
@@ -1885,16 +1890,53 @@ function ActivatedAbility:Render(options, params)
 
                 showAbilitySection = function(element, options)
                     if options.ability.name ~= self.name then
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                         return
                     end
 
                     if options.section == "effects" then
-                        element:SetClass("highlight", true)
+                        element:SetClassTree("highlight", true)
                     else
-                        element:SetClass("highlight", false)
+                        element:SetClassTree("highlight", false)
                     end
                 end,
+
+                --tab panel
+                gui.Panel {
+                    styles = {
+                        {
+                            selectors = { "tab" },
+                            collapsed = 1,
+                        },
+                        {
+                            selectors = { "tab", "parent:highlight" },
+                            collapsed = 0,
+                        }
+                    },
+
+                    classes = { "tab" },
+                    x = -46,
+                    floating = true,
+                    valign = "top",
+                    halign = "left",
+                    height = 136 * 0.8,
+                    width = 33 * 0.8,
+                    bgimage = ActivatedAbility.TabBGImage(),
+                    bgcolor = Styles.Gold03,
+
+                    gui.Label {
+                        color = "black",
+                        width = "auto",
+                        height = "auto",
+                        fontSize = 22,
+                        bold = true,
+                        text = "Effect",
+                        y = -18,
+                        rotate = 90,
+                        halign = "center",
+                        valign = "center",
+                    },
+                },
 
                 gui.DocumentDisplay {
                     text = descriptionString,
@@ -2013,7 +2055,7 @@ function ActivatedAbility:Render(options, params)
             height = 106 * 0.8,
             width = 33 * 0.8,
             bgimage = mod.images.tabbg,
-            bgcolor = 'white',
+            bgcolor = Styles.Gold03,
             embedRollDialog = function(element)
                 element:SetClass("collapsed", true)
             end,

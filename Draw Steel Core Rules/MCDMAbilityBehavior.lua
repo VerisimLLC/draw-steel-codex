@@ -150,6 +150,7 @@ end
 local function ExecuteDamage(behavior, ability, casterToken, targetToken, options, match)
     local damageType = match.type or "untyped"
     local damage = tonumber(match.damage)
+    local isRolledDamage = damage == nil
     
     -- Count how many times (half) appears in the modifiers
     local halfCount = 0
@@ -246,8 +247,8 @@ local function ExecuteDamage(behavior, ability, casterToken, targetToken, option
                 description = "Inflict Damage",
                 undoable = false,
                 execute = function()
-                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast})
-                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage)
+                    result = targetToken.properties:InflictDamageInstance(damage, damageType, ability.keywords, string.format("%s's %s", selfName, ability.name), { criticalhit = false, attacker = attacker, surges = options.surges, ability = ability, hasability = true, cast = options.symbols.cast, hasrolleddamage = isRolledDamage})
+                    options.symbols.cast:CountDamage(targetToken, result.damageDealt, damage, isRolledDamage)
                 end,
             }
         end

@@ -1323,6 +1323,11 @@ TriggeredAbility.RegisterTrigger{
             type = "ability",
             desc = "The ability used.",
         },
+        hasrolleddamage = {
+            name = "hasrolleddamage",
+            type = "boolean",
+            desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
     },
 
     examples = {
@@ -1387,7 +1392,12 @@ TriggeredAbility.RegisterTrigger{
             type = "ability",
             desc = "The ability used to deal the damage. Only valid if HasAbility is true.",
             seealso = {"Ability"},
-        }
+        },
+        {
+            name = "hasrolleddamage",
+            type = "boolean",
+            desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
     }
 }
 
@@ -2804,6 +2814,11 @@ TriggeredAbility.RegisterTrigger{
             type = "ability",
             desc = "The ability used.",
         },
+        hasrolleddamage = {
+            name = "hasrolleddamage",
+            type = "boolean",
+            desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
     },
 
     examples = {
@@ -2868,7 +2883,12 @@ TriggeredAbility.RegisterTrigger{
             type = "ability",
             desc = "The ability used to deal the damage. Only valid if HasAbility is true.",
             seealso = {"Ability"},
-        }
+        },
+        {
+            name = "hasrolleddamage",
+            type = "boolean",
+            desc = "True if the damage came from a dice roll rather than flat damage.",
+        },
     }
 }
 

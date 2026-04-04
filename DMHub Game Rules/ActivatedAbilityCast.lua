@@ -47,6 +47,7 @@ ActivatedAbilityCast.targets = {}
 ActivatedAbilityCast.auraObject = false
 ActivatedAbilityCast.forcedMovementCollision = false
 ActivatedAbilityCast.forcedMovementDamageDealt = 0
+ActivatedAbilityCast.hasRolledDamage = false
 
 --a table of custom memory for this cast.
 ActivatedAbilityCast.memory = false
@@ -555,7 +556,10 @@ function ActivatedAbilityCast:RecordInflictedCondition(conditionid, charid)
     inflictedConditions[conditionid] = list
 end
 
-function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw)
+function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, isRolledDamage)
+	if isRolledDamage then
+		self.hasRolledDamage = true
+	end
 	self.damagedealt = self.damagedealt + damageDealt
 	self.damageraw = self.damageraw + damageRaw
     self._tmp_guid = dmhub.GenerateGuid()

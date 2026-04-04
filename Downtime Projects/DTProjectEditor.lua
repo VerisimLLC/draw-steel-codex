@@ -51,17 +51,30 @@ function DTProjectEditor:_createProjectForm()
             margin = 0,
             hpad = 2,
             borderColor = "yellow",
-        }
+        },
+        gui.Style {
+            selectors = {"DTSelectItemBtn"},
+        },
+        gui.Style {
+            selectors = {"DTSelectItemBtn", "hover"},
+            soundEvent = "Mouse.Hover",
+        },
+        gui.Style {
+            selectors = {"DTSelectItemBtn", "press"},
+            soundEvent = "Mouse.Click",
+        },
     }
 
     -- Select Item button (only if no progress)
     local selectItem = progress == 0 and gui.EnhIconButton {
+        classes = {"DTSelectItemBtn"},
         width = 32,
         height = 32,
         halign = "center",
         valign = "center",
         hoverColor = "#00cc00",
         pressColor = "#008000",
+        hoverCursor = "pressbutton",
         bgimage = mod.images.downtimeProjects,
         data = {
             getProject = function(element)
@@ -135,7 +148,8 @@ function DTProjectEditor:_createProjectForm()
                 height = 32,
                 valign = "center",
                 classes = {"DTInput", "DTBase"},
-                placeholderText = "Enter project title or press the button to the left to select an item to craft.",
+                --placeholderText = "Enter project title or press the button to the left to select an item to craft.",
+                placeholderText = "Press the button to the left to craft an item (fully automated!), or enter project details manually...",
                 editlag = 0.5,
                 data = {
                     getProject = function(element)

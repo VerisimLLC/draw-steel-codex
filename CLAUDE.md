@@ -190,3 +190,7 @@ Key stubs:
 - `game.lua` — the `game` global
 - `GameRules.lua` — `GameRules` global
 - `module.lua` — `module` global for mod management
+
+## Editing Files
+
+Always edit files in the **main copy** of the repository (`C:\draw-steel-codex\`), not in any git worktree under `.claude\worktrees\`. Worktrees are used for isolated agent work only; the user works directly from the main copy.

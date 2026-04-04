@@ -157,7 +157,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
+        if not selfIsTarget and self.range ~= "" then
             --range check.
             local distance = token:Distance(triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then
@@ -295,7 +295,7 @@ CharacterModifier.TypeInfo.powertabletrigger = {
             end
         end
 
-        if not selfIsTarget then
+        if not selfIsTarget and self.range ~= "" then
             --range check.
             local distance = token:Distance(triggerTarget)
             if tonumber(distance) > ExecuteGoblinScript(self.range, token.properties:LookupSymbol{}, 0) then

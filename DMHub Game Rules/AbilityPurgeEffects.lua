@@ -2371,14 +2371,14 @@ function ActivatedAbilityPurgeEffectsBehavior:EditorItems(parentPanel)
 
 
     result[#result+1] = gui.Check{
-        classes = {cond(self.purgeType ~= "chosen", "collapsed")},
+        classes = {cond(self.purgeType ~= "chosen" and self.purgeType ~= "one", "collapsed")},
         text = "Include Prone",
         value = self:try_get("includeProne", false),
         change = function(element)
             self.includeProne = element.value
         end,
         refreshPurge = function(element)
-            element:SetClass("collapsed", self.purgeType ~= "chosen")
+            element:SetClass("collapsed", self.purgeType ~= "chosen" and self.purgeType ~= "one")
         end,
     }
 

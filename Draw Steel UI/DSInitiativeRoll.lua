@@ -1843,9 +1843,9 @@ local function ShowCombatSetupDialog(selectedTokens)
             gui.EnumeratedSliderControl{
                 width = 600,
                 options = {
-                    { id = "heroes", text = "Heroes Win Initiative"},
-                    { id = "roll", text = "Roll for Initiative"},
-                    { id = "monsters", text = "Monsters Win Initiative"},
+                    { id = "heroes", text = "Heroes Win Turn Order"},
+                    { id = "roll", text = "Roll for Turn Order"},
+                    { id = "monsters", text = "Monsters Win Turn Order"},
                 },
 
                 refreshSurprise = function(element)

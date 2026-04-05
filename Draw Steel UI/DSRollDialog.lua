@@ -1539,7 +1539,7 @@ function GameHud.CreateRollDialog(self)
                 }
 
                 local surges = {}
-                for surgeNum = 3, 1, -1 do
+                for surgeNum = ((creature ~= nil) and creature:GetMaxSurgeCount() or 3), 1, -1 do
                     surges[#surges + 1] = gui.Panel {
                         classes = { "icon", "hideWhenMinimized" },
                         textCalculated = function(element, calculationOptions)
@@ -1786,8 +1786,9 @@ function GameHud.CreateRollDialog(self)
                     surgesOverride = surgesOverride - 1
                 end
 
-                if surgesOverride > 3 then
-                    surgesOverride = 3
+                local maxSurges = (creature ~= nil) and creature:GetMaxSurgeCount() or 3
+                if surgesOverride > maxSurges then
+                    surgesOverride = maxSurges
                 end
 
                 local options = m_lastCalculationOptions or {}

@@ -920,6 +920,156 @@ local function CreateTopBar()
             end,
         },
 
+        CreateCodexMenuItem{
+            name = "Bug Reports",
+            menuItems = function()
+                return {
+                    {
+                        text = "How to Report a Bug",
+                        click = function()
+                            gamehud:ModalDialog{
+                                title = "Reporting Bugs",
+                                gui.Panel{
+                                    width = 900,
+                                    height = 500,
+                                    vscroll = true,
+                                    flow = "vertical",
+
+                                    gui.Label{
+                                        width = 860,
+                                        height = "auto",
+                                        fontSize = 20,
+                                        bold = true,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        text = "<b>You will be sent to the Draw Steel Codex Discord where you can report bugs.</b>",
+                                        vmargin = 10,
+                                    },
+
+                                    gui.Label{
+                                        width = 860,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        text = "When you encounter a bug, please follow these steps to make your report as helpful as possible:",
+                                        tmargin = 4,
+                                        bmargin = 8,
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Post each bug as a <b>separate post</b> in the #bug-reports channel (click Proceed to go there). This allows us to triage bugs and ensures they are tracked until fixed.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Check if you can <b>consistently reproduce</b> the bug. If so, post an exact set of steps to reproduce it.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Consider posting a video demonstrating the bug for added clarity.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- If a bug occurs, immediately press <b>~</b> (tilde) to open the Codex error log. Include any error message with your report -- a screenshot is usually sufficient and makes the full log file unnecessary.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- The Codex log file is at <b>C:\\Users\\(your username)\\AppData\\LocalLow\\MCDM\\Codex</b> on Windows (press <b>F1</b> in the Codex to open it in Notepad). On Mac it is at <b>Library/Logs/MCDM/Codex/Player.log</b>. The log can be zipped to reduce size. Note it contains a small amount of personal data, so you may prefer to send it privately to a developer.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- If a bug seems specific to one game, post the <b>game invite code</b>. Doing so implicitly gives permission for Codex developers to enter your game to investigate.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- Please check back on your bug reports in case a developer asks for additional information.",
+                                    },
+
+                                    gui.Label{
+                                        width = 840,
+                                        height = "auto",
+                                        fontSize = 15,
+                                        color = Styles.textColor,
+                                        textWrap = true,
+                                        lmargin = 16,
+                                        vmargin = 4,
+                                        text = "- After a bug is resolved, please re-test and reply to confirm whether it is fixed. If not, include the version number you tested with so we can confirm you received the update.",
+                                    },
+                                },
+                                buttons = {
+                                    {
+                                        text = "Proceed",
+                                        click = function()
+                                            dmhub.OpenURL("https://discord.com/channels/751501320640528396/1294537710702301194")
+                                        end,
+                                    },
+                                    {
+                                        text = "Copy Link",
+                                        click = function()
+                                            dmhub.CopyToClipboard("https://discord.com/channels/751501320640528396/1294537710702301194")
+                                        end,
+                                    },
+                                    {
+                                        text = "Close",
+                                        escapeActivates = true,
+                                    },
+                                },
+                            }
+                        end,
+                    },
+                }
+            end,
+        },
+
         m_presentationBar,
         CreateStatusBar(),
         m_searchBar,

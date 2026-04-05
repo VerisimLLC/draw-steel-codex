@@ -67,7 +67,8 @@ for i, cond in ipairs(Aura.TriggerConditions) do
 end
 
 Aura.objectid = "none"
-Aura.iconid = "ui-icons/skills/1.png"
+Aura.iconid = "drawsteel/ability/aura_burst_icon.png"
+Aura.hasCustomIcon = true
 Aura.canrelocate = false
 Aura.relocateResource = "standardAction"
 Aura.relocateRange = 30

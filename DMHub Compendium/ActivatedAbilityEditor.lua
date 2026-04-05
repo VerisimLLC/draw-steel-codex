@@ -2381,8 +2381,6 @@ function ActivatedAbility:TargetTypeEditor()
 				refreshAbility = function(element)
 					if self.targetType == 'line' then
 						element.text = 'Width:'
-					elseif self.targetType == 'cube' then
-						element.text = 'Edge:'
 					else
 						element.text = 'Radius:'
 					end

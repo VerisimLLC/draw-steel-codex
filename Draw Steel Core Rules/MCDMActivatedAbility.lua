@@ -1288,17 +1288,15 @@ function ActivatedAbility:Render(options, params)
                                 end,
 
                                 hover = function(element)
-                                    local text = [[An ability's implementation status indicates how fully the ability's rules work automatically in the Codex.
+                                    local text = [[<b>Gold:</b> Fully automated.
 
-<b>Gold:</b> This ability works automatically in the Codex.
+<b>Silver:</b> Automated with some table adjudication necessary.
 
-<b>Silver:</b> This ability's main features work, but may require some Director or Player intervention to function fully.
+<b>Bronze:</b> Partially automated.
 
-<b>Bronze:</b> This ability has basic functionality, but its special features will require Director or Player intervention.
+<b>Unimplemented:</b> Requires manual adjudication.
 
-<b>Unimplemented:</b> This ability's text is displayed in the Codex, but will require the Director or Player to manually make its mechanics work.
-
-<b>Narrative:</b> This ability is a narrative ability that Players and Directors should role play at appropriate moments during gameplay.
+<b>Narrative:</b> Role play only, no automation.
 ]]
                                     if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
                                         text = text .. "\n\n" .. "<b>Notes:</b> " .. self:try_get("implementationDetails")

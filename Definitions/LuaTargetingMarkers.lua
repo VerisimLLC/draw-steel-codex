@@ -7,7 +7,7 @@ function LuaTargetingMarkers:AdoptIntoCoroutine()
 	-- dummy implementation for documentation purposes only
 end
 
---- AddLabel: Add a floating text label to the targeting arrow. Category can be 'buff' (green), 'debuff' (red), or 'neutral' (white, default). Call multiple times for multiple labels.
+--- AddLabel: Add a floating text label to the targeting arrow. Category can be 'buff' (blue, up-arrow icon), 'debuff' (red, down-arrow icon), 'forbidden' (red, X icon), 'result' (dark), or 'neutral' (white, default). Call multiple times for multiple labels.
 --- @param text string
 --- @param category? string
 function LuaTargetingMarkers:AddLabel(text, category)

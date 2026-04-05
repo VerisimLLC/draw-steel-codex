@@ -338,9 +338,7 @@ function ActivatedAbility:GetIcon()
         for _,behavior in ipairs(self.behaviors or {}) do
             if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
                 local movementType = behavior.movementType or "teleport"
-                if movementType == "jump" then
-                    return "drawsteel/ability/Jump.png"
-                elseif movementType == "shift" then
+                if movementType == "shift" then
                     return "drawsteel/ability/move_shift.png"
                 else
                     return "drawsteel/ability/move.png"

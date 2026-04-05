@@ -770,7 +770,8 @@ function GameHud.CreateEmbeddedRollDialog()
             nottierone = m_rollInfo.nottierone,
             nottierthree = m_rollInfo.nottierthree,
         }
-        local tier = (targetRollProps and targetRollProps:try_get("overrideTier"))
+        local tier = (rollProperties and rollProperties:try_get("overrideTier"))
+                     or (targetRollProps and targetRollProps:try_get("overrideTier"))
                      or RollUtils.DiceResultToTier(tierRollInfo)
 
         -- Get the power table text from this target's rollProperties.
@@ -3537,6 +3538,16 @@ function GameHud.CreateEmbeddedRollDialog()
         end
 
         resultPanel:FireEventTree("recalculatedMultiTargets", m_multitargets, rollProperties)
+
+        -- Now that every target's rollProperties/boons/banes have been updated
+        -- for the current modifier set, refresh all targeting-ray labels using
+        -- the fresh per-target data. Individual UpdateCurrentTargetArrowLabel
+        -- calls made during the loop above read target.boons/banes that are
+        -- written only at the end of each iteration, so the labels would
+        -- otherwise lag one modifier-toggle behind.
+        if resultPanel.valid and resultPanel:HasClass("finishedRolling") then
+            UpdateArrowLabelsWithTierResults()
+        end
 
         if needReroll then
             rollAgainButton:FireEvent("press")

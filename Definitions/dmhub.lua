@@ -1478,13 +1478,14 @@ function dmhub.HighlightLine(options)
 	-- dummy implementation for documentation purposes only
 end
 
---- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed).
+--- MarkLineOfSight: Mark the line of sight between the attacker and target on the map. Call Destroy() on the returned reference to clear the marker. Optionally pass pierceSurfaces to ignore thin walls. arrowColor sets the arrow color: 'red' (enemies), 'green' (allies), 'black' (mixed). maxRange greys out the portion of the arrow past the range boundary (in tile units).
 --- @param attacker CharacterToken
 --- @param target CharacterToken
 --- @param pierceSurfaces number? Optional number of thin wall surfaces (thickness <= 1 square) to ignore.
 --- @param arrowColor string? Arrow color: 'red' (default), 'green', or 'black'.
+--- @param maxRange number? Optional max range in tile units. If the target is beyond this distance, the portion of the arrow past the range boundary is greyed out.
 --- @return LuaTargetingMarkers
-function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg)
+function dmhub.MarkLineOfSight(attacker, target, pierceSurfacesArg, arrowColorArg, maxRangeArg)
 	-- dummy implementation for documentation purposes only
 end
 

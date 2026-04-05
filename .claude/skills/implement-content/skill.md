@@ -85,6 +85,11 @@ Floating text that says "Artifact Appears" is not automation -- it's a sticky no
   in the game engine, not what text appears on screen.
 - **"Implementation: 0" or "implementation: 2" markers** in the YAML indicate the original
   author already flagged this as unimplemented or partially implemented. Respect those flags.
+- **`effectImplemented` is DEPRECATED and must be completely ignored.** Do NOT read it, set
+  it, or reference it in any YAML output. Use the `implementation` field exclusively
+  (0 = unimplemented, 1 = narrative, 2 = partial, 3 = full). If you encounter
+  `effectImplemented` in existing YAML, ignore it -- the `implementation` field is
+  authoritative.
 - **Assess benefit AND drawback separately.** A complication with a fully automated drawback
   but a text-only benefit (or vice versa) is at best SILVER, not GOLD.
 - **Conditional modifiers count as automated** only if the condition can actually be evaluated

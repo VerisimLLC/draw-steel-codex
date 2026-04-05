@@ -925,6 +925,7 @@ function ShowRequireRollDialog(args)
 
 	g_requireRollDialog = gui.Panel{
 		id = 'require-roll-dialog',
+        classes = {"framedPanel"},
 
 		destroy = function(element)
 			if g_requireRollDialog == element then

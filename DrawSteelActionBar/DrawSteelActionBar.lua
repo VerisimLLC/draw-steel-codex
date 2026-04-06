@@ -1820,7 +1820,7 @@ ActionMenu = function()
         end,
 
         hideability = function(element, ability)
-            if m_showingAbility == ability then
+            if m_showingAbility == ability or (m_showingAbility and ability and m_showingAbility.typeName == "ActiveTrigger" and ability.typeName == "ActiveTrigger" and m_showingAbility.id == ability.id) then
                 CharacterPanel.HideAbility(m_showingAbility)
                 m_showingAbility = false
             end
@@ -2435,6 +2435,16 @@ local g_castChargesInput = nil
 local g_shifting = true
 
 local function CreateShiftController()
+
+
+    local m_label = gui.Label {
+        fontSize = 14,
+        width = "auto",
+        height = "auto",
+        text = "You are shifting. You can choose to move normally instead.",
+        vmargin = 2,
+    }
+
     local resultPanel
     local slider = gui.EnumeratedSliderControl {
         halign = "center",
@@ -2446,6 +2456,15 @@ local function CreateShiftController()
         },
         value = g_shifting,
         beginCasting = function(element)
+
+            if g_token ~= nil and (g_token.properties:CalculateNamedCustomAttribute("Shift Disabled") or 0) > 0 then
+                g_currentSymbols.shiftingOverride = false
+                element.value = false
+                m_label.text = "<color=#ff0000><b>You cannot shift.</b></color> You may move normally instead."
+                return
+            end
+
+            m_label.text = "You are shifting. You can choose to move normally instead."
             element.value = true
         end,
         change = function(element)
@@ -2465,13 +2484,8 @@ local function CreateShiftController()
         blurBackground = true,
         pad = 4,
 
-        gui.Label {
-            fontSize = 14,
-            width = "auto",
-            height = "auto",
-            text = "You are shifting. You can choose to move normally instead.",
-            vmargin = 2,
-        },
+        m_label,
+
         slider,
     }
     return resultPanel

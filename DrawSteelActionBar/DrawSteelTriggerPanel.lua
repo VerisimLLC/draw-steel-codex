@@ -838,10 +838,13 @@ mod.shared.CreateTriggerPanel = function()
 										end,
 									}
 
-                                    print("TRIGGER:: DISMISS =", dismiss)
                                     if dismiss then
                                         triggerPanel:SetClass("collapsed", true)
-                                        print("TRIGGER:: COLLAPSE")
+                                    end
+
+                                    local menu = element:FindParentWithClass("customActionBar")
+                                    if menu ~= nil then
+                                        menu:FireEventTree("hideability", trigger)
                                     end
                                 end,
 

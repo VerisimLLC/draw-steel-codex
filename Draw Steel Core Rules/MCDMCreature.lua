@@ -3660,7 +3660,7 @@ function creature.TakeDamage(self, amount, note, info)
     if info.damagetype == "collide" then
         local forcedMovementCast = self:try_get("_tmp_forcedMovementCast")
         if forcedMovementCast ~= nil then
-            forcedMovementCast:CountForcedMovementDamage(amount)
+            forcedMovementCast:CountForcedMovementDamage(amount, self)
         end
     end
 

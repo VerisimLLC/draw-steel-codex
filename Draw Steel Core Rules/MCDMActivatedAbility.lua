@@ -506,7 +506,7 @@ function ActivatedAbility:AbilityTypeDescription()
 end
 
 function ActivatedAbility.TabBGImage()
-    return mod.images.tabbg
+    return "drawsteel/power_roll_tab.png"
 end
 
 function ActivatedAbility:Render(options, params)
@@ -1280,22 +1280,41 @@ function ActivatedAbility:Render(options, params)
 
                                 flow = "horizontal",
                                 lmargin = 10,
+                                bgimage = true,
+                                bgcolor = "clear",
+
+                                create = function(element)
+                                    element.interactable = true
+                                end,
 
                                 hover = function(element)
+                                    local text = [[<b>Gold:</b> Fully automated.
+
+<b>Silver:</b> Automated with some table adjudication necessary.
+
+<b>Bronze:</b> Partially automated.
+
+<b>Unimplemented:</b> Requires manual adjudication.
+
+<b>Narrative:</b> Role play only, no automation.
+]]
                                     if self:try_get("implementationDetails") ~= nil and self:try_get("implementationDetails") ~= "" then
-                                        element.tooltip = gui.TooltipFrame(gui.Label {
-                                            text = self:try_get("implementationDetails"),
-                                            width = 300,
-                                            height = "auto",
-                                            wrap = true,
-                                            fontSize = 14,
-                                        }, {})
+                                        text = text .. "\n\n" .. "<b>Notes:</b> " .. self:try_get("implementationDetails")
                                     end
+
+                                    element.tooltip = gui.TooltipFrame(gui.Label {
+                                        text = text,
+                                        width = 300,
+                                        height = "auto",
+                                        wrap = true,
+                                        fontSize = 14,
+                                    }, {})
                                 end,
 
                                 gui.Panel {
 
                                     classes = { "implementationDiamond" },
+                                    rotate = 45,
 
                                     width = 10,
                                     height = 10,

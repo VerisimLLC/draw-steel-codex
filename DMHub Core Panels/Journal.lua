@@ -435,6 +435,7 @@ CreateFolderContentsPanel = function(journalPanel, folderid)
         dragTargetPriority = 1,
         classes = { "contentPanel" },
         x = 0,
+        lmargin = 8,
 
         expand = function(element)
             if m_invalidated then

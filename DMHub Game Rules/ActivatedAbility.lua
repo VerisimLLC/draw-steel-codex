@@ -338,9 +338,7 @@ function ActivatedAbility:GetIcon()
         for _,behavior in ipairs(self.behaviors or {}) do
             if behavior.typeName == "ActivatedAbilityRelocateCreatureBehavior" then
                 local movementType = behavior.movementType or "teleport"
-                if movementType == "jump" then
-                    return "drawsteel/ability/Jump.png"
-                elseif movementType == "shift" then
+                if movementType == "shift" then
                     return "drawsteel/ability/move_shift.png"
                 else
                     return "drawsteel/ability/move.png"
@@ -2818,10 +2816,24 @@ function ActivatedAbility.CastCoroutine(self, casterToken, targets, options)
                     if castInfo:has_key("tokenToTier") and type(castInfo.tokenToTier) == "table" then
                         tier = castInfo.tokenToTier[targetToken.charid] or 0
                     end
+                    -- For minion squad attacks, use the specific minion assigned to this target
+                    local attackerProperties = casterToken.properties
+                    if options.symbols.targetPairs ~= nil then
+                        for _, pair in ipairs(options.symbols.targetPairs) do
+                            if pair.b == targetToken.charid then
+                                local attackerToken = dmhub.GetTokenById(pair.a)
+                                if attackerToken ~= nil and attackerToken.valid then
+                                    attackerProperties = attackerToken.properties
+                                end
+                                break
+                            end
+                        end
+                    end
+
                     targetToken.properties:TriggerEvent("attacked", {
                         outcome = tier,
                         roll = castInfo:try_get("total", 0),
-                        attacker = GenerateSymbols(casterToken.properties),
+                        attacker = GenerateSymbols(attackerProperties),
                     })
                 end
 			end

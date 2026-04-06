@@ -47,6 +47,7 @@ ActivatedAbilityCast.targets = {}
 ActivatedAbilityCast.auraObject = false
 ActivatedAbilityCast.forcedMovementCollision = false
 ActivatedAbilityCast.forcedMovementDamageDealt = 0
+ActivatedAbilityCast.forcedMovementDamageDealtTarget = 0
 ActivatedAbilityCast.hasRolledDamage = false
 
 --a table of custom memory for this cast.
@@ -250,6 +251,13 @@ ActivatedAbilityCast.helpSymbols = {
         type = "number",
         desc = "The amount of damage dealt by forced movement collisions while using this ability.",
         examples = {"Forced Movement Damage Dealt > 0"},
+    },
+
+    forcedmovementdamagedealttarget = {
+        name = "Forced Movement Damage Dealt to Targets",
+        type = "number",
+        desc = "The amount of damage dealt by forced movement collisions to creatures targeted by this ability.",
+        examples = {"Forced Movement Damage Dealt to Targets > 0"},
     },
 }
 
@@ -483,6 +491,10 @@ ActivatedAbilityCast.lookupSymbols = {
     forcedmovementdamagedealt = function(c)
         return c.forcedMovementDamageDealt
     end,
+
+    forcedmovementdamagedealttarget = function(c)
+        return c.forcedMovementDamageDealtTarget
+    end,
 }
 
 --- @param tokenid string
@@ -572,8 +584,19 @@ function ActivatedAbilityCast:CountDamage(targetToken, damageDealt, damageRaw, i
 	self.damageTable[targetToken.charid].raw = self.damageTable[targetToken.charid].raw + damageRaw
 end
 
-function ActivatedAbilityCast:CountForcedMovementDamage(damageDealt)
+function ActivatedAbilityCast:CountForcedMovementDamage(damageDealt, creature)
 	self.forcedMovementDamageDealt = self.forcedMovementDamageDealt + damageDealt
+	if creature ~= nil then
+		local tok = dmhub.LookupToken(creature)
+		if tok ~= nil then
+			for _,t in ipairs(self.targets) do
+				if t.token ~= nil and t.token.charid == tok.charid then
+					self.forcedMovementDamageDealtTarget = self.forcedMovementDamageDealtTarget + damageDealt
+					break
+				end
+			end
+		end
+	end
 end
 
 function ActivatedAbilityCast:AddParam(args)

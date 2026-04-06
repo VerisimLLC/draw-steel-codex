@@ -64,6 +64,12 @@ local function MakeTriggerSymbolObject(triggerInfo)
 end
 
 
+local function ReplaceBehaviorToEnum(mode)
+    if mode == false then return "after" end
+    if mode == true then return "before" end
+    return mode
+end
+
 
 --Register new trigger modifier types
 local triggerModifierOptionsById = {}
@@ -848,4 +854,94 @@ function creature:ClearAvailableTrigger(triggerInfo)
         end
     end
     g_baseClearAvailableTrigger(self, triggerInfo)
+end
+
+-- Hook TriggeredAbility:Trigger to apply behavior replacements from
+-- active modifytrigger modifiers before the trigger executes.
+local g_baseTriggerAbilityTrigger = TriggeredAbility.Trigger
+function TriggeredAbility:Trigger(characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
+    local triggerSelf = self
+    if creature ~= nil then
+        local mods = creature:GetActiveModifiers()
+        for _, modEntry in ipairs(mods) do
+            local modifier = modEntry.mod
+            if modifier.behavior == "modifytrigger" and modifier:has_key("ability") and #modifier.ability.behaviors > 0 then
+                if modifier:PassesFilter(creature) then
+                    -- Evaluate trigger condition if present.
+                    local shouldApply = true
+                    local condition = modifier:try_get("triggerCondition", "")
+                    if condition ~= "" then
+                        local triggerObj = {
+                            lookupSymbols = g_triggerLookupSymbols,
+                            _name = self.name or "",
+                            _text = self.name or "",
+                            _rules = self:try_get("description", ""),
+                            _free = self:ActionResource() ~= CharacterResource.triggerResourceId,
+                        }
+                        local symTable = {
+                            trigger = GenerateSymbols(triggerObj),
+                        }
+                        local result = ExecuteGoblinScript(condition, creature:LookupSymbol(symTable), 0, "Modify Trigger behavior condition")
+                        if not GoblinScriptTrue(result) then
+                            shouldApply = false
+                        end
+                    end
+
+                    if shouldApply then
+                        -- Clone only once so we don't mutate the original.
+                        if triggerSelf == self then
+                            triggerSelf = self:MakeTemporaryClone()
+                        end
+
+                        local replacementMode = ReplaceBehaviorToEnum(modifier:try_get("replaceBehaviors", "after"))
+
+                        -- Collect modifier behaviors into a plain list first,
+                        -- since the ability may come from a data table entry.
+                        local modBehaviors = {}
+                        for i, behavior in ipairs(modifier.ability.behaviors) do
+                            modBehaviors[#modBehaviors + 1] = behavior
+                        end
+
+                        printf("MODIFY TRIGGER: mode=%s, modifier behaviors=%d, trigger behaviors=%d, trigger=%s", replacementMode, #modBehaviors, #triggerSelf.behaviors, self.name or "?")
+
+                        local atend = {}
+                        if replacementMode == "before" then
+                            for i, b in ipairs(triggerSelf.behaviors) do
+                                atend[#atend + 1] = b
+                            end
+                            triggerSelf.behaviors = {}
+                        elseif replacementMode == "replaceAll" then
+                            triggerSelf.behaviors = {}
+                        end
+
+                        local nstarting = #triggerSelf.behaviors
+                        for _, behavior in ipairs(modBehaviors) do
+                            local replaced = false
+                            if replacementMode == "replace" then
+                                for j = 1, nstarting do
+                                    if triggerSelf.behaviors[j].typeName == behavior.typeName then
+                                        triggerSelf.behaviors[j] = DeepCopy(behavior)
+                                        replaced = true
+                                        break
+                                    end
+                                end
+                            end
+
+                            if not replaced then
+                                triggerSelf.behaviors[#triggerSelf.behaviors + 1] = DeepCopy(behavior)
+                            end
+                        end
+
+                        for _, b in ipairs(atend) do
+                            triggerSelf.behaviors[#triggerSelf.behaviors + 1] = b
+                        end
+
+                        printf("MODIFY TRIGGER: final behaviors=%d", #triggerSelf.behaviors)
+                    end
+                end
+            end
+        end
+    end
+
+    return g_baseTriggerAbilityTrigger(triggerSelf, characterModifier, creature, symbols, auraControllerToken, modContext, argOptions)
 end

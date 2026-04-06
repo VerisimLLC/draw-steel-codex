@@ -4971,7 +4971,7 @@ end
 function creature:FillBaseActiveModifiers(result)
 	local modTable = GetTableCached(GlobalRuleMod.TableName) or {}
 	local globalFeatures = {}
-    local isretainer = self:try_get("_tmp_retainer") or false
+    local isretainer = self:IsRetainer()
 	local ismonster = (not isretainer) and self:IsMonster()
 	local ischaracter = self.typeName == "character"
     local iscompanion = self.typeName == "AnimalCompanion"

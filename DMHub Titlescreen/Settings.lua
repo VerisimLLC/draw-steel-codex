@@ -2357,6 +2357,17 @@ setting{
 }
 
 setting{
+	id = "walls:indestructible",
+	description = "Indestructible Walls",
+	help = "When enabled, forced movement cannot break through walls, regardless of their solidity.",
+	classes = {"dmonly"},
+	section = "Game",
+	default = false,
+	storage = "game",
+	editor = "check",
+}
+
+setting{
 	id = "ignorebroadcastmouse",
 	description = "Hide Other Player's Cursors",
 	section = "General",

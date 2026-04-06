@@ -2076,14 +2076,19 @@ local function GetArrowColor(ability, sourceToken, targetToken)
     return "black"
 end
 
-local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability)
+local function AddModifierLabelsToMarker(markers, sourceToken, targetToken, ability, range)
     if markers == nil or ability == nil or sourceToken == nil or targetToken == nil then
         return
     end
 
     local pierceWalls = sourceToken.properties:GetPierceWalls()
     if sourceToken:GetLineOfSight(targetToken, pierceWalls) == 0 then
-        markers:AddLabel("No Line of Sight", "debuff")
+        markers:AddLabel("No Line of Sight", "forbidden")
+        return
+    end
+
+    if range ~= nil and targetToken:Distance(sourceToken) > range + dmhub.unitsPerSquare then
+        markers:AddLabel("Out of Range", "forbidden")
         return
     end
 
@@ -2122,15 +2127,16 @@ end
 
 ---@param rays table<{a: Token, b: Token}>[]
 ---@param ability ActivatedAbility|nil
-local function ReplaceTargetLineOfSightRays(rays, ability)
+---@param range number|nil
+local function ReplaceTargetLineOfSightRays(rays, ability, range)
     local t = {}
     for i, ray in ipairs(rays) do
         local key = string.format("%s-%s", ray.a.id, ray.b.id)
         if m_targetLineOfSightRays[key] ~= nil then
             t[key] = m_targetLineOfSightRays[key]
         else
-            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b))
-            AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability)
+            t[key] = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(ability, ray.a, ray.b), range)
+            AddModifierLabelsToMarker(t[key], ray.a, ray.b, ability, range)
         end
         m_targetLineOfSightRays[key] = nil
     end
@@ -3897,8 +3903,8 @@ CreateAbilityController = function()
                 --new one to highlight and maintain any existing ones.
                 for _, ray in ipairs(rays) do
                     if ray.b.id == targetToken.id and m_targetLineOfSightRays[string.format("%s-%s", ray.a.id, ray.b.id)] == nil then
-                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b))
-                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility)
+                        m_markLineOfSight = dmhub.MarkLineOfSight(ray.a, ray.b, ray.a.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, ray.a, ray.b), range)
+                        AddModifierLabelsToMarker(m_markLineOfSight, ray.a, ray.b, g_currentAbility, range)
                         m_markLineOfSightToken = targetToken
                         m_markLineOfSightSourceToken = g_token
                         break
@@ -3906,9 +3912,9 @@ CreateAbilityController = function()
                 end
             else
                 --we just target from the source to the target.
-                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken))
+                m_markLineOfSight = dmhub.MarkLineOfSight(g_token, targetToken, g_token.properties:GetPierceWalls(), GetArrowColor(g_currentAbility, g_token, targetToken), range)
                 if m_markLineOfSight ~= nil then
-                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility)
+                    AddModifierLabelsToMarker(m_markLineOfSight, g_token, targetToken, g_currentAbility, range)
                     m_markLineOfSightToken = targetToken
                     m_markLineOfSightSourceToken = g_token
                 end
@@ -4515,6 +4521,9 @@ CreateAbilityController = function()
                     end
 
                     local locs = g_pointTargeting.shape.locations
+                    if locs == nil or #locs == 0 then
+                        locs = { { withGroundAltitude = { point3 = point } } }
+                    end
                     local point = locs[1].withGroundAltitude.point3
                     local minx = point.x
                     local miny = point.y
@@ -4994,7 +5003,12 @@ local function CalculateSpellTargetFocusing(symbols)
                         end
 
                         targetToken.sheet.data.targetInfo = g_targetInfo
-                        targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = failReason })
+                        --out-of-range is shown as an arrow label instead of a token tooltip.
+                        local tooltipReason = failReason
+                        if tooltipReason ~= nil and string.starts_with(tooltipReason, "Out of range") then
+                            tooltipReason = nil
+                        end
+                        targetToken.sheet:FireEvent('target', { valid = valid, classes = classes, reason = tooltipReason })
 
                         potentialTargetTokens[#potentialTargetTokens + 1] = targetToken
                     end
@@ -5029,7 +5043,7 @@ CalculateSpellTargeting = function(forceCast, initialSetup)
         --if this spell dictates specific targeting rays to use.
         local rays = g_currentAbility:GetTargetingRays(g_token, range, g_currentSymbols, targets)
         if rays ~= nil then
-            ReplaceTargetLineOfSightRays(rays, g_currentAbility)
+            ReplaceTargetLineOfSightRays(rays, g_currentAbility, range)
 
             --record the targeting as symbols.
             local targetPairs = {}

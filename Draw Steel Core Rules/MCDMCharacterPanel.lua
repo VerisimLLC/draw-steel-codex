@@ -4583,9 +4583,126 @@ function TacPanel.Routines()
     }
 end
 
+local g_heroicResourceDisplays = {}
+
+function TacPanel.RegisterHeroicResourceDisplay(entry)
+    g_heroicResourceDisplays[entry.id] = entry
+end
+
+TacPanel.RegisterHeroicResourceDisplay{
+    id = "victories",
+    create = TacPanel.VictoriesBox,
+    ord = 0,
+}
+
+TacPanel.RegisterHeroicResourceDisplay{
+    id = "heroic",
+    create = TacPanel.HeroicResourcesBox,
+    ord = 1,
+}
+
+TacPanel.RegisterHeroicResourceDisplay{
+    id = "acolyte-debt",
+    ord = 0.5,
+    create = function()
+        local EPIC_ID = CharacterResource.epicResourceId
+        return gui.Panel{
+            styles = TacPanelStyles.TokenBox,
+            classes = {"tokenbox", "heroic-resources"},
+            data = { token = nil },
+
+            refreshCharacter = function(element, token)
+                element.data.token = token
+                local isAcolyte = Acolyte and Acolyte.IsAcolyte and Acolyte.IsAcolyte(token.properties)
+                element:SetClass("collapsed", not isAcolyte)
+            end,
+
+            refreshToken = function(element, token)
+                element:FireEvent("refreshCharacter", token)
+            end,
+
+            linger = function(element)
+                local token = element.data.token
+                if token == nil then return end
+                element.tooltip = gui.StatsHistoryTooltip{
+                    description = "Debt",
+                    entries = token.properties:GetStatHistory(EPIC_ID):GetHistory(),
+                }
+            end,
+
+            -- Row 1: title
+            gui.Label{
+                classes = {"tokenbox", "title", "heroic-resources"},
+                text = "DEBT",
+            },
+
+            -- Row 2: icon & value
+            gui.Panel{
+                classes = {"container"},
+                halign = "center",
+                flow = "horizontal",
+                gui.Panel{
+                    classes = {"icon", "heroic-resources"},
+                    selfStyle = {
+                        bgimage = "drawsteel/HeroicResources/T_UI_ICON_FLAT_HR_PIETY.png",
+                        brightness = 0.6,
+                    },
+                },
+                gui.Input{
+                    classes = {"tokenbox", "value", "heroic-resources"},
+                    text = "0",
+                    characterLimit = 3,
+                    selectAllOnFocus = true,
+                    placeholderText = "--",
+                    data = { token = nil },
+                    refreshCharacter = function(element, token)
+                        element.data.token = token
+                        element.textNoNotify = tostring(token.properties:GetEpicResources())
+                    end,
+                    refreshToken = function(element, token)
+                        element:FireEvent("refreshCharacter", token)
+                    end,
+                    change = function(element)
+                        local token = element.data.token
+                        if token == nil then return end
+                        local n = tonum(element.text, nil)
+                        if n == nil or n < 0 then
+                            element:FireEvent("refreshCharacter", token)
+                            return
+                        end
+                        local currentDebt = token.properties:GetEpicResources()
+                        local diff = n - currentDebt
+                        if diff ~= 0 then
+                            token:ModifyProperties{
+                                description = "Change Debt",
+                                execute = function()
+                                    token.properties:AddUnboundedResource(EPIC_ID, diff, "Manually set")
+                                end,
+                            }
+                        end
+                        element.textNoNotify = tostring(token.properties:GetEpicResources())
+                    end,
+                },
+            },
+        }
+    end,
+}
+
 --- Display the heroic resources info
 --- @return Panel
 function TacPanel.HeroicResources()
+
+    local displays = {}
+    for id, entry in pairs(g_heroicResourceDisplays) do
+        local pane = entry.create()
+        pane.data.ord = entry.ord or 0
+        displays[#displays + 1] = pane
+    end
+
+    table.sort(displays, function (a, b)
+        return (a.data.ord or 0) < (b.data.ord or 0)
+    end)
+
     return TacPanel.CollapsiblePanel{
         sectionId = "heroicresources",
         classes = {"collapsed"},
@@ -4617,8 +4734,7 @@ function TacPanel.HeroicResources()
                 halign = "left",
                 valign = "top",
                 flow = "vertical",
-                TacPanel.VictoriesBox(),
-                TacPanel.HeroicResourcesBox(),
+                children = displays,
             },
             gui.Panel{
                 styles = TacPanelStyles.HeroicResources,
